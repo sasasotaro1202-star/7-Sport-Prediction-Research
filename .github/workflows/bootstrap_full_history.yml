@@ -63,6 +63,9 @@ jobs:
           --full-history
           --days-back ${{ inputs.days_back }}
           ${{ inputs.reset_state && '--reset-state' || '' }}
+      - name: Add deep ATP/WTA historical foundation
+        if: matrix.sport == 'tennis'
+        run: python -m src.tennis_bulk_backfill --start-year 1990 --end-year 2026 --timeout 45
       - name: Reconstruct verified outcomes
         run: python -m src.outcome_backfill
       - name: Run strict PIT research cycle
