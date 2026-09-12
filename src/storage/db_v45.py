@@ -92,9 +92,25 @@ CREATE INDEX IF NOT EXISTS idx_avail_event_cutoff ON availability(event_id,cutof
 CREATE INDEX IF NOT EXISTS idx_pit_event_cutoff ON pit_feature_snapshot(event_id,cutoff_at_utc);
 CREATE INDEX IF NOT EXISTS idx_outcome_sport_status ON event_outcome(sport,outcome_status);
 '''
+
+def _migrate(con):
+    migrations = {
+        'event': {
+            'source_count': 'INTEGER DEFAULT 0',
+        },
+    }
+    for table, fields in migrations.items():
+        existing = {r[1] for r in con.execute(f'PRAGMA table_info({table})')}
+        for name, definition in fields.items():
+            if name not in existing:
+                con.execute(f'ALTER TABLE {table} ADD COLUMN {name} {definition}')
+    con.commit()
+
 def connect():
- DB_PATH.parent.mkdir(parents=True,exist_ok=True)
- con=sqlite3.connect(DB_PATH)
- con.executescript(SCHEMA)
- return con
+    DB_PATH.parent.mkdir(parents=True,exist_ok=True)
+    con=sqlite3.connect(DB_PATH)
+    con.executescript(SCHEMA)
+    _migrate(con)
+    return con
+
 def utcnow(): return datetime.now(timezone.utc).isoformat()
