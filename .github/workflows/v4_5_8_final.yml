@@ -5,8 +5,11 @@ on:
   schedule:
     - cron: "17 * * * *"
 
+# Share the same writer lock as the bootstrap workflow. This prevents an
+# hourly run from racing a long historical bootstrap while retaining 7-way
+# parallel collection inside each run.
 concurrency:
-  group: seven-sport-hourly
+  group: seven-sport-main-writer
   cancel-in-progress: false
 
 permissions:
@@ -61,7 +64,10 @@ jobs:
             echo "collector attempt ${attempt} failed; retrying"
             sleep $((attempt * 3))
           done
-          exit $rc
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning::${{ matrix.sport }} incremental collection failed; preserving existing/partial state"
+          fi
+          exit 0
       - name: Validate collected partition
         if: always()
         continue-on-error: true
@@ -132,6 +138,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data results models
           git diff --cached --quiet || git commit -m "chore: update seven-sport research data"
+          git pull --rebase --autostash origin main
           git push
       - uses: actions/upload-artifact@v4
         if: always()
