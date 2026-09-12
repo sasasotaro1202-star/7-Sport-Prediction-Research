@@ -1,0 +1,70 @@
+name: Seven Sport Production Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'requirements.txt'
+      - '.github/workflows/**'
+
+concurrency:
+  group: seven-sport-smoke
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+jobs:
+  smoke:
+    name: Smoke ${{ matrix.sport }}
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix:
+        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile all source
+        run: python -m compileall -q src
+      - name: Initialize canonical schema
+        run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close(); print('schema-ok')"
+      - name: Run guarded incremental collector
+        continue-on-error: true
+        env:
+          V45_HTTP_TIMEOUT: '8'
+          V45_HTTP_RETRIES: '1'
+          V45_REQUEST_DELAY: '0.01'
+          V45_HTTP_WORKERS: '6'
+          V45_VLR_PAGES: '2'
+        run: |
+          set +e
+          python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 1
+          rc=$?
+          echo "collector_exit=$rc" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+      - name: Run collection guard
+        run: python -m src.collection_guard --sport ${{ matrix.sport }}
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.sport }}-${{ github.run_id }}
+          path: |
+            data/db/sports_v45.sqlite
+            results/**
+          if-no-files-found: warn
