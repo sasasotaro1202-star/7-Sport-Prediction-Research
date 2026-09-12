@@ -1,0 +1,48 @@
+name: Seven Sport Bootstrap Full History
+
+on:
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: 'Historical window in days'
+        required: true
+        default: '3650'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    strategy:
+      fail-fast: false
+      matrix:
+        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - name: Full historical collection
+        run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back ${{ inputs.days_back }}
+      - name: Quality gate
+        run: python -m src.quality_gate --strict
+      - name: Persist data
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data results
+          git diff --cached --quiet || git commit -m "chore: bootstrap ${{ matrix.sport }} historical data"
+          git push
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bootstrap-${{ matrix.sport }}
+          path: |
+            results/**
+            data/**
+          if-no-files-found: warn
