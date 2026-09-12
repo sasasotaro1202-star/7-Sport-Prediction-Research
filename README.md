@@ -42,7 +42,7 @@ Seven independent prediction/research engines sharing one provenance-first data 
 ### Initial full history
 `bootstrap_full_history.yml` is manual and runs all seven sports in parallel. It defaults to 3650 days. Collection is checkpoint-aware so a timeout/failure does not require throwing away all previous progress.
 
-GitHub Actions dependency/source caching is used only as a performance optimization; the pipeline remains reproducible because source snapshots and provenance stay in the project data layer. GitHub documents cache reuse as appropriate for expensive-to-regenerate intermediate data. citeturn0search0turn0search2
+GitHub Actions dependency/source caching is used only as a performance optimization; source snapshots and provenance stay in the project data layer.
 
 ## What is still treated as incomplete
 A successful collector execution is **not** a claim of complete world-wide historical coverage. Some sources still need deeper sport-specific adapters, especially detailed historical stats, roster/availability publication timestamps, and exact source-availability timestamps. Models are therefore trained only when the verified PIT/outcome sample satisfies the minimum data requirements.
