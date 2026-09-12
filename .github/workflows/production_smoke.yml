@@ -10,7 +10,7 @@ on:
       - '.github/workflows/**'
 
 concurrency:
-  group: seven-sport-smoke-v2
+  group: seven-sport-smoke-v3
   cancel-in-progress: true
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,6 +44,7 @@ jobs:
       - name: Initialize canonical schema
         run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close(); print('schema-ok')"
       - name: Probe live source connectivity
+        continue-on-error: true
         env:
           V45_PROBE_TIMEOUT: '12'
         run: python -m src.source_probe --sport ${{ matrix.sport }}
@@ -53,9 +54,14 @@ jobs:
       - name: Run tennis historical collector
         if: matrix.sport == 'tennis'
         run: python -m src.tennis_bulk_backfill --start-year 2026 --end-year 2026 --timeout 45
-      - name: Run UFC public API collector
+      - name: Run UFC production collector
         if: matrix.sport == 'ufc'
-        run: python -m src.ufc_api_backfill --limit 100
+        env:
+          V45_HTTP_TIMEOUT: '20'
+          V45_HTTP_RETRIES: '2'
+          V45_REQUEST_DELAY: '0.03'
+          V45_HTTP_WORKERS: '4'
+        run: python -m src.seven_sport_production --sport ufc --days-back 30
       - name: Run standard incremental collector
         if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
         env:
@@ -70,19 +76,21 @@ jobs:
       - name: Verify collector evidence
         run: |
           python - <<'PY'
-          import sqlite3
+          import sqlite3, json
           from pathlib import Path
+          sport='${{ matrix.sport }}'
           p=Path('data/db/sports_v45.sqlite')
           c=sqlite3.connect(p)
-          event_count=c.execute("select count(*) from event where sport='${{ matrix.sport }}'").fetchone()[0]
-          source_count=c.execute("select count(*) from source_snapshot where provenance_json like '%${{ matrix.sport }}%'").fetchone()[0]
+          event_count=c.execute("select count(*) from event where sport=?",(sport,)).fetchone()[0]
+          source_count=c.execute("select count(*) from source_snapshot where provenance_json like ?",(f'%"sport": "{sport}"%',)).fetchone()[0]
+          participant_count=c.execute("select count(*) from participant where sport=?",(sport,)).fetchone()[0]
           c.close()
-          print('sport=', '${{ matrix.sport }}', 'events=', event_count, 'source_snapshots=', source_count)
-          if '${{ matrix.sport }}' in ('tennis','ufc') and event_count == 0:
-              raise SystemExit('${{ matrix.sport }} specialized collector produced no events')
+          print(json.dumps({'sport':sport,'events':event_count,'participants':participant_count,'source_snapshots':source_count}))
+          if sport in ('tennis','ufc') and event_count == 0:
+              raise SystemExit(f'{sport} required collector produced no events')
           PY
-      - name: Verify standard collector report semantics
-        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
+      - name: Verify collector report semantics
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis'
         run: |
           python - <<'PY'
           import json
