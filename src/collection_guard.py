@@ -7,6 +7,24 @@ DB=ROOT/'data/db/sports_v45.sqlite'
 SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
 
 
+def source_count_for_sport(c, sport):
+    cols={r[1] for r in c.execute('PRAGMA table_info(source_snapshot)')}
+    if 'sport' in cols:
+        return c.execute('SELECT COUNT(*) FROM source_snapshot WHERE sport=?',(sport,)).fetchone()[0]
+    if 'provenance_json' not in cols:
+        return 0
+    count=0
+    for (payload,) in c.execute('SELECT provenance_json FROM source_snapshot'):
+        if not payload:
+            continue
+        try:
+            if json.loads(payload).get('sport')==sport:
+                count += 1
+        except Exception:
+            continue
+    return count
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--sport',choices=SPORTS,required=True)
@@ -16,7 +34,7 @@ def main():
     else:
         c=sqlite3.connect(DB)
         events=c.execute('SELECT COUNT(*) FROM event WHERE sport=?',(a.sport,)).fetchone()[0]
-        sources=c.execute('SELECT COUNT(*) FROM source_snapshot WHERE sport=?',(a.sport,)).fetchone()[0]
+        sources=source_count_for_sport(c,a.sport)
         timed=c.execute('SELECT COUNT(*) FROM event WHERE sport=? AND event_time_utc IS NOT NULL',(a.sport,)).fetchone()[0]
         participants=c.execute('SELECT COUNT(*) FROM participant WHERE sport=?',(a.sport,)).fetchone()[0]
         c.close()
@@ -30,8 +48,6 @@ def main():
     p=ROOT/'results/v45'; p.mkdir(parents=True,exist_ok=True)
     (p/f'collection_guard_{a.sport}.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False,indent=2))
-    # Data availability is recorded as evidence, not treated as a runner failure.
-    # Strict quality decisions remain the responsibility of quality_gate.py.
     raise SystemExit(0)
 
 if __name__=='__main__': main()
