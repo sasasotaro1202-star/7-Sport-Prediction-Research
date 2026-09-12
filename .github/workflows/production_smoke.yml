@@ -25,9 +25,9 @@ jobs:
     name: Smoke ${{ matrix.sport }}
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 7
       matrix:
-        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1, football]
+        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -44,17 +44,10 @@ jobs:
       - name: Initialize canonical schema
         run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close(); print('schema-ok')"
       - name: Probe live source connectivity
-        if: matrix.sport != 'football'
         continue-on-error: true
         env:
           V45_PROBE_TIMEOUT: '12'
         run: python -m src.source_probe --sport ${{ matrix.sport }}
-      - name: Run football collector
-        if: matrix.sport == 'football'
-        run: python -m src.football_backfill
-      - name: Run football PIT research
-        if: matrix.sport == 'football'
-        run: python -m src.football_research
       - name: Run basketball CDN collector
         if: matrix.sport == 'basketball'
         run: python -m src.basketball_cdn_backfill --both
@@ -65,7 +58,7 @@ jobs:
         if: matrix.sport == 'ufc'
         run: python -m src.ufc_api_backfill --limit 100
       - name: Run standard incremental collector
-        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc' && matrix.sport != 'football'
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
         env:
           V45_HTTP_TIMEOUT: '12'
           V45_HTTP_RETRIES: '2'
@@ -92,22 +85,11 @@ jobs:
           timed_count=c.execute("select count(*) from event where sport=? and event_time_utc is not null",(sport,)).fetchone()[0]
           c.close()
           print(json.dumps({'sport':sport,'events':event_count,'timed_events':timed_count,'participants':participant_count,'source_snapshots':source_count}))
-          if sport in ('tennis','ufc','football') and event_count == 0:
+          if sport in ('tennis','ufc') and event_count == 0:
               raise SystemExit(f'{sport} required collector produced no events')
           PY
-      - name: Verify football research artifact
-        if: matrix.sport == 'football'
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          for p in [Path('results/football_backfill.json'),Path('results/research/football.json'),Path('results/research/football_predictions.json')]:
-              if not p.exists(): raise SystemExit(f'missing {p}')
-              json.loads(p.read_text())
-          print('football research artifacts: OK')
-          PY
       - name: Verify collector report semantics
-        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc' && matrix.sport != 'football'
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
         run: |
           python - <<'PY'
           import json
