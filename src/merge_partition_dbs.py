@@ -8,50 +8,44 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = ROOT / "data/db/sports_v45.sqlite"
 TABLES = (
-    "source_snapshot",
-    "event",
-    "participant",
-    "team",
-    "event_participant",
-    "participant_history",
-    "team_history",
-    "match_stats",
-    "availability",
-    "pit_replay",
-    "pit_feature_snapshot",
-    "model_state_snapshot",
-    "replay_audit",
+    "source_snapshot", "event", "participant", "team", "event_participant",
+    "participant_history", "team_history", "match_stats", "availability",
+    "pit_replay", "pit_feature_snapshot", "model_state_snapshot", "replay_audit",
 )
 
 
-def tables(con: sqlite3.Connection) -> set[str]:
-    return {
-        r[0]
-        for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    }
+def table_names(con: sqlite3.Connection) -> set[str]:
+    return {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
 
 
-def merge_one(target: sqlite3.Connection, source_path: Path, idx: int) -> dict[str, int]:
+def columns(con: sqlite3.Connection, schema: str, table: str) -> list[str]:
+    return [r[1] for r in con.execute(f'PRAGMA {schema}.table_info("{table}")')]
+
+
+def merge_one(target: sqlite3.Connection, source_path: Path, idx: int) -> None:
     alias = f"src{idx}"
     target.execute(f"ATTACH DATABASE ? AS {alias}", (str(source_path),))
-    source_tables = tables(target.execute(f"SELECT 1 FROM {alias}.sqlite_master LIMIT 0") if False else sqlite3.connect(source_path))
-    # Re-open metadata connection above only for a small schema check.
-    target.connection  # keep linters quiet on older sqlite wrappers
-    counts: dict[str, int] = {}
+    source_tables = {r[0] for r in target.execute(f"SELECT name FROM {alias}.sqlite_master WHERE type='table'")}
+    target_tables = table_names(target)
+
     for table in TABLES:
         if table not in source_tables:
             continue
-        cols = [r[1] for r in target.execute(f"PRAGMA table_info({table})")]
-        if not cols:
+        if table not in target_tables:
+            # Clone the source table's columns so a partially older DB can still be merged.
+            target.execute(f'CREATE TABLE main."{table}" AS SELECT * FROM {alias}."{table}" WHERE 0')
+            target_tables.add(table)
+        src_cols = columns(target, alias, table)
+        dst_cols = columns(target, "main", table)
+        common = [c for c in src_cols if c in dst_cols]
+        if not common:
             continue
-        col_sql = ",".join(f'"{c}"' for c in cols)
+        col_sql = ",".join(f'"{c}"' for c in common)
         target.execute(
             f'INSERT OR REPLACE INTO main."{table}" ({col_sql}) '
             f'SELECT {col_sql} FROM {alias}."{table}"'
         )
-        counts[table] = target.execute(f'SELECT changes()').fetchone()[0]
     target.execute(f"DETACH DATABASE {alias}")
-    return counts
 
 
 def main() -> None:
@@ -69,20 +63,15 @@ def main() -> None:
     if not out.exists():
         shutil.copy2(inputs[0], out)
         inputs = inputs[1:]
-        if not inputs:
-            print(f"Initialized database from {out}")
-            return
 
     con = sqlite3.connect(out)
     con.execute("PRAGMA foreign_keys=OFF")
-    merged = 0
     for i, path in enumerate(inputs, start=1):
         merge_one(con, path, i)
-        merged += 1
     con.commit()
     con.execute("VACUUM")
     con.close()
-    print(f"Merged {merged} partition database(s) into {out}")
+    print(f"Merged {len(inputs) + 1} partition database(s) into {out}")
 
 
 if __name__ == "__main__":
