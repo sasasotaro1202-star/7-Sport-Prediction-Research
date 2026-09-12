@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "primary_target_accuracy": 0.80,
+  "target_definition": "out_of_sample_accuracy",
+  "scope": "all_seven_sports_and_each_supported_prediction_market",
+  "evaluation": {
+    "method": "chronological_walk_forward_oos",
+    "no_random_train_test_split": true,
+    "primary_probability_metrics": ["logloss", "brier", "ece"],
+    "accuracy_is_required_but_not_sufficient": true,
+    "minimum_oos_observations": 20
+  },
+  "adoption_policy": {
+    "target_80_percent_is_a_goal_not_a_forced_result": true,
+    "never_inflate_accuracy_with_future_information": true,
+    "never_create_synthetic_training_records": true,
+    "never_lower_quality_gates_to_reach_80_percent": true,
+    "only_adopt_challenger_if_oos_improves_and_quality_gates_pass": true
+  },
+  "reporting": {
+    "report_accuracy": true,
+    "report_accuracy_gap_to_target": true,
+    "report_sample_size": true,
+    "report_market_specific_accuracy": true,
+    "report_calibration_and_probability_metrics": true
+  }
+}
