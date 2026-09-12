@@ -33,7 +33,13 @@ def fast_build_rows(c,sport):
             for stat in cols:
                 vals=[]
                 for prev_et,effective,source_available,_sid,value in grouped.get((pid,stat),[]):
+                    # Strict default PIT cutoff: event time minus 60 minutes.
                     if prev_et>=et or effective>et or source_available>et: continue
+                    # Compare against the actual cutoff, not event time. ISO timestamps are UTC.
+                    from datetime import datetime, timedelta, timezone
+                    try: cutoff=(datetime.fromisoformat(et.replace('Z','+00:00'))-timedelta(minutes=60)).astimezone(timezone.utc).isoformat()
+                    except Exception: continue
+                    if effective>cutoff or source_available>cutoff: continue
                     vals.append(value)
                     if len(vals)==20: break
                 x=np.asarray(vals,dtype=float); feat[f'{side}__{stat}__n']=float(len(x)); feat[f'{side}__{stat}__mean']=float(x.mean()) if len(x) else np.nan; feat[f'{side}__{stat}__last']=float(x[0]) if len(x) else np.nan; feat[f'{side}__{stat}__std']=float(x.std()) if len(x)>1 else np.nan; feat[f'{side}__{stat}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
