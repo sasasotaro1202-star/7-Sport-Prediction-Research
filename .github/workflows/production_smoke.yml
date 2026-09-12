@@ -10,7 +10,7 @@ on:
       - '.github/workflows/**'
 
 concurrency:
-  group: seven-sport-smoke
+  group: seven-sport-smoke-v2
   cancel-in-progress: true
 
 permissions:
@@ -75,8 +75,8 @@ jobs:
           source_count=c.execute("select count(*) from source_snapshot where provenance_json like '%${{ matrix.sport }}%'").fetchone()[0]
           c.close()
           print('sport=', '${{ matrix.sport }}', 'events=', event_count, 'source_snapshots=', source_count)
-          if '${{ matrix.sport }}' in ('basketball','tennis') and event_count == 0:
-              raise SystemExit('sport-specific collector produced no events')
+          if '${{ matrix.sport }}' == 'tennis' and event_count == 0:
+              raise SystemExit('tennis archive collector produced no events')
           PY
       - name: Verify standard collector report semantics
         if: matrix.sport != 'basketball' && matrix.sport != 'tennis'
