@@ -16,6 +16,10 @@ concurrency:
   group: seven-sport-bootstrap
   cancel-in-progress: false
 
+env:
+  PYTHONUNBUFFERED: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
 jobs:
   backfill:
     name: Backfill ${{ matrix.sport }}
@@ -31,6 +35,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
       - run: python -m pip install -r requirements.txt
       - name: Full historical collection
         env:
@@ -46,7 +52,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bootstrap-${{ matrix.sport }}
+          name: bootstrap-${{ matrix.sport }}-${{ github.run_id }}
           path: |
             data/db/sports_v45.sqlite
             results/**
@@ -63,6 +69,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
       - run: python -m pip install -r requirements.txt
       - name: Download all sport partitions
         uses: actions/download-artifact@v4
@@ -88,7 +96,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bootstrap-merged
+          name: bootstrap-merged-${{ github.run_id }}
           path: |
             data/**
             results/**
