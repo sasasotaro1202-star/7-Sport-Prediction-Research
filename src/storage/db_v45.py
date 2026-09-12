@@ -52,6 +52,11 @@ CREATE TABLE IF NOT EXISTS availability(
  observed_at_utc TEXT NOT NULL, effective_at_utc TEXT, cutoff_at_utc TEXT, status TEXT NOT NULL,
  reason TEXT, source TEXT, source_url TEXT, quality_status TEXT NOT NULL, confidence REAL
 );
+CREATE TABLE IF NOT EXISTS event_outcome(
+ event_id TEXT PRIMARY KEY, sport TEXT NOT NULL, side_a_participant_id TEXT, side_b_participant_id TEXT,
+ outcome TEXT, score_a REAL, score_b REAL, outcome_status TEXT NOT NULL, source TEXT, source_url TEXT,
+ observed_at_utc TEXT NOT NULL, quality_status TEXT NOT NULL, reason TEXT
+);
 CREATE TABLE IF NOT EXISTS pit_replay(
  replay_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, prediction_cutoff_at_utc TEXT NOT NULL,
  cutoff_rule TEXT NOT NULL, replay_status TEXT NOT NULL, leakage_status TEXT NOT NULL,
@@ -72,7 +77,12 @@ CREATE TABLE IF NOT EXISTS replay_audit(
  audit_id TEXT PRIMARY KEY, replay_id TEXT NOT NULL, table_name TEXT NOT NULL, record_id TEXT NOT NULL,
  effective_at_utc TEXT, included INTEGER NOT NULL, exclusion_reason TEXT, checked_at_utc TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS collection_state(
+ state_key TEXT PRIMARY KEY, sport TEXT NOT NULL, scope TEXT NOT NULL, cursor TEXT,
+ completed INTEGER NOT NULL DEFAULT 0, updated_at_utc TEXT NOT NULL, metadata_json TEXT NOT NULL DEFAULT '{}'
+);
 CREATE INDEX IF NOT EXISTS idx_event_time ON event(event_time_utc);
+CREATE INDEX IF NOT EXISTS idx_event_sport_time ON event(sport,event_time_utc);
 CREATE INDEX IF NOT EXISTS idx_ep_event ON event_participant(event_id);
 CREATE INDEX IF NOT EXISTS idx_ph_pid_time ON participant_history(participant_id,effective_at_utc);
 CREATE INDEX IF NOT EXISTS idx_th_tid_time ON team_history(team_id,effective_at_utc);
@@ -80,6 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_stats_pid_time ON match_stats(participant_id,effe
 CREATE INDEX IF NOT EXISTS idx_stats_team_time ON match_stats(team_id,effective_at_utc);
 CREATE INDEX IF NOT EXISTS idx_avail_event_cutoff ON availability(event_id,cutoff_at_utc);
 CREATE INDEX IF NOT EXISTS idx_pit_event_cutoff ON pit_feature_snapshot(event_id,cutoff_at_utc);
+CREATE INDEX IF NOT EXISTS idx_outcome_sport_status ON event_outcome(sport,outcome_status);
 '''
 def connect():
  DB_PATH.parent.mkdir(parents=True,exist_ok=True)
