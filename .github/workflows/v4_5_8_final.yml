@@ -49,6 +49,9 @@ jobs:
           V45_HTTP_WORKERS: '8'
           V45_VLR_PAGES: '20'
         run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3
+      - name: Enrich F1 with OpenF1 historical/session data
+        if: matrix.sport == 'f1'
+        run: python -m src.f1_openf1_backfill --start-year 2023 --end-year 2026 --timeout 30
       - name: Reconstruct verified outcomes
         run: python -m src.outcome_backfill
       - name: Run strict PIT research cycle
