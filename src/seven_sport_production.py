@@ -1,71 +1,149 @@
 from __future__ import annotations
 import argparse, hashlib, json, os, re, sqlite3, time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-ROOT=Path(__file__).resolve().parents[1]
-DB=ROOT/'data/db/sports_v45.sqlite'
-SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
-UA=os.getenv('SPORTS_PIPELINE_USER_AGENT','SevenSportResearchEngine/4.5.8')
+from src.storage.db_v45 import connect, utcnow
 
-def utc(): return datetime.now(timezone.utc).isoformat()
+ROOT = Path(__file__).resolve().parents[1]
+DB = ROOT / 'data/db/sports_v45.sqlite'
+SPORTS = ('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
+PARSER = 'v4.5.9'
+UA = os.getenv('SPORTS_PIPELINE_USER_AGENT', 'SevenSportResearchEngine/4.5.9')
+
+
 def iso(v):
     if not v: return None
-    s=str(v).strip().replace('Z','+00:00')
+    s = str(v).strip().replace('Z', '+00:00')
     try:
-        d=datetime.fromisoformat(s)
-        if d.tzinfo is None: d=d.replace(tzinfo=timezone.utc)
+        d = datetime.fromisoformat(s)
+        if d.tzinfo is None: d = d.replace(tzinfo=timezone.utc)
         return d.astimezone(timezone.utc).isoformat()
     except Exception:
         return None
-def sid(*x): return hashlib.sha256('|'.join('' if v is None else str(v) for v in x).encode()).hexdigest()[:32]
-def clean(x): return re.sub(r'\s+',' ',str(x or '')).strip()
+
+
+def sid(*x):
+    return hashlib.sha256('|'.join('' if v is None else str(v) for v in x).encode()).hexdigest()[:32]
+
+
+def clean(x): return re.sub(r'\s+', ' ', str(x or '')).strip()
+
 
 class HTTP:
     def __init__(self):
-        self.s=requests.Session(); self.s.headers.update({'User-Agent':UA,'Accept-Language':'en-US,en;q=0.8,ja;q=0.6'})
-        self.timeout=float(os.getenv('V45_HTTP_TIMEOUT','20')); self.retries=int(os.getenv('V45_HTTP_RETRIES','2')); self.delay=float(os.getenv('V45_REQUEST_DELAY','0.2'))
-    def get(self,url):
-        last=None
-        for n in range(self.retries+1):
+        self.timeout = float(os.getenv('V45_HTTP_TIMEOUT','15'))
+        self.retries = int(os.getenv('V45_HTTP_RETRIES','2'))
+        self.delay = float(os.getenv('V45_REQUEST_DELAY','0.05'))
+        self.max_workers = max(1, int(os.getenv('V45_HTTP_WORKERS','8')))
+        self.cache_dir = ROOT / 'data/raw/http_cache'
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _cache_path(self, url):
+        return self.cache_dir / (hashlib.sha256(url.encode()).hexdigest() + '.json')
+
+    def get(self, url, use_cache=True):
+        cp = self._cache_path(url)
+        if use_cache and cp.exists():
+            try:
+                obj = json.loads(cp.read_text(encoding='utf-8'))
+                if obj.get('status') == 200 and obj.get('text') is not None:
+                    return obj['text'], obj.get('retrieved_at_utc'), obj.get('headers', {})
+            except Exception:
+                pass
+        last = None
+        for n in range(self.retries + 1):
             try:
                 if self.delay: time.sleep(self.delay)
-                r=self.s.get(url,timeout=self.timeout); r.raise_for_status(); return r
+                r = requests.get(url, headers={'User-Agent':UA,'Accept-Language':'en-US,en;q=0.8,ja;q=0.6'}, timeout=self.timeout)
+                r.raise_for_status()
+                txt = r.text
+                now = utcnow()
+                try:
+                    cp.write_text(json.dumps({'status':r.status_code,'text':txt,'retrieved_at_utc':now,'headers':dict(r.headers)}, ensure_ascii=False), encoding='utf-8')
+                except Exception: pass
+                return txt, now, dict(r.headers)
             except Exception as e:
-                last=e
-                if n<self.retries: time.sleep(min(2*(n+1),5))
+                last = e
+                if n < self.retries: time.sleep(min(1.5 * (n + 1), 5))
         raise last
-    def text(self,url): return self.get(url).text
-    def json(self,url): return self.get(url).json()
 
-def init_db():
-    DB.parent.mkdir(parents=True,exist_ok=True)
-    c=sqlite3.connect(DB)
-    c.executescript('''CREATE TABLE IF NOT EXISTS event(event_id TEXT PRIMARY KEY,sport TEXT,competition_id TEXT,season TEXT,stage TEXT,round TEXT,event_time_utc TEXT,event_type TEXT,status TEXT,event_name TEXT,source TEXT,source_url TEXT,quality_status TEXT,rejection_reason TEXT,created_at TEXT,updated_at TEXT);
-    CREATE TABLE IF NOT EXISTS participant(participant_id TEXT PRIMARY KEY,sport TEXT,participant_type TEXT,canonical_name TEXT,first_seen_at TEXT,last_seen_at TEXT);
-    CREATE TABLE IF NOT EXISTS event_participant(event_id TEXT,participant_id TEXT,team_id TEXT,side TEXT,source TEXT,source_url TEXT,effective_at_utc TEXT,quality_status TEXT,PRIMARY KEY(event_id,participant_id,side));
-    CREATE TABLE IF NOT EXISTS match_stats(stat_id TEXT PRIMARY KEY,event_id TEXT,participant_id TEXT,team_id TEXT,sport TEXT,stat_name TEXT,value_num REAL,value_text TEXT,observed_at_utc TEXT,effective_at_utc TEXT,source TEXT,source_url TEXT,quality_status TEXT);
-    CREATE TABLE IF NOT EXISTS source_snapshot(snapshot_id TEXT PRIMARY KEY,sport TEXT,source TEXT,source_url TEXT,retrieved_at_utc TEXT,source_available_at_utc TEXT,event_time_utc TEXT,content_hash TEXT,parser_version TEXT,availability_status TEXT,provenance_json TEXT);
-    CREATE TABLE IF NOT EXISTS pit_replay(replay_id TEXT PRIMARY KEY,event_id TEXT,prediction_cutoff_at_utc TEXT,cutoff_rule TEXT,replay_status TEXT,leakage_status TEXT,created_at_utc TEXT,reason TEXT);''')
-    return c
+    def text(self, url): return self.get(url)[0]
+    def json(self, url): return json.loads(self.text(url))
 
-def save(c,events,participants,eps,stats,sources):
-    for r in events:
-        c.execute('INSERT OR REPLACE INTO event VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',r)
-    for r in participants:
-        c.execute('INSERT OR REPLACE INTO participant VALUES (?,?,?,?,?,?)',r)
-    for r in eps:
-        c.execute('INSERT OR REPLACE INTO event_participant VALUES (?,?,?,?,?,?,?,?)',r)
-    for r in stats:
-        c.execute('INSERT OR REPLACE INTO match_stats VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',r)
-    for r in sources:
-        c.execute('INSERT OR REPLACE INTO source_snapshot VALUES (?,?,?,?,?,?,?,?,?,?,?)',r)
+
+def ensure_state(c):
+    c.execute('''CREATE TABLE IF NOT EXISTS collection_state(
+      state_key TEXT PRIMARY KEY, sport TEXT NOT NULL, scope TEXT NOT NULL,
+      cursor TEXT, completed INTEGER NOT NULL DEFAULT 0, updated_at_utc TEXT NOT NULL,
+      metadata_json TEXT NOT NULL DEFAULT '{}')''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_collection_state_sport ON collection_state(sport,scope)')
     c.commit()
 
-def jsonld(html):
+
+def state(c, sport, scope):
+    r = c.execute('SELECT cursor,completed FROM collection_state WHERE state_key=?',(f'{sport}:{scope}',)).fetchone()
+    return (r[0] if r else None, bool(r[1]) if r else False)
+
+
+def save_state(c, sport, scope, cursor=None, completed=False, metadata=None):
+    c.execute('''INSERT INTO collection_state(state_key,sport,scope,cursor,completed,updated_at_utc,metadata_json)
+                 VALUES(?,?,?,?,?,?,?) ON CONFLICT(state_key) DO UPDATE SET cursor=excluded.cursor,completed=excluded.completed,updated_at_utc=excluded.updated_at_utc,metadata_json=excluded.metadata_json''',
+              (f'{sport}:{scope}',sport,scope,cursor,int(completed),utcnow(),json.dumps(metadata or {},ensure_ascii=False)))
+    c.commit()
+
+
+def init_db(c):
+    # The canonical v45 schema is created by db_v45.connect(). These indexes/columns are additive.
+    ensure_state(c)
+    c.execute('CREATE INDEX IF NOT EXISTS idx_source_snapshot_url ON source_snapshot(source_url)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_event_sport_time ON event(sport,event_time_utc)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_match_stats_event ON match_stats(event_id)')
+    c.commit()
+
+
+def upsert_event(c, sport, name, et, source, url, status='SCHEDULED', competition=None, season=None, stage=None, round_=None):
+    eid = sid(sport, source, name, et, url)
+    now = utcnow()
+    c.execute('''INSERT INTO event(event_id,sport,competition_id,season,stage,round,event_time_utc,event_type,status,source_count,quality_status,rejection_reason,created_at,updated_at)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(event_id) DO UPDATE SET event_time_utc=COALESCE(excluded.event_time_utc,event.event_time_utc),status=excluded.status,updated_at=excluded.updated_at''',
+              (eid,sport,competition,season,stage,round_,et,'match',status,1,'PRESENT_NOT_PIT_VERIFIED',None,now,now))
+    return eid
+
+
+def upsert_participant(c, sport, name, ptype='team'):
+    pid = sid(sport, ptype, name)
+    now = utcnow()
+    c.execute('''INSERT INTO participant(participant_id,sport,participant_type,canonical_name,first_seen_at,last_seen_at)
+                 VALUES(?,?,?,?,?,?) ON CONFLICT(participant_id) DO UPDATE SET last_seen_at=excluded.last_seen_at,canonical_name=COALESCE(excluded.canonical_name,participant.canonical_name)''',
+              (pid,sport,ptype,name,now,now))
+    return pid
+
+
+def upsert_ep(c, eid, pid, team_id=None, side=None, role=None, source=None, url=None):
+    c.execute('''INSERT OR REPLACE INTO event_participant(event_id,participant_id,team_id,side,role,seed,lineup_status,source,source_url,effective_at_utc,quality_status)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?)''',
+              (eid,pid,team_id,side,role,None,None,source,url,None,'UNVERIFIABLE'))
+
+
+def add_stat(c, eid, pid, team_id, sport, name, num, text, source, url):
+    c.execute('''INSERT OR REPLACE INTO match_stats(stat_id,event_id,participant_id,team_id,sport,observed_at_utc,effective_at_utc,stat_name,value_num,value_text,unit,source,source_url,quality_status,confidence)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+              (sid(eid,pid,sport,name,num,text,source),eid,pid,team_id,sport,utcnow(),None,name,num,text,None,source,url,'UNVERIFIABLE',None))
+
+
+def add_snapshot(c, sport, source, url, retrieved, event_time, payload_hash, avail='UNVERIFIABLE', payload_path=None):
+    c.execute('''INSERT OR REPLACE INTO source_snapshot(snapshot_id,source,source_url,retrieved_at_utc,source_available_at_utc,event_time_utc,content_hash,payload_path,parser_version,availability_status,provenance_json)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?)''',
+              (sid(sport,source,url,payload_hash),source,url,retrieved,None,event_time,payload_hash,payload_path,PARSER,avail,json.dumps({'sport':sport,'parser':PARSER},ensure_ascii=False)))
+
+
+def parse_jsonld(html):
     out=[]; s=BeautifulSoup(html,'lxml')
     for t in s.select('script[type="application/ld+json"]'):
         try:
@@ -73,113 +151,165 @@ def jsonld(html):
         except Exception: pass
     return [x for x in out if isinstance(x,dict)]
 
-def add_event(E,sport,name,et,source,url,status='SCHEDULED',competition=None,season=None,stage=None,round_=None):
-    eid=sid(sport,source,name,et,url)
-    E.append((eid,sport,competition,season,stage,round_,et,'match',status,name,source,url,'PRESENT_NOT_PIT_VERIFIED',None,utc(),utc()))
-    return eid
 
-def collect_espn(h,sport,leagues,days_back,E,P,EP,S):
-    end=datetime.now(timezone.utc).date(); start=end-timedelta(days=days_back)
-    d=start
-    while d<=end:
-        day=d.strftime('%Y%m%d')
-        for league in leagues:
-            url=f'https://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/scoreboard?dates={day}'
-            try: data=h.json(url)
-            except Exception as e:
-                continue
-            payload=json.dumps(data,sort_keys=True); S.append((sid(sport,url,payload),'espn',sport,url,utc(),None,None,hashlib.sha256(payload.encode()).hexdigest(),'v4.5.8','UNVERIFIABLE','{}'))
+def fetch_many(h, urls):
+    out={}
+    with ThreadPoolExecutor(max_workers=h.max_workers) as ex:
+        futs={ex.submit(h.get,u):u for u in urls}
+        for f in as_completed(futs):
+            u=futs[f]
+            try: out[u]=f.result()
+            except Exception: out[u]=None
+    return out
+
+
+def collect_espn(c,h,sport,leagues,start_date,end_date):
+    d=start_date
+    while d<=end_date:
+        urls=[f'https://site.api.espn.com/apis/site/v2/sports/{sport}/{lg}/scoreboard?dates={d.strftime("%Y%m%d")}' for lg in leagues]
+        for url in urls:
+            try: raw,retrieved,_=h.get(url); data=json.loads(raw)
+            except Exception: continue
+            ph=hashlib.sha256(raw.encode()).hexdigest(); add_snapshot(c,sport,'espn',url,retrieved,None,ph,'UNVERIFIABLE')
             for ev in data.get('events',[]):
-                comp=(ev.get('competitions') or [{}])[0]; teams=comp.get('competitors') or []; et=iso(ev.get('date')); name=clean(ev.get('name') or ev.get('shortName') or ev.get('id'))
-                status=str(ev.get('status',{}).get('type',{}).get('name','SCHEDULED')); eid=add_event(E,sport,name,et,'espn',url,status,league)
-                for i,t in enumerate(teams[:2]):
-                    n=clean((t.get('team') or {}).get('displayName') or t.get('displayName')); pid=sid(sport,n); side='A' if i==0 else 'B'
-                    P.append((pid,sport,'team',n,utc(),utc())); EP.append((eid,pid,pid,side,'espn',url,None,'UNVERIFIABLE'))
-                    for k,v in (t.get('statistics') or []):
+                comp=(ev.get('competitions') or [{}])[0]; et=iso(ev.get('date')); name=clean(ev.get('name') or ev.get('shortName') or ev.get('id')); status=clean((ev.get('status') or {}).get('type',{}).get('name','SCHEDULED'))
+                eid=upsert_event(c,sport,name,et,'espn',url,status,urlparse(url).path.split('/')[3] if '/' in urlparse(url).path else None)
+                for i,t in enumerate((comp.get('competitors') or [])[:2]):
+                    tm=t.get('team') or {}; n=clean(tm.get('displayName') or t.get('displayName')); pid=upsert_participant(c,sport,n,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'espn',url)
+                    for st in t.get('statistics') or []:
+                        k=st.get('name') or st.get('label'); v=st.get('value')
                         try: num=float(v)
                         except Exception: num=None
-                        stats_id=sid(eid,pid,k,v); S_stat=(stats_id,eid,pid,pid,sport,k,num,None,utc(),None,'espn',url,'UNVERIFIABLE');
-                        globals().setdefault('_STATS',[]).append(S_stat)
-        d+=timedelta(days=1)
+                        add_stat(c,eid,pid,pid,sport,k,num,str(v) if v is not None else None,'espn',url)
+        c.commit(); d+=timedelta(days=1)
 
-def collect_f1(h,E,P,EP,S,days_back):
-    base='https://api.jolpi.ca/ergast/f1'; year=datetime.now(timezone.utc).year
-    for season in range(max(1950,year-10),year+1):
-        try: races=h.json(f'{base}/{season}.json?limit=100').get('MRData',{}).get('RaceTable',{}).get('Races',[])
+
+def collect_f1(c,h,years):
+    base='https://api.jolpi.ca/ergast/f1'
+    for season in years:
+        try: data=h.json(f'{base}/{season}.json?limit=100'); races=data.get('MRData',{}).get('RaceTable',{}).get('Races',[])
         except Exception: continue
         for race in races:
-            et=iso(f"{race.get('date')}T{race.get('time','00:00:00Z')}"); name=race.get('raceName'); url=f"{base}/{season}/{race.get('round')}/"; eid=add_event(E,'f1',name,et,'jolpica',url,'SCHEDULED', 'F1',str(season),None,str(race.get('round')))
+            et=iso(f"{race.get('date')}T{race.get('time','00:00:00Z')}"); name=clean(race.get('raceName')); rnd=str(race.get('round')); baseurl=f'{base}/{season}/{rnd}/'; eid=upsert_event(c,'f1',name,et,'jolpica',baseurl,'COMPLETED','F1',str(season),None,rnd)
             for ep in ('results','qualifying','pitstops'):
-                try: data=h.json(f"{base}/{season}/{race.get('round')}/{ep}.json?limit=100").get('MRData',{}).get('RaceTable',{}).get('Races',[])
+                try: rr=h.json(f'{base}/{season}/{rnd}/{ep}.json?limit=100').get('MRData',{}).get('RaceTable',{}).get('Races',[])
                 except Exception: continue
-                for rr in data:
-                    rows=rr.get('Results',[]) if ep=='results' else rr.get('QualifyingResults',[]) if ep=='qualifying' else rr.get('PitStops',[])
+                for race2 in rr:
+                    rows=race2.get('Results',[]) if ep=='results' else race2.get('QualifyingResults',[]) if ep=='qualifying' else race2.get('PitStops',[])
                     for z in rows:
-                        dr=z.get('Driver') or {}; n=clean(f"{dr.get('givenName','')} {dr.get('familyName','')}"); pid=sid('f1',dr.get('driverId') or n); P.append((pid,'f1','driver',n,utc(),utc())); EP.append((eid,pid,None,None,'jolpica',url,None,'UNVERIFIABLE'))
+                        dr=z.get('Driver') or {}; n=clean(f"{dr.get('givenName','')} {dr.get('familyName','')}"); pid=upsert_participant(c,'f1',n,'driver'); upsert_ep(c,eid,pid,None,None,ep,'jolpica',baseurl)
                         for k,v in z.items():
                             if isinstance(v,(str,int,float)):
                                 try: num=float(v)
                                 except Exception: num=None
-                                _STATS.append((sid(eid,pid,ep,k,v),eid,pid,None,'f1',f'{ep}.{k}',num,None,utc(),None,'jolpica',url,'UNVERIFIABLE'))
-            S.append((sid('f1',url),'jolpica','f1',url,utc(),None,et,None,'v4.5.8','UNVERIFIABLE','{}'))
+                                add_stat(c,eid,pid,None,'f1',f'{ep}.{k}',num,str(v),'jolpica',baseurl)
+            add_snapshot(c,'f1','jolpica',baseurl,utcnow(),et,None,'UNVERIFIABLE')
+        c.commit()
 
-def collect_vlr(h,E,P,EP,S,full):
-    pages=int(os.getenv('V45_VLR_PAGES','30' if not full else '250')); seen=set()
-    for p in range(1,pages+1):
+
+def collect_vlr(c,h,pages):
+    scope='vlr-pages'; cur,done=state(c,'valorant',scope); start=max(1,int(cur or 1))
+    for p in range(start,pages+1):
         url='https://www.vlr.gg/matches/'+(f'?page={p}' if p>1 else '')
-        try: html=h.text(url)
-        except Exception: continue
+        try: html,retrieved,_=h.get(url)
+        except Exception: save_state(c,'valorant',scope,str(p),False); continue
         soup=BeautifulSoup(html,'lxml'); links=[]
         for a in soup.select('a[href*="/match/"]'):
             u=urljoin(url,a.get('href'))
             if re.search(r'/match/\d+/',u): links.append(u)
-        links=list(dict.fromkeys(links));
-        if not links: break
-        for u in links:
-            if u in seen: continue
-            seen.add(u)
-            try: x=h.text(u)
-            except Exception: continue
-            s=BeautifulSoup(x,'lxml'); names=[clean(z.get_text(' ')) for z in s.select('.match-header-link-name') if clean(z.get_text(' '))][:2]; title=clean(s.title.get_text() if s.title else u); eid=add_event(E,'valorant',title,None,'vlr.gg',u,'COMPLETED' if 'completed' in x.lower() else 'SCHEDULED')
+        links=list(dict.fromkeys(links))
+        if not links: save_state(c,'valorant',scope,str(p),True); break
+        details=fetch_many(h,links)
+        for u,res in details.items():
+            if not res: continue
+            x,det_retrieved,_=res; s=BeautifulSoup(x,'lxml'); title=clean(s.title.get_text() if s.title else u)
+            # VLR match pages expose date/time in match-header-date-item or data attributes on many layouts.
+            et=None
+            for sel in ('.match-header-date-item','.match-header-link-date','.match-header-date'):
+                node=s.select_one(sel)
+                if node:
+                    txt=clean(node.get_text(' ')); m=re.search(r'(\d{1,2}):(\d{2})',txt)
+                    if m:
+                        # Date is often represented by a sibling/attribute; never guess a calendar date.
+                        break
+            for ld in parse_jsonld(x):
+                if ld.get('startDate'): et=iso(ld.get('startDate')); break
+            status='COMPLETED' if 'completed' in x.lower() else 'SCHEDULED'; eid=upsert_event(c,'valorant',title,et,'vlr.gg',u,status)
+            names=[clean(z.get_text(' ')) for z in s.select('.match-header-link-name') if clean(z.get_text(' '))][:2]
             for i,n in enumerate(names):
-                pid=sid('valorant',n); P.append((pid,'valorant','team',n,utc(),utc())); EP.append((eid,pid,pid,'A' if i==0 else 'B','vlr.gg',u,None,'UNVERIFIABLE'))
-            S.append((sid('valorant',u), 'vlr.gg','valorant',u,utc(),None,None,hashlib.sha256(x.encode()).hexdigest(),'v4.5.8','UNVERIFIABLE','{}'))
+                pid=upsert_participant(c,'valorant',n,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
+            add_snapshot(c,'valorant','vlr.gg',u,det_retrieved,et,hashlib.sha256(x.encode()).hexdigest(),'UNVERIFIABLE')
+        save_state(c,'valorant',scope,str(p+1),p>=pages)
+        c.commit()
 
-def collect_generic(h,sport,seeds,E,P,EP,S,max_pages=100):
-    q=list(seeds); seen=set(); n=0
-    while q and n<max_pages:
-        url=q.pop(0)
+
+def collect_generic(c,h,sport,seeds,max_pages):
+    scope='generic-crawl'; cur,done=state(c,sport,scope)
+    queue=list(seeds)
+    if cur:
+        try: queue=json.loads(cur)
+        except Exception: pass
+    seen=set(); n=0
+    while queue and n<max_pages:
+        url=queue.pop(0)
         if url in seen: continue
         seen.add(url); n+=1
-        try: html=h.text(url)
-        except Exception: continue
+        try: html,retrieved,_=h.get(url)
+        except Exception: save_state(c,sport,scope,json.dumps(queue),False); continue
         soup=BeautifulSoup(html,'lxml')
-        for x in jsonld(html):
+        for x in parse_jsonld(html):
             typ=str(x.get('@type',''))
             if typ not in ('SportsEvent','Event') or not (x.get('name') or x.get('startDate')): continue
-            name=clean(x.get('name')); et=iso(x.get('startDate')); eid=add_event(E,sport,name,et,urlparse(url).netloc,url,str(x.get('eventStatus') or 'SCHEDULED'))
+            name=clean(x.get('name')); et=iso(x.get('startDate')); eid=upsert_event(c,sport,name,et,urlparse(url).netloc,url,clean(str(x.get('eventStatus') or 'SCHEDULED')))
             teams=[]
             for key in ('homeTeam','awayTeam','competitor'):
                 v=x.get(key); teams.extend(v if isinstance(v,list) else [v] if isinstance(v,dict) else [])
             for i,t in enumerate(teams[:2]):
-                nm=clean(t.get('name') if isinstance(t,dict) else t); pid=sid(sport,nm); P.append((pid,sport,'team',nm,utc(),utc())); EP.append((eid,pid,pid,'A' if i==0 else 'B',urlparse(url).netloc,url,None,'UNVERIFIABLE'))
-            S.append((sid(sport,url,name),'html',sport,url,utc(),None,et,hashlib.sha256(html.encode()).hexdigest(),'v4.5.8','UNVERIFIABLE','{}'))
+                nm=clean(t.get('name') if isinstance(t,dict) else t)
+                if nm:
+                    pid=upsert_participant(c,sport,nm,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,urlparse(url).netloc,url)
+            add_snapshot(c,sport,urlparse(url).netloc,url,retrieved,et,hashlib.sha256(html.encode()).hexdigest(),'UNVERIFIABLE')
         for a in soup.find_all('a',href=True):
             u=urljoin(url,a['href'])
-            if urlparse(u).netloc==urlparse(url).netloc and u not in seen and re.search(r'(match|game|event|competition|fight|bout|大会|試合)',u,re.I): q.append(u)
+            if urlparse(u).netloc==urlparse(url).netloc and u not in seen and re.search(r'(match|game|event|competition|fight|bout|大会|試合)',u,re.I): queue.append(u)
+        if n % 10 == 0: save_state(c,sport,scope,json.dumps(queue),False); c.commit()
+    save_state(c,sport,scope,json.dumps(queue),not queue); c.commit()
+
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--sport',choices=SPORTS); ap.add_argument('--days-back',type=int,default=30); ap.add_argument('--full-history',action='store_true'); a=ap.parse_args(); sports=[a.sport] if a.sport else list(SPORTS)
-    c=init_db(); h=HTTP(); E=[];P=[];EP=[];S=[]; global _STATS; _STATS=[]
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--sport',choices=SPORTS)
+    ap.add_argument('--days-back',type=int,default=30)
+    ap.add_argument('--full-history',action='store_true')
+    ap.add_argument('--start-date')
+    ap.add_argument('--end-date')
+    ap.add_argument('--reset-state',action='store_true')
+    a=ap.parse_args(); sports=[a.sport] if a.sport else list(SPORTS)
+    c=connect(); init_db(c)
+    if a.reset_state:
+        for sp in sports: c.execute('DELETE FROM collection_state WHERE sport=?',(sp,))
+        c.commit()
+    h=HTTP(); today=datetime.now(timezone.utc).date()
+    start=datetime.fromisoformat(a.start_date).date() if a.start_date else today-timedelta(days=a.days_back)
+    end=datetime.fromisoformat(a.end_date).date() if a.end_date else today
     for sport in sports:
-        if sport=='basketball': collect_espn(h,'basketball',['nba','wnba','mens-college-basketball'],a.days_back,E,P,EP,S)
-        elif sport=='tennis': collect_espn(h,'tennis',['atp','wta'],a.days_back,E,P,EP,S)
-        elif sport=='f1': collect_f1(h,E,P,EP,S,a.days_back)
-        elif sport=='valorant': collect_vlr(h,E,P,EP,S,a.full_history)
-        elif sport=='volleyball': collect_generic(h,sport,['https://en.volleyballworld.com/volleyball/competitions','https://en.volleyballworld.com/volleyball/matches'],E,P,EP,S,200 if a.full_history else 40)
-        elif sport=='rizin': collect_generic(h,sport,['https://jp.rizinff.com/','https://jp.rizinff.com/_tags/大会情報','https://jp.rizinff.com/fighters'],E,P,EP,S,200 if a.full_history else 40)
-        elif sport=='ufc': collect_generic(h,sport,['http://ufcstats.com/statistics/events/completed?page=all'],E,P,EP,S,200 if a.full_history else 40)
-    save(c,E,P,EP,_STATS,S); c.close()
-    report={'sports':sports,'events':len(E),'participants':len(P),'event_participants':len(EP),'stats':len(_STATS),'sources':len(S),'timestamp_utc':utc(),'status':'OK'}
-    out=ROOT/'results/v45'; out.mkdir(parents=True,exist_ok=True); (out/'production_run.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8'); print(json.dumps(report,ensure_ascii=False,indent=2))
+        try:
+            if sport=='basketball': collect_espn(c,h,sport,['nba','wnba','mens-college-basketball'],start,end)
+            elif sport=='tennis': collect_espn(c,h,sport,['atp','wta'],start,end)
+            elif sport=='f1': collect_f1(c,h,range(datetime.now(timezone.utc).year-10,datetime.now(timezone.utc).year+1))
+            elif sport=='valorant': collect_vlr(c,h,int(os.getenv('V45_VLR_PAGES','180' if a.full_history else '20')))
+            elif sport=='volleyball': collect_generic(c,h,sport,['https://en.volleyballworld.com/volleyball/competitions','https://en.volleyballworld.com/volleyball/matches'],200 if a.full_history else 40)
+            elif sport=='rizin': collect_generic(c,h,sport,['https://jp.rizinff.com/','https://jp.rizinff.com/_tags/大会情報','https://jp.rizinff.com/fighters'],200 if a.full_history else 40)
+            elif sport=='ufc': collect_generic(c,h,sport,['http://ufcstats.com/statistics/events/completed?page=all'],200 if a.full_history else 40)
+        except Exception as e:
+            print(json.dumps({'sport':sport,'status':'COLLECT_FAILED','error':repr(e)},ensure_ascii=False),flush=True)
+    counts={}
+    for table in ('event','participant','event_participant','match_stats','source_snapshot','pit_replay','collection_state'):
+        counts[table]=c.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+    out=ROOT/'results/v45'; out.mkdir(parents=True,exist_ok=True)
+    report={'sports':sports,'start_date':start.isoformat(),'end_date':end.isoformat(),'full_history':a.full_history,'parser_version':PARSER,'counts':counts,'timestamp_utc':utcnow(),'status':'OK'}
+    (out/'production_run.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(report,ensure_ascii=False,indent=2))
+    c.close()
+
 if __name__=='__main__': main()
