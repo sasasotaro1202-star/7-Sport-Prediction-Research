@@ -53,8 +53,11 @@ jobs:
       - name: Run tennis historical collector
         if: matrix.sport == 'tennis'
         run: python -m src.tennis_bulk_backfill --start-year 2026 --end-year 2026 --timeout 45
+      - name: Run UFC public API collector
+        if: matrix.sport == 'ufc'
+        run: python -m src.ufc_api_backfill --limit 100
       - name: Run standard incremental collector
-        if: matrix.sport != 'basketball' && matrix.sport != 'tennis'
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
         env:
           V45_HTTP_TIMEOUT: '12'
           V45_HTTP_RETRIES: '2'
@@ -75,11 +78,11 @@ jobs:
           source_count=c.execute("select count(*) from source_snapshot where provenance_json like '%${{ matrix.sport }}%'").fetchone()[0]
           c.close()
           print('sport=', '${{ matrix.sport }}', 'events=', event_count, 'source_snapshots=', source_count)
-          if '${{ matrix.sport }}' == 'tennis' and event_count == 0:
-              raise SystemExit('tennis archive collector produced no events')
+          if '${{ matrix.sport }}' in ('tennis','ufc') and event_count == 0:
+              raise SystemExit('${{ matrix.sport }} specialized collector produced no events')
           PY
       - name: Verify standard collector report semantics
-        if: matrix.sport != 'basketball' && matrix.sport != 'tennis'
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
         run: |
           python - <<'PY'
           import json
