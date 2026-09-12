@@ -3,7 +3,7 @@ import csv, hashlib, io
 from datetime import datetime, timezone
 import requests
 from src.storage.db_v45 import connect, utcnow
-BASES={'atp':'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_{year}.csv','wta':'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_{year}.csv'}
+BASES={'atp':'https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main/atp/atp_matches_{year}.csv','wta':'https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main/wta/wta_matches_{year}.csv'}
 def sid(*x): return hashlib.sha256('|'.join('' if v is None else str(v) for v in x).encode()).hexdigest()[:32]
 def iso_date(x):
     try: return datetime.strptime(str(x),'%Y%m%d').replace(tzinfo=timezone.utc).isoformat()
@@ -25,14 +25,14 @@ def ingest_tour(c,tour,year,timeout=30):
         pids=[]
         for side,name in [('A',winner),('B',loser)]:
             pid=sid('tennis',name); c.execute('''INSERT INTO participant(participant_id,sport,participant_type,canonical_name,first_seen_at,last_seen_at) VALUES(?,?,?,?,?,?) ON CONFLICT(participant_id) DO UPDATE SET last_seen_at=excluded.last_seen_at,canonical_name=excluded.canonical_name''',(pid,'tennis','player',name,now,now))
-            c.execute('''INSERT OR REPLACE INTO event_participant(event_id,participant_id,side,source,source_url,effective_at_utc,quality_status) VALUES(?,?,?,?,?,?,?)''',(eid,pid,side,'JeffSackmann',url,dt,'PRESENT_NOT_PIT_VERIFIED')); pids.append(pid)
+            c.execute('''INSERT OR REPLACE INTO event_participant(event_id,participant_id,side,source,source_url,effective_at_utc,quality_status) VALUES(?,?,?,?,?,?,?)''',(eid,pid,side,'SackmannArchive',url,dt,'PRESENT_NOT_PIT_VERIFIED')); pids.append(pid)
         stats={'ace':('w_ace','l_ace'),'double_fault':('w_df','l_df'),'first_serve':('w_1stIn','l_1stIn'),'first_serve_points_won':('w_1stWon','l_1stWon'),'break_points_saved':('w_bpSaved','l_bpSaved'),'break_points_won':('w_bpWon','l_bpWon'),'serve_points_won':('w_SvPtsWon','l_SvPtsWon'),'return_points_won':('w_RvPtsWon','l_RvPtsWon'),'total_points_won':('w_totalPtsWon','l_totalPtsWon')}
         for stat,(wa,la) in stats.items():
             for pid,v in zip(pids,(z.get(wa),z.get(la))):
                 if v in (None,''): continue
-                c.execute('''INSERT OR REPLACE INTO match_stats(stat_id,event_id,participant_id,sport,observed_at_utc,effective_at_utc,stat_name,value_num,source,source_url,quality_status) VALUES(?,?,?,?,?,?,?,?,?,?,?)''',(sid(eid,pid,stat,v),eid,pid,'tennis',now,dt,stat,num(v),'JeffSackmann',url,'PRESENT_NOT_PIT_VERIFIED'))
-        c.execute('''INSERT OR REPLACE INTO event_outcome(event_id,sport,side_a_participant_id,side_b_participant_id,outcome,outcome_status,source,source_url,observed_at_utc,quality_status,reason) VALUES(?,?,?,?,?,?,?,?,?,?,?)''',(eid,'tennis',pids[0],pids[1],'A','VERIFIED','JeffSackmann',url,now,'SOURCE_BACKED','winner_name/loser_name from historical match row'))
-        c.execute('INSERT OR REPLACE INTO source_snapshot(snapshot_id,source,source_url,retrieved_at_utc,event_time_utc,parser_version,availability_status,provenance_json) VALUES(?,?,?,?,?,?,?,?)',(sid('tennis',tour,year,url),'JeffSackmann',url,now,dt,'tennis-bulk-v2','UNVERIFIABLE','{"dataset":"historical ATP/WTA match CSV","license":"CC BY-NC-SA 4.0"}')); n+=1
+                c.execute('''INSERT OR REPLACE INTO match_stats(stat_id,event_id,participant_id,sport,observed_at_utc,effective_at_utc,stat_name,value_num,source,source_url,quality_status) VALUES(?,?,?,?,?,?,?,?,?,?,?)''',(sid(eid,pid,stat,v),eid,pid,'tennis',now,dt,stat,num(v),'SackmannArchive',url,'PRESENT_NOT_PIT_VERIFIED'))
+        c.execute('''INSERT OR REPLACE INTO event_outcome(event_id,sport,side_a_participant_id,side_b_participant_id,outcome,outcome_status,source,source_url,observed_at_utc,quality_status,reason) VALUES(?,?,?,?,?,?,?,?,?,?,?)''',(eid,'tennis',pids[0],pids[1],'A','VERIFIED','SackmannArchive',url,now,'SOURCE_BACKED','winner_name/loser_name from historical match row'))
+        c.execute('''INSERT OR REPLACE INTO source_snapshot(snapshot_id,source,source_url,retrieved_at_utc,event_time_utc,parser_version,availability_status,provenance_json) VALUES(?,?,?,?,?,?,?,?)''',(sid('tennis',tour,year,url),'SackmannArchive',url,now,dt,'tennis-bulk-v3','UNVERIFIABLE','{"dataset":"archival ATP/WTA match CSV","upstream":"Jeff Sackmann","license":"CC BY-NC-SA 4.0"}')); n+=1
     c.commit(); return n
 def main():
     import argparse
