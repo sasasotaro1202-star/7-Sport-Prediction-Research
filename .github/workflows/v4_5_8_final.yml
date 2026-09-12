@@ -49,6 +49,11 @@ jobs:
           V45_HTTP_WORKERS: '8'
           V45_VLR_PAGES: '20'
         run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3
+      - name: Reconstruct verified outcomes
+        run: python -m src.outcome_backfill
+      - name: Run strict PIT research cycle
+        continue-on-error: true
+        run: python -m src.research_cycle --sport ${{ matrix.sport }}
       - name: Save source cache
         if: always()
         uses: actions/cache/save@v4
@@ -63,6 +68,7 @@ jobs:
           path: |
             data/db/sports_v45.sqlite
             results/**
+            models/**
           if-no-files-found: warn
 
   merge:
@@ -70,7 +76,7 @@ jobs:
     needs: collect
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -87,14 +93,14 @@ jobs:
           merge-multiple: false
       - name: Merge incremental databases
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
-      - name: Structural quality gate
+      - name: Global structural quality gate
         continue-on-error: true
         run: python -m src.quality_gate
       - name: Persist merged outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data results
+          git add data results models
           git diff --cached --quiet || git commit -m "chore: update seven-sport research data"
           git push
       - uses: actions/upload-artifact@v4
@@ -104,4 +110,5 @@ jobs:
           path: |
             results/**
             data/**
+            models/**
           if-no-files-found: warn
