@@ -13,8 +13,8 @@ permissions:
   contents: write
 
 jobs:
-  collect:
-    name: Collect ${{ matrix.sport }}
+  backfill:
+    name: Backfill ${{ matrix.sport }}
     strategy:
       fail-fast: false
       max-parallel: 7
@@ -30,6 +30,8 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - name: Full historical collection
         run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back ${{ inputs.days_back }}
+      - name: Sport-scoped quality gate
+        run: python -m src.quality_gate --strict --sport ${{ matrix.sport }}
       - name: Upload sport partition
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,35 +43,38 @@ jobs:
           if-no-files-found: warn
 
   merge:
-    name: Merge seven sport partitions
-    needs: collect
+    name: Merge and validate all seven sports
+    needs: backfill
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements.txt
-      - name: Download collected partitions
+      - name: Download all sport partitions
         uses: actions/download-artifact@v4
         with:
           pattern: bootstrap-*
           path: bootstrap-artifacts
           merge-multiple: false
-      - name: Merge partition databases
+      - name: Count available partitions
+        run: find bootstrap-artifacts -name sports_v45.sqlite -print | sort
+      - name: Merge into canonical v45 database
         run: python -m src.merge_partition_dbs --input-dir bootstrap-artifacts
-      - name: Quality gate (fail closed, report preserved)
-        run: python -m src.quality_gate --strict || true
-      - name: Persist merged database and reports
+      - name: Global quality gate
+        run: python -m src.quality_gate --strict
+      - name: Persist merged database
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data results
-          git diff --cached --quiet || git commit -m 'chore: merge seven-sport historical bootstrap'
+          git diff --cached --quiet || git commit -m 'chore: merge seven-sport bootstrap history'
           git push
-      - name: Upload merged outputs
+      - name: Upload merged database and reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bootstrap-merged
