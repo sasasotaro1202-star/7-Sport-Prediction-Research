@@ -1,11 +1,5 @@
 from __future__ import annotations
-"""Accelerated strict-PIT research runner.
-
-This module is a runtime optimization only. It preserves the same model,
-calibration, chronological OOS and adoption logic as research_cycle.py while
-bulk-loading eligible observations. An observation is eligible only when its
-source publication/availability timestamp is explicitly verified as EXACT.
-"""
+"""Accelerated strict-PIT research runner with source-publication gating."""
 import sys
 from pathlib import Path
 import numpy as np
@@ -21,7 +15,7 @@ def fast_build_rows(c,sport):
     participants={}
     for eid,pid,side in c.execute(f"SELECT event_id,participant_id,side FROM event_participant WHERE event_id IN ({ph}) AND side IN ('A','B') AND participant_id IS NOT NULL GROUP BY event_id,participant_id,side ORDER BY event_id,side",event_ids).fetchall(): participants.setdefault(eid,[]).append((pid,side))
     sph=','.join('?' for _ in cols)
-    raw=c.execute(f"""SELECT ms.participant_id,ms.stat_name,pe.event_time_utc,ms.effective_at_utc,ms.stat_id,ms.value_num
+    raw=c.execute(f"""SELECT ms.participant_id,ms.stat_name,pe.event_time_utc,ms.effective_at_utc,ss.source_available_at_utc,ms.stat_id,ms.value_num
       FROM match_stats ms JOIN event pe ON pe.event_id=ms.event_id
       JOIN source_snapshot ss ON ss.source_url=ms.source_url AND ss.source=ms.source
       WHERE ms.sport=? AND ms.stat_name IN ({sph}) AND pe.event_time_utc IS NOT NULL
@@ -29,7 +23,7 @@ def fast_build_rows(c,sport):
       AND ss.availability_status='EXACT' AND ss.source_available_at_utc IS NOT NULL
       ORDER BY ms.participant_id,ms.stat_name,pe.event_time_utc DESC,ms.stat_id DESC""",(sport,*cols)).fetchall()
     grouped={}
-    for pid,stat,et,effective,stat_id,value in raw: grouped.setdefault((pid,stat),[]).append((et,effective,stat_id,float(value)))
+    for pid,stat,et,effective,source_available,stat_id,value in raw: grouped.setdefault((pid,stat),[]).append((et,effective,source_available,stat_id,float(value)))
     rows=[]
     for eid,et in events:
         outcome=outcomes.get(eid); ps=participants.get(eid,[])
@@ -38,10 +32,8 @@ def fast_build_rows(c,sport):
         for pid,side in ps:
             for stat in cols:
                 vals=[]
-                for prev_et,effective,_sid,value in grouped.get((pid,stat),[]):
-                    if prev_et>=et or effective>et: continue
-                    # source_available_at is checked in a second pass below from the source URL set;
-                    # the raw query already limits candidates to exact snapshots.
+                for prev_et,effective,source_available,_sid,value in grouped.get((pid,stat),[]):
+                    if prev_et>=et or effective>et or source_available>et: continue
                     vals.append(value)
                     if len(vals)==20: break
                 x=np.asarray(vals,dtype=float); feat[f'{side}__{stat}__n']=float(len(x)); feat[f'{side}__{stat}__mean']=float(x.mean()) if len(x) else np.nan; feat[f'{side}__{stat}__last']=float(x[0]) if len(x) else np.nan; feat[f'{side}__{stat}__std']=float(x.std()) if len(x)>1 else np.nan; feat[f'{side}__{stat}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
