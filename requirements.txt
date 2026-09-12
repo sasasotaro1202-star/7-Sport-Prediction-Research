@@ -1,0 +1,9 @@
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.5
+requests>=2.32
+beautifulsoup4>=4.12
+lxml>=5.3
+python-dateutil>=2.9
+pydantic>=2.8
+joblib>=1.4
