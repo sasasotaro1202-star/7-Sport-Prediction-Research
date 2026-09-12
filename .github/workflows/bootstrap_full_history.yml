@@ -50,6 +50,21 @@ jobs:
           restore-keys: |
             seven-sport-http-${{ matrix.sport }}-
       - run: python -m pip install -r requirements.txt
+      - name: Prepare persistent cache directory
+        run: mkdir -p data/raw/http_cache data/db results models
+      - name: Reset collection checkpoint when requested
+        if: inputs.reset_state == true
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          p=Path('data/db/sports_v45.sqlite')
+          if p.exists():
+              c=sqlite3.connect(p)
+              c.execute("DELETE FROM collection_state WHERE sport=?", ('${{ matrix.sport }}',))
+              c.commit(); c.close()
+          print('checkpoint reset:', '${{ matrix.sport }}')
+          PY
       - name: Full historical collection with checkpoint resume
         env:
           V45_HTTP_TIMEOUT: '12'
@@ -62,7 +77,6 @@ jobs:
           --sport ${{ matrix.sport }}
           --full-history
           --days-back ${{ inputs.days_back }}
-          ${{ inputs.reset_state && '--reset-state' || '' }}
       - name: Add deep ATP/WTA historical foundation
         if: matrix.sport == 'tennis'
         run: python -m src.tennis_bulk_backfill --start-year 1990 --end-year 2026 --timeout 45
