@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "17 * * * *"
+  push:
+    paths:
+      - 'src/**'
+      - '.github/workflows/v4_5_8_final.yml'
+      - 'requirements.txt'
 
 concurrency:
   group: seven-sport-main-writer
@@ -94,9 +99,76 @@ jobs:
             models/**
           if-no-files-found: warn
 
+  football:
+    name: Football historical + PIT research
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Restore football data cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw/football_cache
+          key: football-data-${{ hashFiles('src/football_backfill.py') }}
+          restore-keys: football-data-
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Prepare directories
+        run: mkdir -p data/raw/football_cache data/db results models/research
+      - name: Compile-check football engine
+        run: python -m compileall -q src
+      - name: Backfill football history and current fixtures
+        env:
+          PYTHONUNBUFFERED: '1'
+        run: |
+          set -e
+          for attempt in 1 2 3 4; do
+            if python -m src.football_backfill; then
+              exit 0
+            fi
+            echo "football backfill attempt ${attempt} failed; retrying"
+            sleep $((attempt * 5))
+          done
+          exit 1
+      - name: Run calibrated 1X2 PIT research and future prediction inventory
+        run: python -m src.football_research
+      - name: Validate football outputs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for p in [Path('results/football_backfill.json'), Path('results/research/football.json'), Path('results/research/football_predictions.json')]:
+              if not p.exists():
+                  raise SystemExit(f'missing {p}')
+              json.loads(p.read_text())
+          print('football validation: OK')
+          PY
+      - name: Save football data cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw/football_cache
+          key: football-data-${{ hashFiles('src/football_backfill.py') }}-${{ github.run_id }}
+      - name: Upload football partition
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hourly-football-${{ github.run_id }}
+          path: |
+            data/db/sports_v45.sqlite
+            results/**
+            models/**
+          if-no-files-found: warn
+
   merge:
     name: Merge hourly partitions
-    needs: collect
+    needs: [collect, football]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 30
