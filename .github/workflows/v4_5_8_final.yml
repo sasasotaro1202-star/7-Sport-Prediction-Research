@@ -93,6 +93,11 @@ jobs:
           merge-multiple: false
       - name: Merge incremental databases
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
+      - name: Restore sport model artifacts
+        run: |
+          mkdir -p models results
+          find hourly-artifacts -type f -path '*/models/*' -exec cp -n {} models/ \; || true
+          find hourly-artifacts -type f -path '*/results/*' -exec cp -n {} results/ \; || true
       - name: Global structural quality gate
         continue-on-error: true
         run: python -m src.quality_gate
