@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: seven-sport-main-writer
+  group: seven-sport-bootstrap-full-history
   cancel-in-progress: false
 
 env:
