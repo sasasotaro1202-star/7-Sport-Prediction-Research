@@ -1,0 +1,89 @@
+from __future__ import annotations
+import sqlite3
+from pathlib import Path
+from datetime import datetime, timezone
+
+ROOT=Path(__file__).resolve().parents[2]
+DB_PATH=ROOT/'data/db/sports_v45.sqlite'
+SCHEMA='''
+PRAGMA journal_mode=WAL;
+CREATE TABLE IF NOT EXISTS schema_version(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS source_snapshot(
+ snapshot_id TEXT PRIMARY KEY, source TEXT NOT NULL, source_url TEXT, retrieved_at_utc TEXT NOT NULL,
+ source_available_at_utc TEXT, event_time_utc TEXT, content_hash TEXT, payload_path TEXT,
+ parser_version TEXT, availability_status TEXT NOT NULL, provenance_json TEXT
+);
+CREATE TABLE IF NOT EXISTS event(
+ event_id TEXT PRIMARY KEY, sport TEXT NOT NULL, competition_id TEXT, season TEXT, stage TEXT, round TEXT,
+ event_time_utc TEXT, event_end_time_utc TEXT, event_type TEXT, status TEXT, source_count INTEGER DEFAULT 0,
+ quality_status TEXT NOT NULL, rejection_reason TEXT, created_at TEXT, updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS participant(
+ participant_id TEXT PRIMARY KEY, sport TEXT NOT NULL, participant_type TEXT NOT NULL,
+ canonical_name TEXT, birth_date TEXT, height_cm REAL, weight_kg REAL, handedness TEXT, stance TEXT,
+ country TEXT, current_team_id TEXT, valid_from TEXT, valid_to TEXT, first_seen_at TEXT, last_seen_at TEXT
+);
+CREATE TABLE IF NOT EXISTS team(
+ team_id TEXT PRIMARY KEY, sport TEXT NOT NULL, canonical_name TEXT, country TEXT,
+ valid_from TEXT, valid_to TEXT, first_seen_at TEXT, last_seen_at TEXT
+);
+CREATE TABLE IF NOT EXISTS event_participant(
+ event_id TEXT NOT NULL, participant_id TEXT, team_id TEXT, side TEXT, role TEXT, seed REAL,
+ lineup_status TEXT, source TEXT, source_url TEXT, effective_at_utc TEXT, quality_status TEXT NOT NULL,
+ PRIMARY KEY(event_id,participant_id,team_id,side,role)
+);
+CREATE TABLE IF NOT EXISTS participant_history(
+ history_id TEXT PRIMARY KEY, participant_id TEXT NOT NULL, sport TEXT NOT NULL, event_id TEXT,
+ observed_at_utc TEXT NOT NULL, effective_at_utc TEXT, attribute TEXT NOT NULL, value_text TEXT,
+ value_num REAL, value_json TEXT, source TEXT, source_url TEXT, quality_status TEXT NOT NULL, confidence REAL
+);
+CREATE TABLE IF NOT EXISTS team_history(
+ history_id TEXT PRIMARY KEY, team_id TEXT NOT NULL, sport TEXT NOT NULL, event_id TEXT,
+ observed_at_utc TEXT NOT NULL, effective_at_utc TEXT, attribute TEXT NOT NULL, value_text TEXT,
+ value_num REAL, value_json TEXT, source TEXT, source_url TEXT, quality_status TEXT NOT NULL, confidence REAL
+);
+CREATE TABLE IF NOT EXISTS match_stats(
+ stat_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, participant_id TEXT, team_id TEXT, sport TEXT NOT NULL,
+ observed_at_utc TEXT NOT NULL, effective_at_utc TEXT, stat_name TEXT NOT NULL, value_num REAL,
+ value_text TEXT, unit TEXT, source TEXT, source_url TEXT, quality_status TEXT NOT NULL, confidence REAL
+);
+CREATE TABLE IF NOT EXISTS availability(
+ availability_id TEXT PRIMARY KEY, event_id TEXT, participant_id TEXT, team_id TEXT, sport TEXT NOT NULL,
+ observed_at_utc TEXT NOT NULL, effective_at_utc TEXT, cutoff_at_utc TEXT, status TEXT NOT NULL,
+ reason TEXT, source TEXT, source_url TEXT, quality_status TEXT NOT NULL, confidence REAL
+);
+CREATE TABLE IF NOT EXISTS pit_replay(
+ replay_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, prediction_cutoff_at_utc TEXT NOT NULL,
+ cutoff_rule TEXT NOT NULL, replay_status TEXT NOT NULL, leakage_status TEXT NOT NULL,
+ model_version TEXT, feature_version TEXT, research_cycle TEXT, git_commit_sha TEXT,
+ data_snapshot_id TEXT, dataset_hash TEXT, created_at_utc TEXT NOT NULL, reason TEXT
+);
+CREATE TABLE IF NOT EXISTS pit_feature_snapshot(
+ snapshot_id TEXT PRIMARY KEY, replay_id TEXT NOT NULL, event_id TEXT NOT NULL, sport TEXT NOT NULL,
+ cutoff_at_utc TEXT NOT NULL, feature_name TEXT NOT NULL, value_num REAL, value_text TEXT,
+ source_observation_ids TEXT, leakage_status TEXT NOT NULL, created_at_utc TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS model_state_snapshot(
+ snapshot_id TEXT PRIMARY KEY, sport TEXT NOT NULL, market TEXT NOT NULL, as_of_utc TEXT NOT NULL,
+ model_version TEXT NOT NULL, feature_version TEXT, training_cutoff_utc TEXT, dataset_hash TEXT,
+ git_commit_sha TEXT, artifact_path TEXT, quality_status TEXT NOT NULL, metadata_json TEXT
+);
+CREATE TABLE IF NOT EXISTS replay_audit(
+ audit_id TEXT PRIMARY KEY, replay_id TEXT NOT NULL, table_name TEXT NOT NULL, record_id TEXT NOT NULL,
+ effective_at_utc TEXT, included INTEGER NOT NULL, exclusion_reason TEXT, checked_at_utc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_event_time ON event(event_time_utc);
+CREATE INDEX IF NOT EXISTS idx_ep_event ON event_participant(event_id);
+CREATE INDEX IF NOT EXISTS idx_ph_pid_time ON participant_history(participant_id,effective_at_utc);
+CREATE INDEX IF NOT EXISTS idx_th_tid_time ON team_history(team_id,effective_at_utc);
+CREATE INDEX IF NOT EXISTS idx_stats_pid_time ON match_stats(participant_id,effective_at_utc);
+CREATE INDEX IF NOT EXISTS idx_stats_team_time ON match_stats(team_id,effective_at_utc);
+CREATE INDEX IF NOT EXISTS idx_avail_event_cutoff ON availability(event_id,cutoff_at_utc);
+CREATE INDEX IF NOT EXISTS idx_pit_event_cutoff ON pit_feature_snapshot(event_id,cutoff_at_utc);
+'''
+def connect():
+ DB_PATH.parent.mkdir(parents=True,exist_ok=True)
+ con=sqlite3.connect(DB_PATH)
+ con.executescript(SCHEMA)
+ return con
+def utcnow(): return datetime.now(timezone.utc).isoformat()
