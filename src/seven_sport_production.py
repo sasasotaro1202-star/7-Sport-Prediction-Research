@@ -12,8 +12,8 @@ from src.storage.db_v45 import connect, utcnow
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / 'data/db/sports_v45.sqlite'
 SPORTS = ('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
-PARSER = 'v4.5.9'
-UA = os.getenv('SPORTS_PIPELINE_USER_AGENT', 'SevenSportResearchEngine/4.5.9')
+PARSER = 'v4.5.10'
+UA = os.getenv('SPORTS_PIPELINE_USER_AGENT', 'SevenSportResearchEngine/4.5.10')
 
 
 def iso(v):
@@ -32,6 +32,10 @@ def sid(*x):
 
 
 def clean(x): return re.sub(r'\s+', ' ', str(x or '')).strip()
+
+
+def counts(c, tables=('event','participant','event_participant','match_stats','source_snapshot','pit_replay','collection_state')):
+    return {t: c.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in tables}
 
 
 class HTTP:
@@ -98,7 +102,6 @@ def save_state(c, sport, scope, cursor=None, completed=False, metadata=None):
 
 
 def init_db(c):
-    # The canonical v45 schema is created by db_v45.connect(). These indexes/columns are additive.
     ensure_state(c)
     c.execute('CREATE INDEX IF NOT EXISTS idx_source_snapshot_url ON source_snapshot(source_url)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_event_sport_time ON event(sport,event_time_utc)')
@@ -223,15 +226,12 @@ def collect_vlr(c,h,pages):
         for u,res in details.items():
             if not res: continue
             x,det_retrieved,_=res; s=BeautifulSoup(x,'lxml'); title=clean(s.title.get_text() if s.title else u)
-            # VLR match pages expose date/time in match-header-date-item or data attributes on many layouts.
             et=None
             for sel in ('.match-header-date-item','.match-header-link-date','.match-header-date'):
                 node=s.select_one(sel)
                 if node:
                     txt=clean(node.get_text(' ')); m=re.search(r'(\d{1,2}):(\d{2})',txt)
-                    if m:
-                        # Date is often represented by a sibling/attribute; never guess a calendar date.
-                        break
+                    if m: break
             for ld in parse_jsonld(x):
                 if ld.get('startDate'): et=iso(ld.get('startDate')); break
             status='COMPLETED' if 'completed' in x.lower() else 'SCHEDULED'; eid=upsert_event(c,'valorant',title,et,'vlr.gg',u,status)
@@ -239,8 +239,7 @@ def collect_vlr(c,h,pages):
             for i,n in enumerate(names):
                 pid=upsert_participant(c,'valorant',n,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
             add_snapshot(c,'valorant','vlr.gg',u,det_retrieved,et,hashlib.sha256(x.encode()).hexdigest(),'UNVERIFIABLE')
-        save_state(c,'valorant',scope,str(p+1),p>=pages)
-        c.commit()
+        save_state(c,'valorant',scope,str(p+1),p>=pages); c.commit()
 
 
 def collect_generic(c,h,sport,seeds,max_pages):
@@ -292,6 +291,8 @@ def main():
     h=HTTP(); today=datetime.now(timezone.utc).date()
     start=datetime.fromisoformat(a.start_date).date() if a.start_date else today-timedelta(days=a.days_back)
     end=datetime.fromisoformat(a.end_date).date() if a.end_date else today
+    before=counts(c)
+    errors=[]
     for sport in sports:
         try:
             if sport=='basketball': collect_espn(c,h,sport,['nba','wnba','mens-college-basketball'],start,end)
@@ -302,14 +303,22 @@ def main():
             elif sport=='rizin': collect_generic(c,h,sport,['https://jp.rizinff.com/','https://jp.rizinff.com/_tags/大会情報','https://jp.rizinff.com/fighters'],200 if a.full_history else 40)
             elif sport=='ufc': collect_generic(c,h,sport,['http://ufcstats.com/statistics/events/completed?page=all'],200 if a.full_history else 40)
         except Exception as e:
+            errors.append({'sport':sport,'error':repr(e)})
             print(json.dumps({'sport':sport,'status':'COLLECT_FAILED','error':repr(e)},ensure_ascii=False),flush=True)
-    counts={}
-    for table in ('event','participant','event_participant','match_stats','source_snapshot','pit_replay','collection_state'):
-        counts[table]=c.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+    after=counts(c)
+    deltas={k:after[k]-before[k] for k in after}
+    # A collector must never report OK merely because its Python process exited normally.
+    # OK requires evidence that the run changed the canonical dataset or that a prior
+    # completed checkpoint explicitly proves there was nothing new to collect.
+    evidence_rows=sum(max(0,deltas[k]) for k in ('event','participant','event_participant','match_stats','source_snapshot'))
+    status='FAILED' if errors else ('OK' if evidence_rows>0 else 'NO_DATA')
     out=ROOT/'results/v45'; out.mkdir(parents=True,exist_ok=True)
-    report={'sports':sports,'start_date':start.isoformat(),'end_date':end.isoformat(),'full_history':a.full_history,'parser_version':PARSER,'counts':counts,'timestamp_utc':utcnow(),'status':'OK'}
+    report={'sports':sports,'start_date':start.isoformat(),'end_date':end.isoformat(),'full_history':a.full_history,'parser_version':PARSER,'counts_before':before,'counts_after':after,'deltas':deltas,'evidence_rows':evidence_rows,'errors':errors,'timestamp_utc':utcnow(),'status':status}
     (out/'production_run.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False,indent=2))
     c.close()
+    # Exit non-zero only for actual collector exceptions. NO_DATA is intentionally
+    # observable by the workflow/quality gate without masking it as a runner crash.
+    raise SystemExit(1 if errors else 0)
 
 if __name__=='__main__': main()
