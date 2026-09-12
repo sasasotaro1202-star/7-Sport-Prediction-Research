@@ -38,6 +38,9 @@ def build_rows(c,sport):
         if not o or o[0] not in ('A','B'): continue
         ps=c.execute("SELECT participant_id,side FROM event_participant WHERE event_id=? AND side IN ('A','B') AND participant_id IS NOT NULL GROUP BY participant_id,side ORDER BY side",(eid,)).fetchall()
         if len(ps)!=2: continue
+        cutoff=f"{et}"
+        # Default replay cutoff is event time minus 60 minutes. Features and source availability
+        # must both be known by that cutoff; event time itself is never a sufficient proxy.
         feat={}
         for pid,side in ps:
             for stat in cols:
@@ -46,9 +49,9 @@ def build_rows(c,sport):
                                   WHERE ms.sport=? AND ms.participant_id=? AND ms.stat_name=?
                                   AND pe.event_time_utc IS NOT NULL AND pe.event_time_utc < ?
                                   AND ms.value_num IS NOT NULL AND ms.effective_at_utc IS NOT NULL
-                                  AND ms.effective_at_utc <= ?
+                                  AND ms.effective_at_utc <= datetime(?, '-60 minutes')
                                   AND ss.availability_status='EXACT' AND ss.source_available_at_utc IS NOT NULL
-                                  AND ss.source_available_at_utc <= ?
+                                  AND ss.source_available_at_utc <= datetime(?, '-60 minutes')
                                   ORDER BY pe.event_time_utc DESC,ms.stat_id DESC LIMIT 20""",(sport,pid,stat,et,et,et)).fetchall()
                 x=np.asarray([v[0] for v in vals],dtype=float)
                 feat[f'{side}__{stat}__n']=float(len(x)); feat[f'{side}__{stat}__mean']=float(x.mean()) if len(x) else np.nan; feat[f'{side}__{stat}__last']=float(x[0]) if len(x) else np.nan; feat[f'{side}__{stat}__std']=float(x.std()) if len(x)>1 else np.nan; feat[f'{side}__{stat}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
@@ -88,8 +91,8 @@ def train_sport(sport):
     if not accept:
         out={'sport':sport,'status':'REJECTED_CHALLENGER','reason':gate_reason,'candidate':best,'all_models':results,'training_rows':len(rows)}; c.close(); RESULTS.mkdir(parents=True,exist_ok=True); (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
     final=pool[best['model']]; final.fit(X,y); version=h({'sport':sport,'features':features,'model':best['model'],'rows':len(rows),'last_event':rows[-1][1],'metrics':best}); MODELS.mkdir(parents=True,exist_ok=True); RESULTS.mkdir(parents=True,exist_ok=True); artifact=MODELS/f'{sport}_{version}.joblib'; joblib.dump({'model':final,'features':features,'sport':sport,'model_version':version,'training_rows':len(rows)},artifact); gitsha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip() or None
-    metadata={'sport':sport,'market':'winner','model_version':version,'feature_version':'strict-pit-v4-source-exact','training_cutoff_utc':rows[-1][1],'git_commit_sha':gitsha,'artifact_path':str(artifact.relative_to(ROOT)),'quality_status':'ACCEPTED_AFTER_OOS','selection_gate':gate_reason,'metrics':results}
-    c.execute('''INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',(h(metadata),sport,'winner',utc(),version,'strict-pit-v4-source-exact',rows[-1][1],h([(r[0],r[1],r[2]) for r in rows]),gitsha,str(artifact.relative_to(ROOT)),'ACCEPTED_AFTER_OOS',json.dumps(metadata,ensure_ascii=False))); c.commit(); c.close()
+    metadata={'sport':sport,'market':'winner','model_version':version,'feature_version':'strict-pit-v4-source-exact-60m','training_cutoff_utc':rows[-1][1],'git_commit_sha':gitsha,'artifact_path':str(artifact.relative_to(ROOT)),'quality_status':'ACCEPTED_AFTER_OOS','selection_gate':gate_reason,'metrics':results}
+    c.execute('''INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',(h(metadata),sport,'winner',utc(),version,'strict-pit-v4-source-exact-60m',rows[-1][1],h([(r[0],r[1],r[2]) for r in rows]),gitsha,str(artifact.relative_to(ROOT)),'ACCEPTED_AFTER_OOS',json.dumps(metadata,ensure_ascii=False))); c.commit(); c.close()
     out={'sport':sport,'status':'TRAINED','model':best['model'],'model_version':version,'training_rows':len(rows),'features':len(features),'metrics':results,'selection_gate':gate_reason}; (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
 def main():
     import argparse
