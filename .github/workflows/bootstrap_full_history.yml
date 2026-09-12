@@ -13,6 +13,10 @@ on:
         required: true
         default: false
         type: boolean
+  push:
+    branches: [main]
+    paths:
+      - '.github/bootstrap.trigger'
 
 permissions:
   contents: write
@@ -53,21 +57,6 @@ jobs:
         run: mkdir -p data/raw/http_cache data/db results models
       - name: Compile-check production code
         run: python -m compileall -q src
-      - name: Reset collection checkpoint when requested
-        if: inputs.reset_state == true
-        run: |
-          python - <<'PY'
-          import sqlite3
-          from pathlib import Path
-          p=Path('data/db/sports_v45.sqlite')
-          if p.exists():
-              c=sqlite3.connect(p)
-              if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='collection_state'").fetchone():
-                  c.execute("DELETE FROM collection_state WHERE sport=?", ('${{ matrix.sport }}',))
-                  c.commit()
-              c.close()
-          print('checkpoint reset:', '${{ matrix.sport }}')
-          PY
       - name: Full historical collection with checkpoint resume
         env:
           V45_HTTP_TIMEOUT: '12'
@@ -78,7 +67,7 @@ jobs:
         run: |
           set -e
           for attempt in 1 2 3; do
-            if python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back ${{ inputs.days_back }}; then
+            if python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back 3650; then
               exit 0
             fi
             echo "historical collector attempt ${attempt} failed; checkpoint will permit resume"
@@ -87,7 +76,7 @@ jobs:
           exit 1
       - name: Validate collected partition
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
-      - name: Add deep ATP/WTA historical foundation
+      - name: Deep tennis historical foundation
         if: matrix.sport == 'tennis'
         continue-on-error: true
         run: python -m src.tennis_bulk_backfill --start-year 1990 --end-year 2026 --timeout 45
