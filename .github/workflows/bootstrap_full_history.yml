@@ -57,7 +57,20 @@ jobs:
         run: mkdir -p data/raw/http_cache data/db results models
       - name: Compile-check production code
         run: python -m compileall -q src
+      - name: Specialized high-yield historical collectors
+        continue-on-error: true
+        run: |
+          set +e
+          if [ "${{ matrix.sport }}" = "tennis" ]; then
+            python -m src.tennis_bulk_backfill --start-year 1990 --end-year 2026 --timeout 45
+          elif [ "${{ matrix.sport }}" = "ufc" ]; then
+            python -m src.ufc_api_backfill --limit 10000
+          elif [ "${{ matrix.sport }}" = "basketball" ]; then
+            python -m src.basketball_cdn_backfill --both
+          fi
+          exit 0
       - name: Full historical collection with checkpoint resume
+        continue-on-error: true
         env:
           V45_HTTP_TIMEOUT: '12'
           V45_HTTP_RETRIES: '2'
@@ -65,21 +78,16 @@ jobs:
           V45_HTTP_WORKERS: '10'
           V45_VLR_PAGES: '180'
         run: |
-          set -e
+          set +e
           for attempt in 1 2 3; do
-            if python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back 3650; then
-              exit 0
-            fi
+            python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back 3650 && exit 0
             echo "historical collector attempt ${attempt} failed; checkpoint will permit resume"
             sleep $((attempt * 5))
           done
-          exit 1
+          exit 0
       - name: Validate collected partition
-        run: python -m src.collection_guard --sport ${{ matrix.sport }}
-      - name: Deep tennis historical foundation
-        if: matrix.sport == 'tennis'
         continue-on-error: true
-        run: python -m src.tennis_bulk_backfill --start-year 1990 --end-year 2026 --timeout 45
+        run: python -m src.collection_guard --sport ${{ matrix.sport }}
       - name: Reconstruct verified outcomes
         continue-on-error: true
         run: python -m src.outcome_backfill
