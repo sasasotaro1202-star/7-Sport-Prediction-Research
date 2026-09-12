@@ -57,8 +57,24 @@ jobs:
         run: mkdir -p data/raw/http_cache data/db results models
       - name: Compile-check production code
         run: python -m compileall -q src
+      - name: Reset checkpoint state when requested
+        if: ${{ inputs.reset_state == true }}
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          p=Path('data/db/sports_v45.sqlite')
+          if p.exists():
+              c=sqlite3.connect(p)
+              c.execute("DELETE FROM collection_state WHERE sport=?", ('${{ matrix.sport }}',))
+              c.commit(); c.close()
+          PY
       - name: Specialized high-yield historical collectors
         continue-on-error: true
+        env:
+          V45_HTTP_TIMEOUT: '20'
+          V45_HTTP_RETRIES: '3'
+          V45_REQUEST_DELAY: '0.02'
         run: |
           set +e
           if [ "${{ matrix.sport }}" = "tennis" ]; then
@@ -70,6 +86,7 @@ jobs:
           fi
           exit 0
       - name: Full historical collection with checkpoint resume
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
         continue-on-error: true
         env:
           V45_HTTP_TIMEOUT: '12'
@@ -80,7 +97,7 @@ jobs:
         run: |
           set +e
           for attempt in 1 2 3; do
-            python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back 3650 && exit 0
+            python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back '${{ inputs.days_back || '3650' }}' && exit 0
             echo "historical collector attempt ${attempt} failed; checkpoint will permit resume"
             sleep $((attempt * 5))
           done
