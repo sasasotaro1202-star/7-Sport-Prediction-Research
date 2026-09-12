@@ -47,7 +47,14 @@ jobs:
         env:
           V45_PROBE_TIMEOUT: '12'
         run: python -m src.source_probe --sport ${{ matrix.sport }}
-      - name: Run incremental collector
+      - name: Run basketball CDN collector
+        if: matrix.sport == 'basketball'
+        run: python -m src.basketball_cdn_backfill --both
+      - name: Run tennis historical collector
+        if: matrix.sport == 'tennis'
+        run: python -m src.tennis_bulk_backfill --start-year 2026 --end-year 2026 --timeout 45
+      - name: Run standard incremental collector
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis'
         env:
           V45_HTTP_TIMEOUT: '12'
           V45_HTTP_RETRIES: '2'
@@ -57,7 +64,22 @@ jobs:
         run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 2
       - name: Run collection guard
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
-      - name: Verify collector report semantics
+      - name: Verify collector evidence
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          p=Path('data/db/sports_v45.sqlite')
+          c=sqlite3.connect(p)
+          event_count=c.execute("select count(*) from event where sport='${{ matrix.sport }}'").fetchone()[0]
+          source_count=c.execute("select count(*) from source_snapshot where provenance_json like '%${{ matrix.sport }}%'").fetchone()[0]
+          c.close()
+          print('sport=', '${{ matrix.sport }}', 'events=', event_count, 'source_snapshots=', source_count)
+          if '${{ matrix.sport }}' in ('basketball','tennis') and event_count == 0:
+              raise SystemExit('sport-specific collector produced no events')
+          PY
+      - name: Verify standard collector report semantics
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis'
         run: |
           python - <<'PY'
           import json
@@ -65,11 +87,9 @@ jobs:
           p=Path('results/v45/production_run.json')
           if not p.exists(): raise SystemExit('missing production_run.json')
           r=json.loads(p.read_text())
-          if r.get('status') == 'FAILED':
-              raise SystemExit('collector reported FAILED: '+json.dumps(r.get('errors', []), ensure_ascii=False))
-          if r.get('status') not in ('OK','NO_DATA'):
-              raise SystemExit('unknown collector status: '+repr(r.get('status')))
-          print('collector status:', r['status'], 'evidence_rows:', r.get('evidence_rows'))
+          if r.get('status') == 'FAILED': raise SystemExit('collector FAILED: '+json.dumps(r.get('errors', []), ensure_ascii=False))
+          if r.get('status') not in ('OK','NO_DATA'): raise SystemExit('unknown collector status: '+repr(r.get('status')))
+          print('collector status:',r['status'],'evidence_rows:',r.get('evidence_rows'))
           PY
       - name: Upload smoke evidence
         if: always()
