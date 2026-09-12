@@ -1,0 +1,36 @@
+{
+  "timestamp_utc": "2026-09-12T09:12:13.106042+00:00",
+  "status": "FAIL",
+  "fatal": [],
+  "checks": [
+    {
+      "check": "required_tables",
+      "ok": false,
+      "missing": [
+        "pit_feature_snapshot"
+      ]
+    },
+    {
+      "check": "seven_sports_present",
+      "ok": false,
+      "counts": {}
+    },
+    {
+      "check": "event_time_sanity",
+      "ok": true,
+      "bad_rows": 0
+    },
+    {
+      "check": "source_timing_transparency",
+      "ok": true,
+      "unverifiable_source_timestamps": 0,
+      "policy": "UNVERIFIABLE is never promoted to PIT_EXACT"
+    },
+    {
+      "check": "pit_leakage",
+      "ok": true,
+      "nonpass": 0
+    }
+  ],
+  "strict": true
+}
