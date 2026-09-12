@@ -21,7 +21,7 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,12 +29,17 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt
       - name: Collect one sport incrementally
-        run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 14
+        env:
+          V45_HTTP_TIMEOUT: '10'
+          V45_HTTP_RETRIES: '1'
+          V45_REQUEST_DELAY: '0.05'
+          V45_VLR_PAGES: '20'
+        run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3
       - name: Upload sport partition
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hourly-${{ matrix.sport }}
+          name: hourly-${{ matrix.sport }}-${{ github.run_id }}
           path: |
             data/db/sports_v45.sqlite
             results/**
@@ -45,7 +50,7 @@ jobs:
     needs: collect
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -60,8 +65,8 @@ jobs:
           merge-multiple: false
       - name: Merge incremental databases
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
-      - name: Quality gate (report only until PIT/model layers are populated)
-        run: python -m src.quality_gate --strict || true
+      - name: Structural quality gate
+        run: python -m src.quality_gate
       - name: Persist merged outputs
         run: |
           git config user.name "github-actions[bot]"
@@ -72,7 +77,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v4-5-8-merged
+          name: v4-5-8-merged-${{ github.run_id }}
           path: |
             results/**
             data/**
