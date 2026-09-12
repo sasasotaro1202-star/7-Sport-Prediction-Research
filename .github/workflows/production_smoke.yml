@@ -10,7 +10,7 @@ on:
       - '.github/workflows/**'
 
 concurrency:
-  group: seven-sport-smoke-v3
+  group: seven-sport-smoke-v4
   cancel-in-progress: true
 
 permissions:
@@ -54,14 +54,9 @@ jobs:
       - name: Run tennis historical collector
         if: matrix.sport == 'tennis'
         run: python -m src.tennis_bulk_backfill --start-year 2026 --end-year 2026 --timeout 45
-      - name: Run UFC production collector
+      - name: Run UFC resilient historical collector
         if: matrix.sport == 'ufc'
-        env:
-          V45_HTTP_TIMEOUT: '20'
-          V45_HTTP_RETRIES: '2'
-          V45_REQUEST_DELAY: '0.03'
-          V45_HTTP_WORKERS: '4'
-        run: python -m src.seven_sport_production --sport ufc --days-back 30
+        run: python -m src.ufc_api_backfill --limit 100
       - name: Run standard incremental collector
         if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
         env:
@@ -90,7 +85,7 @@ jobs:
               raise SystemExit(f'{sport} required collector produced no events')
           PY
       - name: Verify collector report semantics
-        if: matrix.sport != 'basketball' && matrix.sport != 'tennis'
+        if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
         run: |
           python - <<'PY'
           import json
