@@ -29,7 +29,7 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -43,22 +43,34 @@ jobs:
         run: python -m compileall -q src
       - name: Initialize canonical schema
         run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close(); print('schema-ok')"
-      - name: Run guarded incremental collector
-        continue-on-error: true
+      - name: Probe live source connectivity
         env:
-          V45_HTTP_TIMEOUT: '8'
-          V45_HTTP_RETRIES: '1'
-          V45_REQUEST_DELAY: '0.01'
-          V45_HTTP_WORKERS: '6'
-          V45_VLR_PAGES: '2'
-        run: |
-          set +e
-          python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 1
-          rc=$?
-          echo "collector_exit=$rc" >> "$GITHUB_STEP_SUMMARY"
-          exit 0
+          V45_PROBE_TIMEOUT: '12'
+        run: python -m src.source_probe --sport ${{ matrix.sport }}
+      - name: Run incremental collector
+        env:
+          V45_HTTP_TIMEOUT: '12'
+          V45_HTTP_RETRIES: '2'
+          V45_REQUEST_DELAY: '0.02'
+          V45_HTTP_WORKERS: '8'
+          V45_VLR_PAGES: '3'
+        run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 2
       - name: Run collection guard
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
+      - name: Verify collector report semantics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('results/v45/production_run.json')
+          if not p.exists(): raise SystemExit('missing production_run.json')
+          r=json.loads(p.read_text())
+          if r.get('status') == 'FAILED':
+              raise SystemExit('collector reported FAILED: '+json.dumps(r.get('errors', []), ensure_ascii=False))
+          if r.get('status') not in ('OK','NO_DATA'):
+              raise SystemExit('unknown collector status: '+repr(r.get('status')))
+          print('collector status:', r['status'], 'evidence_rows:', r.get('evidence_rows'))
+          PY
       - name: Upload smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
