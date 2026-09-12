@@ -63,6 +63,11 @@ jobs:
           --full-history
           --days-back ${{ inputs.days_back }}
           ${{ inputs.reset_state && '--reset-state' || '' }}
+      - name: Reconstruct verified outcomes
+        run: python -m src.outcome_backfill
+      - name: Run strict PIT research cycle
+        continue-on-error: true
+        run: python -m src.research_cycle --sport ${{ matrix.sport }}
       - name: Save HTTP/source cache
         if: always()
         uses: actions/cache/save@v4
@@ -80,6 +85,7 @@ jobs:
           path: |
             data/db/sports_v45.sqlite
             results/**
+            models/**
           if-no-files-found: warn
 
   merge:
@@ -106,6 +112,11 @@ jobs:
         run: find bootstrap-artifacts -name sports_v45.sqlite -print | sort
       - name: Merge into canonical v45 database
         run: python -m src.merge_partition_dbs --input-dir bootstrap-artifacts
+      - name: Restore sport model artifacts
+        run: |
+          mkdir -p models results
+          find bootstrap-artifacts -type f -path '*/models/*' -exec cp -n {} models/ \; || true
+          find bootstrap-artifacts -type f -path '*/results/*' -exec cp -n {} results/ \; || true
       - name: Global structural quality gate
         continue-on-error: true
         run: python -m src.quality_gate
@@ -113,7 +124,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data results
+          git add data results models
           git diff --cached --quiet || git commit -m 'chore: merge seven-sport bootstrap history'
           git push
       - name: Upload merged database and reports
@@ -124,4 +135,5 @@ jobs:
           path: |
             data/**
             results/**
+            models/**
           if-no-files-found: warn
