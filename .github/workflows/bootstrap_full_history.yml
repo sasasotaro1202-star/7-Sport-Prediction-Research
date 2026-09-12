@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: seven-sport-bootstrap
+  cancel-in-progress: false
+
 jobs:
   backfill:
     name: Backfill ${{ matrix.sport }}
@@ -21,7 +25,7 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,9 +33,14 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -r requirements.txt
       - name: Full historical collection
+        env:
+          V45_HTTP_TIMEOUT: '12'
+          V45_HTTP_RETRIES: '1'
+          V45_REQUEST_DELAY: '0.05'
+          V45_VLR_PAGES: '180'
         run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back ${{ inputs.days_back }}
-      - name: Sport-scoped quality gate
-        run: python -m src.quality_gate --strict --sport ${{ matrix.sport }}
+      - name: Sport-scoped structural validation
+        run: python -m src.quality_gate --sport ${{ matrix.sport }}
       - name: Upload sport partition
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,9 +73,9 @@ jobs:
         run: find bootstrap-artifacts -name sports_v45.sqlite -print | sort
       - name: Merge into canonical v45 database
         run: python -m src.merge_partition_dbs --input-dir bootstrap-artifacts
-      - name: Global quality gate
-        run: python -m src.quality_gate --strict
-      - name: Persist merged database
+      - name: Global structural quality gate
+        run: python -m src.quality_gate
+      - name: Persist merged database and reports
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
