@@ -12,17 +12,21 @@ SCHEMA={
 'participant_history': [('history_id','TEXT PRIMARY KEY'),('participant_id','TEXT NOT NULL'),('sport','TEXT NOT NULL'),('event_id','TEXT'),('observed_at_utc','TEXT NOT NULL'),('effective_at_utc','TEXT'),('attribute','TEXT NOT NULL'),('value_text','TEXT'),('value_num','REAL'),('value_json','TEXT'),('source','TEXT'),('source_url','TEXT'),('quality_status','TEXT'),('confidence','REAL')],
 'team_history': [('history_id','TEXT PRIMARY KEY'),('team_id','TEXT NOT NULL'),('sport','TEXT NOT NULL'),('event_id','TEXT'),('observed_at_utc','TEXT NOT NULL'),('effective_at_utc','TEXT'),('attribute','TEXT NOT NULL'),('value_text','TEXT'),('value_num','REAL'),('value_json','TEXT'),('source','TEXT'),('source_url','TEXT'),('quality_status','TEXT'),('confidence','REAL')],
 'match_stats': [('stat_id','TEXT PRIMARY KEY'),('event_id','TEXT NOT NULL'),('participant_id','TEXT'),('team_id','TEXT'),('sport','TEXT NOT NULL'),('observed_at_utc','TEXT NOT NULL'),('effective_at_utc','TEXT'),('stat_name','TEXT NOT NULL'),('value_num','REAL'),('value_text','TEXT'),('unit','TEXT'),('source','TEXT'),('source_url','TEXT'),('quality_status','TEXT'),('confidence','REAL')],
-'availability': [('availability_id','TEXT PRIMARY KEY'),('event_id','TEXT'),('participant_id','TEXT'),('team_id','TEXT'),('sport','TEXT NOT NULL'),('observed_at_utc','TEXT NOT NULL'),('effective_at_utc','TEXT'),('cutoff_at_utc','TEXT'),('status','TEXT NOT NULL'),('reason','TEXT'),('source','TEXT'),('source_url','TEXT'),('quality_status','TEXT'),('confidence','REAL')],
+'availability': [('availability_id','TEXT PRIMARY KEY'),('event_id','TEXT'),('participant_id','TEXT'),('team_id','TEXT'),('sport','TEXT NOT NULL'),('observed_at_utc','TEXT NOT NULL'),('effective_at_utc','TEXT'),('cutoff_at_utc','TEXT),('status','TEXT NOT NULL'),('reason','TEXT'),('source','TEXT'),('source_url','TEXT'),('quality_status','TEXT'),('confidence','REAL')],
 'source_snapshot': [('snapshot_id','TEXT PRIMARY KEY'),('sport','TEXT'),('source','TEXT NOT NULL'),('source_url','TEXT'),('retrieved_at_utc','TEXT NOT NULL'),('source_available_at_utc','TEXT'),('event_time_utc','TEXT'),('content_hash','TEXT'),('payload_path','TEXT'),('parser_version','TEXT'),('availability_status','TEXT NOT NULL'),('provenance_json','TEXT')],
+'event_outcome': [('event_id','TEXT PRIMARY KEY'),('sport','TEXT NOT NULL'),('side_a_participant_id','TEXT'),('side_b_participant_id','TEXT'),('outcome','TEXT'),('score_a','REAL'),('score_b','REAL'),('outcome_status','TEXT NOT NULL'),('source','TEXT'),('source_url','TEXT'),('observed_at_utc','TEXT NOT NULL'),('quality_status','TEXT NOT NULL'),('reason','TEXT')],
 'pit_replay': [('replay_id','TEXT PRIMARY KEY'),('event_id','TEXT NOT NULL'),('prediction_cutoff_at_utc','TEXT NOT NULL'),('cutoff_rule','TEXT NOT NULL'),('replay_status','TEXT NOT NULL'),('leakage_status','TEXT NOT NULL'),('model_version','TEXT'),('feature_version','TEXT'),('research_cycle','TEXT'),('git_commit_sha','TEXT'),('data_snapshot_id','TEXT'),('dataset_hash','TEXT'),('created_at_utc','TEXT NOT NULL'),('reason','TEXT')],
 'pit_feature_snapshot': [('snapshot_id','TEXT PRIMARY KEY'),('replay_id','TEXT NOT NULL'),('event_id','TEXT NOT NULL'),('sport','TEXT NOT NULL'),('cutoff_at_utc','TEXT NOT NULL'),('feature_name','TEXT NOT NULL'),('value_num','REAL'),('value_text','TEXT'),('source_observation_ids','TEXT'),('leakage_status','TEXT NOT NULL'),('created_at_utc','TEXT NOT NULL')],
 'model_state_snapshot': [('snapshot_id','TEXT PRIMARY KEY'),('sport','TEXT NOT NULL'),('market','TEXT NOT NULL'),('as_of_utc','TEXT NOT NULL'),('model_version','TEXT NOT NULL'),('feature_version','TEXT'),('training_cutoff_utc','TEXT'),('dataset_hash','TEXT'),('git_commit_sha','TEXT'),('artifact_path','TEXT'),('quality_status','TEXT NOT NULL'),('metadata_json','TEXT')],
-'replay_audit': [('audit_id','TEXT PRIMARY KEY'),('replay_id','TEXT NOT NULL'),('table_name','TEXT NOT NULL'),('record_id','TEXT NOT NULL'),('effective_at_utc','TEXT'),('included','INTEGER NOT NULL'),('exclusion_reason','TEXT'),('checked_at_utc','TEXT NOT NULL')],
+'replay_audit': [('audit_id','TEXT PRIMARY KEY'),('replay_id','TEXT NOT NULL'),('table_name','TEXT NOT NULL'),('record_id','TEXT NOT NULL'),('effective_at_utc','TEXT'),('included','INTEGER NOT NULL'),('exclusion_reason','TEXT'),('checked_at_utc','TEXT NOT NULL)],
+'collection_state': [('state_key','TEXT PRIMARY KEY'),('sport','TEXT NOT NULL'),('scope','TEXT NOT NULL'),('cursor','TEXT'),('completed','INTEGER NOT NULL DEFAULT 0'),('updated_at_utc','TEXT NOT NULL'),('metadata_json','TEXT NOT NULL DEFAULT "{}"')],
 }
-KEYS={'event':['event_id'],'participant':['participant_id'],'team':['team_id'],'event_participant':['event_id','participant_id','team_id','side','role'],'participant_history':['history_id'],'team_history':['history_id'],'match_stats':['stat_id'],'availability':['availability_id'],'source_snapshot':['snapshot_id'],'pit_replay':['replay_id'],'pit_feature_snapshot':['snapshot_id'],'model_state_snapshot':['snapshot_id'],'replay_audit':['audit_id']}
+KEYS={k:[x for x,_ in v if 'PRIMARY KEY' in x or x in {'event_id','participant_id','team_id','history_id','stat_id','availability_id','snapshot_id','replay_id','state_key'}] for k,v in SCHEMA.items()}
+KEYS['event_participant']=['event_id','participant_id','team_id','side','role']
+KEYS['event_outcome']=['event_id']
 
 def q(s): return '"'+s.replace('"','""')+'"'
-def tables(con): return {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+def tables(con,schema='main'): return {r[0] for r in con.execute(f"SELECT name FROM {schema}.sqlite_master WHERE type='table'")}
 def cols(con,table,schema='main'): return {r[1] for r in con.execute(f'PRAGMA {schema}.table_info({q(table)})')}
 
 def ensure_schema(con):
@@ -37,19 +41,20 @@ def ensure_schema(con):
     con.commit()
 
 def merge_one(target,path,idx):
-    alias=f'src{idx}'; target.execute(f'ATTACH DATABASE ? AS {alias}',(str(path),))
-    source_tables={r[0] for r in target.execute(f'SELECT name FROM {alias}.sqlite_master WHERE type="table"')}
+    alias=f'src{idx}'
+    target.execute(f'ATTACH DATABASE ? AS {alias}',(str(path),))
+    source_tables=tables(target,alias)
     for table,defs in SCHEMA.items():
         if table not in source_tables: continue
-        src=cols(target,table,alias); dst=cols(target,table); common=[n for n,_ in defs if n in src and n in dst and n not in KEYS[table]]
+        src=cols(target,table,alias); dst=cols(target,table)
         key=[k for k in KEYS[table] if k in src and k in dst]
         if not key: continue
+        common=[n for n,_ in defs if n in src and n in dst and n not in key]
         cs=','.join(q(x) for x in key+common)
         vals=','.join('s.'+q(x) for x in key+common)
-        # Update existing rows using only columns actually present in the source.
+        join=' AND '.join(f'm.{q(k)}=s.{q(k)}' for k in key)
         if common:
             set_sql=','.join(f'{q(c)}=s.{q(c)}' for c in common)
-            join=' AND '.join(f'm.{q(k)}=s.{q(k)}' for k in key)
             target.execute(f'UPDATE main.{q(table)} AS m SET {set_sql} FROM {alias}.{q(table)} AS s WHERE {join}')
         target.execute(f'INSERT OR IGNORE INTO main.{q(table)} ({cs}) SELECT {vals} FROM {alias}.{q(table)} AS s')
     target.execute(f'DETACH DATABASE {alias}')
