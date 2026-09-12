@@ -45,7 +45,6 @@ jobs:
       - name: Compile-check production code
         run: python -m compileall -q src
       - name: Collect one sport incrementally
-        continue-on-error: true
         env:
           V45_HTTP_TIMEOUT: '10'
           V45_HTTP_RETRIES: '2'
@@ -53,17 +52,16 @@ jobs:
           V45_HTTP_WORKERS: '10'
           V45_VLR_PAGES: '20'
         run: |
-          set +e
-          rc=1
+          set -e
           for attempt in 1 2 3; do
-            python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3 && rc=0 && break
+            if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3; then
+              exit 0
+            fi
             echo "collector attempt ${attempt} failed; retrying"
             sleep $((attempt * 3))
           done
-          if [ "$rc" -ne 0 ]; then echo "::warning::${{ matrix.sport }} incremental collection failed; preserving existing/partial state"; fi
-          exit 0
+          exit 1
       - name: Validate collected partition
-        if: always()
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
       - name: Enrich F1 with incremental OpenF1 data
         if: matrix.sport == 'f1'
@@ -117,7 +115,7 @@ jobs:
           path: hourly-artifacts
           merge-multiple: false
       - name: Merge incremental databases safely
-        run: python -m src.merge_partition_dbs_safe --input-dir hourly-artifacts
+        run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
       - name: Restore sport model artifacts
         run: |
           mkdir -p models results
