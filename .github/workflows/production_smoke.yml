@@ -9,9 +9,11 @@ on:
       - 'requirements.txt'
       - '.github/workflows/**'
 
+# Never cancel a valid validation run because another commit arrived.
+# This prevents the exact failure mode seen in run 34696946403.
 concurrency:
-  group: seven-sport-smoke-v4
-  cancel-in-progress: true
+  group: seven-sport-smoke-v5
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -29,7 +31,7 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -66,6 +68,9 @@ jobs:
           V45_HTTP_WORKERS: '8'
           V45_VLR_PAGES: '3'
         run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 2
+      - name: Repair VALORANT event times for PIT eligibility
+        if: matrix.sport == 'valorant'
+        run: python -m src.repair_vlr_pit_times --timeout 12
       - name: Run collection guard
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
       - name: Verify collector evidence
@@ -77,10 +82,11 @@ jobs:
           p=Path('data/db/sports_v45.sqlite')
           c=sqlite3.connect(p)
           event_count=c.execute("select count(*) from event where sport=?",(sport,)).fetchone()[0]
-          source_count=c.execute("select count(*) from source_snapshot where provenance_json like ?",(f'%"sport": "{sport}"%',)).fetchone()[0]
+          source_count=c.execute("select count(*) from source_snapshot where provenance_json like ?",(f'%\"sport\": \"{sport}\"%',)).fetchone()[0]
           participant_count=c.execute("select count(*) from participant where sport=?",(sport,)).fetchone()[0]
+          timed_count=c.execute("select count(*) from event where sport=? and event_time_utc is not null",(sport,)).fetchone()[0]
           c.close()
-          print(json.dumps({'sport':sport,'events':event_count,'participants':participant_count,'source_snapshots':source_count}))
+          print(json.dumps({'sport':sport,'events':event_count,'timed_events':timed_count,'participants':participant_count,'source_snapshots':source_count}))
           if sport in ('tennis','ufc') and event_count == 0:
               raise SystemExit(f'{sport} required collector produced no events')
           PY
