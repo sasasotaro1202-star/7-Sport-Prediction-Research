@@ -8,6 +8,11 @@ on:
         required: true
         default: '3650'
         type: string
+      reset_state:
+        description: 'Reset collection checkpoints before starting'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -37,14 +42,33 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: requirements.txt
+      - name: Restore HTTP/source cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw/http_cache
+          key: seven-sport-http-${{ matrix.sport }}-${{ hashFiles('src/seven_sport_production.py') }}
+          restore-keys: |
+            seven-sport-http-${{ matrix.sport }}-
       - run: python -m pip install -r requirements.txt
-      - name: Full historical collection
+      - name: Full historical collection with checkpoint resume
         env:
           V45_HTTP_TIMEOUT: '12'
           V45_HTTP_RETRIES: '1'
-          V45_REQUEST_DELAY: '0.05'
+          V45_REQUEST_DELAY: '0.03'
+          V45_HTTP_WORKERS: '10'
           V45_VLR_PAGES: '180'
-        run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back ${{ inputs.days_back }}
+        run: >-
+          python -m src.seven_sport_production
+          --sport ${{ matrix.sport }}
+          --full-history
+          --days-back ${{ inputs.days_back }}
+          ${{ inputs.reset_state && '--reset-state' || '' }}
+      - name: Save HTTP/source cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw/http_cache
+          key: seven-sport-http-${{ matrix.sport }}-${{ hashFiles('src/seven_sport_production.py') }}-${{ github.run_id }}
       - name: Sport-scoped structural validation
         continue-on-error: true
         run: python -m src.quality_gate --sport ${{ matrix.sport }}
