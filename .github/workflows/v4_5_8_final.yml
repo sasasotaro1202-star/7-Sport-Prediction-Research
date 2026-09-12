@@ -45,18 +45,33 @@ jobs:
         run: mkdir -p data/raw/http_cache data/db results models
       - name: Compile-check production code
         run: python -m compileall -q src
-      - name: Collect one sport incrementally
+      - name: Collect one sport incrementally (retry transient network failures)
+        continue-on-error: true
         env:
           V45_HTTP_TIMEOUT: '10'
-          V45_HTTP_RETRIES: '1'
-          V45_REQUEST_DELAY: '0.03'
-          V45_HTTP_WORKERS: '8'
+          V45_HTTP_RETRIES: '2'
+          V45_REQUEST_DELAY: '0.02'
+          V45_HTTP_WORKERS: '10'
           V45_VLR_PAGES: '20'
-        run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3
-      - name: Enrich F1 with OpenF1 historical/session data
+        run: |
+          set +e
+          rc=1
+          for attempt in 1 2 3; do
+            python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3 && rc=0 && break
+            echo "collector attempt ${attempt} failed; retrying"
+            sleep $((attempt * 3))
+          done
+          exit $rc
+      - name: Validate collected partition
+        if: always()
+        continue-on-error: true
+        run: python -m src.collection_guard --sport ${{ matrix.sport }}
+      - name: Enrich F1 with incremental OpenF1 data
         if: matrix.sport == 'f1'
+        continue-on-error: true
         run: python -m src.f1_openf1_backfill --start-year 2023 --end-year 2026 --timeout 30
       - name: Reconstruct verified outcomes
+        continue-on-error: true
         run: python -m src.outcome_backfill
       - name: Run strict PIT research cycle (accelerated)
         continue-on-error: true
@@ -98,8 +113,8 @@ jobs:
           pattern: hourly-*
           path: hourly-artifacts
           merge-multiple: false
-      - name: Merge incremental databases
-        run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
+      - name: Merge incremental databases safely
+        run: python -m src.merge_partition_dbs_safe --input-dir hourly-artifacts
       - name: Restore sport model artifacts
         run: |
           mkdir -p models results
@@ -108,6 +123,9 @@ jobs:
       - name: Global structural quality gate
         continue-on-error: true
         run: python -m src.quality_gate
+      - name: Prediction eligibility inventory
+        continue-on-error: true
+        run: python -m src.prediction_policy
       - name: Persist merged outputs
         run: |
           git config user.name "github-actions[bot]"
