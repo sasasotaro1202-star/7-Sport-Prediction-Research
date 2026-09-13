@@ -7,6 +7,8 @@ DB=ROOT/'data/db/sports_v45.sqlite'
 OUT=ROOT/'results/release_gate.json'
 SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
 
+COMPLETED_STATUSES=('COMPLETED','FINISHED','POST')
+
 
 def _finite(x):
     try:
@@ -41,8 +43,8 @@ def main():
         'publish':False,
         'fatal':[],
         'coverage':{},
-        'policy':'source outages may degrade a run, but never publish an unverified model',
-        'gate_version':'release-gate-v2-metadata-and-data-safety',
+        'policy':'source outages may degrade coverage, but unsafe models are never published; future scheduled events do not require outcomes',
+        'gate_version':'release-gate-v3-completed-outcomes-only',
     }
     if not DB.exists():
         r['fatal'].append('database_missing')
@@ -50,13 +52,14 @@ def main():
         c=sqlite3.connect(DB)
         try:
             counts=dict(c.execute('select sport,count(*) from event group by sport').fetchall())
-            timed=dict(c.execute("select sport,count(*) from event where event_time_utc is not null group by sport").fetchall())
-            verified=dict(c.execute("select sport,count(*) from event_outcome where outcome_status='VERIFIED' and outcome in ('A','B') group by sport").fetchall())
+            timed=dict(c.execute('select sport,count(*) from event where event_time_utc is not null group by sport').fetchall())
+            completed=dict(c.execute("select sport,count(*) from event where status in ('COMPLETED','FINISHED','POST') group by sport").fetchall())
+            verified=dict(c.execute("select sport,count(*) from event_outcome where outcome_status='VERIFIED' and outcome in ('A','B','DRAW') group by sport").fetchall())
             models=dict(c.execute("select sport,count(*) from model_state_snapshot where quality_status like 'ACCEPTED%' group by sport").fetchall())
             model_rows=c.execute("select sport,metadata_json from model_state_snapshot where market='winner' and quality_status like 'ACCEPTED%' order by as_of_utc desc").fetchall()
             bad=c.execute("select count(*) from pit_replay where leakage_status not in ('PASS','UNKNOWN','CLEAN')").fetchone()[0]
             exact_missing=c.execute("select count(*) from source_snapshot where availability_status='EXACT' and source_available_at_utc is null").fetchone()[0]
-            r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'verified_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
+            r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'verified_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
             latest={}
             for sport,payload in model_rows:
                 if sport in latest: continue
@@ -67,14 +70,19 @@ def main():
                     continue
                 ok,reason=_validate_model(latest[s])
                 r['coverage'][s]['model_safety']=reason
-                if not ok:r['fatal'].append(f'{s}:{reason}')
-            if bad:r['fatal'].append('pit_leakage_detected')
-            if exact_missing:r['fatal'].append('exact_source_missing_availability_time')
+                if not ok:
+                    r['fatal'].append(f'{s}:{reason}')
+            if bad:
+                r['fatal'].append('pit_leakage_detected')
+            if exact_missing:
+                r['fatal'].append('exact_source_missing_availability_time')
             for s,v in r['coverage'].items():
                 if v['events'] and v['timed_events'] != v['events']:
                     r['fatal'].append(f'{s}:untimed_events_present')
-                if v['events'] and v['verified_outcomes'] < v['events']:
-                    r['fatal'].append(f'{s}:unverified_outcomes_present')
+                # Only historical/completed events require an outcome. Scheduled/upcoming
+                # events are valid production candidates and must not poison the release gate.
+                if v['completed_events'] and v['verified_outcomes'] < v['completed_events']:
+                    r['fatal'].append(f'{s}:completed_event_outcome_gap')
         finally:
             c.close()
     if not r['fatal']:
