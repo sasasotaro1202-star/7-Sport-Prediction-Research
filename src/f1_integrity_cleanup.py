@@ -9,27 +9,27 @@ def main() -> None:
     ap.add_argument('--vacuum', action='store_true')
     args = ap.parse_args()
     con = connect()
-    before = {t: con.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]
-              for t in ('event_participant', 'match_stats', 'participant')}
+    before = {}
+    for table in ('event_participant', 'match_stats', 'participant'):
+        before[table] = con.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
 
-    # F1 event_participant is the canonical participant relation. Only driver
-    # relations belong there. Results/qualifying/pit-stop rows are statistics,
-    # not additional participant relations. Keeping them here caused a huge
-    # relation explosion and distorted downstream feature generation.
+    # Jolpica/OpenF1 pit-stop rows are observations/statistics, not event participants.
+    # Older collector runs incorrectly inserted them into event_participant, creating
+    # millions of false participant relations and contaminating F1 feature generation.
     removed_ep = con.execute("""
         DELETE FROM event_participant
         WHERE event_id IN (SELECT event_id FROM event WHERE sport='f1')
-          AND LOWER(COALESCE(role,'')) <> 'driver'
+          AND LOWER(COALESCE(role,'')) IN ('pitstops','pitstop','pit_stop')
     """).rowcount
 
-    # Remove synthetic blank F1 participants that were created by malformed
-    # pit-stop rows. Their unmappable pit-stop statistics are discarded rather
-    # than silently treated as driver features.
+    # Remove orphaned synthetic/blank F1 participants that were created only by those
+    # malformed pit-stop relations. Their associated pit-stop stats are removed too;
+    # silently retaining unmappable observations would be worse for model integrity.
     bad_pids = [r[0] for r in con.execute("""
         SELECT p.participant_id
         FROM participant p
         WHERE p.sport='f1'
-          AND TRIM(COALESCE(p.canonical_name,''))=''
+          AND (TRIM(COALESCE(p.canonical_name,''))='')
           AND NOT EXISTS (
               SELECT 1 FROM event_participant ep
               WHERE ep.participant_id=p.participant_id AND ep.role='driver'
@@ -44,15 +44,24 @@ def main() -> None:
         ).rowcount
         con.execute(f"DELETE FROM participant WHERE participant_id IN ({marks})", bad_pids)
 
+    # Remove any now-orphaned non-driver relations for F1 blank participants.
+    con.execute("""
+        DELETE FROM event_participant
+        WHERE event_id IN (SELECT event_id FROM event WHERE sport='f1')
+          AND participant_id IN (
+              SELECT participant_id FROM participant
+              WHERE sport='f1' AND TRIM(COALESCE(canonical_name,''))=''
+          )
+    """)
     con.commit()
     if args.vacuum:
         con.execute('VACUUM')
 
-    after = {t: con.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]
-             for t in ('event_participant','match_stats','participant')}
+    after = {table: con.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+             for table in ('event_participant','match_stats','participant')}
     report={
         'status':'OK',
-        'removed_f1_non_driver_event_participants': removed_ep,
+        'removed_f1_pitstop_event_participants': removed_ep,
         'removed_unmappable_pitstop_stats': removed_stats,
         'before': before,
         'after': after,
