@@ -1,7 +1,15 @@
 {
-  "timestamp_utc": "2026-09-13T07:09:41.938999+00:00",
+  "timestamp_utc": "2026-09-13T07:13:34.908025+00:00",
   "status": "FAIL",
-  "fatal": [],
+  "fatal": [
+    "pit_leakage_detected"
+  ],
+  "pending": [
+    "accepted_model_coverage_incomplete",
+    "no_exact_pit_replay_rows",
+    "sport_coverage_incomplete",
+    "verified_outcome_coverage_incomplete"
+  ],
   "checks": [
     {
       "check": "required_tables",
@@ -19,7 +27,13 @@
         "ufc": 8736,
         "rizin": 70,
         "f1": 333
-      }
+      },
+      "missing": [
+        "valorant",
+        "basketball",
+        "volleyball",
+        "tennis"
+      ]
     },
     {
       "check": "event_time_sanity",
@@ -29,8 +43,14 @@
     {
       "check": "source_timing_transparency",
       "ok": true,
+      "exact_missing_source_available_at": 0,
       "unverifiable_source_timestamps": 366,
-      "policy": "UNVERIFIABLE is never promoted to PIT_EXACT"
+      "policy": "UNVERIFIABLE is excluded from strict PIT learning"
+    },
+    {
+      "check": "f1_event_participant_integrity",
+      "ok": true,
+      "bad_rows": 0
     },
     {
       "check": "pit_leakage",
@@ -49,7 +69,36 @@
         "ufc": 8645,
         "rizin": 0,
         "f1": 8
-      }
+      },
+      "missing": [
+        "valorant",
+        "basketball",
+        "volleyball",
+        "tennis",
+        "rizin"
+      ]
+    },
+    {
+      "check": "accepted_models",
+      "ok": false,
+      "counts": {
+        "valorant": 0,
+        "basketball": 0,
+        "volleyball": 0,
+        "tennis": 0,
+        "ufc": 0,
+        "rizin": 0,
+        "f1": 0
+      },
+      "missing": [
+        "valorant",
+        "basketball",
+        "volleyball",
+        "tennis",
+        "ufc",
+        "rizin",
+        "f1"
+      ]
     },
     {
       "check": "checkpoint_state",
@@ -59,5 +108,10 @@
     }
   ],
   "strict": false,
-  "scope": "global"
+  "scope": "global",
+  "policy": {
+    "fatal_integrity_errors_block_publish": true,
+    "coverage_pending_does_not_block_hourly_pipeline": true,
+    "strict_mode_requires_full_coverage_and_models": true
+  }
 }
