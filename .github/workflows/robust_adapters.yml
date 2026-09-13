@@ -3,6 +3,9 @@ name: Robust Sport Adapters
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'data/**'
+      - 'results/**'
   workflow_dispatch:
     inputs:
       sport:
