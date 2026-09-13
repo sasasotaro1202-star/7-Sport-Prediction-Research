@@ -31,7 +31,7 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,6 +67,22 @@ jobs:
             sleep $((attempt * 3))
           done
           exit 1
+      - name: Historical basketball backfill
+        if: matrix.sport == 'basketball'
+        env:
+          V45_HTTP_TIMEOUT: '15'
+          V45_HTTP_RETRIES: '2'
+          V45_REQUEST_DELAY: '0.03'
+          V45_HTTP_WORKERS: '8'
+        run: python -m src.espn_backfill --sport basketball --leagues nba,wnba --start-year 2016 --end-year 2026
+      - name: Historical tennis backfill
+        if: matrix.sport == 'tennis'
+        env:
+          V45_HTTP_TIMEOUT: '15'
+          V45_HTTP_RETRIES: '2'
+          V45_REQUEST_DELAY: '0.03'
+          V45_HTTP_WORKERS: '8'
+        run: python -m src.espn_backfill --sport tennis --leagues atp,wta --start-year 2016 --end-year 2026
       - name: Validate collected partition
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
       - name: Enrich F1 with incremental OpenF1 data
@@ -84,8 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hourly-${{ matrix.sport }}-${{ github.run_id }}
-          path: |
-            data/db/sports_v45.sqlite
+          path: data/db/sports_v45.sqlite
           if-no-files-found: warn
           retention-days: 1
 
