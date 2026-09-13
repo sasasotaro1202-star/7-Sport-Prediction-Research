@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__
 import argparse, os, shutil, sqlite3
 from pathlib import Path
 
@@ -24,16 +24,18 @@ SCHEMA={
 KEYS={'event':['event_id'],'participant':['participant_id'],'team':['team_id'],'event_participant':['event_id','participant_id','team_id','side','role'],'participant_history':['history_id'],'team_history':['history_id'],'match_stats':['stat_id'],'availability':['availability_id'],'source_snapshot':['snapshot_id'],'event_outcome':['event_id'],'pit_replay':['replay_id'],'pit_feature_snapshot':['snapshot_id'],'model_state_snapshot':['snapshot_id'],'replay_audit':['audit_id'],'collection_state':['state_key']}
 
 def q(s): return '"'+s.replace('"','""')+'"'
+def column_defs(defs): return [(item[0], item[1]) for item in defs if isinstance(item, tuple) and len(item)==2]
+def create_parts(defs): return [(q(item[0])+' '+item[1]) if isinstance(item, tuple) and len(item)==2 else item for item in defs]
 def tables(con,schema='main'): return {r[0] for r in con.execute(f"SELECT name FROM {schema}.sqlite_master WHERE type='table'")}
 def cols(con,table,schema='main'): return {r[1] for r in con.execute(f'PRAGMA {schema}.table_info({q(table)})')}
 
 def ensure_schema(con):
     for table,defs in SCHEMA.items():
         if table not in tables(con):
-            con.execute(f'CREATE TABLE {q(table)} ({",".join(q(n)+" "+t for n,t in defs)})')
+            con.execute(f'CREATE TABLE {q(table)} ({",".join(create_parts(defs))})')
         else:
             have=cols(con,table)
-            for n,t in defs:
+            for n,t in column_defs(defs):
                 if n not in have and 'PRIMARY KEY' not in t:
                     con.execute(f'ALTER TABLE {q(table)} ADD COLUMN {q(n)} {t}')
     con.commit()
@@ -41,21 +43,24 @@ def ensure_schema(con):
 def merge_one(target,path,idx):
     alias=f'src{idx}'
     target.execute(f'ATTACH DATABASE ? AS {alias}',(str(path),))
-    source_tables=tables(target,alias)
-    for table,defs in SCHEMA.items():
-        if table not in source_tables: continue
-        src=cols(target,table,alias); dst=cols(target,table)
-        key=[k for k in KEYS[table] if k in src and k in dst]
-        if not key: continue
-        common=[n for n,_ in defs if n in src and n in dst and n not in key]
-        cs=','.join(q(x) for x in key+common)
-        vals=','.join('s.'+q(x) for x in key+common)
-        join=' AND '.join(f'm.{q(k)}=s.{q(k)}' for k in key)
-        if common:
-            set_sql=','.join(f'{q(c)}=s.{q(c)}' for c in common)
-            target.execute(f'UPDATE main.{q(table)} AS m SET {set_sql} FROM {alias}.{q(table)} AS s WHERE {join}')
-        target.execute(f'INSERT OR IGNORE INTO main.{q(table)} ({cs}) SELECT {vals} FROM {alias}.{q(table)} AS s')
-    target.execute(f'DETACH DATABASE {alias}')
+    try:
+        source_tables=tables(target,alias)
+        for table,defs in SCHEMA.items():
+            if table not in source_tables: continue
+            src=cols(target,table,alias); dst=cols(target,table)
+            key=[k for k in KEYS[table] if k in src and k in dst]
+            if not key: continue
+            common=[n for n,_ in column_defs(defs) if n in src and n in dst and n not in key]
+            cs=','.join(q(x) for x in key+common)
+            vals=','.join('s.'+q(x) for x in key+common)
+            join=' AND '.join(f'm.{q(k)}=s.{q(k)}' for k in key)
+            if common:
+                set_sql=','.join(f'{q(c)}=s.{q(c)}' for c in common)
+                target.execute(f'UPDATE main.{q(table)} AS m SET {set_sql} FROM {alias}.{q(table)} AS s WHERE {join}')
+            target.execute(f'INSERT OR IGNORE INTO main.{q(table)} ({cs}) SELECT {vals} FROM {alias}.{q(table)} AS s')
+    finally:
+        target.commit()
+        target.execute(f'DETACH DATABASE {alias}')
 
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--input-dir',default='bootstrap-artifacts'); ap.add_argument('--output',default=str(DEFAULT_DB)); a=ap.parse_args()
