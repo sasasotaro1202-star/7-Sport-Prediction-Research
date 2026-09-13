@@ -45,14 +45,15 @@ jobs:
           set -euo pipefail
           SPORT='${{ inputs.sport }}'
           if [ -n "$SPORT" ]; then
-            python -m src.robust_sport_adapters --sport "$SPORT"
+            python -m src.robust_sport_adapters_v2 --sport "$SPORT"
           else
-            python -m src.robust_sport_adapters
+            python -m src.robust_sport_adapters_v2
           fi
       - name: Repair adapter timestamps
         run: python src/repair_adapter_timestamps.py
       - name: Validate adapter artifact
         run: |
+          set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
