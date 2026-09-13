@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-09-13T13:19:08.234319+00:00",
+  "timestamp_utc": "2026-09-13T16:25:03.891963+00:00",
   "policy": "prediction-eligibility-v2-multiclass-f1",
   "sports": [
     {
@@ -42,11 +42,11 @@
     },
     {
       "sport": "f1",
-      "events": 284,
+      "events": 333,
       "eligible_future_events": 0,
       "reasons": {
-        "invalid_participant_count": 259,
-        "no_accepted_model": 25
+        "invalid_participant_count": 263,
+        "no_accepted_model": 70
       }
     }
   ]
