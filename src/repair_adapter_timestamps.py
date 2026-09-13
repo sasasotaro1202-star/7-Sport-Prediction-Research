@@ -15,7 +15,14 @@ def iso_human(s):
 
 def main():
     c=sqlite3.connect(DB);c.row_factory=sqlite3.Row
-    rows=c.execute("SELECT event_id,sport,event_time_utc,source_url FROM event WHERE event_time_utc IS NULL AND sport IN ('ufc','rizin','volleyball','valorant')").fetchall();fixed=0
+    cols={row['name'] for row in c.execute('PRAGMA table_info(event)').fetchall()}
+    if 'event_id' not in cols or 'sport' not in cols or 'event_time_utc' not in cols:
+        print(json.dumps({'scanned':0,'fixed':0,'skipped':True,'reason':'event schema missing required columns'},ensure_ascii=False));c.close();return
+    # Older/canonical schemas may not retain a source URL. In that case this repair is
+    # intentionally a no-op: eligibility remains controlled by the PIT quality gates.
+    if 'source_url' not in cols:
+        print(json.dumps({'scanned':0,'fixed':0,'skipped':True,'reason':'source_url not present; PIT gate remains authoritative'},ensure_ascii=False));c.close();return
+    rows=c.execute("SELECT event_id,sport,event_time_utc,source_url FROM event WHERE event_time_utc IS NULL AND sport IN ('ufc','rizin','volleyball','valorant') AND source_url IS NOT NULL AND source_url != ''").fetchall();fixed=0
     sess=requests.Session();sess.headers.update({'User-Agent':UA})
     for r in rows:
         try:
