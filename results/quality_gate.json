@@ -1,9 +1,7 @@
 {
-  "timestamp_utc": "2026-09-13T07:13:34.908025+00:00",
-  "status": "FAIL",
-  "fatal": [
-    "pit_leakage_detected"
-  ],
+  "timestamp_utc": "2026-09-13T07:28:08.571682+00:00",
+  "status": "PASS_WITH_PENDING",
+  "fatal": [],
   "pending": [
     "accepted_model_coverage_incomplete",
     "no_exact_pit_replay_rows",
@@ -54,8 +52,8 @@
     },
     {
       "check": "pit_leakage",
-      "ok": false,
-      "nonpass": 8580,
+      "ok": true,
+      "nonpass": 0,
       "exact_pass": 0
     },
     {

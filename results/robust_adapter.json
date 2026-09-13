@@ -1,12 +1,12 @@
 {
-  "parser_version": "v4.5.10-robust-adapter-v4",
+  "parser_version": "v4.5.11-robust-adapter-v4",
   "done": {
     "valorant": {
       "events": 0,
       "route": "vlr.gg"
     },
     "ufc": {
-      "events": 777,
+      "events": 8736,
       "fights": 8736,
       "stats": 87360
     },
@@ -18,5 +18,5 @@
     }
   },
   "errors": [],
-  "timestamp_utc": "2026-09-13T07:20:04.250556+00:00"
+  "timestamp_utc": "2026-09-13T07:27:56.619642+00:00"
 }
