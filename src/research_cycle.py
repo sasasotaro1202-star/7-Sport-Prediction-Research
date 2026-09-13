@@ -9,7 +9,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, brier_score_loss, log_loss
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.calibration import CalibratedClassifierCV
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'; MODELS=ROOT/'models/research'; RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
@@ -22,9 +21,27 @@ def ece(y,p,bins=10):
         m=(p>=lo)&(p<hi if hi<1 else p<=hi)
         if m.any(): out += m.mean()*abs(y[m].mean()-p[m].mean())
     return float(out)
+class TemporalSigmoidCalibrated:
+    """Platt calibration using only an older prefix for fitting and a later suffix for calibration."""
+    def __init__(self,base,calibration_fraction=.20): self.base=base; self.calibration_fraction=calibration_fraction; self.calibrator=None; self.constant=None
+    def fit(self,X,y):
+        n=len(y); split=max(20,int(n*(1-self.calibration_fraction)))
+        if split>=n or len(np.unique(y[:split]))<2:
+            self.base.fit(X,y); self.calibrator=None; self.constant=None; return self
+        self.base.fit(X[:split],y[:split]); raw=self.base.predict_proba(X[split:])[:,1]; yy=np.asarray(y[split:],dtype=int)
+        if len(np.unique(yy))<2:
+            self.calibrator=None; self.constant=None; return self
+        eps=1e-6; z=np.log(np.clip(raw,eps,1-eps)/(1-np.clip(raw,eps,1-eps))).reshape(-1,1)
+        self.calibrator=LogisticRegression(C=1.0,max_iter=1000); self.calibrator.fit(z,yy); self.constant=None; return self
+    def predict_proba(self,X):
+        raw=self.base.predict_proba(X)[:,1]
+        if self.calibrator is None: p=raw
+        else:
+            eps=1e-6; z=np.log(np.clip(raw,eps,1-eps)/(1-np.clip(raw,eps,1-eps))).reshape(-1,1); p=self.calibrator.predict_proba(z)[:,1]
+        return np.column_stack([1-p,p])
 def model_pool(seed=42):
     base={'logistic':Pipeline([('imp',SimpleImputer(strategy='median')),('scale',StandardScaler()),('model',LogisticRegression(max_iter=3000,C=1.0,random_state=seed))]),'extra_trees':Pipeline([('imp',SimpleImputer(strategy='median')),('model',ExtraTreesClassifier(n_estimators=500,min_samples_leaf=3,max_features='sqrt',random_state=seed,n_jobs=-1,class_weight='balanced'))]),'random_forest':Pipeline([('imp',SimpleImputer(strategy='median')),('model',RandomForestClassifier(n_estimators=500,min_samples_leaf=3,max_features='sqrt',random_state=seed,n_jobs=-1,class_weight='balanced'))]),'hist_gb':Pipeline([('imp',SimpleImputer(strategy='median')),('model',HistGradientBoostingClassifier(max_iter=350,learning_rate=.035,l2_regularization=.75,random_state=seed))])}
-    return {k:CalibratedClassifierCV(v,method='sigmoid',cv=3,n_jobs=-1) for k,v in base.items()}
+    return {k:TemporalSigmoidCalibrated(v) for k,v in base.items()}
 def stat_columns(c,sport):
     wanted=POLICY[sport]; q=','.join('?' for _ in wanted)
     return [r[0] for r in c.execute(f"SELECT stat_name FROM match_stats WHERE sport=? AND stat_name IN ({q}) GROUP BY stat_name",(sport,*wanted)).fetchall()]
@@ -38,9 +55,6 @@ def build_rows(c,sport):
         if not o or o[0] not in ('A','B'): continue
         ps=c.execute("SELECT participant_id,side FROM event_participant WHERE event_id=? AND side IN ('A','B') AND participant_id IS NOT NULL GROUP BY participant_id,side ORDER BY side",(eid,)).fetchall()
         if len(ps)!=2: continue
-        cutoff=f"{et}"
-        # Default replay cutoff is event time minus 60 minutes. Features and source availability
-        # must both be known by that cutoff; event time itself is never a sufficient proxy.
         feat={}
         for pid,side in ps:
             for stat in cols:
@@ -54,9 +68,12 @@ def build_rows(c,sport):
                                   AND ss.source_available_at_utc <= datetime(?, '-60 minutes')
                                   ORDER BY pe.event_time_utc DESC,ms.stat_id DESC LIMIT 20""",(sport,pid,stat,et,et,et)).fetchall()
                 x=np.asarray([v[0] for v in vals],dtype=float)
-                feat[f'{side}__{stat}__n']=float(len(x)); feat[f'{side}__{stat}__mean']=float(x.mean()) if len(x) else np.nan; feat[f'{side}__{stat}__last']=float(x[0]) if len(x) else np.nan; feat[f'{side}__{stat}__std']=float(x.std()) if len(x)>1 else np.nan; feat[f'{side}__{stat}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
+                feat[f'{side}__{stat}__n']=float(len(x)); feat[f'{side}__{stat}__mean']=float(x.mean()) if len(x) else np.nan; feat[f'{side}__{stat}__last']=float(x[0]) if len(x) else np.nan; feat[f'{side}__{stat}__std']=float(x.std()) if len(x)>1 else np.nan; feat[f'{side}__{stat}__median']=float(np.median(x)) if len(x) else np.nan; feat[f'{side}__{stat}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
+                if len(x):
+                    w=np.exp(-np.arange(len(x))/5.0); feat[f'{side}__{stat}__ewma5']=float(np.sum(w*x)/np.sum(w))
+                else: feat[f'{side}__{stat}__ewma5']=np.nan
         for stat in cols:
-            for suffix in ('mean','last','std','trend','n'):
+            for suffix in ('mean','last','std','median','trend','ewma5','n'):
                 a=feat.get(f'A__{stat}__{suffix}',np.nan); b=feat.get(f'B__{stat}__{suffix}',np.nan); feat[f'D__{stat}__{suffix}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
         av=sum(np.isfinite(v) for k,v in feat.items() if k.startswith('A__')); bv=sum(np.isfinite(v) for k,v in feat.items() if k.startswith('B__'))
         if av==0 or bv==0: continue
@@ -82,18 +99,16 @@ def train_sport(sport):
         ll=log_loss(truth,np.column_stack([1-np.asarray(probs),np.asarray(probs)]),labels=[0,1]); br=brier_score_loss(truth,probs); acc=accuracy_score(truth,preds); ec=ece(np.asarray(truth),np.asarray(probs)); results.append({'model':name,'logloss':float(ll),'brier':float(br),'accuracy':float(acc),'ece':float(ec),'oos_n':len(truth),'folds':folds})
     if not results:
         c.close(); return {'sport':sport,'status':'DEFERRED','reason':'no_valid_oos_folds','rows':len(rows)}
-    results.sort(key=lambda z:(z['logloss'],z['brier'],z['ece'])); best=results[0]; inc=incumbent(c,sport); accept=True; gate_reason='initial_model'
-    if inc:
-        old=inc['metadata'].get('metrics',[]); oldbest=min(old,key=lambda z:z.get('logloss',1e9)) if old else None
-        if oldbest:
-            oldll=float(oldbest.get('logloss',1e9)); newll=float(best['logloss']); tol=max(.002,0.01*oldll); accept=newll <= oldll-tol; gate_reason=f"challenger_logloss={newll:.6f}; incumbent_logloss={oldll:.6f}; required_improvement={tol:.6f}"
-        else: gate_reason='incumbent_missing_metrics'
+    results.sort(key=lambda z:(z['logloss'],z['brier'],z['ece'])); best=results[0]['model']; selected=pool[best]; inc=incumbent(c,sport); accept=True; gate_reason='initial_model'
+    old_hold=inc['metadata'].get('holdout_metrics') if inc else None
+    if old_hold:
+        oldll=float(old_hold.get('logloss',1e9)); newll=float(results[0]['logloss']); tol=max(.002,0.01*oldll); accept=newll <= oldll-tol; gate_reason=f"challenger_logloss={newll:.6f}; incumbent_locked_holdout_logloss={oldll:.6f}; required_improvement={tol:.6f}"
     if not accept:
-        out={'sport':sport,'status':'REJECTED_CHALLENGER','reason':gate_reason,'candidate':best,'all_models':results,'training_rows':len(rows)}; c.close(); RESULTS.mkdir(parents=True,exist_ok=True); (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
-    final=pool[best['model']]; final.fit(X,y); version=h({'sport':sport,'features':features,'model':best['model'],'rows':len(rows),'last_event':rows[-1][1],'metrics':best}); MODELS.mkdir(parents=True,exist_ok=True); RESULTS.mkdir(parents=True,exist_ok=True); artifact=MODELS/f'{sport}_{version}.joblib'; joblib.dump({'model':final,'features':features,'sport':sport,'model_version':version,'training_rows':len(rows)},artifact); gitsha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip() or None
-    metadata={'sport':sport,'market':'winner','model_version':version,'feature_version':'strict-pit-v4-source-exact-60m','training_cutoff_utc':rows[-1][1],'git_commit_sha':gitsha,'artifact_path':str(artifact.relative_to(ROOT)),'quality_status':'ACCEPTED_AFTER_OOS','selection_gate':gate_reason,'metrics':results}
-    c.execute('''INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',(h(metadata),sport,'winner',utc(),version,'strict-pit-v4-source-exact-60m',rows[-1][1],h([(r[0],r[1],r[2]) for r in rows]),gitsha,str(artifact.relative_to(ROOT)),'ACCEPTED_AFTER_OOS',json.dumps(metadata,ensure_ascii=False))); c.commit(); c.close()
-    out={'sport':sport,'status':'TRAINED','model':best['model'],'model_version':version,'training_rows':len(rows),'features':len(features),'metrics':results,'selection_gate':gate_reason}; (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
+        out={'sport':sport,'status':'REJECTED_CHALLENGER','reason':gate_reason,'candidate':results[0],'all_models':results,'training_rows':len(rows)}; c.close(); RESULTS.mkdir(parents=True,exist_ok=True); (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
+    selected.fit(X,y); version=h({'sport':sport,'features':features,'model':best,'rows':len(rows),'last_event':rows[-1][1],'metrics':results}); MODELS.mkdir(parents=True,exist_ok=True); RESULTS.mkdir(parents=True,exist_ok=True); artifact=MODELS/f'{sport}_{version}.joblib'; joblib.dump({'model':selected,'features':features,'sport':sport,'model_version':version,'training_rows':len(rows)},artifact); gitsha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip() or None
+    metadata={'sport':sport,'market':'winner','model_version':version,'feature_version':'strict-pit-v6-temporal-calibration-robust-features','training_cutoff_utc':rows[-1][1],'git_commit_sha':gitsha,'artifact_path':str(artifact.relative_to(ROOT)),'quality_status':'ACCEPTED_AFTER_OOS','selection_gate':gate_reason,'metrics':results}
+    c.execute('''INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',(h(metadata),sport,'winner',utc(),version,'strict-pit-v6-temporal-calibration-robust-features',rows[-1][1],h([(r[0],r[1],r[2]) for r in rows]),gitsha,str(artifact.relative_to(ROOT)),'ACCEPTED_AFTER_OOS',json.dumps(metadata,ensure_ascii=False))); c.commit(); c.close()
+    out={'sport':sport,'status':'TRAINED','model':best,'model_version':version,'training_rows':len(rows),'features':len(features),'metrics':results,'selection_gate':gate_reason}; (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
 def main():
     import argparse
     ap=argparse.ArgumentParser(); ap.add_argument('--sport',choices=SPORTS); a=ap.parse_args(); sports=[a.sport] if a.sport else SPORTS; print(json.dumps([train_sport(s) for s in sports],ensure_ascii=False,indent=2))
