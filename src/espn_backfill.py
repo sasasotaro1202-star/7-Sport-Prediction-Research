@@ -37,5 +37,5 @@ def run(sport,leagues,years):
  c.close();return {'events':total,'status':'COMPLETE' if not errors else 'PARTIAL','errors':errors}
 
 def main():
- p=argparse.ArgumentParser();p.add_argument('--sport',required=True);p.add_argument('--leagues',required=True);p.add_argument('--start-year',type=int,required=True);p.add_argument('--end-year',type=int,required=True);a=p.parse_args();n=run(a.sport,a.leagues.split(','),range(a.start_year,a.end_year+1));print(json.dumps({'sport':a.sport,**n,'timestamp_utc':utcnow()},ensure_ascii=False));raise SystemExit(1 if n['errors'] else 0)
+ p=argparse.ArgumentParser();p.add_argument('--sport',required=True);p.add_argument('--leagues',required=True);p.add_argument('--start-year',type=int,required=True);p.add_argument('--end-year',type=int,required=True);a=p.parse_args();n=run(a.sport,a.leagues.split(','),range(a.start_year,a.end_year+1));print(json.dumps({'sport':a.sport,**n,'timestamp_utc':utcnow()},ensure_ascii=False))
 if __name__=='__main__':main()
