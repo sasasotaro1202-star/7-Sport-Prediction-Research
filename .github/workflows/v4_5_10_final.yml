@@ -78,6 +78,10 @@ jobs:
         if: matrix.sport == 'basketball'
         continue-on-error: true
         run: python -m src.espn_backfill --sport basketball --leagues nba,wnba --start-year 2016 --end-year 2026
+      - name: Basketball CDN/NBA public schedule fallback
+        if: matrix.sport == 'basketball'
+        continue-on-error: true
+        run: python -m src.basketball_cdn_backfill --both
       - name: Historical tennis backfill
         if: matrix.sport == 'tennis'
         continue-on-error: true
