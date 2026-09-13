@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-09-13T06:18:43.639752+00:00",
+  "timestamp_utc": "2026-09-13T06:54:11.379320+00:00",
   "status": "FAIL",
   "fatal": [],
   "checks": [
@@ -16,8 +16,8 @@
         "basketball": 0,
         "volleyball": 0,
         "tennis": 0,
-        "ufc": 0,
-        "rizin": 0,
+        "ufc": 777,
+        "rizin": 70,
         "f1": 333
       }
     },
@@ -29,7 +29,7 @@
     {
       "check": "source_timing_transparency",
       "ok": true,
-      "unverifiable_source_timestamps": 310,
+      "unverifiable_source_timestamps": 366,
       "policy": "UNVERIFIABLE is never promoted to PIT_EXACT"
     },
     {
@@ -46,7 +46,7 @@
         "basketball": 0,
         "volleyball": 0,
         "tennis": 0,
-        "ufc": 0,
+        "ufc": 777,
         "rizin": 0,
         "f1": 8
       }
