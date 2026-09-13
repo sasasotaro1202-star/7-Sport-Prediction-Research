@@ -1,8 +1,7 @@
 from __future__ import annotations
-import argparse, hashlib, json, re, sqlite3
+import argparse, json, re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from src.storage.db_v45 import connect
 
@@ -14,15 +13,13 @@ def iso(v):
     if not v:
         return None
     s = str(v).strip().replace('Z', '+00:00')
-    for fmt in (None,):
-        try:
-            d = datetime.fromisoformat(s)
-            if d.tzinfo is None:
-                d = d.replace(tzinfo=timezone.utc)
-            return d.astimezone(timezone.utc).isoformat()
-        except Exception:
-            pass
-    return None
+    try:
+        d = datetime.fromisoformat(s)
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return d.astimezone(timezone.utc).isoformat()
+    except Exception:
+        return None
 
 
 def jsonld(html):
@@ -48,8 +45,6 @@ def parse_time(html):
         node = soup.select_one(sel)
         if not node:
             continue
-        txt = ' '.join(node.stripped_strings)
-        # VLR embeds epoch seconds in data attributes on some layouts.
         for attr in ('data-unix', 'data-time', 'data-timestamp'):
             raw = node.get(attr)
             if raw and re.fullmatch(r'\d{9,13}', raw):
@@ -57,8 +52,11 @@ def parse_time(html):
                 if n > 10_000_000_000:
                     n //= 1000
                 return datetime.fromtimestamp(n, tz=timezone.utc).isoformat()
-        # Avoid inventing a date from a clock-only string.
     return None
+
+
+def table_columns(c, table):
+    return {row[1] for row in c.execute(f"PRAGMA table_info({table})").fetchall()}
 
 
 def main():
@@ -66,6 +64,18 @@ def main():
     ap.add_argument('--timeout', type=float, default=12)
     args = ap.parse_args()
     c = connect()
+    event_cols = table_columns(c, 'event')
+    snapshot_cols = table_columns(c, 'source_snapshot')
+    required = {'event_id', 'event_time_utc', 'sport'}
+    missing = sorted(required - event_cols)
+    if missing:
+        print(json.dumps({'sport':'valorant','status':'SKIPPED_SCHEMA','missing_event_columns':missing}, ensure_ascii=False))
+        c.close()
+        return
+    if 'source_url' not in event_cols:
+        print(json.dumps({'sport':'valorant','status':'SKIPPED_SCHEMA','reason':'event.source_url unavailable; PIT gate remains authoritative'}, ensure_ascii=False))
+        c.close()
+        return
     rows = c.execute("SELECT event_id, source_url FROM event WHERE sport='valorant' AND event_time_utc IS NULL AND source_url IS NOT NULL").fetchall()
     repaired = 0
     rejected = 0
@@ -79,13 +89,14 @@ def main():
                 rejected += 1
                 continue
             c.execute("UPDATE event SET event_time_utc=?, quality_status='PRESENT_NOT_PIT_VERIFIED', updated_at=? WHERE event_id=?", (et, datetime.now(timezone.utc).isoformat(), eid))
-            c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=? AND source='vlr.gg'", (et, url))
+            if {'event_time_utc','source_url'}.issubset(snapshot_cols):
+                c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=? AND source='vlr.gg'", (et, url))
             repaired += 1
         except Exception:
             rejected += 1
     c.commit()
     c.close()
-    print(json.dumps({'sport':'valorant','repaired':repaired,'unresolved':rejected,'candidate_rows':len(rows)}, ensure_ascii=False))
+    print(json.dumps({'sport':'valorant','status':'OK','repaired':repaired,'unresolved':rejected,'candidate_rows':len(rows)}, ensure_ascii=False))
 
 if __name__ == '__main__':
     main()
