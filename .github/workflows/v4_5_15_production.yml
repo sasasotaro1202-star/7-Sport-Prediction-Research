@@ -11,6 +11,9 @@ on:
       - 'requirements.txt'
 permissions:
   contents: write
+concurrency:
+  group: seven-sport-canonical-production
+  cancel-in-progress: true
 env:
   PYTHONUNBUFFERED: '1'
 jobs:
