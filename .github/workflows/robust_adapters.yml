@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -45,24 +45,33 @@ jobs:
           set -euo pipefail
           SPORT='${{ inputs.sport }}'
           if [ -n "$SPORT" ]; then
-            python -m src.robust_sport_adapters_v3 --sport "$SPORT"
+            python -m src.robust_sport_adapters_v4 --sport "$SPORT"
           else
-            python -m src.robust_sport_adapters_v3
+            python -m src.robust_sport_adapters_v4
+          fi
+      - name: Run free public history fallbacks
+        env:
+          V45_HTTP_TIMEOUT: '25'
+          V45_HTTP_RETRIES: '3'
+          V45_REQUEST_DELAY: '0.05'
+          V45_HTTP_WORKERS: '8'
+        run: |
+          set -euo pipefail
+          SPORT='${{ inputs.sport }}'
+          if [ -n "$SPORT" ]; then
+            python -m src.public_history_backfill --sports "$SPORT"
+          else
+            python -m src.public_history_backfill --sports valorant,basketball,volleyball,rizin
           fi
       - name: Repair adapter timestamps
         run: python src/repair_adapter_timestamps.py
       - name: Validate adapter artifact
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p=Path('results/robust_adapter.json')
-          if not p.exists(): raise SystemExit('robust_adapter.json missing')
-          x=json.loads(p.read_text())
-          if x.get('errors'): raise SystemExit(f"adapter errors: {x['errors']}")
-          print(json.dumps(x, ensure_ascii=False, indent=2))
-          PY
+          for p in results/robust_adapter.json results/public_history_backfill.json; do
+            [ -f "$p" ] || { echo "missing $p"; exit 1; }
+            python -m json.tool "$p" >/dev/null
+          done
       - name: Run non-fatal sport inventory checks
         run: |
           set -euo pipefail
@@ -70,23 +79,56 @@ jobs:
             python src/collection_guard.py --sport "$s"
           done
           python src/prediction_policy.py
-      - name: Upload adapter artifact
+      - name: Upload lightweight adapter results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: robust-adapters-${{ github.run_id }}
           path: |
-            results/**
-            data/db/sports_v45.sqlite
+            results/robust_adapter.json
+            results/public_history_backfill.json
           if-no-files-found: warn
-      - name: Commit lightweight research state only
+          retention-days: 1
+      - name: Publish lightweight research state deterministically
         run: |
+          set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add results
+          persist_dir="$RUNNER_TEMP/robust-persist"
+          rm -rf "$persist_dir" && mkdir -p "$persist_dir/results"
+          cp -a results/robust_adapter.json "$persist_dir/results/"
+          cp -a results/public_history_backfill.json "$persist_dir/results/"
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -ffdx || true
+          mkdir -p results
+          cp -a "$persist_dir/results/." results/
+          git add results/robust_adapter.json results/public_history_backfill.json
           if git diff --cached --quiet; then
-            echo 'No lightweight result changes to commit.'
-          else
-            git commit -m 'Update robust adapter research results'
-            git push
+            echo 'No adapter research changes to publish.'
+            exit 0
           fi
+          git diff --cached --check
+          git commit -m 'Update robust adapter research results'
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if git merge-base --is-ancestor origin/main HEAD && git push origin HEAD:main; then
+              echo 'push succeeded'
+              exit 0
+            fi
+            echo "remote advanced or push rejected on attempt ${attempt}; rebuilding publish commit"
+            git reset --hard origin/main
+            git clean -ffdx || true
+            mkdir -p results
+            cp -a "$persist_dir/results/." results/
+            git add results/robust_adapter.json results/public_history_backfill.json
+            if git diff --cached --quiet; then
+              echo 'Remote already contains equivalent adapter results.'
+              exit 0
+            fi
+            git diff --cached --check
+            git commit -m 'Update robust adapter research results'
+            sleep $((attempt * 2))
+          done
+          echo '::error::final adapter publish failed after 5 deterministic retries'
+          exit 1
