@@ -104,7 +104,7 @@ jobs:
     needs: [collect]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -112,7 +112,7 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements.txt
-      - run: python -m pip install -r requirements.txt
+      - run: python -m pip install -r requirements.txt && python -m pip install requests beautifulsoup4 lxml
       - name: Download sport partitions
         uses: actions/download-artifact@v4
         with:
@@ -121,6 +121,13 @@ jobs:
           merge-multiple: false
       - name: Merge incremental databases safely
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
+      - name: Run robust adapters into merged database
+        env:
+          V45_HTTP_TIMEOUT: '20'
+          V45_HTTP_RETRIES: '3'
+          V45_REQUEST_DELAY: '0.08'
+          V45_HTTP_WORKERS: '12'
+        run: python -m src.robust_sport_adapters_v3
       - name: Restore sport model artifacts
         run: |
           mkdir -p models results
@@ -134,13 +141,13 @@ jobs:
         run: python -m src.prediction_policy
       - name: Final repository validation
         run: python -m compileall -q src
-      - name: Persist merged outputs with push retry
+      - name: Persist lightweight outputs with push retry
         run: |
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data results models
-          git diff --cached --quiet || git commit -m "chore: update seven-sport research data"
+          git add results models
+          git diff --cached --quiet || git commit -m "chore: update seven-sport research results"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git rebase origin/main
