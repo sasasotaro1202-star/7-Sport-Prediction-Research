@@ -21,8 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 7
-    matrix:
-      sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
+      matrix:
+        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
