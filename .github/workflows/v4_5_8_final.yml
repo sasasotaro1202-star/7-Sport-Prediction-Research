@@ -142,7 +142,6 @@ jobs:
           find hourly-artifacts -type f -path '*/models/*' -exec cp -n {} models/ \; || true
           find hourly-artifacts -type f -path '*/results/*' -exec cp -n {} results/ \; || true
       - name: Global structural quality gate
-        continue-on-error: true
         run: python -m src.quality_gate
       - name: Prediction eligibility inventory
         continue-on-error: true
