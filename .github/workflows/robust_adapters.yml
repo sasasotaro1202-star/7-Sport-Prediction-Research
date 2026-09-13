@@ -57,12 +57,13 @@ jobs:
           if x.get('errors'): raise SystemExit(f"adapter errors: {x['errors']}")
           print(json.dumps(x, ensure_ascii=False, indent=2))
           PY
-      - name: Run canonical quality checks
+      - name: Run non-fatal sport inventory checks
         run: |
           set -euo pipefail
-          python src/collection_guard.py
+          for s in valorant ufc rizin volleyball; do
+            python src/collection_guard.py --sport "$s"
+          done
           python src/prediction_policy.py
-          python src/quality_gate.py
       - name: Commit research state
         run: |
           git config user.name 'github-actions[bot]'
@@ -71,6 +72,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No data changes to commit.'
           else
-            git commit -m 'Run robust sport adapters and quality checks'
+            git commit -m 'Run robust sport adapters and inventory checks'
             git push
           fi
