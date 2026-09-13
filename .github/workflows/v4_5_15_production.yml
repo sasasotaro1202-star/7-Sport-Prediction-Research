@@ -47,9 +47,9 @@ jobs:
           rc=$?
           echo "collector_exit=$rc"
           case '${{ matrix.sport }}' in
-            basketball) timeout --signal=TERM 120s python -m src.basketball_cdn_backfill --both || true ;;
-            tennis) timeout --signal=TERM 120s python -m src.tennis_public_backfill || true ;;
-            valorant|volleyball|rizin) timeout --signal=TERM 120s python -m src.public_history_backfill --sports '${{ matrix.sport }}' || true ;;
+            basketball) timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --both || true ;;
+            tennis) timeout --signal=TERM 300s python -m src.tennis_public_backfill || true ;;
+            valorant|volleyball|rizin) timeout --signal=TERM 300s python -m src.public_history_backfill --sports '${{ matrix.sport }}' || true ;;
             f1) timeout --signal=TERM 45s python -m src.f1_openf1_backfill --start-year 2023 --end-year 2026 --timeout 15 || true ;;
             ufc) : ;;
           esac
