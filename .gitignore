@@ -1,0 +1,21 @@
+# Generated research databases and source caches
+/data/db/*.sqlite
+/data/db/*.sqlite-*
+/data/raw/http_cache/*
+/data/raw/http_cache/.*
+!data/raw/http_cache/.gitkeep
+
+# Local Python/runtime files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local environments
+.venv/
+venv/
+env/
+
+# OS/editor files
+.DS_Store
+.vscode/
+.idea/
