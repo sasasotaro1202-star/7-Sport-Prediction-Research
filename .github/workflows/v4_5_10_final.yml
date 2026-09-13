@@ -25,7 +25,6 @@ env:
 jobs:
   collect:
     name: Incremental ${{ matrix.sport }}
-    continue-on-error: true
     strategy:
       fail-fast: false
       max-parallel: 7
@@ -130,7 +129,6 @@ jobs:
     name: Merge hourly partitions
     needs: [collect]
     if: always()
-    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -174,7 +172,6 @@ jobs:
       - name: Remove stale model artifacts before publish
         run: find models/research -type f -name '*.joblib' ! -name '*_current.joblib' -delete 2>/dev/null || true
       - name: Global structural quality gate
-        continue-on-error: true
         run: python -m src.quality_gate
       - name: Prediction eligibility inventory
         continue-on-error: true
