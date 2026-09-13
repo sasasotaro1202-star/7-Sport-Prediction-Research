@@ -6,7 +6,7 @@ def require(condition,message):
     if not condition: FAILURES.append(message)
 def main():
     research=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
-    workflow=(ROOT/'.github/workflows/v4_5_14_resilient.yml').read_text(encoding='utf-8')
+    workflow=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
     expected={'valorant','basketball','volleyball','tennis','ufc','rizin','f1'}
     m=re.search(r"SPORTS=\(([^)]*)\)",research);actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
     require(expected<=actual,f'research engine missing sports: {sorted(expected-actual)}')
