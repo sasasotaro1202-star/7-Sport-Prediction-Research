@@ -1,0 +1,40 @@
+{
+  "sports": [
+    "valorant"
+  ],
+  "start_date": "2026-09-10",
+  "end_date": "2026-09-13",
+  "full_history": false,
+  "parser_version": "v4.5.10",
+  "counts_before": {
+    "event": 0,
+    "participant": 0,
+    "event_participant": 0,
+    "match_stats": 0,
+    "source_snapshot": 0,
+    "pit_replay": 0,
+    "collection_state": 0
+  },
+  "counts_after": {
+    "event": 0,
+    "participant": 0,
+    "event_participant": 0,
+    "match_stats": 0,
+    "source_snapshot": 0,
+    "pit_replay": 0,
+    "collection_state": 1
+  },
+  "deltas": {
+    "event": 0,
+    "participant": 0,
+    "event_participant": 0,
+    "match_stats": 0,
+    "source_snapshot": 0,
+    "pit_replay": 0,
+    "collection_state": 1
+  },
+  "evidence_rows": 0,
+  "errors": [],
+  "timestamp_utc": "2026-09-13T05:58:30.846027+00:00",
+  "status": "NO_DATA"
+}

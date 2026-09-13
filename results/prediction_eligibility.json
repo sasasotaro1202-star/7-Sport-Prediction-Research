@@ -1,0 +1,50 @@
+{
+  "timestamp_utc": "2026-09-13T06:00:06.363101+00:00",
+  "policy": "prediction-eligibility-v1",
+  "sports": [
+    {
+      "sport": "valorant",
+      "events": 0,
+      "eligible_future_events": 0,
+      "reasons": {}
+    },
+    {
+      "sport": "basketball",
+      "events": 0,
+      "eligible_future_events": 0,
+      "reasons": {}
+    },
+    {
+      "sport": "volleyball",
+      "events": 0,
+      "eligible_future_events": 0,
+      "reasons": {}
+    },
+    {
+      "sport": "tennis",
+      "events": 0,
+      "eligible_future_events": 0,
+      "reasons": {}
+    },
+    {
+      "sport": "ufc",
+      "events": 0,
+      "eligible_future_events": 0,
+      "reasons": {}
+    },
+    {
+      "sport": "rizin",
+      "events": 0,
+      "eligible_future_events": 0,
+      "reasons": {}
+    },
+    {
+      "sport": "f1",
+      "events": 308,
+      "eligible_future_events": 0,
+      "reasons": {
+        "not_exactly_two_participants": 308
+      }
+    }
+  ]
+}
