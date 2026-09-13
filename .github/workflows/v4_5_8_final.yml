@@ -31,7 +31,7 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -83,6 +83,18 @@ jobs:
           V45_REQUEST_DELAY: '0.03'
           V45_HTTP_WORKERS: '8'
         run: python -m src.espn_backfill --sport tennis --leagues atp,wta --start-year 2016 --end-year 2026
+      - name: Free public history fallback - Valorant
+        if: matrix.sport == 'valorant'
+        run: python -m src.public_history_backfill --sports valorant
+      - name: Free public history fallback - Basketball
+        if: matrix.sport == 'basketball'
+        run: python -m src.public_history_backfill --sports basketball
+      - name: Free public history fallback - Volleyball
+        if: matrix.sport == 'volleyball'
+        run: python -m src.public_history_backfill --sports volleyball
+      - name: Free public history fallback - RIZIN
+        if: matrix.sport == 'rizin'
+        run: python -m src.public_history_backfill --sports rizin
       - name: Validate collected partition
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
       - name: Enrich F1 with incremental OpenF1 data
