@@ -11,13 +11,13 @@ def iso(v):
 
 def run(sport,leagues,years):
  c=connect();ensure_state(c);_,done=state(c,sport,'espn_full_history')
- if done:c.close();return 0
- h=HTTP();total=0
+ if done:c.close();return {'events':0,'status':'ALREADY_COMPLETE','errors':[]}
+ h=HTTP();total=0;errors=[]
  for year in years:
   for lg in leagues:
    url=f'https://site.api.espn.com/apis/site/v2/sports/{sport}/{lg}/scoreboard?dates={year}0101-{year}1231&limit=1000'
    try:raw,r,_=h.get(url);data=json.loads(raw)
-   except Exception:continue
+   except Exception as e:errors.append({'year':year,'league':lg,'error':repr(e)});continue
    add_snapshot(c,sport,'espn',url,r,None,hashlib.sha256(raw.encode()).hexdigest(),'UNVERIFIABLE')
    for ev in data.get('events',[]):
     comp=(ev.get('competitions') or [{}])[0];et=iso(ev.get('date'));name=str(ev.get('name') or ev.get('shortName') or ev.get('id'));status='COMPLETED' if ((ev.get('status') or {}).get('type') or {}).get('completed') else 'SCHEDULED';eid=upsert_event(c,sport,name,et,'espn',url,status,competition=lg,season=str(year))
@@ -32,8 +32,10 @@ def run(sport,leagues,years):
       add_stat(c,eid,pid,pid,sport,k,num,str(v) if v is not None else None,'espn',url)
     total+=1
    c.commit()
- save_state(c,sport,'espn_full_history',str(max(years)),True,{'years':list(years),'leagues':leagues});c.close();return total
+ if not errors:save_state(c,sport,'espn_full_history',str(max(years)),True,{'years':list(years),'leagues':leagues})
+ else:save_state(c,sport,'espn_full_history',str(max(years)),False,{'years':list(years),'leagues':leagues,'errors':errors})
+ c.close();return {'events':total,'status':'COMPLETE' if not errors else 'PARTIAL','errors':errors}
 
 def main():
- p=argparse.ArgumentParser();p.add_argument('--sport',required=True);p.add_argument('--leagues',required=True);p.add_argument('--start-year',type=int,required=True);p.add_argument('--end-year',type=int,required=True);a=p.parse_args();n=run(a.sport,a.leagues.split(','),range(a.start_year,a.end_year+1));print(json.dumps({'sport':a.sport,'events':n,'timestamp_utc':utcnow()}))
+ p=argparse.ArgumentParser();p.add_argument('--sport',required=True);p.add_argument('--leagues',required=True);p.add_argument('--start-year',type=int,required=True);p.add_argument('--end-year',type=int,required=True);a=p.parse_args();n=run(a.sport,a.leagues.split(','),range(a.start_year,a.end_year+1));print(json.dumps({'sport':a.sport,**n,'timestamp_utc':utcnow()},ensure_ascii=False));raise SystemExit(1 if n['errors'] else 0)
 if __name__=='__main__':main()
