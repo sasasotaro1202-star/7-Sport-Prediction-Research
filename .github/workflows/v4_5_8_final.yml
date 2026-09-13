@@ -106,7 +106,7 @@ jobs:
     needs: [collect]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -132,6 +132,10 @@ jobs:
         run: python -m src.robust_sport_adapters_v4
       - name: Repair malformed F1 participant relations
         run: python -m src.f1_integrity_cleanup --vacuum
+      - name: Build strict PIT replay snapshots
+        run: python -m src.pit_replay_builder
+      - name: Run final merged strict PIT research cycle
+        run: python -m src.research_accelerated
       - name: Restore sport model artifacts
         run: |
           mkdir -p models results
