@@ -2,9 +2,9 @@
   "sport": "ufc",
   "status": "TRAINED",
   "model": "extra_trees",
-  "model_version": "45fe2f37c25069fe",
+  "model_version": "d310fa29fc9b57aa",
   "training_rows": 8580,
-  "features": 9,
+  "features": 81,
   "selection_metrics": [
     {
       "logloss": 0.6807262396929348,
