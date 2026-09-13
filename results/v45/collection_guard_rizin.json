@@ -1,8 +1,8 @@
 {
   "status": "PARTIAL",
   "sport": "rizin",
-  "events": 46,
+  "events": 70,
   "source_snapshots": 0,
-  "timed_events": 0,
+  "timed_events": 1,
   "participants": 168
 }
