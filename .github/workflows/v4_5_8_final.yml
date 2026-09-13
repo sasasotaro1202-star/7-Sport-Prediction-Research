@@ -8,6 +8,7 @@ on:
     paths:
       - 'src/**'
       - '.github/workflows/v4_5_8_final.yml'
+      - '.gitignore'
       - 'requirements.txt'
 
 concurrency:
@@ -98,6 +99,7 @@ jobs:
             results/**
             models/**
           if-no-files-found: warn
+          retention-days: 1
 
   merge:
     name: Merge hourly partitions
@@ -128,6 +130,8 @@ jobs:
           V45_REQUEST_DELAY: '0.08'
           V45_HTTP_WORKERS: '12'
         run: python -m src.robust_sport_adapters_v3
+      - name: Repair malformed F1 participant relations
+        run: python -m src.f1_integrity_cleanup --vacuum
       - name: Restore sport model artifacts
         run: |
           mkdir -p models results
@@ -141,16 +145,25 @@ jobs:
         run: python -m src.prediction_policy
       - name: Final repository validation
         run: python -m compileall -q src
-      - name: Persist lightweight outputs with push retry
+      - name: Persist lightweight outputs safely
         run: |
-          set -e
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add results models
+          git fetch origin main
+          git reset --soft origin/main
+          # Never allow generated DBs/caches into the commit, even if a previous step
+          # accidentally staged them. They are workflow artifacts, not source history.
+          git restore --staged -- data/db data/raw/http_cache 2>/dev/null || true
+          git restore -- data/db data/raw/http_cache 2>/dev/null || true
+          git add .gitignore results models
+          git diff --cached --name-only | grep -E '^(data/db/|data/raw/http_cache/)' && {
+            echo '::error::Generated DB/cache entered the staged set; refusing to push'
+            exit 1
+          } || true
+          git diff --cached --name-only
           git diff --cached --quiet || git commit -m "chore: update seven-sport research results"
-          # Ignore generated-but-uncommitted DB/cache state. Only lightweight committed outputs are pushed.
           for attempt in 1 2 3 4 5; do
-            git reset --hard HEAD
             git fetch origin main
             git rebase origin/main
             if git push origin HEAD:main; then
@@ -168,7 +181,8 @@ jobs:
         with:
           name: v4-5-9-merged-${{ github.run_id }}
           path: |
+            data/db/sports_v45.sqlite
             results/**
-            data/**
             models/**
           if-no-files-found: warn
+          retention-days: 1
