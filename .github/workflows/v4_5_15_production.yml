@@ -140,6 +140,8 @@ jobs:
         run: python -m src.outcome_backfill
       - name: Strict PIT replay
         run: python -m src.pit_replay_builder
+      - name: Independent leakage audit
+        run: python -m src.independent_leakage_audit
       - name: Research with frozen holdout
         run: python -m src.research_cycle_strict
       - name: Quality report (non-failing coverage mode)
