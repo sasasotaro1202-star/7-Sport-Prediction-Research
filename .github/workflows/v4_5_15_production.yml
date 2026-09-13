@@ -9,9 +9,6 @@ on:
       - 'src/**'
       - '.github/workflows/v4_5_15_production.yml'
       - 'requirements.txt'
-concurrency:
-  group: seven-sport-v4-5-15
-  cancel-in-progress: false
 permissions:
   contents: write
 env:
