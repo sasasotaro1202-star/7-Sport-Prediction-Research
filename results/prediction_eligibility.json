@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-09-13T07:31:09.335427+00:00",
+  "timestamp_utc": "2026-09-13T08:20:17.450731+00:00",
   "policy": "prediction-eligibility-v2-multiclass-f1",
   "sports": [
     {
@@ -28,27 +28,25 @@
     },
     {
       "sport": "ufc",
-      "events": 8736,
+      "events": 777,
       "eligible_future_events": 0,
       "reasons": {
-        "no_accepted_model": 8736
+        "invalid_participant_count": 777
       }
     },
     {
       "sport": "rizin",
-      "events": 1,
+      "events": 0,
       "eligible_future_events": 0,
-      "reasons": {
-        "invalid_participant_count": 1
-      }
+      "reasons": {}
     },
     {
       "sport": "f1",
       "events": 333,
       "eligible_future_events": 0,
       "reasons": {
-        "invalid_participant_count": 250,
-        "no_accepted_model": 83
+        "no_accepted_model": 300,
+        "invalid_participant_count": 33
       }
     }
   ]
