@@ -49,6 +49,8 @@ jobs:
           else
             python -m src.robust_sport_adapters
           fi
+      - name: Repair adapter timestamps
+        run: python src/repair_adapter_timestamps.py
       - name: Validate adapter artifact
         run: |
           python - <<'PY'
