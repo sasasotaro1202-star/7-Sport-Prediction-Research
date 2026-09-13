@@ -154,28 +154,70 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Snapshot only the intended lightweight outputs outside the worktree.
+          persist_dir="$RUNNER_TEMP/seven-sport-persist"
+          rm -rf "$persist_dir"
+          mkdir -p "$persist_dir"
+          if [ -d results ]; then cp -a results "$persist_dir/results"; fi
+          if [ -d models ]; then cp -a models "$persist_dir/models"; fi
+
+          # Normalize completely to the actual remote tip. This prevents generated
+          # SQLite/cache files and unstaged changes from ever reaching rebase/push.
           git fetch origin main
-          git reset --soft origin/main
-          git restore --staged -- data/db data/raw/http_cache 2>/dev/null || true
-          git restore -- data/db data/raw/http_cache 2>/dev/null || true
-          git add .gitignore results models
+          git reset --hard origin/main
+          git clean -ffdx || true
+          rm -rf results models
+          mkdir -p results models
+          if [ -d "$persist_dir/results" ]; then cp -a "$persist_dir/results/." results/; fi
+          if [ -d "$persist_dir/models" ]; then cp -a "$persist_dir/models/." models/; fi
+
+          unexpected="$(git status --porcelain --untracked-files=all | awk '$2 !~ /^(results\/|models\/)/ {print}')"
+          if [ -n "$unexpected" ]; then
+            echo '::error::Unexpected working-tree changes before publish:'
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+
+          git add results models
           if git diff --cached --name-only | grep -E '^(data/db/|data/raw/http_cache/)'; then
             echo '::error::Generated DB/cache entered the staged set; refusing to push'
             exit 1
           fi
-          git diff --cached --name-only
-          git diff --cached --quiet || git commit -m "chore: update seven-sport research results"
+          if git diff --cached --quiet; then
+            echo 'No lightweight output changes to publish.'
+            exit 0
+          fi
+
+          git diff --cached --check
+          git commit -m "chore: update seven-sport research results"
+
+          # Never rebase a dirty generated worktree. If the remote advances,
+          # rebuild the small output-only commit on top of the new remote tip.
           for attempt in 1 2 3 4 5; do
             git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
+            if git merge-base --is-ancestor origin/main HEAD && git push origin HEAD:main; then
               echo 'push succeeded'
               exit 0
             fi
-            echo "push attempt ${attempt} rejected; retrying"
-            sleep $((attempt * 3))
+            echo "remote advanced or push was rejected on attempt ${attempt}; rebuilding output commit"
+            git reset --hard origin/main
+            git clean -ffdx || true
+            rm -rf results models
+            mkdir -p results models
+            if [ -d "$persist_dir/results" ]; then cp -a "$persist_dir/results/." results/; fi
+            if [ -d "$persist_dir/models" ]; then cp -a "$persist_dir/models/." models/; fi
+            git add results models
+            if git diff --cached --quiet; then
+              echo 'Remote already contains equivalent lightweight outputs.'
+              exit 0
+            fi
+            git diff --cached --check
+            git commit -m "chore: update seven-sport research results"
+            sleep $((attempt * 2))
           done
-          echo '::error::final push failed after 5 attempts'
+
+          echo '::error::final push failed after 5 deterministic retries'
           exit 1
       - name: Upload merged outputs
         if: always()
