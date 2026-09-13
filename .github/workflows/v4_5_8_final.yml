@@ -15,10 +15,6 @@ concurrency:
   group: seven-sport-main-writer
   cancel-in-progress: false
 
-aenv:
-  PYTHONUNBUFFERED: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
-
 permissions:
   contents: write
 
