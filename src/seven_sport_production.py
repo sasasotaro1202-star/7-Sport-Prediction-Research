@@ -297,7 +297,7 @@ def main():
         try:
             if sport=='basketball': collect_espn(c,h,sport,['nba','wnba','mens-college-basketball'],start,end)
             elif sport=='tennis': collect_espn(c,h,sport,['atp','wta'],start,end)
-            elif sport=='f1': collect_f1(c,h,range(datetime.now(timezone.utc).year-10,datetime.now(timezone.utc).year+1))
+            elif sport=='f1': collect_f1(c,h,(datetime.now(timezone.utc).year,))
             elif sport=='valorant': collect_vlr(c,h,int(os.getenv('V45_VLR_PAGES','180' if a.full_history else '20')))
             elif sport=='volleyball': collect_generic(c,h,sport,['https://en.volleyballworld.com/volleyball/competitions','https://en.volleyballworld.com/volleyball/matches'],200 if a.full_history else 40)
             elif sport=='rizin': collect_generic(c,h,sport,['https://jp.rizinff.com/','https://jp.rizinff.com/_tags/大会情報','https://jp.rizinff.com/fighters'],200 if a.full_history else 40)
@@ -307,9 +307,6 @@ def main():
             print(json.dumps({'sport':sport,'status':'COLLECT_FAILED','error':repr(e)},ensure_ascii=False),flush=True)
     after=counts(c)
     deltas={k:after[k]-before[k] for k in after}
-    # A collector must never report OK merely because its Python process exited normally.
-    # OK requires evidence that the run changed the canonical dataset or that a prior
-    # completed checkpoint explicitly proves there was nothing new to collect.
     evidence_rows=sum(max(0,deltas[k]) for k in ('event','participant','event_participant','match_stats','source_snapshot'))
     status='FAILED' if errors else ('OK' if evidence_rows>0 else 'NO_DATA')
     out=ROOT/'results/v45'; out.mkdir(parents=True,exist_ok=True)
@@ -317,8 +314,6 @@ def main():
     (out/'production_run.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False,indent=2))
     c.close()
-    # Exit non-zero only for actual collector exceptions. NO_DATA is intentionally
-    # observable by the workflow/quality gate without masking it as a runner crash.
     raise SystemExit(1 if errors else 0)
 
 if __name__=='__main__': main()
