@@ -1,4 +1,4 @@
-from __future__
+from __future__ import annotations
 import argparse, os, shutil, sqlite3
 from pathlib import Path
 
