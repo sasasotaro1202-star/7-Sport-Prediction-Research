@@ -15,6 +15,10 @@ concurrency:
   group: seven-sport-main-writer
   cancel-in-progress: false
 
+aenv:
+  PYTHONUNBUFFERED: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
 permissions:
   contents: write
 
@@ -53,12 +57,12 @@ jobs:
       - name: Collect one sport incrementally
         env:
           V45_HTTP_TIMEOUT: '10'
-          V45_HTTP_RETRIES: '2'
+          V45_HTTP_RETRIES: '3'
           V45_REQUEST_DELAY: '0.02'
           V45_HTTP_WORKERS: '10'
           V45_VLR_PAGES: '20'
         run: |
-          set -e
+          set -euo pipefail
           for attempt in 1 2 3; do
             if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3; then
               exit 0
@@ -71,7 +75,7 @@ jobs:
         if: matrix.sport == 'basketball'
         env:
           V45_HTTP_TIMEOUT: '15'
-          V45_HTTP_RETRIES: '2'
+          V45_HTTP_RETRIES: '3'
           V45_REQUEST_DELAY: '0.03'
           V45_HTTP_WORKERS: '8'
         run: python -m src.espn_backfill --sport basketball --leagues nba,wnba --start-year 2016 --end-year 2026
@@ -79,7 +83,7 @@ jobs:
         if: matrix.sport == 'tennis'
         env:
           V45_HTTP_TIMEOUT: '15'
-          V45_HTTP_RETRIES: '2'
+          V45_HTTP_RETRIES: '3'
           V45_REQUEST_DELAY: '0.03'
           V45_HTTP_WORKERS: '8'
         run: python -m src.espn_backfill --sport tennis --leagues atp,wta --start-year 2016 --end-year 2026
@@ -199,13 +203,12 @@ jobs:
           done
           echo '::error::final push failed after 5 deterministic retries'
           exit 1
-      - name: Upload merged outputs
+      - name: Upload merged outputs only
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: v4-5-9-merged-${{ github.run_id }}
           path: |
-            data/db/sports_v45.sqlite
             results/**
             models/**
           if-no-files-found: warn
