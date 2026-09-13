@@ -1,0 +1,51 @@
+{
+  "sport": "ufc",
+  "status": "TRAINED",
+  "model": "extra_trees",
+  "model_version": "45fe2f37c25069fe",
+  "training_rows": 8580,
+  "features": 9,
+  "selection_metrics": [
+    {
+      "logloss": 0.6807262396929348,
+      "brier": 0.24381067311259,
+      "accuracy": 0.5816733067729084,
+      "ece": 0.003871437886948217,
+      "n": 2008,
+      "model": "extra_trees"
+    },
+    {
+      "logloss": 0.6807262397529511,
+      "brier": 0.24381067314178811,
+      "accuracy": 0.5816733067729084,
+      "ece": 0.0038714381961730895,
+      "n": 2008,
+      "model": "random_forest"
+    },
+    {
+      "logloss": 0.6807298025493834,
+      "brier": 0.24381242749141627,
+      "accuracy": 0.5816733067729084,
+      "ece": 0.003917665742697624,
+      "n": 2008,
+      "model": "logistic"
+    },
+    {
+      "logloss": 0.6807298028814643,
+      "brier": 0.2438124276556052,
+      "accuracy": 0.5816733067729084,
+      "ece": 0.0039176678393980854,
+      "n": 2008,
+      "model": "hist_gb"
+    }
+  ],
+  "holdout_metrics": {
+    "logloss": 0.6876365393757383,
+    "brier": 0.24723030689229603,
+    "accuracy": 0.5603813559322034,
+    "ece": 0.02960092965613531,
+    "n": 1888,
+    "model": "extra_trees"
+  },
+  "selection_gate": "initial_model_locked_holdout"
+}

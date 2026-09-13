@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-09-13T08:26:56.853963+00:00",
+  "timestamp_utc": "2026-09-13T08:34:25.887972+00:00",
   "policy": "prediction-eligibility-v2-multiclass-f1",
   "sports": [
     {
@@ -29,9 +29,9 @@
     {
       "sport": "ufc",
       "events": 8736,
-      "eligible_future_events": 0,
+      "eligible_future_events": 8736,
       "reasons": {
-        "no_accepted_model": 8736
+        "ELIGIBLE": 8736
       }
     },
     {
