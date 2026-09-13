@@ -4,7 +4,7 @@ import hashlib
 import json
 import sqlite3
 from datetime import datetime, timezone, timedelta
-from src.research_cycle import POLICY
+from src.research_cycle_v4 import POLICY
 from src.storage.db_v45 import utcnow
 
 DB='data/db/sports_v45.sqlite'
@@ -28,8 +28,6 @@ def main():
             ps=c.execute("""SELECT participant_id,side FROM event_participant
                            WHERE event_id=? AND side IN ('A','B') AND participant_id IS NOT NULL
                            GROUP BY participant_id,side ORDER BY side""",(eid,)).fetchall()
-            # F1 is a multi-participant winner market and is handled by its own
-            # multiclass protocol; never force it into a binary A/B replay.
             if sport=='f1' or len(ps)!=2 or out['outcome'] not in ('A','B'):
                 continue
             cutoff=(datetime.fromisoformat(et.replace('Z','+00:00'))-timedelta(minutes=60)).astimezone(timezone.utc).isoformat()
@@ -57,13 +55,7 @@ def main():
                     if not xs: continue
                     import numpy as np
                     arr=np.asarray(xs,dtype=float)
-                    derived={
-                        'n':float(len(arr)),
-                        'mean':float(arr.mean()),
-                        'last':float(arr[0]),
-                        'std':float(arr.std()) if len(arr)>1 else 0.0,
-                        'trend':float(arr[0]-arr[-1]) if len(arr)>1 else 0.0,
-                    }
+                    derived={'n':float(len(arr)),'mean':float(arr.mean()),'last':float(arr[0]),'std':float(arr.std()) if len(arr)>1 else 0.0,'trend':float(arr[0]-arr[-1]) if len(arr)>1 else 0.0}
                     for suffix,value in derived.items():
                         fname=f'{side}__{stat}__{suffix}'
                         snap_id=hid(replay_id,fname)
