@@ -44,11 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           SPORT='${{ inputs.sport }}'
-          if [ -n "$SPORT" ]; then
-            python -m src.robust_sport_adapters_v4 --sport "$SPORT"
-          else
-            python -m src.robust_sport_adapters_v4
-          fi
+          if [ -n "$SPORT" ]; then python -m src.robust_sport_adapters_v4 --sport "$SPORT"; else python -m src.robust_sport_adapters_v4; fi
       - name: Run free public history fallbacks
         env:
           V45_HTTP_TIMEOUT: '25'
@@ -58,12 +54,9 @@ jobs:
         run: |
           set -euo pipefail
           SPORT='${{ inputs.sport }}'
-          if [ -n "$SPORT" ]; then
-            python -m src.public_history_backfill --sports "$SPORT"
-          else
-            python -m src.public_history_backfill --sports valorant,basketball,volleyball,rizin
-          fi
+          if [ -n "$SPORT" ]; then python -m src.public_history_backfill --sports "$SPORT"; else python -m src.public_history_backfill --sports valorant,basketball,volleyball,rizin; fi
       - name: Repair adapter timestamps
+        continue-on-error: true
         run: python src/repair_adapter_timestamps.py
       - name: Validate adapter artifact
         run: |
@@ -75,9 +68,7 @@ jobs:
       - name: Run non-fatal sport inventory checks
         run: |
           set -euo pipefail
-          for s in valorant ufc rizin volleyball; do
-            python src/collection_guard.py --sport "$s"
-          done
+          for s in valorant ufc rizin volleyball; do python src/collection_guard.py --sport "$s"; done
           python src/prediction_policy.py
       - name: Upload lightweight adapter results
         if: always()
@@ -104,28 +95,19 @@ jobs:
           mkdir -p results
           cp -a "$persist_dir/results/." results/
           git add results/robust_adapter.json results/public_history_backfill.json
-          if git diff --cached --quiet; then
-            echo 'No adapter research changes to publish.'
-            exit 0
-          fi
+          if git diff --cached --quiet; then echo 'No adapter research changes to publish.'; exit 0; fi
           git diff --cached --check
           git commit -m 'Update robust adapter research results'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
-            if git merge-base --is-ancestor origin/main HEAD && git push origin HEAD:main; then
-              echo 'push succeeded'
-              exit 0
-            fi
+            if git merge-base --is-ancestor origin/main HEAD && git push origin HEAD:main; then echo 'push succeeded'; exit 0; fi
             echo "remote advanced or push rejected on attempt ${attempt}; rebuilding publish commit"
             git reset --hard origin/main
             git clean -ffdx || true
             mkdir -p results
             cp -a "$persist_dir/results/." results/
             git add results/robust_adapter.json results/public_history_backfill.json
-            if git diff --cached --quiet; then
-              echo 'Remote already contains equivalent adapter results.'
-              exit 0
-            fi
+            if git diff --cached --quiet; then echo 'Remote already contains equivalent adapter results.'; exit 0; fi
             git diff --cached --check
             git commit -m 'Update robust adapter research results'
             sleep $((attempt * 2))
