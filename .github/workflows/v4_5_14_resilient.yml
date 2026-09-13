@@ -1,3 +1,4 @@
+# Canonical production workflow: source outages degrade data coverage but never publish unsafe models.
 name: Seven Sport v4.5.14 Resilient Production
 on:
   workflow_dispatch:
