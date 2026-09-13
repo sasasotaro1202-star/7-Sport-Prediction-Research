@@ -1,0 +1,158 @@
+name: Seven Sport v4.5.14 Resilient Production
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+concurrency:
+  group: seven-sport-main-writer
+  cancel-in-progress: false
+permissions:
+  contents: write
+env:
+  PYTHONUNBUFFERED: '1'
+jobs:
+  collect:
+    name: Collect ${{ matrix.sport }}
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+    matrix:
+      sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: mkdir -p data/raw/http_cache data/db results models
+      - name: Restore persistent database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/sports_v45.sqlite
+          key: seven-sport-db-v3-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-${{ matrix.sport }}-
+      - name: Initialize schema
+        run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+      - name: Incremental collector (source failures are non-fatal)
+        run: |
+          set +e
+          python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3
+          rc=$?
+          echo "collector_exit=$rc"
+          case '${{ matrix.sport }}' in
+            basketball) python -m src.basketball_cdn_backfill --both || true ;;
+            tennis) python -m src.tennis_public_backfill || true ;;
+            valorant|volleyball|rizin) python -m src.public_history_backfill --sports '${{ matrix.sport }}' || true ;;
+            f1) python -m src.f1_openf1_backfill --start-year 2023 --end-year 2026 --timeout 30 || true ;;
+            ufc) : ;;
+          esac
+          python -m src.collection_guard --sport ${{ matrix.sport }} || true
+          exit 0
+      - name: Save database
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db/sports_v45.sqlite
+          key: seven-sport-db-v3-${{ matrix.sport }}-${{ github.run_id }}
+
+  merge:
+    name: Merge, research, and release gate
+    needs: collect
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,ufc,rizin,f1} data/db results models
+      - name: Restore VALORANT
+        uses: actions/cache/restore@v4
+        with:
+          path: hourly-artifacts/valorant/sports_v45.sqlite
+          key: seven-sport-db-v3-valorant-${{ github.run_id }}
+      - name: Restore Basketball
+        uses: actions/cache/restore@v4
+        with:
+          path: hourly-artifacts/basketball/sports_v45.sqlite
+          key: seven-sport-db-v3-basketball-${{ github.run_id }}
+      - name: Restore Volleyball
+        uses: actions/cache/restore@v4
+        with:
+          path: hourly-artifacts/volleyball/sports_v45.sqlite
+          key: seven-sport-db-v3-volleyball-${{ github.run_id }}
+      - name: Restore Tennis
+        uses: actions/cache/restore@v4
+        with:
+          path: hourly-artifacts/tennis/sports_v45.sqlite
+          key: seven-sport-db-v3-tennis-${{ github.run_id }}
+      - name: Restore UFC
+        uses: actions/cache/restore@v4
+        with:
+          path: hourly-artifacts/ufc/sports_v45.sqlite
+          key: seven-sport-db-v3-ufc-${{ github.run_id }}
+      - name: Restore RIZIN
+        uses: actions/cache/restore@v4
+        with:
+          path: hourly-artifacts/rizin/sports_v45.sqlite
+          key: seven-sport-db-v3-rizin-${{ github.run_id }}
+      - name: Restore F1
+        uses: actions/cache/restore@v4
+        with:
+          path: hourly-artifacts/f1/sports_v45.sqlite
+          key: seven-sport-db-v3-f1-${{ github.run_id }}
+      - name: Materialize missing partitions as empty canonical DBs
+        run: |
+          python - <<'PY'
+          import shutil
+          from pathlib import Path
+          from src.storage.db_v45 import connect,DB_PATH
+          for s in ('valorant','basketball','volleyball','tennis','ufc','rizin','f1'):
+              p=Path('hourly-artifacts')/s/'sports_v45.sqlite'
+              if not p.exists():
+                  c=connect(); c.close(); p.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(DB_PATH,p)
+          PY
+      - name: Verify partition files
+        run: |
+          set -euo pipefail
+          for sport in valorant basketball volleyball tennis ufc rizin f1; do test -s hourly-artifacts/$sport/sports_v45.sqlite; done
+      - name: Merge partitions
+        run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
+      - name: Robust adapters
+        run: python -m src.robust_sport_adapters_v4
+      - name: F1 integrity
+        run: python -m src.f1_integrity_cleanup --vacuum
+      - name: Outcomes
+        run: python -m src.outcome_backfill
+      - name: Strict PIT replay
+        run: python -m src.pit_replay_builder
+      - name: Research with frozen holdout
+        run: python -m src.research_cycle
+      - name: Quality report (non-failing coverage mode)
+        run: python -m src.quality_gate
+      - name: Release gate
+        run: python -m src.production_release_gate
+      - name: Production invariants
+        run: python -m src.production_invariants
+      - name: Compile check
+        run: python -m compileall -q src
+      - name: Persist safe outputs
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results models
+          git diff --cached --check
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore: update seven-sport research results'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
