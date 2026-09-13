@@ -3,6 +3,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '17 * * * *'
+  push:
+    paths:
+      - 'src/**'
+      - '.github/workflows/v4_5_14_resilient.yml'
+      - 'requirements.txt'
 concurrency:
   group: seven-sport-main-writer
   cancel-in-progress: false
