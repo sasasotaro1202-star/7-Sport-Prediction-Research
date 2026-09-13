@@ -137,8 +137,6 @@ jobs:
         run: python -m src.f1_integrity_cleanup --vacuum
       - name: Reconstruct verified outcomes once on merged database
         run: python -m src.outcome_backfill
-      - name: Build international competition context
-        run: python -m src.international_context
       - name: Build strict PIT replay snapshots
         run: python -m src.pit_replay_builder
       - name: Run final merged strict PIT research cycle
