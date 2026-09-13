@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-09-13T06:00:06.363101+00:00",
+  "timestamp_utc": "2026-09-13T06:18:43.729637+00:00",
   "policy": "prediction-eligibility-v1",
   "sports": [
     {
@@ -40,10 +40,10 @@
     },
     {
       "sport": "f1",
-      "events": 308,
+      "events": 333,
       "eligible_future_events": 0,
       "reasons": {
-        "not_exactly_two_participants": 308
+        "not_exactly_two_participants": 333
       }
     }
   ]
