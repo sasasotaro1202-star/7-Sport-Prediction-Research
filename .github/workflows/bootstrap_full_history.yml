@@ -13,13 +13,6 @@ on:
         required: true
         default: false
         type: boolean
-  push:
-    branches: [main]
-    paths:
-      - '.github/bootstrap.trigger'
-
-permissions:
-  contents: write
 
 concurrency:
   group: seven-sport-bootstrap-full-history
@@ -41,6 +34,8 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -50,11 +45,14 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/raw/http_cache
-          key: seven-sport-http-${{ matrix.sport }}-${{ hashFiles('src/seven_sport_production.py') }}
+          key: seven-sport-http-${{ matrix.sport }}-${{ hashFiles('src/seven_sport_production.py', 'src/robust_sport_adapters_v2.py', 'src/international_context.py') }}
           restore-keys: seven-sport-http-${{ matrix.sport }}-
       - run: python -m pip install -r requirements.txt
-      - name: Prepare runtime directories
-        run: mkdir -p data/raw/http_cache data/db results models
+      - name: Prepare runtime directories and inspect capacity
+        run: |
+          set -euo pipefail
+          mkdir -p data/raw/http_cache data/db results models
+          df -h .
       - name: Compile-check production code
         run: python -m compileall -q src
       - name: Reset checkpoint state when requested
@@ -63,20 +61,19 @@ jobs:
           python - <<'PY'
           import sqlite3
           from pathlib import Path
-          p=Path('data/db/sports_v45.sqlite')
+          p = Path('data/db/sports_v45.sqlite')
           if p.exists():
-              c=sqlite3.connect(p)
-              c.execute("DELETE FROM collection_state WHERE sport=?", ('${{ matrix.sport }}',))
-              c.commit(); c.close()
+              with sqlite3.connect(p) as c:
+                  c.execute("DELETE FROM collection_state WHERE sport=?", ('${{ matrix.sport }}',))
+                  c.commit()
           PY
       - name: Specialized high-yield historical collectors
-        continue-on-error: true
         env:
           V45_HTTP_TIMEOUT: '20'
           V45_HTTP_RETRIES: '3'
           V45_REQUEST_DELAY: '0.02'
         run: |
-          set +e
+          set -euo pipefail
           if [ "${{ matrix.sport }}" = "tennis" ]; then
             python -m src.tennis_bulk_backfill --start-year 1990 --end-year 2026 --timeout 45
           elif [ "${{ matrix.sport }}" = "ufc" ]; then
@@ -84,52 +81,56 @@ jobs:
           elif [ "${{ matrix.sport }}" = "basketball" ]; then
             python -m src.basketball_cdn_backfill --both
           fi
-          exit 0
       - name: Full historical collection with checkpoint resume
         if: matrix.sport != 'basketball' && matrix.sport != 'tennis' && matrix.sport != 'ufc'
-        continue-on-error: true
         env:
           V45_HTTP_TIMEOUT: '12'
-          V45_HTTP_RETRIES: '2'
+          V45_HTTP_RETRIES: '3'
           V45_REQUEST_DELAY: '0.02'
           V45_HTTP_WORKERS: '10'
           V45_VLR_PAGES: '180'
         run: |
-          set +e
+          set -euo pipefail
           for attempt in 1 2 3; do
-            python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back '${{ inputs.days_back || '3650' }}' && exit 0
+            if python -m src.seven_sport_production --sport ${{ matrix.sport }} --full-history --days-back '${{ inputs.days_back }}'; then
+              exit 0
+            fi
             echo "historical collector attempt ${attempt} failed; checkpoint will permit resume"
             sleep $((attempt * 5))
           done
-          exit 0
+          exit 1
       - name: Validate collected partition
-        continue-on-error: true
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
       - name: Reconstruct verified outcomes
-        continue-on-error: true
         run: python -m src.outcome_backfill
-      - name: Run strict PIT research cycle (accelerated)
-        continue-on-error: true
+      - name: Run strict PIT research cycle
         run: python -m src.research_accelerated --sport ${{ matrix.sport }}
       - name: Save HTTP/source cache
         if: always()
         uses: actions/cache/save@v4
         with:
           path: data/raw/http_cache
-          key: seven-sport-http-${{ matrix.sport }}-${{ hashFiles('src/seven_sport_production.py') }}-${{ github.run_id }}
+          key: seven-sport-http-${{ matrix.sport }}-${{ hashFiles('src/seven_sport_production.py', 'src/robust_sport_adapters_v2.py', 'src/international_context.py') }}-${{ github.run_id }}
       - name: Sport-scoped structural validation
-        continue-on-error: true
         run: python -m src.quality_gate --sport ${{ matrix.sport }}
-      - name: Upload sport partition
+      - name: Compress sport partition for transfer
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p bootstrap-output
+          if [ -f data/db/sports_v45.sqlite ]; then
+            gzip -9 -c data/db/sports_v45.sqlite > bootstrap-output/sports_v45.sqlite.gz
+          fi
+          if [ -d results ]; then tar -czf bootstrap-output/results.tar.gz results; fi
+          if [ -d models ]; then tar -czf bootstrap-output/models.tar.gz models; fi
+      - name: Upload compressed sport partition
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bootstrap-${{ matrix.sport }}-${{ github.run_id }}
-          path: |
-            data/db/sports_v45.sqlite
-            results/**
-            models/**
+          path: bootstrap-output/**
           if-no-files-found: warn
+          retention-days: 1
 
   merge:
     name: Merge and validate all seven sports
@@ -139,61 +140,114 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: requirements.txt
       - run: python -m pip install -r requirements.txt
-      - name: Download all sport partitions
+      - name: Download all compressed sport partitions
         uses: actions/download-artifact@v4
         with:
           pattern: bootstrap-*
           path: bootstrap-artifacts
           merge-multiple: false
+      - name: Rehydrate partitions
+        run: |
+          set -euo pipefail
+          find bootstrap-artifacts -name sports_v45.sqlite.gz -print0 | while IFS= read -r -d '' f; do
+            d="${f%/*}"
+            gzip -dc "$f" > "$d/sports_v45.sqlite"
+          done
+          find bootstrap-artifacts -name results.tar.gz -print0 | while IFS= read -r -d '' f; do
+            tar -xzf "$f" -C "${f%/*}"
+          done
+          find bootstrap-artifacts -name models.tar.gz -print0 | while IFS= read -r -d '' f; do
+            tar -xzf "$f" -C "${f%/*}"
+          done
       - name: Count available partitions
         run: find bootstrap-artifacts -name sports_v45.sqlite -print | sort
       - name: Merge into canonical v45 database safely
         run: python -m src.merge_partition_dbs --input-dir bootstrap-artifacts
       - name: Restore sport model artifacts
         run: |
+          set -euo pipefail
           mkdir -p models results
           find bootstrap-artifacts -type f -path '*/models/*' -exec cp -n {} models/ \; || true
           find bootstrap-artifacts -type f -path '*/results/*' -exec cp -n {} results/ \; || true
       - name: Global structural quality gate
-        continue-on-error: true
         run: python -m src.quality_gate
       - name: Prediction eligibility inventory
-        continue-on-error: true
         run: python -m src.prediction_policy
       - name: Final repository validation
         run: python -m compileall -q src
-      - name: Persist merged database and reports with push retry
+      - name: Persist lightweight outputs only
         run: |
-          set -e
+          set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data results models
-          git diff --cached --quiet || git commit -m 'chore: merge seven-sport bootstrap history'
+          persist_dir="$RUNNER_TEMP/seven-sport-persist"
+          rm -rf "$persist_dir" && mkdir -p "$persist_dir"
+          cp -a results "$persist_dir/results" 2>/dev/null || true
+          cp -a models "$persist_dir/models" 2>/dev/null || true
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -ffdx || true
+          rm -rf results models
+          mkdir -p results models
+          cp -a "$persist_dir/results/." results/ 2>/dev/null || true
+          cp -a "$persist_dir/models/." models/ 2>/dev/null || true
+          unexpected="$(git status --porcelain --untracked-files=all | awk '$2 !~ /^(results\/|models\/)/ {print}')"
+          if [ -n "$unexpected" ]; then
+            echo '::error::Unexpected working-tree changes before publish:'
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+          git add results models
+          if git diff --cached --name-only | grep -E '^(data\/|data/db/|data/raw/)'; then
+            echo '::error::Generated database/cache entered the staged set; refusing to push'
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo 'No lightweight output changes to publish.'
+            exit 0
+          fi
+          git diff --cached --check
+          git commit -m 'chore: update seven-sport bootstrap research outputs'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
+            if git merge-base --is-ancestor origin/main HEAD && git push origin HEAD:main; then
               echo 'push succeeded'
               exit 0
             fi
-            echo "push attempt ${attempt} rejected; retrying"
-            sleep $((attempt * 3))
+            echo "remote advanced or push rejected on attempt ${attempt}; rebuilding output commit"
+            git reset --hard origin/main
+            git clean -ffdx || true
+            rm -rf results models
+            mkdir -p results models
+            cp -a "$persist_dir/results/." results/ 2>/dev/null || true
+            cp -a "$persist_dir/models/." models/ 2>/dev/null || true
+            git add results models
+            if git diff --cached --quiet; then
+              echo 'Remote already contains equivalent lightweight outputs.'
+              exit 0
+            fi
+            git diff --cached --check
+            git commit -m 'chore: update seven-sport bootstrap research outputs'
+            sleep $((attempt * 2))
           done
-          echo '::error::final push failed after 5 attempts'
+          echo '::error::final push failed after 5 deterministic retries'
           exit 1
-      - name: Upload merged database and reports
+      - name: Upload merged research outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bootstrap-merged-${{ github.run_id }}
           path: |
-            data/**
+            data/db/sports_v45.sqlite
             results/**
             models/**
           if-no-files-found: warn
+          retention-days: 1
