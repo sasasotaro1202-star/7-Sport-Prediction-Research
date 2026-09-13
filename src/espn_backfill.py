@@ -15,23 +15,24 @@ def run(sport,leagues,years):
  h=HTTP();total=0;errors=[]
  for year in years:
   for lg in leagues:
-   url=f'https://site.api.espn.com/apis/site/v2/sports/{sport}/{lg}/scoreboard?dates={year}0101-{year}1231&limit=1000'
-   try:raw,r,_=h.get(url);data=json.loads(raw)
-   except Exception as e:errors.append({'year':year,'league':lg,'error':repr(e)});continue
-   add_snapshot(c,sport,'espn',url,r,None,hashlib.sha256(raw.encode()).hexdigest(),'UNVERIFIABLE')
-   for ev in data.get('events',[]):
-    comp=(ev.get('competitions') or [{}])[0];et=iso(ev.get('date'));name=str(ev.get('name') or ev.get('shortName') or ev.get('id'));status='COMPLETED' if ((ev.get('status') or {}).get('type') or {}).get('completed') else 'SCHEDULED';eid=upsert_event(c,sport,name,et,'espn',url,status,competition=lg,season=str(year))
-    for i,t in enumerate((comp.get('competitors') or [])[:2]):
-     tm=t.get('team') or {};n=str(tm.get('displayName') or t.get('displayName') or '').strip()
-     if not n:continue
-     pid=upsert_participant(c,sport,n,'team');upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B','match','espn',url)
-     for st in t.get('statistics') or []:
-      k=st.get('name') or st.get('label');v=st.get('value')
-      try:num=float(v)
-      except:num=None
-      add_stat(c,eid,pid,pid,sport,k,num,str(v) if v is not None else None,'espn',url)
-    total+=1
-   c.commit()
+   for start,end in ((f'{year}0101',f'{year}0630'),(f'{year}0701',f'{year}1231')):
+    url=f'https://site.api.espn.com/apis/site/v2/sports/{sport}/{lg}/scoreboard?dates={start}-{end}&limit=1000'
+    try:raw,r,_=h.get(url);data=json.loads(raw)
+    except Exception as e:errors.append({'year':year,'league':lg,'start':start,'end':end,'error':repr(e)});continue
+    add_snapshot(c,sport,'espn',url,r,None,hashlib.sha256(raw.encode()).hexdigest(),'UNVERIFIABLE')
+    for ev in data.get('events',[]):
+     comp=(ev.get('competitions') or [{}])[0];et=iso(ev.get('date'));name=str(ev.get('name') or ev.get('shortName') or ev.get('id'));status='COMPLETED' if ((ev.get('status') or {}).get('type') or {}).get('completed') else 'SCHEDULED';eid=upsert_event(c,sport,name,et,'espn',url,status,competition=lg,season=str(year))
+     for i,t in enumerate((comp.get('competitors') or [])[:2]):
+      tm=t.get('team') or {};n=str(tm.get('displayName') or t.get('displayName') or '').strip()
+      if not n:continue
+      pid=upsert_participant(c,sport,n,'team');upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B','match','espn',url)
+      for st in t.get('statistics') or []:
+       k=st.get('name') or st.get('label');v=st.get('value')
+       try:num=float(v)
+       except:num=None
+       add_stat(c,eid,pid,pid,sport,k,num,str(v) if v is not None else None,'espn',url)
+     total+=1
+    c.commit()
  if not errors:save_state(c,sport,'espn_full_history',str(max(years)),True,{'years':list(years),'leagues':leagues})
  else:save_state(c,sport,'espn_full_history',str(max(years)),False,{'years':list(years),'leagues':leagues,'errors':errors})
  c.close();return {'events':total,'status':'COMPLETE' if not errors else 'PARTIAL','errors':errors}
