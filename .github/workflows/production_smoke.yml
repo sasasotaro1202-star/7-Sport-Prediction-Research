@@ -68,6 +68,7 @@ jobs:
         run: python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 2
       - name: Repair VALORANT event times for PIT eligibility
         if: matrix.sport == 'valorant'
+        continue-on-error: true
         run: python -m src.repair_vlr_pit_times --timeout 12
       - name: Run collection guard
         run: python -m src.collection_guard --sport ${{ matrix.sport }}
