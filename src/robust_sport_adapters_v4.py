@@ -17,7 +17,7 @@ VLR_API = 'https://vlrggapi.vercel.app/v2/match'
 def iso(v):
     if not v:
         return None
-    s=str(v).strip().replace('Z','+00:00')
+    s=str(v).strip().replace('Z','+')
     for fmt in ('%B %d, %Y','%b %d, %Y','%Y-%m-%d'):
         try: return datetime.strptime(s,fmt).replace(tzinfo=timezone.utc).isoformat()
         except ValueError: pass
@@ -41,7 +41,6 @@ def collect_ufc_fight_level(c, h):
             continue
         et=iso(date)
         fight_url=str(row.get('fight_url') or UFC_DATASET)
-        # Prediction granularity is one fight, not one UFC card.
         fight_name=f'{card} | {f1} vs {f2}'
         eid=upsert_event(c,'ufc',fight_name,et,'ufcstats-tidytuesday',fight_url,'COMPLETED',competition=card,season=date[:4])
         p1=upsert_participant(c,'ufc',f1,'fighter')
@@ -50,12 +49,12 @@ def collect_ufc_fight_level(c, h):
         upsert_ep(c,eid,p2,p2,'B','fight','ufcstats-tidytuesday',fight_url)
         r1=str(row.get('f1_result') or '').strip().upper()
         r2=str(row.get('f2_result') or '').strip().upper()
-        outcome='A' if r1=='W' else 'B' if r2=='W' else 'DRAW' if r1 in {'D','DRAW'} or r2 in {'D','DRAW'} else None
-        if outcome:
-            c.execute('''INSERT OR REPLACE INTO event_outcome
-                (event_id,sport,side_a_participant_id,side_b_participant_id,outcome,score_a,score_b,outcome_status,source,source_url,observed_at_utc,quality_status,reason)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-                (eid,'ufc',p1,p2,outcome,None,None,'VERIFIED','ufcstats-tidytuesday',UFC_DATASET,utcnow(),'PIT_REQUIRES_REPLAY','Explicit result in dataset'))
+        outcome='A' if r1=='W' else 'B' if r2=='W' else 'DRAW' if r1 in {'D','DRAW'} or r2 in {'D','DRAW'} else 'VOID'
+        outcome_reason = 'Explicit result in dataset' if outcome != 'VOID' else 'Explicit non-predictive/void result in dataset (for example no contest); excluded from A/B/DRAW model labels.'
+        c.execute('''INSERT OR REPLACE INTO event_outcome
+            (event_id,sport,side_a_participant_id,side_b_participant_id,outcome,score_a,score_b,outcome_status,source,source_url,observed_at_utc,quality_status,reason)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (eid,'ufc',p1,p2,outcome,None,None,'VERIFIED','ufcstats-tidytuesday',UFC_DATASET,utcnow(),'PIT_REQUIRES_REPLAY',outcome_reason))
         for key,val in row.items():
             if key in {'f1_name','f2_name','event_name','fight_url','date'} or val in ('',None):
                 continue
@@ -68,7 +67,6 @@ def collect_ufc_fight_level(c, h):
             stats+=1
         fights+=1
         events+=1
-    # One exact publication boundary for the source used by all rows.
     add_snapshot(c,'ufc','ufcstats-tidytuesday',UFC_DATASET,retrieved,None,hashlib.sha256(raw.encode()).hexdigest(),'EXACT')
     c.execute("UPDATE source_snapshot SET source_available_at_utc=?, availability_status='EXACT' WHERE source_url=?",(UFC_PUBLICATION,UFC_DATASET))
     c.commit()
@@ -125,7 +123,7 @@ def main():
         except Exception as e:
             errors.append({'sport':sp,'error':repr(e)})
     c.commit(); c.close()
-    report={'parser_version':'v4.5.11-robust-adapter-v4','done':done,'errors':errors,'timestamp_utc':utcnow()}
+    report={'parser_version':'v4.5.12-robust-adapter-v4','done':done,'errors':errors,'timestamp_utc':utcnow()}
     p=ROOT/'results/robust_adapter.json'; p.parent.mkdir(parents=True,exist_ok=True); p.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False,indent=2))
     raise SystemExit(1 if errors else 0)
