@@ -1,100 +1,103 @@
 from __future__ import annotations
-import argparse, hashlib, json, re
+
+import argparse
+import hashlib
+import json
 from datetime import datetime, timezone
+
 import requests
+
 from src.storage.db_v45 import connect, utcnow
-SPORT='basketball'
+from src.seven_sport_production import upsert_ep, upsert_event, upsert_participant
+
+SPORT = "basketball"
+
 
 def iso(v):
-    if not v: return None
+    if not v:
+        return None
+    s = str(v).replace("Z", "+00:00")
     try:
-        d=datetime.fromisoformat(str(v).replace('Z','+00:00'))
-        if d.tzinfo is None: d=d.replace(tzinfo=timezone.utc)
+        d = datetime.fromisoformat(s)
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
         return d.astimezone(timezone.utc).isoformat()
     except Exception:
-        for fmt in ('%Y-%m-%dT%H:%M:%S','%Y-%m-%d'):
-            try: return datetime.strptime(str(v),fmt).replace(tzinfo=timezone.utc).isoformat()
-            except Exception: pass
+        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(str(v)[:19], fmt).replace(tzinfo=timezone.utc).isoformat()
+            except Exception:
+                pass
     return None
 
-def sid(*x): return hashlib.sha256('|'.join('' if v is None else str(v) for v in x).encode()).hexdigest()[:32]
-def clean(x): return re.sub(r'\s+',' ',str(x or '')).strip()
 
-def flatten_games(obj):
-    out=[]
-    def walk(x):
-        if isinstance(x,dict):
-            if ('gameId' in x or 'gid' in x) and (('homeTeam' in x and 'awayTeam' in x) or ('hTeam' in x and 'vTeam' in x)): out.append(x)
-            for v in x.values(): walk(v)
-        elif isinstance(x,list):
-            for v in x: walk(v)
-    walk(obj); seen=set(); uniq=[]
-    for g in out:
-        k=g.get('gameId') or g.get('gid') or g.get('gameCode')
-        if k not in seen: seen.add(k); uniq.append(g)
-    return uniq
+def sid(*x):
+    return hashlib.sha256("|".join("" if v is None else str(v) for v in x).encode()).hexdigest()[:32]
 
-def normalize_game(g,league):
-    if 'homeTeam' in g:
-        h=g.get('homeTeam') or {}; a=g.get('awayTeam') or {}; gid=g.get('gameId'); et=g.get('gameTimeUTC') or g.get('gameEt')
-        return gid,et,h,a,g.get('gameStatusText') or 'Scheduled'
-    h=g.get('hTeam') or {}; a=g.get('vTeam') or {}; gid=g.get('gid') or g.get('gameId'); et=g.get('gdte') or g.get('stt')
-    h={'teamId':h.get('tid'),'teamName':h.get('tn') or h.get('tc'),'teamCity':h.get('ta') or h.get('tc'),'score':h.get('s')}
-    a={'teamId':a.get('tid'),'teamName':a.get('tn') or a.get('tc'),'teamCity':a.get('ta') or a.get('tc'),'score':a.get('s')}
-    return gid,et,h,a,g.get('stt') or g.get('gstat') or 'Scheduled'
+
+def clean(x):
+    import re
+    return re.sub(r"\s+", " ", str(x or "")).strip()
+
 
 def espn_games(sport):
-    url=f'https://site.api.espn.com/apis/site/v2/sports/basketball/{sport}/scoreboard'
-    r=requests.get(url,headers={'User-Agent':'Mozilla/5.0','Accept':'application/json'},timeout=20); r.raise_for_status()
-    out=[]
-    for e in r.json().get('events',[]):
-        comp=(e.get('competitions') or [{}])[0]; cs=comp.get('competitors') or []
-        home=next((x for x in cs if x.get('homeAway')=='home'), cs[0] if cs else {})
-        away=next((x for x in cs if x.get('homeAway')=='away'), cs[1] if len(cs)>1 else {})
+    url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/{sport}/scoreboard"
+    r = requests.get(url, headers={"User-Agent":"SevenSportResearchEngine/4.5.16"}, timeout=25)
+    r.raise_for_status()
+    out = []
+    for e in r.json().get("events", []):
+        comp = (e.get("competitions") or [{}])[0]
+        cs = comp.get("competitors") or []
+        home = next((x for x in cs if x.get("homeAway") == "home"), {})
+        away = next((x for x in cs if x.get("homeAway") == "away"), {})
         def team(c):
-            t=c.get('team') or {}
-            return {'teamId':t.get('id'),'teamName':t.get('displayName') or t.get('shortDisplayName'),'teamCity':'','score':c.get('score')}
-        out.append({'gameId':e.get('id'),'gameTimeUTC':e.get('date'),'homeTeam':team(home),'awayTeam':team(away),'gameStatusText':((e.get('status') or {}).get('type') or {}).get('shortDetail') or 'Scheduled'})
-    return url,out
+            t = c.get("team") or {}
+            return {"teamId":t.get("id"),"teamName":t.get("displayName") or t.get("shortDisplayName"),"score":c.get("score")}
+        out.append({"gameId":e.get("id"),"gameTimeUTC":e.get("date"),"homeTeam":team(home),"awayTeam":team(away),"status":((e.get("status") or {}).get("type") or {}).get("name") or "Scheduled"})
+    return url, out
 
-def fetch_games(league_id):
-    sport='wnba' if league_id=='10' else 'nba'; headers={'User-Agent':'Mozilla/5.0','Accept':'application/json'}
-    urls=[]
-    for year in (2026,2025): urls.append(f'https://data.nba.com/data/10s/v2015/json/mobile_teams/{sport}/{year}/league/{league_id}_full_schedule.json')
-    for url in urls:
-        try:
-            r=requests.get(url,headers=headers,timeout=20)
-            if r.status_code==200:
-                games=flatten_games(r.json())
-                if games: return url,games
-        except Exception: pass
+
+def collect_live(c, league_id):
+    sport = "wnba" if league_id == "10" else "nba"
     try:
-        return espn_games(sport)
+        url, games = espn_games(sport)
     except Exception:
-        live=f'https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_{league_id}.json'
-        try:
-            r=requests.get(live,headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36','Accept':'application/json, text/plain, */*','Origin':'https://www.nba.com','Referer':'https://www.nba.com/'},timeout=20)
-            if r.status_code==200: return live,r.json().get('scoreboard',{}).get('games',[]) or []
-        except Exception: pass
-        return 'NO_LIVE_SOURCE',[]
-
-def collect(league_id):
-    c=connect(); url,games=fetch_games(league_id); league='WNBA' if league_id=='10' else 'NBA'
+        return 0
     for raw in games:
-        gid,et,h,a,status=normalize_game(raw,league); eid=sid(SPORT,'nba',league_id,gid); now=utcnow(); et=iso(et)
-        c.execute('''INSERT INTO event(event_id,sport,competition_id,event_time_utc,event_type,status,source_count,quality_status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(event_id) DO UPDATE SET event_time_utc=COALESCE(excluded.event_time_utc,event.event_time_utc),status=excluded.status,updated_at=excluded.updated_at''',(eid,SPORT,league,et,'match',clean(status),1,'PRESENT_NOT_PIT_VERIFIED',now,now))
-        for i,t in enumerate((h,a)):
-            name=clean(' '.join(x for x in (t.get('teamCity'),t.get('teamName')) if x)); pid=sid(SPORT,league,t.get('teamId'),name)
-            c.execute('''INSERT INTO participant(participant_id,sport,participant_type,canonical_name,first_seen_at,last_seen_at) VALUES(?,?,?,?,?,?) ON CONFLICT(participant_id) DO UPDATE SET canonical_name=excluded.canonical_name,last_seen_at=excluded.last_seen_at''',(pid,SPORT,'team',name,now,now))
-            c.execute('''INSERT OR REPLACE INTO event_participant(event_id,participant_id,team_id,side,source,source_url,quality_status) VALUES(?,?,?,?,?,?,?)''',(eid,pid,pid,'A' if i==0 else 'B','basketball-feed',url,'UNVERIFIABLE'))
-            if t.get('score') not in (None,''):
-                try: num=float(t.get('score'))
-                except Exception: num=None
-                c.execute('''INSERT OR REPLACE INTO match_stats(stat_id,event_id,participant_id,team_id,sport,observed_at_utc,stat_name,value_num,value_text,source,source_url,quality_status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',(sid(eid,pid,'score',t.get('score')),eid,pid,pid,SPORT,now,'score',num,str(t.get('score')),'basketball-feed',url,'UNVERIFIABLE'))
-        ph=hashlib.sha256(json.dumps(raw,sort_keys=True,default=str).encode()).hexdigest(); c.execute('''INSERT OR REPLACE INTO source_snapshot(snapshot_id,source,source_url,retrieved_at_utc,event_time_utc,content_hash,parser_version,availability_status,provenance_json) VALUES(?,?,?,?,?,?,?,?,?)''',(sid('basketball-feed',league_id,gid),'basketball-feed',url,now,et,ph,'basketball-v4.5.14','UNVERIFIABLE',json.dumps({'sport':SPORT,'league':league},ensure_ascii=False)))
-    c.commit(); c.close(); print(json.dumps({'league':league,'games':len(games),'source':url},ensure_ascii=False))
+        h, a = raw["homeTeam"], raw["awayTeam"]
+        hn, an = clean(h.get("teamName")), clean(a.get("teamName"))
+        if not hn or not an:
+            continue
+        et = iso(raw.get("gameTimeUTC")); league = "WNBA" if league_id == "10" else "NBA"
+        eid = sid(SPORT, league, raw.get("gameId"))
+        now = utcnow()
+        upsert_event(c, eid, SPORT, f"{hn} vs {an}", et, "match", clean(raw.get("status")), league, None)
+        p1 = upsert_participant(c, SPORT, hn, "team"); p2 = upsert_participant(c, SPORT, an, "team")
+        upsert_ep(c,eid,p1,p1,"A","match","basketball-feed",url); upsert_ep(c,eid,p2,p2,"B","match","basketball-feed",url)
+    return len(games)
+
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--league',choices=('00','10')); ap.add_argument('--both',action='store_true'); a=ap.parse_args(); leagues=('00','10') if a.both or not a.league else (a.league,)
-    for x in leagues: collect(x)
-if __name__=='__main__': main()
+    ap = argparse.ArgumentParser(); ap.add_argument("--league", choices=("00","10")); ap.add_argument("--both", action="store_true")
+    a = ap.parse_args(); leagues = ("00","10") if a.both or not a.league else (a.league,)
+    c = connect(); report={"version":"v4.5.16-basketball-fallback","live":{},"historical":{},"warnings":[]}
+    try:
+        for league in leagues:
+            n = collect_live(c, league); report["live"]["WNBA" if league=="10" else "NBA"] = n
+        # Live/current endpoints can legitimately contain no historical rows.
+        # When they do, use the independently sourced public historical datasets.
+        if sum(report["live"].values()) == 0:
+            from src.hardened_public_history import backfill_csv, NBA_GAMES, WNBA_GAMES, FIBA_2019
+            for name, url in (("NBA",NBA_GAMES),("WNBA",WNBA_GAMES),("FIBA",FIBA_2019)):
+                try:
+                    report["historical"][name] = backfill_csv(c, url, name)
+                except Exception as e:
+                    report["warnings"].append({"source":name,"error":repr(e)})
+        c.commit()
+    finally:
+        c.close()
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
