@@ -107,11 +107,6 @@ jobs:
             echo "collection_guard_status=FAILED exit=$guard_rc"
           fi
 
-          # A collector/backfill outage is allowed to reduce coverage. A guard or
-          # database integrity failure is not silently ignored. If no evidence
-          # exists after a failed collection path, fail the partition explicitly;
-          # merge may still run via needs:collect + if:always(), but the failure is
-          # visible and cannot masquerade as a healthy collection job.
           if [ "$guard_rc" -ne 0 ]; then
             echo 'ERROR: collection guard failed; refusing to mark partition healthy.' >&2
             exit "$guard_rc"
@@ -141,52 +136,69 @@ jobs:
           cache-dependency-path: requirements.txt
       - run: python -m pip install -r requirements.txt
       - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,ufc,rizin,f1} data/db results models
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
       - name: Restore VALORANT
         uses: actions/cache/restore@v4
         with:
-          path: hourly-artifacts/valorant/sports_v45.sqlite
+          path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-valorant-${{ github.run_id }}
+      - name: Materialize VALORANT partition
+        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/valorant/sports_v45.sqlite
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
       - name: Restore Basketball
         uses: actions/cache/restore@v4
         with:
-          path: hourly-artifacts/basketball/sports_v45.sqlite
+          path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-basketball-${{ github.run_id }}
+      - name: Materialize Basketball partition
+        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/basketball/sports_v45.sqlite
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
       - name: Restore Volleyball
         uses: actions/cache/restore@v4
         with:
-          path: hourly-artifacts/volleyball/sports_v45.sqlite
+          path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-volleyball-${{ github.run_id }}
+      - name: Materialize Volleyball partition
+        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
       - name: Restore Tennis
         uses: actions/cache/restore@v4
         with:
-          path: hourly-artifacts/tennis/sports_v45.sqlite
+          path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-tennis-${{ github.run_id }}
+      - name: Materialize Tennis partition
+        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/tennis/sports_v45.sqlite
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
       - name: Restore UFC
         uses: actions/cache/restore@v4
         with:
-          path: hourly-artifacts/ufc/sports_v45.sqlite
+          path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-ufc-${{ github.run_id }}
+      - name: Materialize UFC partition
+        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/ufc/sports_v45.sqlite
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
       - name: Restore RIZIN
         uses: actions/cache/restore@v4
         with:
-          path: hourly-artifacts/rizin/sports_v45.sqlite
+          path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-rizin-${{ github.run_id }}
+      - name: Materialize RIZIN partition
+        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/rizin/sports_v45.sqlite
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
       - name: Restore F1
         uses: actions/cache/restore@v4
         with:
-          path: hourly-artifacts/f1/sports_v45.sqlite
+          path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-f1-${{ github.run_id }}
-      - name: Materialize missing partitions as empty canonical DBs
-        run: |
-          python - <<'PY'
-          import shutil
-          from pathlib import Path
-          from src.storage.db_v45 import connect,DB_PATH
-          for s in ('valorant','basketball','volleyball','tennis','ufc','rizin','f1'):
-              p=Path('hourly-artifacts')/s/'sports_v45.sqlite'
-              if not p.exists():
-                  c=connect(); c.close(); p.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(DB_PATH,p)
-          PY
+      - name: Materialize F1 partition
+        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/f1/sports_v45.sqlite
       - name: Verify partition files
         run: |
           set -euo pipefail
