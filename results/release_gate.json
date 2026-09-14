@@ -1,0 +1,61 @@
+{
+  "status": "BLOCKED",
+  "publish": false,
+  "fatal": [
+    "ufc:completed_event_outcome_gap"
+  ],
+  "coverage": {
+    "valorant": {
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "verified_outcomes": 0,
+      "accepted_models": 0
+    },
+    "basketball": {
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "verified_outcomes": 0,
+      "accepted_models": 0
+    },
+    "volleyball": {
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "verified_outcomes": 0,
+      "accepted_models": 0
+    },
+    "tennis": {
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "verified_outcomes": 0,
+      "accepted_models": 0
+    },
+    "ufc": {
+      "events": 8736,
+      "timed_events": 8736,
+      "completed_events": 8736,
+      "verified_outcomes": 8645,
+      "accepted_models": 1,
+      "model_safety": "OK"
+    },
+    "rizin": {
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "verified_outcomes": 0,
+      "accepted_models": 0
+    },
+    "f1": {
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "verified_outcomes": 0,
+      "accepted_models": 0
+    }
+  },
+  "policy": "source outages may degrade coverage, but unsafe models are never published; future scheduled events do not require outcomes",
+  "gate_version": "release-gate-v3-completed-outcomes-only"
+}

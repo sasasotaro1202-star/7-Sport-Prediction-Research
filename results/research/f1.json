@@ -1,0 +1,7 @@
+{
+  "sport": "f1",
+  "status": "DEFERRED_PIT",
+  "events": 0,
+  "exact_pit_source_snapshots": 0,
+  "reason": "OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted"
+}

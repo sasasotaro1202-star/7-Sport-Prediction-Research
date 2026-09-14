@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "fatal_count": 0,
+  "fatal": [],
+  "checks": {
+    "pit_feature_rows": 0,
+    "replays_checked": 8580,
+    "accepted_models_checked": 0,
+    "impossible_exact_snapshots": 0
+  },
+  "audit_version": "independent-leakage-audit-v1"
+}

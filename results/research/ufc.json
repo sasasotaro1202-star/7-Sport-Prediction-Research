@@ -1,51 +1,52 @@
 {
   "sport": "ufc",
   "status": "TRAINED",
-  "model": "extra_trees",
-  "model_version": "d310fa29fc9b57aa",
-  "training_rows": 8580,
-  "features": 81,
-  "selection_metrics": [
-    {
-      "logloss": 0.6807262396929348,
-      "brier": 0.24381067311259,
-      "accuracy": 0.5816733067729084,
-      "ece": 0.003871437886948217,
-      "n": 2008,
-      "model": "extra_trees"
-    },
-    {
-      "logloss": 0.6807262397529511,
-      "brier": 0.24381067314178811,
-      "accuracy": 0.5816733067729084,
-      "ece": 0.0038714381961730895,
-      "n": 2008,
-      "model": "random_forest"
-    },
-    {
-      "logloss": 0.6807298025493834,
-      "brier": 0.24381242749141627,
-      "accuracy": 0.5816733067729084,
-      "ece": 0.003917665742697624,
-      "n": 2008,
-      "model": "logistic"
-    },
-    {
-      "logloss": 0.6807298028814643,
-      "brier": 0.2438124276556052,
-      "accuracy": 0.5816733067729084,
-      "ece": 0.0039176678393980854,
-      "n": 2008,
-      "model": "hist_gb"
-    }
+  "models": [
+    "random_forest"
   ],
-  "holdout_metrics": {
-    "logloss": 0.6876365393757383,
-    "brier": 0.24723030689229603,
-    "accuracy": 0.5603813559322034,
-    "ece": 0.02960092965613531,
-    "n": 1888,
-    "model": "extra_trees"
+  "model_version": "368499f8aaaaba4b",
+  "training_rows": 6692,
+  "frozen_holdout_rows": 1888,
+  "features": 9,
+  "selection_oos": {
+    "logistic": {
+      "logloss": 0.6818306485124771,
+      "brier": 0.24436027872882346,
+      "accuracy": 0.5774647887323944,
+      "ece": 0.00037057586963208666,
+      "n": 2343
+    },
+    "extra_trees": {
+      "logloss": 0.6818300747196397,
+      "brier": 0.24435997689896355,
+      "accuracy": 0.5774647887323944,
+      "ece": 0.00032067257378928283,
+      "n": 2343
+    },
+    "random_forest": {
+      "logloss": 0.6818300746346032,
+      "brier": 0.2443599768573895,
+      "accuracy": 0.5774647887323944,
+      "ece": 0.0003206729325766834,
+      "n": 2343
+    },
+    "hist_gb": {
+      "logloss": 0.6818306488313888,
+      "brier": 0.24436027888599224,
+      "accuracy": 0.5774647887323944,
+      "ece": 0.00037057762880523073,
+      "n": 2343
+    }
   },
-  "selection_gate": "initial_model_locked_holdout"
+  "holdout_metrics": {
+    "logloss": 0.6876365393695865,
+    "brier": 0.24723030688931977,
+    "accuracy": 0.5603813559322034,
+    "ece": 0.02960092960586186,
+    "n": 1888,
+    "models": [
+      "random_forest"
+    ]
+  },
+  "production_fit_excludes_holdout": true
 }
