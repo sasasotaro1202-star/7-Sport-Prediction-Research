@@ -4,7 +4,7 @@
   "models": [
     "random_forest"
   ],
-  "model_version": "368499f8aaaaba4b",
+  "model_version": "e7f99913559fb7e2",
   "training_rows": 6692,
   "frozen_holdout_rows": 1888,
   "features": 9,
@@ -34,7 +34,7 @@
       "logloss": 0.6818306488313888,
       "brier": 0.24436027888599224,
       "accuracy": 0.5774647887323944,
-      "ece": 0.00037057762880523073,
+      "ece": 0.0003705776288051937,
       "n": 2343
     }
   },

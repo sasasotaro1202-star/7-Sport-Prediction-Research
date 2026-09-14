@@ -28,11 +28,11 @@
       "model_safety": "OK"
     },
     "volleyball": {
-      "events": 20980,
-      "timed_events": 20980,
-      "completed_events": 20980,
-      "resolved_outcomes": 19336,
-      "verified_model_outcomes": 19336,
+      "events": 20995,
+      "timed_events": 20995,
+      "completed_events": 20995,
+      "resolved_outcomes": 19343,
+      "verified_model_outcomes": 19343,
       "accepted_models": 1,
       "model_safety": "OK"
     },
