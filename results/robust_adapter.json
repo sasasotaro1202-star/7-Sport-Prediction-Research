@@ -1,5 +1,5 @@
 {
-  "parser_version": "v4.5.11-robust-adapter-v4",
+  "parser_version": "v4.5.12-robust-adapter-v4",
   "done": {
     "valorant": {
       "events": 0,
@@ -18,5 +18,5 @@
     }
   },
   "errors": [],
-  "timestamp_utc": "2026-09-14T10:28:14.940028+00:00"
+  "timestamp_utc": "2026-09-14T10:41:54.823918+00:00"
 }
