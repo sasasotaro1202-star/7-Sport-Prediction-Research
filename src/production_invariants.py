@@ -14,7 +14,13 @@ def main():
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require('production_release_gate' in workflow,'production release gate missing')
-    require('source failures are non-fatal' in workflow,'resilient source-failure policy missing')
+    # Source outages may degrade coverage, but the workflow must record the
+    # collector/backfill status explicitly rather than hiding failures with
+    # unconditional `|| true` or `continue-on-error`.
+    require('source failures degrade explicitly' in workflow,'resilient source-failure policy missing')
+    require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
+    require('backfill_status=DEGRADED' in workflow,'backfill degradation is not explicitly recorded')
+    require('collection_guard_status=FAILED' in workflow,'collection guard failure is not explicitly surfaced')
     require('if: always()' in workflow,'merge job is not configured to run after collector degradation')
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
     require('matrix:' in workflow and 'f1' in workflow,'workflow does not cover all seven sports')
