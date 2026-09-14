@@ -10,7 +10,10 @@ from src.storage.db_v45 import connect, utcnow
 from src.seven_sport_production import upsert_ep, upsert_event, upsert_participant
 
 SPORT = "basketball"
-HISTORICAL_MIN_COMPLETED = 1000
+# Historical recovery is based on explicit temporal coverage, not an arbitrary
+# event-count threshold.  Current/live volume can be large while entire years
+# are still absent from the partition.
+REQUIRED_HISTORICAL_YEARS = tuple(range(2019, 2026))
 
 def iso(v):
     if not v: return None
@@ -61,22 +64,23 @@ def collect_live(c,league_id):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--league",choices=("00","10")); ap.add_argument("--both",action="store_true")
     a=ap.parse_args(); leagues=("00","10") if a.both or not a.league else (a.league,)
-    c=connect(); report={"version":"v4.5.17-basketball-coverage-aware","live":{},"historical":{},"warnings":[],"historical_triggered":False}
+    c=connect(); report={"version":"v4.5.18-basketball-coverage-aware","live":{},"historical":{},"warnings":[],"historical_triggered":False}
     try:
         for league in leagues: report["live"]["WNBA" if league=="10" else "NBA"]=collect_live(c,league)
-        completed = c.execute("SELECT COUNT(*) FROM event WHERE sport=? AND status IN ('COMPLETED','FINISHED','POST')", (SPORT,)).fetchone()[0]
-        report["completed_before_historical"] = int(completed or 0)
+        year_rows = c.execute("SELECT DISTINCT CAST(substr(event_time_utc,1,4) AS INTEGER) FROM event WHERE sport=? AND event_time_utc IS NOT NULL", (SPORT,)).fetchall()
+        observed_years = sorted({int(r[0]) for r in year_rows if r[0]})
+        missing_years = [y for y in REQUIRED_HISTORICAL_YEARS if y not in observed_years]
+        report["historical_coverage"] = {"required_years":list(REQUIRED_HISTORICAL_YEARS),"observed_years":observed_years,"missing_years":missing_years}
         # Do not use today's live volume as a proxy for historical coverage.
-        # If the partition is thin, recover the historical datasets even when
-        # ESPN currently returns some live games.
-        if completed < HISTORICAL_MIN_COMPLETED:
+        # Recovery continues until every required historical year is represented.
+        if missing_years:
             report["historical_triggered"] = True
             from src.hardened_public_history import backfill_csv,NBA_GAMES,WNBA_GAMES,FIBA_2019
             for name,url in (("NBA",NBA_GAMES),("WNBA",WNBA_GAMES),("FIBA",FIBA_2019)):
                 try: report["historical"][name]=backfill_csv(c,url,name)
                 except Exception as e: report["warnings"].append({"source":name,"error":repr(e)})
         else:
-            report["historical_skipped_reason"] = f"completed_events={completed} >= {HISTORICAL_MIN_COMPLETED}"
+            report["historical_skipped_reason"] = "all_required_historical_years_present"
         c.commit()
     finally: c.close()
     print(json.dumps(report,ensure_ascii=False,indent=2))
