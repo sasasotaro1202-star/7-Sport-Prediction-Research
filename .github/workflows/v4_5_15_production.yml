@@ -176,10 +176,12 @@ jobs:
           git diff --cached --check
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'chore: update seven-sport research results'
-          # Synchronize only after the generated-output commit, so rebase always
-          # operates on a clean worktree. Never rerun research during transport retry.
+          # Synchronize only after the generated-output commit. Research may leave
+          # non-publishable model files dirty, so use Git's temporary autostash while
+          # rebasing. This keeps transport safe without publishing unsafe models or
+          # requiring another research run.
           git fetch origin main
-          if ! git rebase origin/main; then
+          if ! git rebase --autostash origin/main; then
             git rebase --abort || true
             echo 'ERROR: main advanced with a non-replayable generated-output conflict.' >&2
             exit 1
@@ -188,7 +190,7 @@ jobs:
             if git push origin HEAD:main; then exit 0; fi
             if [ "$attempt" -eq 3 ]; then exit 1; fi
             git fetch origin main
-            if ! git rebase origin/main; then
+            if ! git rebase --autostash origin/main; then
               git rebase --abort || true
               echo 'ERROR: generated-output commit conflicted while synchronizing main.' >&2
               exit 1
