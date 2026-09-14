@@ -10,6 +10,7 @@ from src.storage.db_v45 import connect, utcnow
 from src.seven_sport_production import upsert_ep, upsert_event, upsert_participant
 
 SPORT = "basketball"
+HISTORICAL_MIN_COMPLETED = 1000
 
 def iso(v):
     if not v: return None
@@ -60,14 +61,22 @@ def collect_live(c,league_id):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--league",choices=("00","10")); ap.add_argument("--both",action="store_true")
     a=ap.parse_args(); leagues=("00","10") if a.both or not a.league else (a.league,)
-    c=connect(); report={"version":"v4.5.16-basketball-fallback","live":{},"historical":{},"warnings":[]}
+    c=connect(); report={"version":"v4.5.17-basketball-coverage-aware","live":{},"historical":{},"warnings":[],"historical_triggered":False}
     try:
         for league in leagues: report["live"]["WNBA" if league=="10" else "NBA"]=collect_live(c,league)
-        if sum(report["live"].values())==0:
+        completed = c.execute("SELECT COUNT(*) FROM event WHERE sport=? AND status IN ('COMPLETED','FINISHED','POST')", (SPORT,)).fetchone()[0]
+        report["completed_before_historical"] = int(completed or 0)
+        # Do not use today's live volume as a proxy for historical coverage.
+        # If the partition is thin, recover the historical datasets even when
+        # ESPN currently returns some live games.
+        if completed < HISTORICAL_MIN_COMPLETED:
+            report["historical_triggered"] = True
             from src.hardened_public_history import backfill_csv,NBA_GAMES,WNBA_GAMES,FIBA_2019
             for name,url in (("NBA",NBA_GAMES),("WNBA",WNBA_GAMES),("FIBA",FIBA_2019)):
                 try: report["historical"][name]=backfill_csv(c,url,name)
                 except Exception as e: report["warnings"].append({"source":name,"error":repr(e)})
+        else:
+            report["historical_skipped_reason"] = f"completed_events={completed} >= {HISTORICAL_MIN_COMPLETED}"
         c.commit()
     finally: c.close()
     print(json.dumps(report,ensure_ascii=False,indent=2))
