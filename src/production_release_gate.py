@@ -8,6 +8,8 @@ OUT=ROOT/'results/release_gate.json'
 SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
 
 COMPLETED_STATUSES=('COMPLETED','FINISHED','POST')
+RESOLVED_OUTCOMES=('A','B','DRAW','VOID')
+MODEL_OUTCOMES=('A','B','DRAW')
 
 
 def _finite(x):
@@ -43,8 +45,8 @@ def main():
         'publish':False,
         'fatal':[],
         'coverage':{},
-        'policy':'source outages may degrade coverage, but unsafe models are never published; future scheduled events do not require outcomes',
-        'gate_version':'release-gate-v3-completed-outcomes-only',
+        'policy':'source outages may degrade coverage, but unsafe models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels',
+        'gate_version':'release-gate-v4-resolved-outcomes-model-labels-separated',
     }
     if not DB.exists():
         r['fatal'].append('database_missing')
@@ -54,12 +56,13 @@ def main():
             counts=dict(c.execute('select sport,count(*) from event group by sport').fetchall())
             timed=dict(c.execute('select sport,count(*) from event where event_time_utc is not null group by sport').fetchall())
             completed=dict(c.execute("select sport,count(*) from event where status in ('COMPLETED','FINISHED','POST') group by sport").fetchall())
+            resolved=dict(c.execute("select sport,count(*) from event_outcome where outcome_status='VERIFIED' and outcome in ('A','B','DRAW','VOID') group by sport").fetchall())
             verified=dict(c.execute("select sport,count(*) from event_outcome where outcome_status='VERIFIED' and outcome in ('A','B','DRAW') group by sport").fetchall())
             models=dict(c.execute("select sport,count(*) from model_state_snapshot where quality_status like 'ACCEPTED%' group by sport").fetchall())
             model_rows=c.execute("select sport,metadata_json from model_state_snapshot where market='winner' and quality_status like 'ACCEPTED%' order by as_of_utc desc").fetchall()
             bad=c.execute("select count(*) from pit_replay where leakage_status not in ('PASS','UNKNOWN','CLEAN')").fetchone()[0]
             exact_missing=c.execute("select count(*) from source_snapshot where availability_status='EXACT' and source_available_at_utc is null").fetchone()[0]
-            r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'verified_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
+            r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'resolved_outcomes':int(resolved.get(s,0)),'verified_model_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
             latest={}
             for sport,payload in model_rows:
                 if sport in latest: continue
@@ -79,9 +82,10 @@ def main():
             for s,v in r['coverage'].items():
                 if v['events'] and v['timed_events'] != v['events']:
                     r['fatal'].append(f'{s}:untimed_events_present')
-                # Only historical/completed events require an outcome. Scheduled/upcoming
-                # events are valid production candidates and must not poison the release gate.
-                if v['completed_events'] and v['verified_outcomes'] < v['completed_events']:
+                # Only historical/completed events require a resolved outcome.
+                # Explicit VOID results are resolved for integrity purposes but
+                # are excluded from A/B/DRAW model labels and training.
+                if v['completed_events'] and v['resolved_outcomes'] < v['completed_events']:
                     r['fatal'].append(f'{s}:completed_event_outcome_gap')
         finally:
             c.close()
