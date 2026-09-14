@@ -4,9 +4,9 @@
   "models": [
     "hist_gb"
   ],
-  "model_version": "a0acc12bc829c67e",
+  "model_version": "f74134c45deddaf4",
   "training_rows": 15057,
-  "frozen_holdout_rows": 4247,
+  "frozen_holdout_rows": 4248,
   "features": 9,
   "selection_oos": {
     "logistic": {
@@ -32,18 +32,18 @@
     },
     "hist_gb": {
       "logloss": 0.6815162970863299,
-      "brier": 0.2442042326345292,
+      "brier": 0.24420423263452914,
       "accuracy": 0.5768500948766604,
-      "ece": 0.00010457461525452539,
+      "ece": 0.00010457461525441942,
       "n": 5270
     }
   },
   "holdout_metrics": {
-    "logloss": 0.6847577245742602,
-    "brier": 0.245813349870043,
-    "accuracy": 0.5662820814692724,
-    "ece": 0.014375819765922337,
-    "n": 4247,
+    "logloss": 0.6848011121690765,
+    "brier": 0.24583485416580497,
+    "accuracy": 0.5661487758945386,
+    "ece": 0.014509125340656126,
+    "n": 4248,
     "models": [
       "hist_gb"
     ]
