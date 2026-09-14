@@ -43,21 +43,82 @@ jobs:
           restore-keys: seven-sport-db-v3-${{ matrix.sport }}-
       - name: Initialize schema
         run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
-      - name: Incremental collector (source failures are non-fatal)
+      - name: Incremental collector (source failures degrade explicitly)
         run: |
-          set +e
-          python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3
-          rc=$?
-          echo "collector_exit=$rc"
+          set -uo pipefail
+          collector_rc=0
+          if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3; then
+            echo 'collector_status=OK'
+          else
+            collector_rc=$?
+            echo "collector_status=DEGRADED collector_exit=$collector_rc"
+          fi
+
+          backfill_rc=0
           case '${{ matrix.sport }}' in
-            basketball) timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --both || true ;;
-            tennis) timeout --signal=TERM 300s python -m src.tennis_public_backfill || true ;;
-            volleyball) timeout --signal=TERM 300s python -m src.volleyball_fivb_vis_backfill || true ;;
-            valorant|rizin) timeout --signal=TERM 300s python -m src.public_history_backfill --sports '${{ matrix.sport }}' || true ;;
-            f1) timeout --signal=TERM 45s python -m src.f1_openf1_backfill --start-year 2023 --end-year 2026 --timeout 15 || true ;;
-            ufc) : ;;
+            basketball)
+              if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --both; then
+                echo 'basketball_backfill_status=OK'
+              else
+                backfill_rc=$?
+                echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"
+              fi
+              ;;
+            tennis)
+              if timeout --signal=TERM 300s python -m src.tennis_public_backfill; then
+                echo 'tennis_backfill_status=OK'
+              else
+                backfill_rc=$?
+                echo "tennis_backfill_status=DEGRADED exit=$backfill_rc"
+              fi
+              ;;
+            volleyball)
+              if timeout --signal=TERM 300s python -m src.volleyball_fivb_vis_backfill; then
+                echo 'volleyball_backfill_status=OK'
+              else
+                backfill_rc=$?
+                echo "volleyball_backfill_status=DEGRADED exit=$backfill_rc"
+              fi
+              ;;
+            valorant|rizin)
+              if timeout --signal=TERM 300s python -m src.public_history_backfill --sports '${{ matrix.sport }}'; then
+                echo '${{ matrix.sport }}_backfill_status=OK'
+              else
+                backfill_rc=$?
+                echo "${{ matrix.sport }}_backfill_status=DEGRADED exit=$backfill_rc"
+              fi
+              ;;
+            f1)
+              if timeout --signal=TERM 45s python -m src.f1_openf1_backfill --start-year 2023 --end-year 2026 --timeout 15; then
+                echo 'f1_backfill_status=OK'
+              else
+                backfill_rc=$?
+                echo "f1_backfill_status=DEGRADED exit=$backfill_rc"
+              fi
+              ;;
+            ufc) echo 'ufc_backfill_status=NOT_REQUIRED' ;;
           esac
-          python -m src.collection_guard --sport ${{ matrix.sport }} || true
+
+          guard_rc=0
+          if python -m src.collection_guard --sport ${{ matrix.sport }}; then
+            echo 'collection_guard_status=OK'
+          else
+            guard_rc=$?
+            echo "collection_guard_status=FAILED exit=$guard_rc"
+          fi
+
+          # A collector/backfill outage is allowed to reduce coverage. A guard or
+          # database integrity failure is not silently ignored. If no evidence
+          # exists after a failed collection path, fail the partition explicitly;
+          # merge may still run via needs:collect + if:always(), but the failure is
+          # visible and cannot masquerade as a healthy collection job.
+          if [ "$guard_rc" -ne 0 ]; then
+            echo 'ERROR: collection guard failed; refusing to mark partition healthy.' >&2
+            exit "$guard_rc"
+          fi
+          if [ "$collector_rc" -ne 0 ] && [ "$backfill_rc" -ne 0 ]; then
+            echo 'WARNING: all collection paths degraded; release gate will decide whether coverage is safe.' >&2
+          fi
           exit 0
       - name: Save database
         if: always()
@@ -157,8 +218,6 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          # Decide what is publishable and commit generated outputs first. The
-          # worktree is intentionally dirty here because research creates results/models.
           if python - <<'PY'
           import json
           from pathlib import Path
@@ -176,10 +235,6 @@ jobs:
           git diff --cached --check
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'chore: update seven-sport research results'
-          # Synchronize only after the generated-output commit. Research may leave
-          # non-publishable model files dirty, so use Git's temporary autostash while
-          # rebasing. This keeps transport safe without publishing unsafe models or
-          # requiring another research run.
           git fetch origin main
           if ! git rebase --autostash origin/main; then
             git rebase --abort || true
