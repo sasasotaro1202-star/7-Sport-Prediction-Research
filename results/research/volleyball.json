@@ -1,0 +1,52 @@
+{
+  "sport": "volleyball",
+  "status": "TRAINED",
+  "models": [
+    "hist_gb"
+  ],
+  "model_version": "e330a2120840066a",
+  "training_rows": 15056,
+  "frozen_holdout_rows": 4247,
+  "features": 9,
+  "selection_oos": {
+    "logistic": {
+      "logloss": 0.6815790638357995,
+      "brier": 0.24423529383120401,
+      "accuracy": 0.5766603415559772,
+      "ece": 0.00028544472319733523,
+      "n": 5270
+    },
+    "extra_trees": {
+      "logloss": 0.6815792628554667,
+      "brier": 0.24423538856478494,
+      "accuracy": 0.5766603415559772,
+      "ece": 0.00029512775648636103,
+      "n": 5270
+    },
+    "random_forest": {
+      "logloss": 0.6815792628471201,
+      "brier": 0.2442353885607688,
+      "accuracy": 0.5766603415559772,
+      "ece": 0.0002951275805114278,
+      "n": 5270
+    },
+    "hist_gb": {
+      "logloss": 0.6815790638125118,
+      "brier": 0.2442352938208418,
+      "accuracy": 0.5766603415559772,
+      "ece": 0.00028544243257718225,
+      "n": 5270
+    }
+  },
+  "holdout_metrics": {
+    "logloss": 0.6847577251102701,
+    "brier": 0.24581335013107364,
+    "accuracy": 0.5662820814692724,
+    "ece": 0.014375828844729988,
+    "n": 4247,
+    "models": [
+      "hist_gb"
+    ]
+  },
+  "production_fit_excludes_holdout": true
+}

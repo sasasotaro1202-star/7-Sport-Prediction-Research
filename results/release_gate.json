@@ -1,15 +1,22 @@
 {
-  "status": "DEGRADED_BLOCKED",
+  "status": "BLOCKED",
   "publish": false,
-  "fatal": [],
+  "fatal": [
+    "valorant:model_metadata_missing:training_cutoff_utc",
+    "valorant:untimed_events_present",
+    "valorant:completed_event_outcome_gap",
+    "volleyball:completed_event_outcome_gap",
+    "f1:completed_event_outcome_gap"
+  ],
   "coverage": {
     "valorant": {
-      "events": 0,
+      "events": 9523,
       "timed_events": 0,
-      "completed_events": 0,
-      "resolved_outcomes": 0,
-      "verified_model_outcomes": 0,
-      "accepted_models": 0
+      "completed_events": 9523,
+      "resolved_outcomes": 9518,
+      "verified_model_outcomes": 9518,
+      "accepted_models": 1,
+      "model_safety": "model_metadata_missing:training_cutoff_utc"
     },
     "basketball": {
       "events": 0,
@@ -20,19 +27,20 @@
       "accepted_models": 0
     },
     "volleyball": {
-      "events": 0,
-      "timed_events": 0,
-      "completed_events": 0,
-      "resolved_outcomes": 0,
-      "verified_model_outcomes": 0,
-      "accepted_models": 0
+      "events": 20980,
+      "timed_events": 20980,
+      "completed_events": 20980,
+      "resolved_outcomes": 19331,
+      "verified_model_outcomes": 19331,
+      "accepted_models": 1,
+      "model_safety": "OK"
     },
     "tennis": {
-      "events": 0,
-      "timed_events": 0,
-      "completed_events": 0,
-      "resolved_outcomes": 0,
-      "verified_model_outcomes": 0,
+      "events": 56454,
+      "timed_events": 56454,
+      "completed_events": 56454,
+      "resolved_outcomes": 56454,
+      "verified_model_outcomes": 56454,
       "accepted_models": 0
     },
     "ufc": {
@@ -53,9 +61,9 @@
       "accepted_models": 0
     },
     "f1": {
-      "events": 0,
-      "timed_events": 0,
-      "completed_events": 0,
+      "events": 333,
+      "timed_events": 333,
+      "completed_events": 333,
       "resolved_outcomes": 0,
       "verified_model_outcomes": 0,
       "accepted_models": 0
