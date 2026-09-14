@@ -19,19 +19,20 @@
       "model_safety": "model_metadata_missing:training_cutoff_utc"
     },
     "basketball": {
-      "events": 0,
-      "timed_events": 0,
-      "completed_events": 0,
-      "resolved_outcomes": 0,
-      "verified_model_outcomes": 0,
-      "accepted_models": 0
+      "events": 32932,
+      "timed_events": 32932,
+      "completed_events": 32932,
+      "resolved_outcomes": 32932,
+      "verified_model_outcomes": 32932,
+      "accepted_models": 1,
+      "model_safety": "OK"
     },
     "volleyball": {
       "events": 20980,
       "timed_events": 20980,
       "completed_events": 20980,
-      "resolved_outcomes": 19332,
-      "verified_model_outcomes": 19332,
+      "resolved_outcomes": 19333,
+      "verified_model_outcomes": 19333,
       "accepted_models": 1,
       "model_safety": "OK"
     },

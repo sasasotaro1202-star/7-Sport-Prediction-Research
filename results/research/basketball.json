@@ -1,0 +1,52 @@
+{
+  "sport": "basketball",
+  "status": "TRAINED",
+  "models": [
+    "hist_gb"
+  ],
+  "model_version": "2247244cc7c90276",
+  "training_rows": 25686,
+  "frozen_holdout_rows": 7246,
+  "features": 9,
+  "selection_oos": {
+    "logistic": {
+      "logloss": 0.6789756587401032,
+      "brier": 0.24294385149135014,
+      "accuracy": 0.5849182515849183,
+      "ece": 0.0023771518608834883,
+      "n": 8991
+    },
+    "extra_trees": {
+      "logloss": 0.6789760713548867,
+      "brier": 0.2429440484710566,
+      "accuracy": 0.5849182515849183,
+      "ece": 0.002390856598653368,
+      "n": 8991
+    },
+    "random_forest": {
+      "logloss": 0.6789760713477349,
+      "brier": 0.24294404846762177,
+      "accuracy": 0.5849182515849183,
+      "ece": 0.002390856533834143,
+      "n": 8991
+    },
+    "hist_gb": {
+      "logloss": 0.6789756586506707,
+      "brier": 0.24294385144798522,
+      "accuracy": 0.5849182515849183,
+      "ece": 0.002377150155306343,
+      "n": 8991
+    }
+  },
+  "holdout_metrics": {
+    "logloss": 0.6887422675458762,
+    "brier": 0.24778292373571345,
+    "accuracy": 0.5557548992547613,
+    "ece": 0.029858541937309302,
+    "n": 7246,
+    "models": [
+      "hist_gb"
+    ]
+  },
+  "production_fit_excludes_holdout": true
+}
