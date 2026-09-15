@@ -116,7 +116,7 @@ jobs:
           fi
           exit 0
       - name: Save database
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: data/db/sports_v45.sqlite
@@ -124,7 +124,6 @@ jobs:
   merge:
     name: Merge, research, and release gate
     needs: collect
-    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
