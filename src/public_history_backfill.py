@@ -21,12 +21,24 @@ def clean(v):
 
 def iso(v):
     from datetime import datetime, timezone
-    if not v:
+    if v is None or str(v).strip() == "":
         return None
     s = str(v).strip().replace("Z", "+00:00")
-    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%d/%m/%Y"):
+    try:
+        n = float(s)
+        if n > 10_000_000_000:
+            n /= 1000.0
+        if n > 1_000_000_000:
+            return datetime.fromtimestamp(n, tz=timezone.utc).isoformat()
+    except Exception:
+        pass
+    for fmt in (
+        "%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%d/%m/%Y",
+        "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S",
+        "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M",
+    ):
         try:
-            return datetime.strptime(s[:10], fmt).replace(tzinfo=timezone.utc).isoformat()
+            return datetime.strptime(s[:19], fmt).replace(tzinfo=timezone.utc).isoformat()
         except ValueError:
             pass
     try:
@@ -44,21 +56,25 @@ def sid(*x):
 
 def backfill_valorant(c):
     import requests
-    r = requests.get(VALORANT_RESULTS, headers={"User-Agent": "SevenSportResearchEngine/4.5.16"}, timeout=45)
+    r = requests.get(VALORANT_RESULTS, headers={"User-Agent": "SevenSportResearchEngine/4.6"}, timeout=45)
     r.raise_for_status()
     raw = r.text
     rows = list(csv.DictReader(io.StringIO(raw)))
     added = 0
+    timed = 0
+    outcomes = 0
     for row in rows:
         a, b = clean(row.get("team1")), clean(row.get("team2"))
         if not a or not b or a == b:
             continue
-        et = iso(row.get("time_completed") or row.get("date"))
+        et = iso(row.get("time_completed") or row.get("date") or row.get("completed_at"))
         tournament, stage = clean(row.get("tournament_name")), clean(row.get("round_info"))
         eid = upsert_event(c, "valorant", f"{a} vs {b}", et, "public-vlr-dataset", VALORANT_RESULTS, "COMPLETED", competition=tournament or None, stage=stage or None, season=str(et)[:4] if et else None)
         p1, p2 = upsert_participant(c, "valorant", a, "team"), upsert_participant(c, "valorant", b, "team")
         upsert_ep(c, eid, p1, p1, "A", "match", "public-vlr-dataset", VALORANT_RESULTS)
         upsert_ep(c, eid, p2, p2, "B", "match", "public-vlr-dataset", VALORANT_RESULTS)
+        if et:
+            timed += 1
         try:
             s1, s2 = float(row.get("score1")), float(row.get("score2"))
         except Exception:
@@ -70,9 +86,10 @@ def backfill_valorant(c):
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""", (eid,"valorant",p1,p2,side,s1,s2,"VERIFIED","public-vlr-dataset",VALORANT_RESULTS,utcnow(),"PIT_REQUIRES_REPLAY","Historical label; excluded from pre-event features until PIT replay passes."))
             add_stat(c,eid,p1,p1,"valorant","series.score",s1,str(s1),"public-vlr-dataset",VALORANT_RESULTS)
             add_stat(c,eid,p2,p2,"valorant","series.score",s2,str(s2),"public-vlr-dataset",VALORANT_RESULTS)
+            outcomes += 1
         added += 1
     add_snapshot(c,"valorant","public-vlr-dataset",VALORANT_RESULTS,utcnow(),None,hashlib.sha256(raw.encode("utf-8","ignore")).hexdigest(),"UNVERIFIABLE")
-    return added
+    return {"events": added, "timed_events": timed, "verified_outcomes": outcomes}
 
 
 def main():
@@ -81,7 +98,7 @@ def main():
     a = ap.parse_args()
     sports = [x.strip() for x in a.sports.split(",") if x.strip()]
     c = connect()
-    report = {"parser_version":"v4.5.16-dispatch","added":{},"warnings":[],"timestamp_utc":utcnow()}
+    report = {"parser_version":"v4.6.0-dispatch-pit-time", "added":{}, "warnings":[], "timestamp_utc":utcnow()}
     try:
         for sport in sports:
             try:
