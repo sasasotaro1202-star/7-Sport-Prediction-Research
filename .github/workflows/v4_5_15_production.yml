@@ -124,6 +124,7 @@ jobs:
   merge:
     name: Merge, research, and release gate
     needs: collect
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -142,6 +143,7 @@ jobs:
         with:
           path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-valorant-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-valorant-
       - name: Materialize VALORANT partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/valorant/sports_v45.sqlite
       - name: Clear merge working database
@@ -151,6 +153,7 @@ jobs:
         with:
           path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-basketball-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-basketball-
       - name: Materialize Basketball partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/basketball/sports_v45.sqlite
       - name: Clear merge working database
@@ -160,6 +163,7 @@ jobs:
         with:
           path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-volleyball-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-volleyball-
       - name: Materialize Volleyball partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite
       - name: Clear merge working database
@@ -169,6 +173,7 @@ jobs:
         with:
           path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-tennis-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-tennis-
       - name: Materialize Tennis partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/tennis/sports_v45.sqlite
       - name: Clear merge working database
@@ -178,6 +183,7 @@ jobs:
         with:
           path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-ufc-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-ufc-
       - name: Materialize UFC partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/ufc/sports_v45.sqlite
       - name: Clear merge working database
@@ -187,6 +193,7 @@ jobs:
         with:
           path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-rizin-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-rizin-
       - name: Materialize RIZIN partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/rizin/sports_v45.sqlite
       - name: Clear merge working database
@@ -196,6 +203,7 @@ jobs:
         with:
           path: data/db/sports_v45.sqlite
           key: seven-sport-db-v3-f1-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-f1-
       - name: Materialize F1 partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/f1/sports_v45.sqlite
       - name: Verify partition files
