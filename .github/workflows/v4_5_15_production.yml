@@ -155,10 +155,13 @@ jobs:
           restore-keys: seven-sport-db-v3-f1-
       - name: Materialize F1 partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/f1/sports_v45.sqlite
-      - name: Verify partition files
+      - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
-          for sport in valorant basketball volleyball tennis ufc rizin f1; do test -s hourly-artifacts/$sport/sports_v45.sqlite; done
+          for sport in valorant basketball volleyball tennis ufc rizin f1; do
+            test -s "hourly-artifacts/$sport/sports_v45.sqlite"
+            python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
+          done
       - name: Merge partitions
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
       - name: Robust adapters
