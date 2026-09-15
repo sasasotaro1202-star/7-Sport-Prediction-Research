@@ -39,14 +39,37 @@ def _validate_model(meta):
     return True, 'OK'
 
 
+def _f1_resolved_counts(c):
+    """F1 is a multi-entrant classification problem; event_outcome A/B is
+    intentionally not used to represent a race winner. Resolve a completed
+    race from source-backed results.position == 1 instead."""
+    rows=c.execute("""
+        SELECT e.event_id
+        FROM event e
+        WHERE e.sport='f1' AND e.status IN ('COMPLETED','FINISHED','POST')
+    """).fetchall()
+    resolved=0
+    for (eid,) in rows:
+        n=c.execute("""
+            SELECT COUNT(*) FROM match_stats
+            WHERE event_id=? AND sport='f1'
+              AND stat_name='results.position'
+              AND value_num=1
+              AND source IS NOT NULL
+        """,(eid,)).fetchone()[0]
+        if n>0:
+            resolved+=1
+    return len(rows),resolved
+
+
 def main():
     r={
         'status':'BLOCKED',
         'publish':False,
         'fatal':[],
         'coverage':{},
-        'policy':'source outages may degrade coverage, but unsafe models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels',
-        'gate_version':'release-gate-v4-resolved-outcomes-model-labels-separated',
+        'policy':'source outages may degrade coverage, but unsafe models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 race winners are validated from source-backed finishing positions rather than the binary A/B outcome schema',
+        'gate_version':'release-gate-v5-sport-aware-outcome-validation',
     }
     if not DB.exists():
         r['fatal'].append('database_missing')
@@ -63,6 +86,15 @@ def main():
             bad=c.execute("select count(*) from pit_replay where leakage_status not in ('PASS','UNKNOWN','CLEAN')").fetchone()[0]
             exact_missing=c.execute("select count(*) from source_snapshot where availability_status='EXACT' and source_available_at_utc is null").fetchone()[0]
             r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'resolved_outcomes':int(resolved.get(s,0)),'verified_model_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
+
+            # F1 is multi-entrant and must not be coerced into A/B. Replace
+            # the generic event_outcome resolution count with verified race
+            # winners from source-backed finishing positions.
+            f1_completed,f1_resolved=_f1_resolved_counts(c)
+            r['coverage']['f1']['resolved_outcomes']=f1_resolved
+            r['coverage']['f1']['verified_model_outcomes']=0
+            r['coverage']['f1']['outcome_semantics']='multi_entrant_winner_from_results_position'
+
             latest={}
             for sport,payload in model_rows:
                 if sport in latest: continue
@@ -82,10 +114,12 @@ def main():
             for s,v in r['coverage'].items():
                 if v['events'] and v['timed_events'] != v['events']:
                     r['fatal'].append(f'{s}:untimed_events_present')
-                # Only historical/completed events require a resolved outcome.
-                # Explicit VOID results are resolved for integrity purposes but
-                # are excluded from A/B/DRAW model labels and training.
-                if v['completed_events'] and v['resolved_outcomes'] < v['completed_events']:
+                # F1 uses sport-aware multi-entrant winner resolution above;
+                # all other sports use the binary/void event_outcome contract.
+                if s=='f1':
+                    if v['completed_events'] and v['resolved_outcomes'] < v['completed_events']:
+                        r['fatal'].append(f'{s}:completed_event_outcome_gap')
+                elif v['completed_events'] and v['resolved_outcomes'] < v['completed_events']:
                     r['fatal'].append(f'{s}:completed_event_outcome_gap')
         finally:
             c.close()
