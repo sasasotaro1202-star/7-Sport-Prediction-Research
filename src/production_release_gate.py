@@ -32,66 +32,69 @@ def _f1_resolved_counts(c):
     rows=c.execute("SELECT event_id FROM event WHERE sport='f1' AND status IN ('COMPLETED','FINISHED','POST')").fetchall()
     resolved=0
     for (eid,) in rows:
-        n=c.execute("""SELECT COUNT(*) FROM match_stats WHERE event_id=? AND sport='f1' AND stat_name='results.position' AND value_num=1 AND source IS NOT NULL""",(eid,)).fetchone()[0]
+        n=c.execute("SELECT COUNT(*) FROM match_stats WHERE event_id=? AND sport='f1' AND stat_name='results.position' AND value_num=1 AND source IS NOT NULL",(eid,)).fetchone()[0]
         if n>0: resolved += 1
     return len(rows), resolved
+
+
+def _write(r):
+    if not r['fatal']:
+        r['status']='READY'; r['publish']=True
+    else:
+        r['status']='BLOCKED'; r['publish']=False
+    OUT.parent.mkdir(parents=True,exist_ok=True)
+    OUT.write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps(r,ensure_ascii=False,indent=2))
+    return 0 if not r['fatal'] else 1
 
 
 def main():
     r={'status':'BLOCKED','publish':False,'fatal':[],'coverage':{},'policy':'source outages may degrade coverage, but unsafe or unverified models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes','gate_version':'release-gate-v6-fail-closed'}
     if not DB.exists():
         r['fatal'].append('database_missing')
-    else:
-        c=sqlite3.connect(DB)
-        try:
-            ok=c.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
-            required=('event','participant','event_participant','source_snapshot','event_outcome','model_state_snapshot')
-            existing={x[0] for x in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-            missing_tables=[x for x in required if x not in existing]
-            if not ok: r['fatal'].append('database_integrity_failed')
-            if missing_tables: r['fatal'].append('database_schema_missing:'+','.join(missing_tables))
-            if r['fatal']: return _write(r)
-            counts=dict(c.execute('SELECT sport,count(*) FROM event GROUP BY sport').fetchall())
-            timed=dict(c.execute('SELECT sport,count(*) FROM event WHERE event_time_utc IS NOT NULL GROUP BY sport').fetchall())
-            completed=dict(c.execute("SELECT sport,count(*) FROM event WHERE status IN ('COMPLETED','FINISHED','POST') GROUP BY sport").fetchall())
-            resolved=dict(c.execute("SELECT sport,count(*) FROM event_outcome WHERE outcome_status='VERIFIED' AND outcome IN ('A','B','DRAW','VOID') GROUP BY sport").fetchall())
-            verified=dict(c.execute("SELECT sport,count(*) FROM event_outcome WHERE outcome_status='VERIFIED' AND outcome IN ('A','B','DRAW') GROUP BY sport").fetchall())
-            models=dict(c.execute("SELECT sport,count(*) FROM model_state_snapshot WHERE quality_status LIKE 'ACCEPTED%' GROUP BY sport").fetchall())
-            model_rows=c.execute("SELECT sport,metadata_json FROM model_state_snapshot WHERE market='winner' AND quality_status LIKE 'ACCEPTED%' ORDER BY as_of_utc DESC").fetchall()
-            latest={}
-            for sport,payload in model_rows:
-                if sport not in latest:
-                    try: latest[sport]=json.loads(payload or '{}')
-                    except Exception: latest[sport]={}
-            r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'resolved_outcomes':int(resolved.get(s,0)),'verified_model_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
-            f1_completed,f1_resolved=_f1_resolved_counts(c)
-            r['coverage']['f1'].update({'completed_events':f1_completed,'resolved_outcomes':f1_resolved,'verified_model_outcomes':0,'outcome_semantics':'multi_entrant_winner_from_results_position'})
-            for s in SPORTS:
-                if s in latest:
-                    good,reason=_validate_model(latest[s]); r['coverage'][s]['model_safety']=reason
-                    if not good: r['fatal'].append(f'{s}:{reason}')
-                else:
-                    r['fatal'].append(f'{s}:accepted_model_missing')
-                v=r['coverage'][s]
-                if v['events']==0: r['fatal'].append(f'{s}:no_events')
-                elif v['timed_events']!=v['events']: r['fatal'].append(f'{s}:untimed_events_present')
-                if v['completed_events'] and v['resolved_outcomes']<v['completed_events']:
-                    r['fatal'].append(f'{s}:completed_event_outcome_gap')
-            bad=c.execute("SELECT COUNT(*) FROM pit_replay WHERE leakage_status NOT IN ('PASS','UNKNOWN','CLEAN')").fetchone()[0]
-            if bad: r['fatal'].append('pit_leakage_detected')
-            exact_missing=c.execute("SELECT COUNT(*) FROM source_snapshot WHERE availability_status='EXACT' AND source_available_at_utc IS NULL").fetchone()[0]
-            if exact_missing: r['fatal'].append('exact_source_missing_availability_time')
-        finally: c.close()
+        return _write(r)
+    c=sqlite3.connect(DB)
+    try:
+        ok=c.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+        required=('event','participant','event_participant','source_snapshot','event_outcome','model_state_snapshot')
+        existing={x[0] for x in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        missing_tables=[x for x in required if x not in existing]
+        if not ok: r['fatal'].append('database_integrity_failed')
+        if missing_tables: r['fatal'].append('database_schema_missing:'+','.join(missing_tables))
+        if r['fatal']: return _write(r)
+        counts=dict(c.execute('SELECT sport,count(*) FROM event GROUP BY sport').fetchall())
+        timed=dict(c.execute('SELECT sport,count(*) FROM event WHERE event_time_utc IS NOT NULL GROUP BY sport').fetchall())
+        completed=dict(c.execute("SELECT sport,count(*) FROM event WHERE status IN ('COMPLETED','FINISHED','POST') GROUP BY sport").fetchall())
+        resolved=dict(c.execute("SELECT sport,count(*) FROM event_outcome WHERE outcome_status='VERIFIED' AND outcome IN ('A','B','DRAW','VOID') GROUP BY sport").fetchall())
+        verified=dict(c.execute("SELECT sport,count(*) FROM event_outcome WHERE outcome_status='VERIFIED' AND outcome IN ('A','B','DRAW') GROUP BY sport").fetchall())
+        models=dict(c.execute("SELECT sport,count(*) FROM model_state_snapshot WHERE quality_status LIKE 'ACCEPTED%' GROUP BY sport").fetchall())
+        model_rows=c.execute("SELECT sport,metadata_json FROM model_state_snapshot WHERE market='winner' AND quality_status LIKE 'ACCEPTED%' ORDER BY as_of_utc DESC").fetchall()
+        latest={}
+        for sport,payload in model_rows:
+            if sport not in latest:
+                try: latest[sport]=json.loads(payload or '{}')
+                except Exception: latest[sport]={}
+        r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'resolved_outcomes':int(resolved.get(s,0)),'verified_model_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
+        f1_completed,f1_resolved=_f1_resolved_counts(c)
+        r['coverage']['f1'].update({'completed_events':f1_completed,'resolved_outcomes':f1_resolved,'verified_model_outcomes':0,'outcome_semantics':'multi_entrant_winner_from_results_position'})
+        for s in SPORTS:
+            if s in latest:
+                good,reason=_validate_model(latest[s]); r['coverage'][s]['model_safety']=reason
+                if not good: r['fatal'].append(f'{s}:{reason}')
+            else:
+                r['fatal'].append(f'{s}:accepted_model_missing')
+            v=r['coverage'][s]
+            if v['events']==0: r['fatal'].append(f'{s}:no_events')
+            elif v['timed_events']!=v['events']: r['fatal'].append(f'{s}:untimed_events_present')
+            if v['completed_events'] and v['resolved_outcomes']<v['completed_events']:
+                r['fatal'].append(f'{s}:completed_event_outcome_gap')
+        bad=c.execute("SELECT COUNT(*) FROM pit_replay WHERE leakage_status NOT IN ('PASS','UNKNOWN','CLEAN')").fetchone()[0]
+        if bad: r['fatal'].append('pit_leakage_detected')
+        exact_missing=c.execute("SELECT COUNT(*) FROM source_snapshot WHERE availability_status='EXACT' AND source_available_at_utc IS NULL").fetchone()[0]
+        if exact_missing: r['fatal'].append('exact_source_missing_availability_time')
+    finally:
+        c.close()
     return _write(r)
-
-
-def _write(r):
-    if not r['fatal']:
-        r['status']='READY'; r['publish']=True
-    OUT.parent.mkdir(parents=True,exist_ok=True)
-    OUT.write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(json.dumps(r,ensure_ascii=False,indent=2))
-    return 0
 
 
 if __name__=='__main__': raise SystemExit(main())
