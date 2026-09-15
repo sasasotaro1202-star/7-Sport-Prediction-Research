@@ -1,5 +1,5 @@
 from __future__ import annotations
-import hashlib, json
+import hashlib, json, random, time
 from datetime import datetime, timezone
 import requests
 from src.storage.db_v45 import connect, utcnow
@@ -7,7 +7,7 @@ BASE='https://api.openf1.org/v1'
 
 def sid(*x): return hashlib.sha256('|'.join('' if v is None else str(v) for v in x).encode()).hexdigest()[:32]
 
-def get(path,params=None,timeout=45,retries=2):
+def get(path,params=None,timeout=45,retries=4):
     last=None
     for i in range(retries+1):
         try:
@@ -15,7 +15,8 @@ def get(path,params=None,timeout=45,retries=2):
             r.raise_for_status(); return r.json(),r.url
         except Exception as e:
             last=e
-            if i<retries: continue
+            if i<retries:
+                time.sleep(min(8.0, (2 ** i) + random.uniform(0.2, 1.0)))
     raise last
 
 def num(x):
