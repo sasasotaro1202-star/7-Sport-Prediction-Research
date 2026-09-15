@@ -28,6 +28,37 @@ If evidence is insufficient, the system must emit `INELIGIBLE` rather than fabri
 
 Basketball, Volleyball, UFC, RIZIN, Tennis, and Valorant use appropriate event-outcome probability semantics for their competition format. F1 is multi-entrant: race-winner probabilities are represented per driver and must not be reduced to a binary A/B outcome merely to satisfy a generic schema.
 
+## Competition universe and league-first priority
+
+The system must not be limited to Asian Games or any fixed list of famous tournaments. It should systematically discover and classify materially available competitions across all seven sports.
+
+**League and regular-season competitions are the highest production priority.** League coverage should receive the strongest attention to schedule completeness, historical depth, participant continuity, event timing, source freshness, PIT-safe information, outcome completeness, OOS continuity, and prediction freshness. Non-league coverage must not degrade league reliability or freshness.
+
+The broader competition universe includes, where the sport supports them and reliable data exists:
+
+- domestic leagues and regular seasons
+- cups, playoffs, postseason, promotion/relegation playoffs, and qualifiers
+- international club competitions and continental championships
+- national-team and representative competitions, including Asian Games and equivalent regional events
+- world championships, world cups, Olympic/major-games competitions, and other major international events
+- U23/U21/U20/U19/U18/U17, junior, youth, academy, and developmental competitions
+- university/college, high-school, Interhigh, school championships, and equivalents
+- regional, invitational, challenger, exhibition, and other verified competitions
+
+Every event should be classified when source evidence permits using competition level, age category, gender, team type, region, stage, season/year, and stable competition identity. Unknown values remain explicit; they are never guessed.
+
+## Modeling separation
+
+Do not blindly pool leagues, international events, national-team events, youth, university, and high-school competitions. Research may test pooled models with explicit competition taxonomy features, competition-stratified models, hierarchical/partial-pooling approaches, or separate models when populations, rules, formats, or data-generating processes differ.
+
+Additional coverage is not automatically beneficial. A competition becomes production-eligible only after the same PIT, leakage, data-quality, calibration, robustness, and walk-forward OOS requirements are satisfied.
+
+## PIT and historical integrity
+
+Current web state is not historical truth. Historical features require evidence that the information was available by the prediction cutoff. Store and validate `published_at`, `updated_at`, `retrieved_at`, `available_at`, source/provider, source revision/hash, and dataset snapshot/version where available.
+
+If historical availability cannot be established, the information is `UNKNOWN/UNVERIFIABLE` for PIT-sensitive modeling and must not be silently backfilled from current knowledge.
+
 ## Reliability contract
 
 Collectors must use bounded retries/backoff and preserve the last-known-good cache. Corrupt, empty, missing, or schema-invalid partitions must never silently become empty production datasets. Recovery may retry or use a validated prior cache, but critical integrity/PIT failures must fail closed and block publication.
@@ -57,6 +88,8 @@ No metric, coverage count, or runtime improvement may be obtained by weakening l
 
 Before declaring the system complete, verify for every sport:
 
+- league/regular-season coverage and completeness first
+- broader competition taxonomy coverage
 - source provenance and historical availability timestamps
 - canonical identity resolution
 - nonempty and integrity-checked data
@@ -76,10 +109,10 @@ Before declaring the system complete, verify for every sport:
 
 ## International and developmental competitions
 
-Coverage should be expanded systematically to relevant world championships, Asian Games, continental competitions, national-team events, U18/U20/U23 and other youth categories, university/high-school competitions, and major regional competitions when reliable historical data and PIT-safe availability evidence exist. Pro, youth, student, reserve, academy, and national-team entities must not be silently mixed.
+Coverage should be expanded systematically, not as one-off event additions. Include relevant international, representative, world, continental, Asian Games, age-group, youth, university, high-school, and regional competition families whenever reliable historical data and PIT-safe availability evidence exist. Pro, youth, student, reserve, academy, and national-team entities must not be silently mixed.
 
 ## Status vocabulary
 
-Use only: `Requested`, `Started`, `Queued`, `Running`, `Completed`, `Success`, `Failed`, `Verified Success`, `Unknown`, `Blocked`.
+Use only: `Requested`, `Started`, `Queued`, `Running`, `Completed`, `Success`, `Verified Success`, `Failed`, `Unknown`, `Blocked`.
 
 Do not call a run complete merely because its workflow status is green.
