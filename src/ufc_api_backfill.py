@@ -1,6 +1,7 @@
 from __future__ import annotations
-import argparse, csv, hashlib, io, json, re
+import argparse, csv, hashlib, io, json
 from datetime import datetime, timezone
+import re
 import requests
 from src.storage.db_v45 import connect, utcnow
 
@@ -112,19 +113,37 @@ def insert_fallback(rows,c):
         ph=hashlib.sha256(json.dumps(row,sort_keys=True,default=str).encode()).hexdigest()
         c.execute('''INSERT OR REPLACE INTO source_snapshot(snapshot_id,source,source_url,retrieved_at_utc,event_time_utc,content_hash,parser_version,availability_status,provenance_json)
           VALUES(?,?,?,?,?,?,?,?,?)''',
-          (sid('TidyTuesday-2026-07-07',event_name,date,f1,f2),'TidyTuesday-2026-07-07',FALLBACK,now,et,ph,'ufc-fallback-v2','UNVERIFIABLE',json.dumps({'sport':'ufc','dataset':'ufc_fights.csv','pit_policy':'post_event_stats_effective_at_event_time'},ensure_ascii=False)))
+          (sid('TidyTuesday-2026-07-07',event_name,date,f1,f2),'TidyTuesday-2026-07-07',FALLBACK,now,et,ph,'ufc-fallback-v3','UNVERIFIABLE',json.dumps({'sport':'ufc','dataset':'ufc_fights.csv','pit_policy':'post_event_stats_effective_at_event_time'},ensure_ascii=False)))
         n+=1
     return len(event_cache),n,sorted(stat_names)
+
+def fetch_fallback(c, api_error=None):
+    r=requests.get(FALLBACK,headers={'User-Agent':'SevenSportResearchEngine/4.5.15'},timeout=45); r.raise_for_status()
+    rows=list(csv.DictReader(io.StringIO(r.text)))
+    if not rows:
+        raise RuntimeError('UFC fallback returned an empty dataset')
+    ec,fc,stats=insert_fallback(rows,c)
+    if fc <= 0:
+        raise RuntimeError(f'UFC fallback parsed zero fights from {len(rows)} rows')
+    print(json.dumps({'api_error':repr(api_error) if api_error else None,'fallback_rows':len(rows),'fallback_fights':fc},ensure_ascii=False))
+    return ec,fc,stats
 
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--limit',type=int,default=100); a=ap.parse_args(); c=connect(); used='api'
     try:
         s=requests.Session(); s.headers['User-Agent']='SevenSportResearchEngine/4.5.15'
-        r=s.get(f'{BASE}/api/events',params={'limit':a.limit},timeout=20); r.raise_for_status(); events=unwrap(r.json()); ec,fc=insert_api(events,c); stats=[]
+        r=s.get(f'{BASE}/api/events',params={'limit':a.limit},timeout=20); r.raise_for_status(); events=unwrap(r.json())
+        # A successful HTTP response with zero events is not a successful collection.
+        # Fail closed into the historical fallback instead of letting an empty API
+        # response reach collection_guard as if it were real UFC coverage.
+        if not events:
+            raise RuntimeError('UFC API returned HTTP success but zero events')
+        ec,fc=insert_api(events,c); stats=[]
+        # Likewise, a non-empty event envelope with zero parsed fight cards is unusable.
+        if fc <= 0:
+            raise RuntimeError(f'UFC API returned {ec} events but zero parsed fight cards')
     except Exception as api_error:
-        used='tidytuesday-fallback'; r=requests.get(FALLBACK,headers={'User-Agent':'SevenSportResearchEngine/4.5.15'},timeout=45); r.raise_for_status()
-        rows=list(csv.DictReader(io.StringIO(r.text))); ec,fc,stats=insert_fallback(rows,c)
-        print(json.dumps({'api_error':repr(api_error),'fallback_rows':len(rows)},ensure_ascii=False))
+        used='tidytuesday-fallback'; ec,fc,stats=fetch_fallback(c,api_error)
     c.commit(); c.close(); print(json.dumps({'source':used,'events':ec,'fight_cards':fc,'stat_features':stats},ensure_ascii=False))
 
 if __name__=='__main__': main()
