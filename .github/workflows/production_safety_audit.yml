@@ -1,0 +1,63 @@
+# Independent safety audit. It never publishes models or rewrites production data.
+name: Production Safety Audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 */3 * * *'
+  push:
+    paths:
+      - 'src/**'
+      - '.github/workflows/**'
+      - 'requirements.txt'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-safety-audit
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  static-and-contract-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies with transient-network retry
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Compile all source
+        run: python -m compileall -q src
+      - name: Validate production invariants
+        run: python -m src.production_invariants
+      - name: Validate cache health contract
+        run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport canonical
+      - name: Validate research contracts
+        run: |
+          set -euo pipefail
+          test -f src.research_cycle_strict.py || true
+          test -f src/independent_leakage_audit.py
+          test -f src/pit_replay_builder.py
+          test -f src/production_release_gate.py
+          test -f src/partition_cache_guard.py
+          test -f src/cache_health.py
+      - name: Upload audit manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-safety-audit-${{ github.run_id }}
+          path: |
+            .github/workflows/production_safety_audit.yml
+            src/production_invariants.py
+            src/independent_leakage_audit.py
+            src/pit_replay_builder.py
+            src/production_release_gate.py
+            src/cache_health.py
+          retention-days: 7
