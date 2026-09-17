@@ -1,5 +1,5 @@
 # Canonical production workflow. Source outages degrade coverage; unsafe models are never published.
-name: Seven Sport v4.5.15 Production
+name: Eight Sport v4.5.15 Production
 on:
   workflow_dispatch:
   schedule:
@@ -12,7 +12,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: seven-sport-canonical-production
+  group: eight-sport-canonical-production
   cancel-in-progress: false
 env:
   PYTHONUNBUFFERED: '1'
@@ -21,9 +21,9 @@ jobs:
     name: Collect ${{ matrix.sport }}
     strategy:
       fail-fast: false
-      max-parallel: 7
+      max-parallel: 8
       matrix:
-        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
+        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1, rugby]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -39,14 +39,44 @@ jobs:
       - name: Restore persistent database
         uses: actions/cache/restore@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-${{ matrix.sport }}-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-${{ matrix.sport }}-
+          path: data/db
+          key: eight-sport-db-v4-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-${{ matrix.sport }}-
       - name: Initialize schema
+        if: matrix.sport != 'rugby'
         run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
       - name: Incremental collector (source failures degrade explicitly)
         run: |
           set -uo pipefail
+          if [ '${{ matrix.sport }}' = 'rugby' ]; then
+            if python -m src.rugby_production --max-pages 150; then
+              echo 'collector_status=OK_OR_DEFERRED'
+            else
+              rc=$?
+              echo "collector_status=FAILED exit=$rc"
+              exit "$rc"
+            fi
+            python - <<'PY'
+            import json
+            from pathlib import Path
+            p=Path('results/v45/rugby_coverage.json')
+            if not p.exists():
+                raise SystemExit('missing rugby coverage report')
+            r=json.loads(p.read_text())
+            if r.get('status') not in ('PASS','DEFERRED'):
+                raise SystemExit(f"invalid rugby coverage status: {r.get('status')}")
+            if r.get('status') == 'DEFERRED':
+                if not r.get('deferred_reason'):
+                    raise SystemExit('Rugby DEFERRED without explicit reason')
+                if (r.get('counts') or {}).get('events',0) != 0 or (r.get('counts') or {}).get('source_snapshots',0) != 0:
+                    raise SystemExit('Rugby DEFERRED with persisted partial coverage')
+                print('RUGBY_DEFERRED:', r['deferred_reason'])
+            else:
+                if (r.get('counts') or {}).get('events',0) <= 0 or (r.get('counts') or {}).get('source_snapshots',0) <= 0:
+                    raise SystemExit('Rugby PASS without verified coverage counts')
+            PY
+            exit 0
+          fi
           collector_rc=0
           if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
           backfill_rc=0
@@ -67,8 +97,8 @@ jobs:
         if: success()
         uses: actions/cache/save@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-${{ matrix.sport }}-${{ github.run_id }}
+          path: data/db
+          key: eight-sport-db-v4-${{ matrix.sport }}-${{ github.run_id }}
   merge:
     name: Merge, research, and release gate
     needs: collect
@@ -84,15 +114,15 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install dependencies with transient-network retry
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
-      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,ufc,rizin,f1} data/db results models
+      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,ufc,rizin,f1,rugby} data/db results models
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore VALORANT
         uses: actions/cache/restore@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-valorant-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-valorant-
+          path: data/db
+          key: eight-sport-db-v4-valorant-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-valorant-
       - name: Materialize VALORANT partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/valorant/sports_v45.sqlite
       - name: Clear merge working database
@@ -100,9 +130,9 @@ jobs:
       - name: Restore Basketball
         uses: actions/cache/restore@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-basketball-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-basketball-
+          path: data/db
+          key: eight-sport-db-v4-basketball-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-basketball-
       - name: Materialize Basketball partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/basketball/sports_v45.sqlite
       - name: Clear merge working database
@@ -110,9 +140,9 @@ jobs:
       - name: Restore Volleyball
         uses: actions/cache/restore@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-volleyball-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-volleyball-
+          path: data/db
+          key: eight-sport-db-v4-volleyball-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-volleyball-
       - name: Materialize Volleyball partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite
       - name: Clear merge working database
@@ -120,9 +150,9 @@ jobs:
       - name: Restore Tennis
         uses: actions/cache/restore@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-tennis-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-tennis-
+          path: data/db
+          key: eight-sport-db-v4-tennis-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-tennis-
       - name: Materialize Tennis partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/tennis/sports_v45.sqlite
       - name: Clear merge working database
@@ -130,9 +160,9 @@ jobs:
       - name: Restore UFC
         uses: actions/cache/restore@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-ufc-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-ufc-
+          path: data/db
+          key: eight-sport-db-v4-ufc-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-ufc-
       - name: Materialize UFC partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/ufc/sports_v45.sqlite
       - name: Clear merge working database
@@ -140,9 +170,9 @@ jobs:
       - name: Restore RIZIN
         uses: actions/cache/restore@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-rizin-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-rizin-
+          path: data/db
+          key: eight-sport-db-v4-rizin-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-rizin-
       - name: Materialize RIZIN partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/rizin/sports_v45.sqlite
       - name: Clear merge working database
@@ -150,11 +180,43 @@ jobs:
       - name: Restore F1
         uses: actions/cache/restore@v4
         with:
-          path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-f1-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-f1-
+          path: data/db
+          key: eight-sport-db-v4-f1-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-f1-
       - name: Materialize F1 partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/f1/sports_v45.sqlite
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Restore Rugby
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: eight-sport-db-v4-rugby-${{ github.run_id }}
+          restore-keys: eight-sport-db-v4-rugby-
+      - name: Materialize Rugby partition only when coverage is actually present
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/rugby_v45.sqlite ]; then
+            echo 'RUGBY_PARTITION=DEFERRED_NO_DB'
+            exit 0
+          fi
+          events=$(python - <<'PY'
+          import sqlite3
+          c=sqlite3.connect('data/db/rugby_v45.sqlite')
+          try:
+              print(c.execute("SELECT COUNT(*) FROM event WHERE sport='rugby'").fetchone()[0])
+          except Exception:
+              print(0)
+          finally:
+              c.close()
+          PY
+          )
+          if [ "$events" -gt 0 ]; then
+            cp data/db/rugby_v45.sqlite hourly-artifacts/rugby/sports_v45.sqlite
+            echo "RUGBY_PARTITION=PASS events=$events"
+          else
+            echo "RUGBY_PARTITION=DEFERRED events=$events"
+          fi
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
@@ -162,6 +224,11 @@ jobs:
             test -s "hourly-artifacts/$sport/sports_v45.sqlite"
             python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
           done
+          if [ -s hourly-artifacts/rugby/sports_v45.sqlite ]; then
+            python -m src.partition_cache_guard --db hourly-artifacts/rugby/sports_v45.sqlite --sport rugby
+          else
+            echo 'RUGBY_PARTITION=DEFERRED'
+          fi
       - name: Merge partitions
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
       - name: Robust adapters
@@ -205,7 +272,7 @@ jobs:
           fi
           git diff --cached --check
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore: update seven-sport research results'
+          git commit -m 'chore: update eight-sport research results'
           git fetch origin main
           if ! git rebase --autostash origin/main; then
             git rebase --abort || true
