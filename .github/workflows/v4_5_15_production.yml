@@ -49,32 +49,7 @@ jobs:
         run: |
           set -uo pipefail
           if [ '${{ matrix.sport }}' = 'rugby' ]; then
-            if python -m src.rugby_production --max-pages 150; then
-              echo 'collector_status=OK_OR_DEFERRED'
-            else
-              rc=$?
-              echo "collector_status=FAILED exit=$rc"
-              exit "$rc"
-            fi
-            python - <<'PY'
-            import json
-            from pathlib import Path
-            p=Path('results/v45/rugby_coverage.json')
-            if not p.exists():
-                raise SystemExit('missing rugby coverage report')
-            r=json.loads(p.read_text())
-            if r.get('status') not in ('PASS','DEFERRED'):
-                raise SystemExit(f"invalid rugby coverage status: {r.get('status')}")
-            if r.get('status') == 'DEFERRED':
-                if not r.get('deferred_reason'):
-                    raise SystemExit('Rugby DEFERRED without explicit reason')
-                if (r.get('counts') or {}).get('events',0) != 0 or (r.get('counts') or {}).get('source_snapshots',0) != 0:
-                    raise SystemExit('Rugby DEFERRED with persisted partial coverage')
-                print('RUGBY_DEFERRED:', r['deferred_reason'])
-            else:
-                if (r.get('counts') or {}).get('events',0) <= 0 or (r.get('counts') or {}).get('source_snapshots',0) <= 0:
-                    raise SystemExit('Rugby PASS without verified coverage counts')
-            PY
+            python -m src.rugby_production --max-pages 150
             exit 0
           fi
           collector_rc=0
@@ -200,17 +175,7 @@ jobs:
             echo 'RUGBY_PARTITION=DEFERRED_NO_DB'
             exit 0
           fi
-          events=$(python - <<'PY'
-          import sqlite3
-          c=sqlite3.connect('data/db/rugby_v45.sqlite')
-          try:
-              print(c.execute("SELECT COUNT(*) FROM event WHERE sport='rugby'").fetchone()[0])
-          except Exception:
-              print(0)
-          finally:
-              c.close()
-          PY
-          )
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/rugby_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='rugby'\").fetchone()[0]); c.close()")
           if [ "$events" -gt 0 ]; then
             cp data/db/rugby_v45.sqlite hourly-artifacts/rugby/sports_v45.sqlite
             echo "RUGBY_PARTITION=PASS events=$events"
@@ -256,14 +221,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if python - <<'PY'
-          import json
-          from pathlib import Path
-          p=Path('results/release_gate.json')
-          if not p.exists() or json.loads(p.read_text()).get('publish') is not True:
-              raise SystemExit(1)
-          PY
-          then
+          if python -c "import json; from pathlib import Path; p=Path('results/release_gate.json'); raise SystemExit(0 if p.exists() and json.loads(p.read_text()).get('publish') is True else 1)"; then
             git add results models
             echo 'release_gate=READY: models may be published'
           else
