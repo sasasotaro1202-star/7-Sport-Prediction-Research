@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
 OUT=ROOT/'results/release_gate.json'
-SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
+SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby')
 COMPLETED_STATUSES=('COMPLETED','FINISHED','POST')
 
 
@@ -37,21 +37,40 @@ def _f1_resolved_counts(c):
     return len(rows), resolved
 
 
+def _rugby_deferred_state():
+    p=ROOT/'results/v45/rugby_coverage.json'
+    if not p.exists():
+        return False, 'rugby_coverage_report_missing'
+    try:
+        r=json.loads(p.read_text())
+    except Exception as exc:
+        return False, f'rugby_coverage_report_invalid:{type(exc).__name__}'
+    if r.get('sport')!='rugby':
+        return False, 'rugby_coverage_report_wrong_sport'
+    if r.get('status')!='DEFERRED':
+        return False, f"rugby_not_deferred:{r.get('status')}"
+    if not r.get('deferred_reason'):
+        return False, 'rugby_deferred_reason_missing'
+    counts=r.get('counts') or {}
+    if counts.get('events',0)!=0 or counts.get('source_snapshots',0)!=0:
+        return False, 'rugby_deferred_with_partial_persisted_coverage'
+    return True, 'DEFERRED:'+str(r['deferred_reason'])
+
+
 def _write(r):
     if not r['fatal']:
-        r['status']='READY'; r['publish']=True
+        r['status']='READY_WITH_EXPLICIT_DEFERRED_SPORTS' if r.get('deferred_sports') else 'READY'
+        r['publish']=True
     else:
         r['status']='BLOCKED'; r['publish']=False
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(r,ensure_ascii=False,indent=2))
-    # BLOCKED is intentionally a non-zero process result. The release gate must not
-    # make an unsafe or incomplete release appear as a successful GitHub Action.
     return 0 if not r['fatal'] else 1
 
 
 def main():
-    r={'status':'BLOCKED','publish':False,'fatal':[],'coverage':{},'policy':'source outages may degrade coverage, but unsafe or unverified models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes','gate_version':'release-gate-v7-visible-blocked'}
+    r={'status':'BLOCKED','publish':False,'fatal':[],'deferred_sports':{},'coverage':{},'policy':'source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes','gate_version':'release-gate-v8-explicit-rugby-deferred'}
     if not DB.exists():
         r['fatal'].append('database_missing')
         return _write(r)
@@ -79,7 +98,15 @@ def main():
         r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'resolved_outcomes':int(resolved.get(s,0)),'verified_model_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
         f1_completed,f1_resolved=_f1_resolved_counts(c)
         r['coverage']['f1'].update({'completed_events':f1_completed,'resolved_outcomes':f1_resolved,'verified_model_outcomes':0,'outcome_semantics':'multi_entrant_winner_from_results_position'})
+        rugby_deferred, rugby_reason=_rugby_deferred_state()
+        if rugby_deferred:
+            r['deferred_sports']['rugby']=rugby_reason
+            r['coverage']['rugby']['model_safety']='DEFERRED:'+rugby_reason
+        else:
+            r['fatal'].append('rugby:'+rugby_reason)
         for s in SPORTS:
+            if s=='rugby' and rugby_deferred:
+                continue
             if s in latest:
                 good,reason=_validate_model(latest[s]); r['coverage'][s]['model_safety']=reason
                 if not good: r['fatal'].append(f'{s}:{reason}')
