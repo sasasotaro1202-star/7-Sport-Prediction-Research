@@ -45,13 +45,13 @@ def _write(r):
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(r,ensure_ascii=False,indent=2))
-    # BLOCKED is a valid safety decision, not an infrastructure failure.
-    # Keep Actions operationally green while publish remains false.
-    return 0
+    # BLOCKED is intentionally a non-zero process result. The release gate must not
+    # make an unsafe or incomplete release appear as a successful GitHub Action.
+    return 0 if not r['fatal'] else 1
 
 
 def main():
-    r={'status':'BLOCKED','publish':False,'fatal':[],'coverage':{},'policy':'source outages may degrade coverage, but unsafe or unverified models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes','gate_version':'release-gate-v6-fail-closed'}
+    r={'status':'BLOCKED','publish':False,'fatal':[],'coverage':{},'policy':'source outages may degrade coverage, but unsafe or unverified models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes','gate_version':'release-gate-v7-visible-blocked'}
     if not DB.exists():
         r['fatal'].append('database_missing')
         return _write(r)
