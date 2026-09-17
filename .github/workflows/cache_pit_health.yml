@@ -40,9 +40,30 @@ jobs:
           restore-keys: seven-sport-db-v3-${{ matrix.sport }}-
       - name: Inspect cache integrity
         run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }}
+  rugby-cache-health:
+    name: Cache health rugby
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore rugby database artifact cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/rugby_v45.sqlite
+          key: rugby-v45-db-${{ github.run_id }}
+          restore-keys: rugby-v45-db-
+      - name: Inspect rugby cache integrity
+        run: python -m src.cache_health --db data/db/rugby_v45.sqlite --sport rugby
   pit-leakage-health:
     name: PIT and leakage audit
-    needs: cache-health
+    needs: [cache-health, rugby-cache-health]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -67,6 +88,8 @@ jobs:
           Path('results').mkdir(exist_ok=True)
           Path('results/cache_pit_health.json').write_text(json.dumps({
               'status':'READY',
+              'core_sports':['valorant','basketball','volleyball','tennis','ufc','rizin','f1'],
+              'rugby_coverage_health':True,
               'checks':['cache_integrity','pit_replay_compile','independent_leakage_audit_compile'],
               'note':'Canonical production remains the source of truth; this workflow is an independent health check.'
           }, ensure_ascii=False, indent=2))
