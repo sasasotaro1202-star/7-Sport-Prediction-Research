@@ -7,23 +7,24 @@ def require(condition,message):
 def main():
     research=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
     workflow=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
-    expected={'valorant','basketball','volleyball','tennis','ufc','rizin','f1'}
+    rugby_workflow=(ROOT/'.github/workflows/rugby_production.yml').read_text(encoding='utf-8')
+    expected_core={'valorant','basketball','volleyball','tennis','ufc','rizin','f1'}
     m=re.search(r"SPORTS=\(([^)]*)\)",research);actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
-    require(expected<=actual,f'research engine missing sports: {sorted(expected-actual)}')
+    require(expected_core<=actual,f'research engine missing core sports: {sorted(expected_core-actual)}')
+    require('rugby_production.py' in rugby_workflow,'rugby production coverage workflow missing rugby collector')
+    require('rugby_v45.sqlite' in rugby_workflow,'rugby workflow missing dedicated database validation')
+    require('rugby_coverage.json' in rugby_workflow,'rugby workflow missing coverage report validation')
     compact=research.replace(' ','')
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require('production_release_gate' in workflow,'production release gate missing')
-    # Source outages may degrade coverage, but the workflow must record the
-    # collector/backfill status explicitly rather than hiding failures with
-    # unconditional `|| true` or `continue-on-error`.
     require('source failures degrade explicitly' in workflow,'resilient source-failure policy missing')
     require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
     require('backfill_status=DEGRADED' in workflow,'backfill degradation is not explicitly recorded')
     require('collection_guard_status=FAILED' in workflow,'collection guard failure is not explicitly surfaced')
     require('if: always()' in workflow,'merge job is not configured to run after collector degradation')
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
-    require('matrix:' in workflow and 'f1' in workflow,'workflow does not cover all seven sports')
+    require('matrix:' in workflow and 'f1' in workflow,'canonical workflow does not cover all seven core sports')
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
         for x in FAILURES: print(f'- {x}')
