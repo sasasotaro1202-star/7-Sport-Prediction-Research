@@ -38,8 +38,9 @@ def _f1_resolved_counts(c):
 
 
 def _rugby_deferred_state():
-    p=ROOT/'results/v45/rugby_coverage.json'
-    if not p.exists():
+    candidates=(ROOT/'results/v45/rugby_coverage.json', ROOT/'data/db/rugby_coverage.json')
+    p=next((x for x in candidates if x.exists()),None)
+    if p is None:
         return False, 'rugby_coverage_report_missing'
     try:
         r=json.loads(p.read_text())
