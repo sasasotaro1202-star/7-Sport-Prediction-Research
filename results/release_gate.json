@@ -6,6 +6,9 @@
     "valorant:untimed_events_present",
     "valorant:completed_event_outcome_gap",
     "volleyball:completed_event_outcome_gap",
+    "tennis:accepted_model_missing",
+    "rizin:accepted_model_missing",
+    "f1:accepted_model_missing",
     "f1:completed_event_outcome_gap"
   ],
   "coverage": {
@@ -28,11 +31,11 @@
       "model_safety": "OK"
     },
     "volleyball": {
-      "events": 21001,
-      "timed_events": 21001,
-      "completed_events": 21001,
-      "resolved_outcomes": 19347,
-      "verified_model_outcomes": 19347,
+      "events": 21013,
+      "timed_events": 21013,
+      "completed_events": 21013,
+      "resolved_outcomes": 19411,
+      "verified_model_outcomes": 19411,
       "accepted_models": 1,
       "model_safety": "OK"
     },
@@ -45,11 +48,11 @@
       "accepted_models": 0
     },
     "ufc": {
-      "events": 8736,
-      "timed_events": 8736,
-      "completed_events": 8736,
-      "resolved_outcomes": 8736,
-      "verified_model_outcomes": 8645,
+      "events": 9513,
+      "timed_events": 9513,
+      "completed_events": 9513,
+      "resolved_outcomes": 9513,
+      "verified_model_outcomes": 9422,
       "accepted_models": 1,
       "model_safety": "OK"
     },
@@ -65,11 +68,12 @@
       "events": 333,
       "timed_events": 333,
       "completed_events": 333,
-      "resolved_outcomes": 0,
+      "resolved_outcomes": 228,
       "verified_model_outcomes": 0,
-      "accepted_models": 0
+      "accepted_models": 0,
+      "outcome_semantics": "multi_entrant_winner_from_results_position"
     }
   },
-  "policy": "source outages may degrade coverage, but unsafe models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels",
-  "gate_version": "release-gate-v4-resolved-outcomes-model-labels-separated"
+  "policy": "source outages may degrade coverage, but unsafe or unverified models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes",
+  "gate_version": "release-gate-v6-fail-closed"
 }

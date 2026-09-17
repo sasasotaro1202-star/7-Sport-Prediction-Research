@@ -1,14 +1,20 @@
 {
-  "timestamp_utc": "2026-09-15T09:27:40.322478+00:00",
+  "timestamp_utc": "2026-09-17T10:58:07.970278+00:00",
   "status": "PASS_WITH_PENDING",
   "fatal": [],
   "pending": [
     "accepted_model_coverage_incomplete",
     "international_context_coverage_incomplete",
     "no_exact_pit_replay_rows",
+    "stale_or_missing_source_snapshot",
     "verified_outcome_coverage_incomplete"
   ],
   "checks": [
+    {
+      "check": "sqlite_integrity",
+      "ok": true,
+      "result": "ok"
+    },
     {
       "check": "required_tables",
       "ok": true,
@@ -20,9 +26,9 @@
       "counts": {
         "valorant": 9523,
         "basketball": 32932,
-        "volleyball": 21001,
+        "volleyball": 21013,
         "tennis": 56454,
-        "ufc": 8736,
+        "ufc": 9513,
         "rizin": 82,
         "f1": 333
       },
@@ -37,8 +43,32 @@
       "check": "source_timing_transparency",
       "ok": true,
       "exact_missing_source_available_at": 0,
-      "unverifiable_source_timestamps": 375,
+      "unverifiable_source_timestamps": 393,
       "policy": "UNVERIFIABLE is excluded from strict PIT learning"
+    },
+    {
+      "check": "source_snapshot_freshness",
+      "ok": false,
+      "max_age_hours": 72,
+      "age_hours": {
+        "valorant": null,
+        "basketball": null,
+        "volleyball": null,
+        "tennis": null,
+        "ufc": null,
+        "rizin": null,
+        "f1": null
+      },
+      "stale_or_missing": [
+        "valorant",
+        "basketball",
+        "volleyball",
+        "tennis",
+        "ufc",
+        "rizin",
+        "f1"
+      ],
+      "policy": "stale data may support degraded research but must not silently count as fresh production coverage"
     },
     {
       "check": "f1_event_participant_integrity",
@@ -80,9 +110,9 @@
       "counts": {
         "valorant": 9518,
         "basketball": 32932,
-        "volleyball": 19347,
+        "volleyball": 19411,
         "tennis": 56454,
-        "ufc": 8736,
+        "ufc": 9513,
         "rizin": 82,
         "f1": 0
       },
@@ -120,6 +150,7 @@
   "policy": {
     "fatal_integrity_errors_block_publish": true,
     "coverage_pending_does_not_block_hourly_pipeline": true,
-    "strict_mode_requires_full_coverage_and_models": true
+    "strict_mode_requires_full_coverage_and_models": true,
+    "stale_source_snapshots_do_not_count_as_fresh_production_coverage": true
   }
 }
