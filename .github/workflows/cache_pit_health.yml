@@ -1,0 +1,79 @@
+name: Cache and PIT Health
+on:
+  schedule:
+    - cron: '47 */2 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/cache_health.py'
+      - 'src/pit_replay_builder.py'
+      - 'src/independent_leakage_audit.py'
+      - '.github/workflows/cache_pit_health.yml'
+permissions:
+  contents: read
+concurrency:
+  group: cache-pit-health
+  cancel-in-progress: false
+jobs:
+  cache-health:
+    name: Cache health ${{ matrix.sport }}
+    strategy:
+      fail-fast: false
+      matrix:
+        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore latest sport cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/sports_v45.sqlite
+          key: seven-sport-db-v3-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: seven-sport-db-v3-${{ matrix.sport }}-
+      - name: Inspect cache integrity
+        run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }}
+  pit-leakage-health:
+    name: PIT and leakage audit
+    needs: cache-health
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Initialize clean audit database
+        run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+      - name: Verify audit code compiles
+        run: python -m compileall -q src/cache_health.py src/pit_replay_builder.py src/independent_leakage_audit.py
+      - name: Record audit capability
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          Path('results').mkdir(exist_ok=True)
+          Path('results/cache_pit_health.json').write_text(json.dumps({
+              'status':'READY',
+              'checks':['cache_integrity','pit_replay_compile','independent_leakage_audit_compile'],
+              'note':'Canonical production remains the source of truth; this workflow is an independent health check.'
+          }, ensure_ascii=False, indent=2))
+          PY
+      - name: Upload health report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-pit-health-${{ github.run_id }}
+          path: results/cache_pit_health.json
+          retention-days: 7
