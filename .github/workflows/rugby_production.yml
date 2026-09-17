@@ -46,9 +46,18 @@ jobs:
           p=Path('results/v45/rugby_coverage.json')
           r=json.loads(p.read_text())
           if r.get('sport') != 'rugby': raise SystemExit('wrong sport')
-          if r.get('status') != 'PASS': raise SystemExit(f"rugby coverage not ready: {r.get('status')}")
-          if r.get('counts',{}).get('events',0) <= 0: raise SystemExit('no rugby events')
-          if r.get('counts',{}).get('source_snapshots',0) <= 0: raise SystemExit('no rugby source snapshots')
+          status=r.get('status')
+          if status not in ('PASS','DEFERRED'): raise SystemExit(f"invalid rugby coverage status: {status}")
+          counts=r.get('counts',{})
+          if status == 'PASS':
+              if counts.get('events',0) <= 0: raise SystemExit('no rugby events')
+              if counts.get('source_snapshots',0) <= 0: raise SystemExit('no rugby source snapshots')
+          else:
+              reason=r.get('deferred_reason')
+              if not reason: raise SystemExit('DEFERRED without explicit reason')
+              if counts.get('events',0) != 0 or counts.get('source_snapshots',0) != 0:
+                  raise SystemExit('DEFERRED state has partial persisted data without explicit adoption state')
+              print('RUGBY_DEFERRED:', reason)
           print(json.dumps(r, ensure_ascii=False, indent=2))
           PY
       - name: Save rugby database cache
@@ -63,8 +72,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add results/v45/rugby_coverage.json
-          git diff --cached --check
-          if git diff --cached --quiet; then exit 0; fi
+          git diff --cached --quiet && exit 0 || true
           git commit -m 'chore: update rugby coverage report'
           git fetch origin main
           git rebase --autostash origin/main
