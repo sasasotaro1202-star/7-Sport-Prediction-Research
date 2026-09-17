@@ -27,6 +27,12 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install dependencies with retry
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore rugby database cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/rugby_v45.sqlite
+          key: rugby-v45-db-${{ github.run_id }}
+          restore-keys: rugby-v45-db-
       - name: Collect rugby coverage
         run: python -m src.rugby_production --max-pages 150
       - name: Validate rugby output
@@ -45,6 +51,12 @@ jobs:
           if r.get('counts',{}).get('source_snapshots',0) <= 0: raise SystemExit('no rugby source snapshots')
           print(json.dumps(r, ensure_ascii=False, indent=2))
           PY
+      - name: Save rugby database cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db/rugby_v45.sqlite
+          key: rugby-v45-db-${{ github.run_id }}
       - name: Persist rugby coverage report
         run: |
           set -euo pipefail
