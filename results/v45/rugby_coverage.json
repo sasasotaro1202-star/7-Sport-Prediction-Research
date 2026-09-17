@@ -1,0 +1,23 @@
+{
+  "sport": "rugby",
+  "status": "DEFERRED",
+  "source": "World Rugby official",
+  "parser_version": "rugby-v2-explicit-deferred",
+  "pages_visited": 149,
+  "events_found": 0,
+  "counts": {
+    "events": 0,
+    "timed_events": 0,
+    "participants": 0,
+    "source_snapshots": 0
+  },
+  "seed_competitions": [
+    "Men Six Nations",
+    "Women Six Nations",
+    "U20 Six Nations",
+    "World Rugby U20 Championship",
+    "World Rugby Nations Cup"
+  ],
+  "timestamp_utc": "2026-09-17T18:08:38.141391+00:00",
+  "deferred_reason": "No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated."
+}
