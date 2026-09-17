@@ -10,7 +10,7 @@ def main():
     expected_core={'valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby'}
     m=re.search(r"SPORTS=\(([^)]*)\)",research);actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
     require(expected_core<=actual,f'research engine missing sports: {sorted(expected_core-actual)}')
-    require('rugby_production.py' in workflow,'canonical workflow missing rugby collector')
+    require('src.rugby_production' in workflow,'canonical workflow missing rugby collector')
     require('rugby_v45.sqlite' in workflow,'canonical workflow missing dedicated rugby database')
     require('rugby_coverage.json' in workflow,'canonical workflow missing rugby coverage validation')
     require('rugby' in workflow and 'max-parallel: 8' in workflow,'canonical workflow does not cover all eight sports')
