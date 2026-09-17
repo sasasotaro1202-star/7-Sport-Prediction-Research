@@ -85,11 +85,16 @@ def collect(max_pages):
         'source_snapshots': c.execute("SELECT COUNT(*) FROM source_snapshot WHERE provenance_json LIKE '%\\\"sport\\\": \\\"rugby\\\"%'").fetchone()[0],
     }
     c.close()
-    out=ROOT/'results/v45/rugby_coverage.json'; out.parent.mkdir(parents=True,exist_ok=True)
     status = 'PASS' if counts['events']>0 and counts['source_snapshots']>0 else 'DEFERRED'
     report={'sport':'rugby','status':status,'source':'World Rugby official','parser_version':PARSER,'pages_visited':pages,'events_found':events,'counts':counts,'seed_competitions':['Men Six Nations','Women Six Nations','U20 Six Nations','World Rugby U20 Championship','World Rugby Nations Cup'],'timestamp_utc':datetime.now(timezone.utc).isoformat(),'deferred_reason':None if status=='PASS' else 'No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated.'}
-    out.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(json.dumps(report,ensure_ascii=False,indent=2))
+    out=ROOT/'results/v45/rugby_coverage.json'; out.parent.mkdir(parents=True,exist_ok=True)
+    payload=json.dumps(report,ensure_ascii=False,indent=2)
+    out.write_text(payload,encoding='utf-8')
+    # Persist the same explicit coverage state beside the dedicated Rugby DB so
+    # the merge job can recover the current state through the cache without
+    # relying on cross-job workspace persistence.
+    (ROOT/'data/db/rugby_coverage.json').write_text(payload,encoding='utf-8')
+    print(payload)
     # DEFERRED is a valid, explicit research state: it is not a production success
     # and does not authorize Rugby model publication. Actual exceptions remain failures.
     return 0 if status in ('PASS','DEFERRED') else 2
