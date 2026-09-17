@@ -1,0 +1,37 @@
+name: Production Failure Recovery
+
+on:
+  workflow_run:
+    workflows:
+      - Seven Sport v4.5.15 Production
+      - Rugby Production Coverage
+      - Cache and PIT Health
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: production-failure-recovery-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  retry-transient-failure:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt < 2
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Re-run failed jobs once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Recovery target: ${REPOSITORY} run ${RUN_ID}"
+          gh run rerun "${RUN_ID}" --failed --repo "${REPOSITORY}"
+          echo "Requested one bounded retry of failed jobs."
