@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
+RUGBY_DB = ROOT / "data/db/rugby_v45.sqlite"
 SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1", "rugby")
 OUT = ROOT / "results/reproducibility_manifest.json"
 
@@ -41,19 +42,31 @@ def file_record(path: Path) -> dict:
 def db_counts() -> dict:
     import sqlite3
 
-    if not DB.is_file() or DB.stat().st_size == 0:
-        return {}
-    con = sqlite3.connect(f"file:{DB.resolve()}?mode=ro", uri=True)
-    try:
-        return dict(con.execute("SELECT sport, COUNT(*) FROM event GROUP BY sport").fetchall())
-    finally:
-        con.close()
+    counts = {}
+    if DB.is_file() and DB.stat().st_size > 0:
+        con = sqlite3.connect(f"file:{DB.resolve()}?mode=ro", uri=True)
+        try:
+            counts.update(dict(con.execute("SELECT sport, COUNT(*) FROM event GROUP BY sport").fetchall()))
+        finally:
+            con.close()
+    # Rugby is intentionally isolated from the seven-sport merged DB. Count it
+    # from its dedicated database so the manifest cannot silently report zero
+    # simply because the storage topology differs.
+    if RUGBY_DB.is_file() and RUGBY_DB.stat().st_size > 0:
+        con = sqlite3.connect(f"file:{RUGBY_DB.resolve()}?mode=ro", uri=True)
+        try:
+            row = con.execute("SELECT COUNT(*) FROM event WHERE sport='rugby'").fetchone()
+            counts["rugby"] = int(row[0]) if row else 0
+        finally:
+            con.close()
+    return counts
 
 
 def main() -> int:
     requirements = ROOT / "requirements.txt"
     tracked = [
         DB,
+        RUGBY_DB,
         ROOT / "results/quality_gate.json",
         ROOT / "results/release_gate.json",
         ROOT / "results/pit_replay.json",
@@ -87,6 +100,7 @@ def main() -> int:
             "hashes_are_sha256": True,
             "missing_files_are_explicit": True,
             "models_are_artifacts_only_after_release_gate": True,
+            "rugby_uses_dedicated_database": True,
         },
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
