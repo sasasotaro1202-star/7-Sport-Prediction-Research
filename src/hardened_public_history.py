@@ -163,9 +163,25 @@ def backfill_rizin(c, max_pages=150):
     for url in sorted(urls)[:max_pages]:
         try:
             raw, retrieved = http(url)
+            plain = html_text(raw)
+            # Some RIZIN pages return a thin shell to non-browser clients while
+            # the AMP variant exposes the same official result content directly.
+            # Retry the official AMP representation before treating the page as
+            # empty; this is a bounded fallback, not a second source.
+            if "（WIN）" not in plain and "(WIN)" not in plain and "WIN" not in plain:
+                m_id = re.search(r"/_ct/(\\d+)", url)
+                if m_id:
+                    amp_url = f"https://jp.rizinff.com/_amp/_ct/{m_id.group(1)}"
+                    try:
+                        amp_raw, amp_retrieved = http(amp_url)
+                        amp_plain = html_text(amp_raw)
+                        if len(amp_plain) > len(plain) and ("（WIN）" in amp_plain or "(WIN)" in amp_plain or "WIN" in amp_plain):
+                            raw, retrieved, plain = amp_raw, amp_retrieved, amp_plain
+                            url = amp_url
+                    except Exception:
+                        pass
         except Exception:
             continue
-        plain = html_text(raw)
         dm = re.search(r"(20\d{2})\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})", plain)
         et = iso("-".join(dm.groups())) if dm else None
         tm = re.search(r"([^\n]{2,100})試合結果(?:一覧)?", plain)
