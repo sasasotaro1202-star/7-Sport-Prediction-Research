@@ -26,7 +26,7 @@ Eight sport-specific prediction/research engines with a provenance-first data fo
 ## Data-source strategy
 The system is source-agnostic. It can combine official feeds, structured public APIs, reputable historical datasets, and high-quality public event pages when their provenance and schema can be recorded.
 
-The project now maintains an explicit eight-sport source registry and independent audit record in `docs/SOURCE_REGISTRY_8_SPORTS.md` and `docs/COMPLETE_8_SPORT_AUDIT.md`.
+The project maintains an explicit eight-sport source registry and independent audit record in `docs/SOURCE_REGISTRY_8_SPORTS.md` and `docs/COMPLETE_8_SPORT_AUDIT.md`.
 
 Current deep historical/enrichment sources include:
 - Tennis: Jeff Sackmann ATP/WTA historical match/stat archive mirror, with conservative PIT treatment.
@@ -36,7 +36,7 @@ Current deep historical/enrichment sources include:
 - Volleyball: FIVB VIS historical match list plus ESPN discovery where configured.
 - UFC: Aristotle API plus TidyTuesday/UFCStats-derived historical fallback with same-fight statistics excluded from pre-fight features.
 - RIZIN: official RIZIN result pages with hardened parsing and PIT deferral until historical availability is proven.
-- Rugby: World Rugby official coverage in a dedicated database/workflow; not yet part of the canonical model/release matrix.
+- Rugby: World Rugby official coverage in a dedicated database/workflow; model/PIT/release promotion remains gated until the sport-specific evidence requirements are satisfied.
 
 The system does not assume that one provider is complete. Cross-source reconciliation and gap recovery are preferred over trusting a single feed.
 
@@ -46,13 +46,13 @@ The system does not assume that one provider is complete. Cross-source reconcili
 - Source-backed HTTP cache to avoid repeatedly downloading unchanged pages.
 - Checkpoint/resume state for long collectors.
 - Parallel detail-page retrieval inside a sport while keeping deterministic database writes.
-- Eight-sport scope with Rugby intentionally isolated until its model/PIT/release path is complete.
+- Explicit eight-sport scope; a sport can be PASS, DEFERRED, or blocked according to evidence, but no sport is silently omitted.
 
 ### Outcome reconstruction
 `src/outcome_backfill.py` reconstructs outcomes only when source evidence is sufficient. Missing or unverifiable outcomes remain deferred.
 
 ### PIT research
-`src/research_cycle_strict.py` builds pre-event features only from prior events whose event time and source availability satisfy the PIT cutoff. It evaluates calibrated Logistic Regression, Extra Trees, Random Forest and HistGradientBoosting with chronological walk-forward OOS, then uses a frozen holdout and incumbent/challenger gate. F1 is explicitly deferred when its multi-entrant PIT requirements are not proven.
+`src/research_cycle_strict.py` builds pre-event features only from prior events whose event time and source availability satisfy the PIT cutoff. It evaluates calibrated Logistic Regression, Extra Trees, Random Forest and HistGradientBoosting with chronological walk-forward OOS, then uses a frozen holdout and incumbent/challenger gate. F1 is multi-entrant and remains gated whenever its finishing-position PIT requirements are not proven.
 
 ### Deep historical enrichment
 `src/tennis_public_backfill.py` provides ATP/WTA historical foundation with conservative archive-availability handling. `src/f1_openf1_backfill.py` adds OpenF1 session-result/timing observations for 2023 onward without assuming historical publication availability.
@@ -62,10 +62,10 @@ X data is isolated from the production model: collection → PIT storage → ind
 
 ## GitHub Actions
 ### Canonical production
-`.github/workflows/v4_5_15_production.yml` runs the seven canonical sports independently, restores/saves per-sport caches, validates collection, reconstructs outcomes, builds strict PIT replay, runs an independent leakage audit, performs frozen-holdout research, applies quality/release gates, and persists safe outputs.
+`.github/workflows/v4_5_15_production.yml` runs all eight sports independently, restores/saves per-sport run-scoped caches, validates collection, reconstructs outcomes, builds strict PIT replay, runs an independent leakage audit, performs frozen-holdout research, applies quality/release gates, and persists safe outputs.
 
 ### Rugby coverage
-`.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby is not considered production-model ready until a sport-specific PIT/OOS/model/release path exists.
+`.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby is included in the canonical eight-sport cycle, while its production model remains gated until the sport-specific PIT/OOS/release path is proven.
 
 ### Reliability
 Cache/PIT health and production invariant workflows provide independent safety checks. A release gate is fail-closed: unsafe models are never published, and a blocked gate must be visible as a non-zero Action rather than a false green success.
@@ -77,6 +77,6 @@ A successful GitHub Action is evidence that a run completed; it is not by itself
 
 The production target is:
 
-`discover → collect → normalize → provenance/QC → PIT replay → exact PIT OOS → sport-specific features → multiple calibrated models → weakness analysis → challenger validation → gated adoption → future prediction → maintenance`.
+`discover → collect → normalize → provenance/QC → PIT replay → exact PIT OOS → sport-specific features → multiple calibrated models → matchup/interaction analysis → weakness analysis → challenger validation → gated adoption → future prediction → maintenance`.
 
-The system is optimized for accuracy first: runtime improvements come from caching, parallel I/O, checkpointing and incremental recomputation rather than reducing the historical/OOS information used by the models.
+The system is optimized for production accuracy first: runtime improvements come from caching, parallel I/O, checkpointing and incremental recomputation rather than reducing the historical/OOS information used by the models.
