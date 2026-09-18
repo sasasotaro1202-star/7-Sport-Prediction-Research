@@ -135,11 +135,23 @@ def backfill_csv(c, url, competition):
 
 
 def html_text(raw):
-    raw = re.sub(r"<script[^>]*>.*?</script>", " ", raw, flags=re.I | re.S)
-    raw = re.sub(r"<style[^>]*>.*?</style>", " ", raw, flags=re.I | re.S)
-    raw = re.sub(r"<[^>]+>", " ", raw)
-    raw = raw.replace("&nbsp;", " ").replace("&amp;", "&")
-    return clean(raw)
+    # RIZIN result pages may expose the result list primarily through
+    # OpenGraph/meta descriptions while the visible body is client-rendered.
+    # Preserve those semantic metadata fields before stripping HTML.
+    meta_parts = []
+    for m in re.finditer(
+        r"<meta\\b[^>]+(?:name|property)=[\\"'](?:description|og:description)[\\"'][^>]*>",
+        raw, flags=re.I | re.S,
+    ):
+        tag = m.group(0)
+        cm = re.search(r"content=[\\"'](.*?)[\\"']", tag, flags=re.I | re.S)
+        if cm:
+            meta_parts.append(cm.group(1))
+    raw_body = re.sub(r"<script[^>]*>.*?</script>", " ", raw, flags=re.I | re.S)
+    raw_body = re.sub(r"<style[^>]*>.*?</style>", " ", raw_body, flags=re.I | re.S)
+    raw_body = re.sub(r"<[^>]+>", " ", raw_body)
+    raw_body = raw_body.replace("&nbsp;", " ").replace("&amp;", "&")
+    return clean(" ".join(meta_parts) + " " + raw_body)
 
 
 def backfill_rizin(c, max_pages=150):
