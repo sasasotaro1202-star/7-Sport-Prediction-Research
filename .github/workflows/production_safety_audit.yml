@@ -43,7 +43,7 @@ jobs:
       - name: Validate research contracts
         run: |
           set -euo pipefail
-          test -f src.research_cycle_strict.py || true
+          test -f src/research_cycle_strict.py
           test -f src/independent_leakage_audit.py
           test -f src/pit_replay_builder.py
           test -f src/production_release_gate.py
