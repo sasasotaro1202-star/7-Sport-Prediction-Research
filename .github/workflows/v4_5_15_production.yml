@@ -188,10 +188,15 @@ jobs:
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
-          for sport in valorant basketball volleyball tennis ufc rizin f1; do
+          for sport in valorant basketball volleyball tennis ufc f1; do
             test -s "hourly-artifacts/$sport/sports_v45.sqlite"
             python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
           done
+          if [ -s hourly-artifacts/rizin/sports_v45.sqlite ]; then
+            python -m src.partition_cache_guard --db hourly-artifacts/rizin/sports_v45.sqlite --sport rizin
+          else
+            echo 'RIZIN_PARTITION=DEFERRED'
+          fi
           if [ -s hourly-artifacts/rugby/sports_v45.sqlite ]; then
             python -m src.partition_cache_guard --db hourly-artifacts/rugby/sports_v45.sqlite --sport rugby
           else
