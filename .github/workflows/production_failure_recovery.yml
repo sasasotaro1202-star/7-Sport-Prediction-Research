@@ -5,6 +5,7 @@ on:
     workflows:
       - Eight Sport v4.5.15 Production
       - Cache and PIT Health
+      - Production Safety Audit
     types: [completed]
 
 permissions:
