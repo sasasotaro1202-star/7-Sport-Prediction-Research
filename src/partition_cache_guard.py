@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 
 REQUIRED = {"event", "participant", "event_participant", "source_snapshot"}
-SPORTS = {"valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1"}
+SPORTS = {"valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1", "rugby"}
 
 
 def source_count_for_sport(con: sqlite3.Connection, sport: str) -> int:
