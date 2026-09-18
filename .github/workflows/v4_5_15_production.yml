@@ -41,7 +41,6 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-${{ matrix.sport }}-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-${{ matrix.sport }}-
       - name: Initialize schema
         if: matrix.sport != 'rugby'
         run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
@@ -97,7 +96,6 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-valorant-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-valorant-
       - name: Materialize VALORANT partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/valorant/sports_v45.sqlite
       - name: Clear merge working database
@@ -107,7 +105,6 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-basketball-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-basketball-
       - name: Materialize Basketball partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/basketball/sports_v45.sqlite
       - name: Clear merge working database
@@ -117,7 +114,6 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-volleyball-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-volleyball-
       - name: Materialize Volleyball partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite
       - name: Clear merge working database
@@ -127,7 +123,6 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-tennis-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-tennis-
       - name: Materialize Tennis partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/tennis/sports_v45.sqlite
       - name: Clear merge working database
@@ -137,7 +132,6 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-ufc-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-ufc-
       - name: Materialize UFC partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/ufc/sports_v45.sqlite
       - name: Clear merge working database
@@ -147,9 +141,20 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-rizin-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-rizin-
-      - name: Materialize RIZIN partition
-        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/rizin/sports_v45.sqlite
+      - name: Materialize RIZIN partition only when coverage is actually present
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then
+            echo 'RIZIN_PARTITION=DEFERRED_NO_DB'
+            exit 0
+          fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='rizin'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then
+            cp data/db/sports_v45.sqlite hourly-artifacts/rizin/sports_v45.sqlite
+            echo "RIZIN_PARTITION=PASS events=$events"
+          else
+            echo "RIZIN_PARTITION=DEFERRED events=$events"
+          fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore F1
@@ -157,7 +162,6 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-f1-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-f1-
       - name: Materialize F1 partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/f1/sports_v45.sqlite
       - name: Clear merge working database
@@ -167,7 +171,6 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-rugby-${{ github.run_id }}
-          restore-keys: eight-sport-db-v4-rugby-
       - name: Materialize Rugby partition only when coverage is actually present
         run: |
           set -euo pipefail
