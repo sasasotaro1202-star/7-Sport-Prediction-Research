@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
-SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
+SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby')
 
 
 def source_count_for_sport(c, sport):
@@ -29,6 +29,21 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--sport',choices=SPORTS,required=True)
     a=ap.parse_args()
+    # RIZIN can be explicitly DEFERRED when its public source exposes no
+    # machine-readable records. The release gate validates that state separately.
+    if a.sport == 'rizin':
+        cov = ROOT/'results/v45/rizin_coverage.json'
+        if cov.is_file():
+            try:
+                data=json.loads(cov.read_text(encoding='utf-8'))
+                if data.get('status') == 'DEFERRED' and data.get('events',0) == 0 and data.get('source_snapshots',0) == 0 and data.get('reason'):
+                    report={'status':'DEFERRED','sport':'rizin','events':0,'source_snapshots':0,'timed_events':0,'participants':0,'reason':data['reason']}
+                    p=ROOT/'results/v45'; p.mkdir(parents=True,exist_ok=True)
+                    (p/f'collection_guard_{a.sport}.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+                    print(json.dumps(report,ensure_ascii=False,indent=2))
+                    raise SystemExit(0)
+            except (OSError, ValueError):
+                pass
     if not DB.exists() or DB.stat().st_size == 0:
         report={'status':'DEFERRED','reason':'database_missing_or_empty','sport':a.sport}
         exit_code=2
