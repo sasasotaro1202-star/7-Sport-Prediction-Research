@@ -205,6 +205,18 @@ def backfill_rizin(c, max_pages=150):
             add_outcome(c,"rizin",eid,p1,p2,side,url); labeled += 1; added += 1
         if matches:
             add_snapshot(c,"rizin","jp.rizinff.com",url,retrieved,et,hashlib.sha256(raw.encode("utf-8","ignore")).hexdigest(),"UNVERIFIABLE")
+    coverage = {
+        "status": "PASS" if added > 0 else "DEFERRED",
+        "sport": "rizin",
+        "events": added,
+        "source_snapshots": len(urls) if added > 0 else 0,
+        "timed_events": 0,
+        "participants": 0,
+        "reason": None if added > 0 else "official_rizin_public_pages_expose_no_machine_readable_result_records_to_this_collector"
+    }
+    out = ROOT / "results" / "v45" / "rizin_coverage.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(coverage, ensure_ascii=False, indent=2), encoding="utf-8")
     return added, labeled, len(urls)
 
 
