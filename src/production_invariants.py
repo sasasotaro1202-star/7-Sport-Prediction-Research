@@ -8,6 +8,7 @@ def main():
     research=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
     workflow=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
     rugby=(ROOT/'src/rugby_production.py').read_text(encoding='utf-8')
+    manifest=(ROOT/'src/reproducibility_manifest.py').read_text(encoding='utf-8')
     expected_core={'valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby'}
     m=re.search(r"SPORTS=\(([^)]*)\)",research);actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
     require(expected_core<=actual,f'research engine missing sports: {sorted(expected_core-actual)}')
@@ -26,6 +27,8 @@ def main():
     require('collection_guard_status=FAILED' in workflow,'collection guard failure is not explicitly surfaced')
     require('if: always()' in workflow,'merge job is not configured to run after collector degradation')
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
+    require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
+    require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
         for x in FAILURES: print(f'- {x}')
