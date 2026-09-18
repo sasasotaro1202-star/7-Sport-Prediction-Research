@@ -140,11 +140,11 @@ def html_text(raw):
     # Preserve those semantic metadata fields before stripping HTML.
     meta_parts = []
     for m in re.finditer(
-        r"<meta\\b[^>]+(?:name|property)=[\\"'](?:description|og:description)[\\"'][^>]*>",
+        r"<meta\b[^>]+(?:name|property)=[\"\'](?:description|og:description)[\"\'][^>]*>",
         raw, flags=re.I | re.S,
     ):
         tag = m.group(0)
-        cm = re.search(r"content=[\\"'](.*?)[\\"']", tag, flags=re.I | re.S)
+        cm = re.search(r"content=[\"\'](.*?)[\"\']", tag, flags=re.I | re.S)
         if cm:
             meta_parts.append(cm.group(1))
     raw_body = re.sub(r"<script[^>]*>.*?</script>", " ", raw, flags=re.I | re.S)
