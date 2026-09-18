@@ -2,21 +2,36 @@ from __future__ import annotations
 from pathlib import Path
 import re,sys
 ROOT=Path(__file__).resolve().parents[1];FAILURES=[]
+EXPECTED_CORE={'valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby'}
+
 def require(condition,message):
     if not condition: FAILURES.append(message)
+
 def main():
     research=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
     workflow=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
     rugby=(ROOT/'src/rugby_production.py').read_text(encoding='utf-8')
     manifest=(ROOT/'src/reproducibility_manifest.py').read_text(encoding='utf-8')
-    expected_core={'valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby'}
-    m=re.search(r"SPORTS=\(([^)]*)\)",research);actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
-    require(expected_core<=actual,f'research engine missing sports: {sorted(expected_core-actual)}')
+    readme=(ROOT/'README.md').read_text(encoding='utf-8')
+
+    m=re.search(r"SPORTS=\(([^)]*)\)",research)
+    actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
+    require(EXPECTED_CORE<=actual,f'research engine missing sports: {sorted(EXPECTED_CORE-actual)}')
+    require(len(actual)==8,f'research engine sports count is {len(actual)}, expected exactly 8')
+    require('matrix:' in workflow,'canonical workflow matrix missing')
+    for sport in sorted(EXPECTED_CORE):
+        require(re.search(rf'(?m)^\s*[-] {sport}$',workflow) is not None or sport in workflow,
+                f'canonical workflow missing sport token: {sport}')
+    require('max-parallel: 8' in workflow,'canonical workflow does not reserve parallelism for all eight sports')
     require('src.rugby_production' in workflow,'canonical workflow missing rugby collector')
     require('--max-pages 150' in workflow,'canonical workflow missing bounded rugby collection')
     require("data/db/rugby_coverage.json" in rugby,'rugby collector does not persist cached coverage state')
-    require('rugby' in workflow and 'max-parallel: 8' in workflow,'canonical workflow does not cover all eight sports')
     require('Eight Sport v4.5.15 Production' in workflow,'canonical workflow name is not eight-sport')
+    require('seven canonical sports' not in workflow.lower(),'canonical workflow contains stale seven-sport wording')
+    require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
+    require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
+    require('8-sport' in readme.lower(),'README does not explicitly declare eight-sport scope')
+
     compact=research.replace(' ','')
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
@@ -34,4 +49,5 @@ def main():
         for x in FAILURES: print(f'- {x}')
         return 1
     print('PRODUCTION INVARIANTS: PASS');return 0
+
 if __name__=='__main__':sys.exit(main())
