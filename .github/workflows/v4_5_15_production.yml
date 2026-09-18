@@ -210,6 +210,8 @@ jobs:
         run: python -m src.research_cycle_strict
       - name: Quality report (non-failing coverage mode)
         run: python -m src.quality_gate
+      - name: Reproducibility manifest
+        run: python -m src.reproducibility_manifest
       - name: Release gate
         run: python -m src.production_release_gate
       - name: Production invariants
