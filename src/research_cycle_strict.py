@@ -1,6 +1,7 @@
 from __future__ import annotations
 import hashlib,json,sqlite3,subprocess
 from pathlib import Path
+from itertools import combinations
 import joblib,numpy as np
 from src import research_cycle_v4 as base
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
@@ -32,7 +33,11 @@ def train(s):
     m=base.pool()[name];m.fit(X[:end],y[:end]);p+=m.predict_proba(X[end:te])[:,1].tolist();t+=y[end:te].tolist()
    if len(t)>=30 and len(set(t))>1:oos[name]=base.metric(t,p)
   if not oos:return {'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)}
-  rank=sorted(oos,key=lambda k:(oos[k]['logloss'],oos[k]['brier'],oos[k]['ece']));cands=[(rank[0],)]+([(rank[0],rank[1])] if len(rank)>1 else []);best=cands[0];bs=None
+  rank=sorted(oos,key=lambda k:(oos[k]['logloss'],oos[k]['brier'],oos[k]['ece']))
+  # Evaluate every single model plus every pair among the three strongest singles.
+  # This keeps ensemble search bounded while avoiding selection bias from considering only one arbitrary pair.
+  cands=[(n,) for n in rank[:3]]+list(combinations(rank[:3],2))
+  scores={}
   for spec in cands:
    p=[];t=[]
    for end in range(start,sel,step):
@@ -42,24 +47,24 @@ def train(s):
     for name in spec:
      m=base.pool()[name];m.fit(X[:end],y[:end]);ps.append(m.predict_proba(X[end:te])[:,1])
     p+=np.mean(ps,axis=0).tolist();t+=y[end:te].tolist()
-   if len(t)>=30 and len(set(t))>1:
-    z=base.metric(t,p);sc=(z['logloss'],z['brier'],z['ece'])
-    if bs is None or sc<bs:bs=sc;best=spec
+   if len(t)>=30 and len(set(t))>1:scores['+'.join(spec)]=base.metric(t,p)
+  if not scores:return {'sport':s,'status':'DEFERRED','reason':'no_valid_ensemble_selection_folds','rows':len(rows)}
+  best_key=min(scores,key=lambda k:(scores[k]['logloss'],scores[k]['brier'],scores[k]['ece']));best=tuple(best_key.split('+'))
   models=[]
   for name in best:m=base.pool()[name];m.fit(X[:sel],y[:sel]);models.append(m)
   hp=np.mean([m.predict_proba(X[sel:])[:,1] for m in models],axis=0);hold=base.metric(y[sel:],hp);hold['models']=list(best)
-  if hold['ece']>.20:return {'sport':s,'status':'REJECTED_HOLDOUT_CALIBRATION','holdout_metrics':hold,'selection_oos':oos}
+  if hold['ece']>.20:return {'sport':s,'status':'REJECTED_HOLDOUT_CALIBRATION','holdout_metrics':hold,'selection_oos':oos,'ensemble_selection':scores}
   old=None;r=c.execute("SELECT metadata_json FROM model_state_snapshot WHERE sport=? AND market='winner' ORDER BY as_of_utc DESC LIMIT 1",(s,)).fetchone()
   if r:
    try:old=json.loads(r[0]).get('holdout_metrics')
    except Exception:old=None
   if old and 'logloss' in old:
    tol=max(.002,.01*float(old['logloss']))
-   if hold['logloss']>float(old['logloss'])-tol:return {'sport':s,'status':'REJECTED_CHALLENGER','reason':f"new={hold['logloss']:.6f};old={float(old['logloss']):.6f};required_improvement={tol:.6f}",'holdout_metrics':hold,'selection_oos':oos}
-  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'holdout':hold,'cutoff':rows[sel-1][1]});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'models':models,'model_names':list(best),'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn},path)
-  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v12-frozen-holdout','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'selection_oos':oos,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True}
+   if hold['logloss']>float(old['logloss'])-tol:return {'sport':s,'status':'REJECTED_CHALLENGER','reason':f"new={hold['logloss']:.6f};old={float(old['logloss']):.6f};required_improvement={tol:.6f}",'holdout_metrics':hold,'selection_oos':oos,'ensemble_selection':scores}
+  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'cutoff':rows[sel-1][1]});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'models':models,'model_names':list(best),'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn},path)
+  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v13-bounded-ensemble-frozen-holdout','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True}
   c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in rows[:sel]]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
-  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'selection_oos':oos,'holdout_metrics':hold,'production_fit_excludes_holdout':True};(RESULTS/f'{s}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2));return out
+  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'production_fit_excludes_holdout':True};(RESULTS/f'{s}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2));return out
  finally:c.close()
 def main():
  import argparse
