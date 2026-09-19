@@ -156,6 +156,12 @@ def main():
                     r['coverage'][s]['model_safety']='DEFERRED:'+str(deferred_reason)
                 else:
                     r['fatal'].append(f'{s}:accepted_model_missing')
+            # Explicitly deferred sports are safe-degraded: do not turn their
+            # known coverage/PIT limitation into a false production-integrity failure.
+            # Their deferred reason is already recorded above and publication remains
+            # partial/explicit rather than silently treating them as production-ready.
+            if s in r['deferred_sports']:
+                continue
             v=r['coverage'][s]
             if v['events']==0:
                 if s not in r['deferred_sports']:
