@@ -137,7 +137,38 @@ def collect_vlr(c,h,pages=180):
                 c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=?",(et,u))
             total+=1
         c.commit()
-    return total
+    # Repair ALL legacy VLR rows already in the canonical DB that lack event_time_utc.
+    # This bypasses the limited recent-results page window and uses only explicit VLR
+    # detail-page timestamps, preserving the existing provenance/cache path.
+    rows=c.execute("SELECT event_id,source_url FROM event WHERE sport='valorant' AND source='vlr.gg' AND (event_time_utc IS NULL OR TRIM(event_time_utc)='') AND source_url IS NOT NULL ORDER BY event_id").fetchall()
+    by_url={u:eid for eid,u in rows}
+    repaired=0
+    for u,res in h.many([u for _,u in rows]).items():
+        if not res:
+            continue
+        x,rr,_,v=res
+        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\\\"](\\d{9,})['\\\"]",x)
+        et=None
+        if tm:
+            try:
+                et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
+            except Exception:
+                et=None
+        if et is None:
+            mm=re.search(r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',x)
+            if mm:
+                et=iso(mm.group(1))
+        eid=by_url.get(u)
+        if not eid or not et:
+            continue
+        c.execute("UPDATE event SET event_time_utc=?, status='COMPLETED', updated_at=? WHERE event_id=?",(et,utcnow(),eid))
+        snapshot(c,'valorant','vlr.gg',u,rr,et,x,v)
+        c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=?",(et,u))
+        repaired+=1
+        if repaired % 250 == 0:
+            c.commit()
+    c.commit()
+    return total + repaired
 def collect_ufc_dataset(c,h):
     base='https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-07-07/ufc_fights.csv'
     try:raw,r,_,via=h.get(base)
