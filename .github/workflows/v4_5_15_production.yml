@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       max-parallel: 8
       matrix:
-        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1, rugby]
+        sport: [valorant, basketball, volleyball, tennis, ufc, rizin]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -93,7 +93,7 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install dependencies with transient-network retry
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
-      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,ufc,rizin,f1,rugby} data/db results models
+      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,ufc,rizin} data/db results models
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore VALORANT
@@ -162,16 +162,9 @@ jobs:
           fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
-      - name: Restore F1
-        uses: actions/cache/restore@v4
-        with:
-          path: data/db
-          key: eight-sport-db-v4-f1-${{ github.run_id }}
-      - name: Materialize F1 partition
-        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/f1/sports_v45.sqlite
+      - name: Deferred scope note
+        run: echo 'F1 and Rugby are intentionally deferred by project scope; no collection partition is required.'
       - name: Clear merge working database
-        run: rm -f data/db/sports_v45.sqlite
-      - name: Restore Rugby
         uses: actions/cache/restore@v4
         with:
           path: data/db
@@ -193,7 +186,7 @@ jobs:
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
-          for sport in valorant basketball volleyball tennis ufc f1; do
+          for sport in valorant basketball volleyball tennis ufc; do
             test -s "hourly-artifacts/$sport/sports_v45.sqlite"
             python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
           done
@@ -201,11 +194,6 @@ jobs:
             python -m src.partition_cache_guard --db hourly-artifacts/rizin/sports_v45.sqlite --sport rizin
           else
             echo 'RIZIN_PARTITION=DEFERRED'
-          fi
-          if [ -s hourly-artifacts/rugby/sports_v45.sqlite ]; then
-            python -m src.partition_cache_guard --db hourly-artifacts/rugby/sports_v45.sqlite --sport rugby
-          else
-            echo 'RUGBY_PARTITION=DEFERRED'
           fi
       - name: Merge partitions
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
