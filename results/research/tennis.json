@@ -1,0 +1,6 @@
+{
+  "sport": "tennis",
+  "status": "DEFERRED_BY_PROJECT_SCOPE",
+  "reason": "Tennis is outside the current active five-sport production scope; no Tennis model is collected or published while deferred.",
+  "production_scope": "deferred"
+}
