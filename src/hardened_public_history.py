@@ -188,12 +188,12 @@ def backfill_rizin(c, max_pages=150):
         title = clean(tm.group(1)) if tm else url
         # This matches the actual official page representation, including the
         # HTML-stripped '(WIN) A vs B (LOSE)' form observed on RIZIN result pages.
-        matches = list(re.finditer(r"(\\(WIN\\)|（WIN）|WIN)\\s+(.{1,80}?)\\s+vs\\.?\\s+(.{1,80}?)\\s+(\\(LOSE\\)|（LOSE）|LOSE)", plain, re.I))
-        matches += list(re.finditer(r"(\\(LOSE\\)|（LOSE）|LOSE)\\s+(.{1,80}?)\\s+vs\\.?\\s+(.{1,80}?)\\s+(\\(WIN\\)|（WIN）|WIN)", plain, re.I))
+        matches = list(re.finditer(r"(?:\(WIN\)|（WIN）|WIN)\s+(.{1,80}?)\s+vs\.?\s+(.{1,80}?)\s+(?:\(LOSE\)|（LOSE）|LOSE)", plain, re.I))
+        matches += list(re.finditer(r"(?:\(LOSE\)|（LOSE）|LOSE)\s+(.{1,80}?)\s+vs\.?\s+(.{1,80}?)\s+(?:\(WIN\)|（WIN）|WIN)", plain, re.I))
         seen = set()
         for m in matches:
-            left_marker = "WIN" if re.match(r"(?:\\(WIN\\)|（WIN）|WIN)\\s+", m.group(0), re.I) else "LOSE"
-            a, b = clean(m.group(2)), clean(m.group(3))
+            left_marker = "WIN" if re.match(r"(?:\(WIN\)|（WIN）|WIN)\s+", m.group(0), re.I) else "LOSE"
+            a, b = clean(m.group(1)), clean(m.group(2))
             a = re.sub(r"\s+", " ", a); b = re.sub(r"\s+", " ", b)
             if not a or not b or a == b or len(a) > 80 or len(b) > 80: continue
             key=(a,b,et,url)
