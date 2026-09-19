@@ -111,7 +111,7 @@ def collect_vlr(c,h,pages=180):
                 title=f'{clean(z[0])} vs {clean(z[1])}'
                 break
             et=None
-            tm=re.search(r"data-game-time=['\"](\d{9,})['\"]",x)
+            tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"](\d{9,})['\"]",x)
             if tm:
                 try:
                     et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
