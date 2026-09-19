@@ -132,6 +132,10 @@ def collect_historical_bleaguer(c):
             summary_raw, _, _ = get(BLEAGUE_RAW.format(path=summary_path))
             schedule = list(csv.DictReader(io.StringIO(schedule_raw)))
             summary = list(csv.DictReader(io.StringIO(summary_raw)))
+            teams_raw, _, _ = get(BLEAGUE_RAW.format(path='teams.csv'))
+            team_rows = list(csv.DictReader(io.StringIO(teams_raw)))
+            season_label = str(schedule[0].get('Season') if schedule else '')
+            team_name = {str(r.get('TeamId')): clean(r.get('NameShort') or r.get('NameLong') or r.get('TeamId')) for r in team_rows if str(r.get('Season') or '') == season_label}
         except Exception as e:
             warnings.append({"season": suffix, "error": repr(e)})
             continue
@@ -149,7 +153,7 @@ def collect_historical_bleaguer(c):
                 away_id = str(row.get("AwayTeamId"))
                 home = next((r for r in rs if str(r.get("TeamId")) == home_id), rs[0])
                 away = next((r for r in rs if str(r.get("TeamId")) == away_id), rs[1])
-                names = {home_id: home_id, away_id: away_id}
+                names = {home_id: team_name.get(home_id, home_id), away_id: team_name.get(away_id, away_id)}
                 eid = sid(SPORT, "bleaguer", key)
                 eid = upsert_event(c, SPORT, f"B.LEAGUE {home_id} vs {away_id}", date, "bleaguer-github", BLEAGUE_RAW.format(path=schedule_path), "COMPLETED", competition="B.LEAGUE", season=str(row.get("Season") or suffix))
                 p1 = upsert_participant(c, SPORT, names[home_id], "team")
