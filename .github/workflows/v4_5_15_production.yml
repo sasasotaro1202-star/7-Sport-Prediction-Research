@@ -44,18 +44,12 @@ jobs:
           restore-keys: |
             eight-sport-db-v4-${{ matrix.sport }}-
       - name: Validate/repair restored database before collection
-        if: matrix.sport != 'rugby'
         run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
       - name: Initialize schema
-        if: matrix.sport != 'rugby'
         run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
       - name: Incremental collector (source failures degrade explicitly)
         run: |
           set -uo pipefail
-          if [ '${{ matrix.sport }}' = 'rugby' ]; then
-            python -m src.rugby_production --max-pages 150
-            exit 0
-          fi
           collector_rc=0
           if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
           backfill_rc=0
@@ -63,7 +57,6 @@ jobs:
             basketball) if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --both; then echo 'basketball_backfill_status=OK'; else backfill_rc=$?; echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             volleyball) if timeout --signal=TERM 300s python -m src.volleyball_fivb_vis_backfill; then echo 'volleyball_backfill_status=OK'; else backfill_rc=$?; echo "volleyball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             valorant|rizin) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports '${{ matrix.sport }}'; then echo '${{ matrix.sport }}_backfill_status=OK'; else backfill_rc=$?; echo "${{ matrix.sport }}_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
-            f1) if timeout --signal=TERM 45s python -m src.f1_openf1_backfill --start-year 2023 --end-year 2026 --timeout 15; then echo 'f1_backfill_status=OK'; else backfill_rc=$?; echo "f1_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             ufc) if timeout --signal=TERM 120s python -m src.ufc_api_backfill --limit 200; then echo 'ufc_backfill_status=OK'; else backfill_rc=$?; echo "ufc_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
           esac
           guard_rc=0
