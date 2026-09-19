@@ -121,7 +121,7 @@ def _vlr_page_times(html):
     # Attribute-order independent fallback for cached/minified HTML.
     for m in re.finditer(r'/match/(\d+)',html or ''):
         mid=m.group(1); chunk=(html[max(0,m.start()-1200):m.end()+1200])
-        tm=re.search(r'data-(?:game-time|utc-ts)\\s*=\\s*["\']?(\\d{9,})',chunk,re.I)
+        tm=re.search(r'data-(?:game-time|utc-ts)\s*=\s*["\']?(\d{9,})',chunk,re.I)
         if tm:
             try: out[mid]=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
             except Exception: pass
@@ -137,26 +137,26 @@ def collect_vlr(c,h,pages=180):
         except Exception:
             continue
         page_times=_vlr_page_times(html)
-        links=list(dict.fromkeys(re.findall(r'https?://www\\.vlr\\.gg/match/\\d+(?:/[^\\s)"<>]+)?',html)))
-        links += [urljoin(url,x) for x in re.findall(r"href=['\"]([^'\"]*/match/\\d+[^'\"]*)",html)]
+        links=list(dict.fromkeys(re.findall(r'https?://www\.vlr\.gg/match/\d+(?:/[^\s)"<>]+)?',html)))
+        links += [urljoin(url,x) for x in re.findall(r"href=['\"]([^'\"]*/match/\d+[^'\"]*)",html)]
         links=list(dict.fromkeys(links))
         if not links: continue
         for u,res in h.many(links).items():
             if not res: continue
             x,rr,_,v=res
-            m=re.search(r'/match/(\\d+)/([^/?#\\s)]+)',u)
+            m=re.search(r'/match/(\d+)/([^/?#\s)]+)',u)
             mid=m.group(1) if m else None
             title=clean((m.group(2) if m else '').replace('-',' ')) or u
-            for z in re.findall(r'([^\\n]{2,80})\\s+vs\\.?\\s+([^\\n]{2,80})',x,re.I):
+            for z in re.findall(r'([^\n]{2,80})\s+vs\.?\s+([^\n]{2,80})',x,re.I):
                 title=f'{clean(z[0])} vs {clean(z[1])}'; break
             et=page_times.get(mid)
             if et is None:
-                tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"]?(\\d{9,})['\"]?",x)
+                tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"]?(\d{9,})['\"]?",x)
                 if tm:
                     try: et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
                     except Exception: et=None
             if et is None:
-                mm=re.search(r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',x)
+                mm=re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',x)
                 if mm: et=iso(mm.group(1))
             existing=c.execute("SELECT event_id,source_url FROM event WHERE sport='valorant' AND source='vlr.gg' AND (source_url=? OR source_url LIKE ?) ORDER BY updated_at DESC LIMIT 1",(u,f'%/{mid}/%')).fetchone() if mid else None
             if existing and et:
@@ -164,7 +164,7 @@ def collect_vlr(c,h,pages=180):
                 c.execute("UPDATE event SET event_time_utc=?, status='COMPLETED', updated_at=?, source_url=? WHERE event_id=?",(et,utcnow(),u,eid))
             else:
                 eid=upsert_event(c, 'valorant', title, et, 'vlr.gg', u, 'COMPLETED')
-            names=[clean(q) for q in re.split(r'\\s+vs\\.?\\s+',title,flags=re.I)[:2]] if ' vs ' in title else []
+            names=[clean(q) for q in re.split(r'\s+vs\.?\s+',title,flags=re.I)[:2]] if ' vs ' in title else []
             for i,n in enumerate(names[:2]):
                 if len(n)>1:
                     pid=upsert_participant(c,'valorant',n,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
@@ -176,7 +176,7 @@ def collect_vlr(c,h,pages=180):
     # after the result-page pass so the common case is resolved without thousands
     # of extra detail requests.
     rows=c.execute("SELECT event_id,source_url FROM event WHERE sport='valorant' AND source='vlr.gg' AND (event_time_utc IS NULL OR TRIM(event_time_utc)='') AND source_url IS NOT NULL ORDER BY event_id").fetchall()
-    by_url={u:eid for eid,u in rows}; repair_urls={orig:re.sub(r'/match/(\\d+)(?=/|$)',r'/\\1',orig) for _,orig in rows}
+    by_url={u:eid for eid,u in rows}; repair_urls={orig:re.sub(r'/match/(\d+)(?=/|$)',r'/\1',orig) for _,orig in rows}
     fetched={}
     with ThreadPoolExecutor(max_workers=h.workers) as ex:
         fs={ex.submit(h.get,fu,False):orig for orig,fu in repair_urls.items()}
@@ -188,12 +188,12 @@ def collect_vlr(c,h,pages=180):
         res=fetched.get(u)
         if not res: continue
         x,rr,_,v=res; et=None
-        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"]?(\\d{9,})['\"]?",x)
+        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"]?(\d{9,})['\"]?",x)
         if tm:
             try: et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
             except Exception: et=None
         if et is None:
-            mm=re.search(r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',x)
+            mm=re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',x)
             if mm: et=iso(mm.group(1))
         eid=by_url.get(u)
         if eid and et:
