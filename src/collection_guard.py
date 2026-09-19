@@ -79,8 +79,8 @@ def main():
                 exit_code=2
             else:
                 if a.sport == 'basketball':
-                    events=c.execute("SELECT COUNT(*) FROM event WHERE sport='basketball' AND (lower(name) LIKE '%b.league%' OR lower(name) LIKE '%b league%' OR lower(name) LIKE '%bリーグ%' OR lower(name) LIKE '%asian games%' OR lower(name) LIKE '%アジア大会%')").fetchone()[0]
-                    timed=c.execute("SELECT COUNT(*) FROM event WHERE sport='basketball' AND event_time_utc IS NOT NULL AND (lower(name) LIKE '%b.league%' OR lower(name) LIKE '%b league%' OR lower(name) LIKE '%bリーグ%' OR lower(name) LIKE '%asian games%' OR lower(name) LIKE '%アジア大会%')").fetchone()[0]
+                    events=c.execute("SELECT COUNT(*) FROM event WHERE sport='basketball' AND (lower(COALESCE(competition_id,'')) LIKE '%b.league%' OR lower(COALESCE(competition_id,'')) LIKE '%b league%' OR lower(COALESCE(competition_id,'')) LIKE '%bリーグ%' OR lower(COALESCE(competition_id,'')) LIKE '%asian games%' OR lower(COALESCE(competition_id,'')) LIKE '%アジア大会%')").fetchone()[0]
+                    timed=c.execute("SELECT COUNT(*) FROM event WHERE sport='basketball' AND event_time_utc IS NOT NULL AND (lower(name) LIKE '%b.league%' OR lower(name) LIKE '%b league%' OR lower(name) LIKE '%bリーグ%' OR lower(COALESCE(competition_id,'')) LIKE '%asian games%' OR lower(COALESCE(competition_id,'')) LIKE '%アジア大会%')").fetchone()[0]
                     participants=c.execute("SELECT COUNT(*) FROM participant WHERE sport='basketball'").fetchone()[0]
                     sources=source_count_for_sport(c,a.sport)
                     if events==0:
