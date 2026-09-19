@@ -93,8 +93,12 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-valorant-${{ github.run_id }}
-      - name: Materialize VALORANT partition
-        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/valorant/sports_v45.sqlite
+      - name: Materialize VALORANT partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'VALORANT_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='valorant'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/valorant/sports_v45.sqlite; echo "VALORANT_PARTITION=PASS events=$events"; else echo "VALORANT_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore Basketball
@@ -102,8 +106,12 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-basketball-${{ github.run_id }}
-      - name: Materialize Basketball partition
-        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/basketball/sports_v45.sqlite
+      - name: Materialize Basketball partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'BASKETBALL_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='basketball'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/basketball/sports_v45.sqlite; echo "BASKETBALL_PARTITION=PASS events=$events"; else echo "BASKETBALL_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore Volleyball
@@ -111,8 +119,12 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-volleyball-${{ github.run_id }}
-      - name: Materialize Volleyball partition
-        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite
+      - name: Materialize Volleyball partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'VOLLEYBALL_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='volleyball'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite; echo "VOLLEYBALL_PARTITION=PASS events=$events"; else echo "VOLLEYBALL_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore UFC
@@ -120,8 +132,12 @@ jobs:
         with:
           path: data/db
           key: eight-sport-db-v4-ufc-${{ github.run_id }}
-      - name: Materialize UFC partition
-        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/ufc/sports_v45.sqlite
+      - name: Materialize UFC partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'UFC_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='ufc'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/ufc/sports_v45.sqlite; echo "UFC_PARTITION=PASS events=$events"; else echo "UFC_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore RIZIN
@@ -151,8 +167,11 @@ jobs:
         run: |
           set -euo pipefail
           for sport in valorant basketball volleyball ufc; do
-            test -s "hourly-artifacts/$sport/sports_v45.sqlite"
-            python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
+            if [ -s "hourly-artifacts/$sport/sports_v45.sqlite" ]; then
+              python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
+            else
+              echo "$sport"_PARTITION=DEFERRED
+            fi
           done
           if [ -s hourly-artifacts/rizin/sports_v45.sqlite ]; then
             python -m src.partition_cache_guard --db hourly-artifacts/rizin/sports_v45.sqlite --sport rizin
