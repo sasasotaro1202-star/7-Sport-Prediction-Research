@@ -142,12 +142,23 @@ def collect_vlr(c,h,pages=180):
     # detail-page timestamps, preserving the existing provenance/cache path.
     rows=c.execute("SELECT event_id,source_url FROM event WHERE sport='valorant' AND source='vlr.gg' AND (event_time_utc IS NULL OR TRIM(event_time_utc)='') AND source_url IS NOT NULL ORDER BY event_id").fetchall()
     by_url={u:eid for eid,u in rows}
+    # Legacy cache entries can predate the timestamp parser. Force-refresh these
+    # detail pages once so stale cached HTML cannot keep rows untimed forever.
+    # Normalize the historical /match/<id>/slug form to VLR's canonical /<id>/slug route.
+    repair_urls={orig:re.sub(r'/match/(\\d+)(?=/|$)',r'/\\1',orig) for _,orig in rows}
+    fetched={}
+    with ThreadPoolExecutor(max_workers=h.workers) as ex:
+        fs={ex.submit(h.get,fu,False):orig for orig,fu in repair_urls.items()}
+        for fut in as_completed(fs):
+            try:fetched[fs[fut]]=fut.result()
+            except Exception:fetched[fs[fut]]=None
     repaired=0
-    for u,res in h.many([u for _,u in rows]).items():
+    for u in repair_urls:
+        res=fetched.get(u)
         if not res:
             continue
         x,rr,_,v=res
-        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"](\d{9,})['\"]",x)
+        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\\"]?(\\d{9,})['\\"]?",x)
         et=None
         if tm:
             try:
@@ -155,7 +166,7 @@ def collect_vlr(c,h,pages=180):
             except Exception:
                 et=None
         if et is None:
-            mm=re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',x)
+            mm=re.search(r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',x)
             if mm:
                 et=iso(mm.group(1))
         eid=by_url.get(u)
