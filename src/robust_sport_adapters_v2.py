@@ -145,7 +145,7 @@ def collect_vlr(c,h,pages=180):
     # Legacy cache entries can predate the timestamp parser. Force-refresh these
     # detail pages once so stale cached HTML cannot keep rows untimed forever.
     # Normalize the historical /match/<id>/slug form to VLR's canonical /<id>/slug route.
-    repair_urls={orig:re.sub(r'/match/(\\d+)(?=/|$)',r'/\\1',orig) for _,orig in rows}
+    repair_urls={orig:re.sub(r'/match/(\d+)(?=/|$)',r'/\1',orig) for _,orig in rows}
     fetched={}
     with ThreadPoolExecutor(max_workers=h.workers) as ex:
         fs={ex.submit(h.get,fu,False):orig for orig,fu in repair_urls.items()}
@@ -158,7 +158,7 @@ def collect_vlr(c,h,pages=180):
         if not res:
             continue
         x,rr,_,v=res
-        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\\"]?(\\d{9,})['\\"]?",x)
+        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"]?(\d{9,})['\"]?",x)
         et=None
         if tm:
             try:
