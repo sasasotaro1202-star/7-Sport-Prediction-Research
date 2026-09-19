@@ -5,7 +5,7 @@ from itertools import combinations
 import joblib,numpy as np
 from src import research_cycle_v4 as base
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
-SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin')
+SPORTS=('valorant','basketball','volleyball','ufc','rizin')
 def utc():
  from datetime import datetime,timezone
  return datetime.now(timezone.utc).isoformat()
