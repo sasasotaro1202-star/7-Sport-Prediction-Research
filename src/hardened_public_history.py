@@ -169,7 +169,7 @@ def backfill_rizin(c, max_pages=150):
             # Retry the official AMP representation before treating the page as
             # empty; this is a bounded fallback, not a second source.
             if "（WIN）" not in plain and "(WIN)" not in plain and "WIN" not in plain:
-                m_id = re.search(r"/_ct/(\\d+)", url)
+                m_id = re.search(r"/_ct/(\d+)", url)
                 if m_id:
                     amp_url = f"https://jp.rizinff.com/_amp/_ct/{m_id.group(1)}"
                     try:
