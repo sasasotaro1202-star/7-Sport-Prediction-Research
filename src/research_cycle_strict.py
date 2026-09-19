@@ -21,14 +21,69 @@ def _write_result(s, payload):
     (RESULTS/f'{s}.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
     return payload
 
+def _carry_forward_previous(c, sport, previous):
+    """Keep the last accepted production model during a transient PIT/data outage.
+    This never creates a new model: it only re-registers an already accepted,
+    holdout-frozen artifact when the current run cannot reproduce enough strict
+    PIT rows. The feature schema must still match the current production schema.
+    """
+    if not isinstance(previous, dict) or previous.get("status") != "TRAINED":
+        return None
+    if previous.get("feature_version") != "strict-pit-v13-bounded-ensemble-frozen-holdout":
+        return None
+    artifact = ROOT / str(previous.get("artifact_path", ""))
+    if not artifact.is_file() or artifact.stat().st_size <= 0:
+        return None
+    required = ("model_version","feature_version","training_cutoff_utc",
+                "git_commit_sha","artifact_path","holdout_metrics")
+    if any(not previous.get(k) for k in required):
+        return None
+    hm = previous.get("holdout_metrics") or {}
+    if any(k not in hm for k in ("logloss","brier","accuracy","ece","n")):
+        return None
+    meta = dict(previous)
+    meta.update({
+        "quality_status": "ACCEPTED_CARRY_FORWARD",
+        "carry_forward": True,
+        "carry_forward_reason": "current strict PIT rows temporarily insufficient; last accepted frozen-holdout artifact retained",
+        "carry_forward_checked_at_utc": utc(),
+        "carry_forward_artifact_bytes": artifact.stat().st_size,
+    })
+    sid = h({"sport":sport,"carry_forward":meta.get("model_version"),
+             "artifact":str(artifact),"checked":meta["carry_forward_checked_at_utc"]})
+    c.execute("INSERT OR REPLACE INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+              (sid,sport,"winner",utc(),meta["model_version"],meta["feature_version"],
+               meta["training_cutoff_utc"],h(meta),meta["git_commit_sha"],
+               str(artifact.relative_to(ROOT)),"ACCEPTED_CARRY_FORWARD",
+               json.dumps(meta,ensure_ascii=False)))
+    c.commit()
+    return meta
+
+def _previous_result(sport):
+    p=RESULTS/f'{sport}.json'
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
 def train(s):
  if s=='f1':
   return _write_result(s,f1())
+ previous=_previous_result(s)
  c=sqlite3.connect(DB)
  try:
   rows,fs=base.build(c,s)
   if len(rows)<120:
-   return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'insufficient_strict_PIT_rows','rows':len(rows),'features':len(fs),'provenance_rule':'pre-cutoff observed feature or provenance-verified historical outcome required'})
+   carried=_carry_forward_previous(c,s,previous)
+   payload={'sport':s,'status':'DEFERRED_RETRAIN_CARRY_FORWARD' if carried else 'DEFERRED','reason':'insufficient_strict_PIT_rows','rows':len(rows),'features':len(fs),'provenance_rule':'pre-cutoff observed feature or provenance-verified historical outcome required'}
+   if carried:
+    payload['carried_forward_model_version']=carried['model_version']
+    payload['carried_forward_training_cutoff_utc']=carried['training_cutoff_utc']
+    payload['carry_forward_artifact_path']=carried['artifact_path']
+    payload['carry_forward_holdout_metrics']=carried.get('holdout_metrics')
+   return _write_result(s,payload)
   X=np.array([[r[3].get(f,np.nan) for f in fs] for r in rows]);y=np.array([r[2] for r in rows])
   # Never send all-missing columns into sklearn imputers. They carry no signal,
   # make feature schemas unstable across folds, and can trigger silent column drops.
