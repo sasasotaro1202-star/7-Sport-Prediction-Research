@@ -5,7 +5,8 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
 OUT=ROOT/'results/release_gate.json'
-SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby')
+SPORTS=('valorant','basketball','volleyball','ufc','rizin')
+DEFERRED_SPORTS=('tennis','f1','rugby')
 COMPLETED_STATUSES=('COMPLETED','FINISHED','POST')
 
 
@@ -35,6 +36,21 @@ def _f1_resolved_counts(c):
         n=c.execute("SELECT COUNT(*) FROM match_stats WHERE event_id=? AND sport='f1' AND stat_name='results.position' AND value_num=1 AND source IS NOT NULL",(eid,)).fetchone()[0]
         if n>0: resolved += 1
     return len(rows), resolved
+
+
+def _deferred_report_state(sport):
+    candidates=(ROOT/'results/research'/f'{sport}.json', ROOT/'results/v45'/f'{sport}_coverage.json', ROOT/'data/db'/f'{sport}_coverage.json')
+    p=next((x for x in candidates if x.exists()),None)
+    if p is None:
+        return False, f'{sport}_deferred_report_missing'
+    try:
+        r=json.loads(p.read_text())
+    except Exception as exc:
+        return False, f'{sport}_deferred_report_invalid:{type(exc).__name__}'
+    status=str(r.get('status',''))
+    if not status.startswith('DEFERRED'):
+        return False, f'{sport}_not_deferred:{status}'
+    return True, str(r.get('reason') or r.get('deferred_reason') or status)
 
 
 def _rugby_deferred_state():
@@ -108,14 +124,15 @@ def main():
         r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'resolved_outcomes':int(resolved.get(s,0)),'verified_model_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
         f1_completed,f1_resolved=_f1_resolved_counts(c)
         r['coverage']['f1'].update({'completed_events':f1_completed,'resolved_outcomes':f1_resolved,'verified_model_outcomes':0,'outcome_semantics':'multi_entrant_winner_from_results_position'})
-        rugby_deferred, rugby_reason=_rugby_deferred_state()
-        if rugby_deferred:
-            r['deferred_sports']['rugby']=rugby_reason
-            r['coverage']['rugby']['model_safety']='DEFERRED:'+rugby_reason
-        else:
-            r['fatal'].append('rugby:'+rugby_reason)
+        for ds in DEFERRED_SPORTS:
+            ok, reason = _deferred_report_state(ds)
+            if ok:
+                r['deferred_sports'][ds]=reason
+                r['coverage'].setdefault(ds,{})['model_safety']='DEFERRED:'+reason
+            else:
+                r['fatal'].append(ds+':'+reason)
         for s in SPORTS:
-            if s=='rugby' and rugby_deferred:
+            if s in DEFERRED_SPORTS:
                 continue
             if s in latest:
                 good,reason=_validate_model(latest[s]); r['coverage'][s]['model_safety']=reason
