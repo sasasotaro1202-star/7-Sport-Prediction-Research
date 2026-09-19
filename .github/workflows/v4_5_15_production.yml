@@ -13,7 +13,9 @@ permissions:
   contents: write
 concurrency:
   group: eight-sport-canonical-production
-  cancel-in-progress: true
+  # Never cancel a production run after it has begun: cancellation can leave a
+  # generated-output writer racing the next run and create non-replayable Git conflicts.
+  cancel-in-progress: false
 env:
   PYTHONUNBUFFERED: '1'
 jobs:
@@ -97,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -s data/db/sports_v45.sqlite ]; then echo 'VALORANT_PARTITION=DEFERRED_NO_DB'; exit 0; fi
-          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='valorant'\").fetchone()[0]); c.close()")
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute("SELECT COUNT(*) FROM event WHERE sport='valorant'").fetchone()[0]); c.close()")
           if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/valorant/sports_v45.sqlite; echo "VALORANT_PARTITION=PASS events=$events"; else echo "VALORANT_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
@@ -110,7 +112,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -s data/db/sports_v45.sqlite ]; then echo 'BASKETBALL_PARTITION=DEFERRED_NO_DB'; exit 0; fi
-          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='basketball'\").fetchone()[0]); c.close()")
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute("SELECT COUNT(*) FROM event WHERE sport='basketball'").fetchone()[0]); c.close()")
           if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/basketball/sports_v45.sqlite; echo "BASKETBALL_PARTITION=PASS events=$events"; else echo "BASKETBALL_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
@@ -123,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -s data/db/sports_v45.sqlite ]; then echo 'VOLLEYBALL_PARTITION=DEFERRED_NO_DB'; exit 0; fi
-          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='volleyball'\").fetchone()[0]); c.close()")
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute("SELECT COUNT(*) FROM event WHERE sport='volleyball'").fetchone()[0]); c.close()")
           if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite; echo "VOLLEYBALL_PARTITION=PASS events=$events"; else echo "VOLLEYBALL_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
@@ -136,7 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -s data/db/sports_v45.sqlite ]; then echo 'UFC_PARTITION=DEFERRED_NO_DB'; exit 0; fi
-          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='ufc'\").fetchone()[0]); c.close()")
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute("SELECT COUNT(*) FROM event WHERE sport='ufc'").fetchone()[0]); c.close()")
           if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/ufc/sports_v45.sqlite; echo "UFC_PARTITION=PASS events=$events"; else echo "UFC_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
@@ -152,7 +154,7 @@ jobs:
             echo 'RIZIN_PARTITION=DEFERRED_NO_DB'
             exit 0
           fi
-          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='rizin'\").fetchone()[0]); c.close()")
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute("SELECT COUNT(*) FROM event WHERE sport='rizin'").fetchone()[0]); c.close()")
           if [ "$events" -gt 0 ]; then
             cp data/db/sports_v45.sqlite hourly-artifacts/rizin/sports_v45.sqlite
             echo "RIZIN_PARTITION=PASS events=$events"
