@@ -101,9 +101,17 @@ def collect_vlr(c,h,pages=180):
             x,rr,_,v=res; m=re.search(r'/match/(\d+)/([^/?#\s)]+)',u); title=clean((m.group(2) if m else '').replace('-',' ')) or u
             for z in re.findall(r'([^\n]{2,80})\s+vs\.?\s+([^\n]{2,80})',x,re.I):title=f'{clean(z[0])} vs {clean(z[1])}';break
             et=None
-            for pat in (r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',r'(\w{3}\s+\d{1,2},\s+\d{4})'):
-                mm=re.search(pat,x)
-                if mm:et=iso(mm.group(1));break
+            # VLR match pages expose an exact Unix match timestamp in the
+            # match-item markup. Prefer it because date-only text is not enough
+            # for PIT replay; never fabricate midnight from a date-only string.
+            tm=re.search(r'data-game-time=["\\'](\\d{9,})["\\']',x)
+            if tm:
+                try: et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
+                except Exception: et=None
+            if et is None:
+                for pat in (r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',):
+                    mm=re.search(pat,x)
+                    if mm: et=iso(mm.group(1));break
             eid=upsert_event(c,'valorant',title,et,'vlr.gg',u,'COMPLETED' if re.search(r'Completed|Final|finished',x,re.I) else 'SCHEDULED')
             names=[clean(q) for q in re.split(r'\s+vs\.?\s+',title,flags=re.I)[:2]] if ' vs ' in title else []
             for i,n in enumerate(names[:2]):
