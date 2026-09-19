@@ -49,10 +49,10 @@ class HTTP:
             return txt,now,dict(r.headers),'jina_reader'
         except Exception:pass
         raise last or RuntimeError(f'GET failed: {url}')
-    def many(self,urls):
+    def many(self,urls,use_cache=True):
         out={}
         with ThreadPoolExecutor(max_workers=self.workers) as ex:
-            fs={ex.submit(self.get,u):u for u in urls}
+            fs={ex.submit(self.get,u,use_cache):u for u in urls}
             for f in as_completed(fs):
                 try:out[fs[f]]=f.result()
                 except Exception:out[fs[f]]=None
@@ -133,7 +133,10 @@ def collect_vlr(c,h,pages=180):
     for page in range(1,pages+1):
         url='https://www.vlr.gg/matches/results'+(f'/?page={page}' if page>1 else '')
         try:
-            html,r,_,via=h.get(url)
+            # VLR result pages are periodically cached as incomplete/blocked HTML;
+            # force-refresh the index pages so historical match links/timestamps are
+            # never inferred from a stale cache entry.
+            html,r,_,via=h.get(url,use_cache=False)
         except Exception:
             continue
         page_times=_vlr_page_times(html)
@@ -141,7 +144,7 @@ def collect_vlr(c,h,pages=180):
         links += [urljoin(url,x) for x in re.findall(r"href=['\"]([^'\"]*/match/\d+[^'\"]*)",html)]
         links=list(dict.fromkeys(links))
         if not links: continue
-        for u,res in h.many(links).items():
+        for u,res in h.many(links,use_cache=False).items():
             if not res: continue
             x,rr,_,v=res
             m=re.search(r'/match/(\d+)/([^/?#\s)]+)',u)
