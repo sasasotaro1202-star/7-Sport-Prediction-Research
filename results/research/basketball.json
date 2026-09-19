@@ -3,5 +3,6 @@
   "status": "DEFERRED",
   "reason": "insufficient_strict_PIT_rows",
   "rows": 0,
-  "features": 0
+  "features": 0,
+  "provenance_rule": "pre-cutoff observed feature or provenance-verified historical outcome required"
 }

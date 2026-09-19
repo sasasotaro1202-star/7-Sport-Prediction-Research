@@ -4,7 +4,7 @@
   "fatal": [],
   "checks": {
     "pit_feature_rows": 0,
-    "replays_checked": 61014,
+    "replays_checked": 61017,
     "same_event_feature_violations": 0,
     "accepted_models_checked": 0,
     "impossible_exact_snapshots": 0
