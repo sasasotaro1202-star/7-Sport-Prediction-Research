@@ -162,10 +162,15 @@ def main():
             # partial/explicit rather than silently treating them as production-ready.
             if s in r['deferred_sports']:
                 continue
+            # Once a sport is explicitly deferred for a proven production-safety reason,
+            # do not apply production coverage invariants to its research-only partition.
+            # The previous ordering accidentally turned deferred VALORANT into a fatal
+            # untimed-events failure even though its own report correctly marked it deferred.
+            if s in r['deferred_sports']:
+                continue
             v=r['coverage'][s]
             if v['events']==0:
-                if s not in r['deferred_sports']:
-                    r['fatal'].append(f'{s}:no_events')
+                r['fatal'].append(f'{s}:no_events')
             elif v['timed_events']!=v['events']:
                 r['fatal'].append(f'{s}:untimed_events_present')
             if v['completed_events'] and v['resolved_outcomes']<v['completed_events']:
