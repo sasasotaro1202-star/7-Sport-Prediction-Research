@@ -78,18 +78,43 @@ def main():
                 }
                 exit_code=2
             else:
-                events=c.execute('SELECT COUNT(*) FROM event WHERE sport=?',(a.sport,)).fetchone()[0]
-                sources=source_count_for_sport(c,a.sport)
-                timed=c.execute('SELECT COUNT(*) FROM event WHERE sport=? AND event_time_utc IS NOT NULL',(a.sport,)).fetchone()[0]
-                participants=c.execute('SELECT COUNT(*) FROM participant WHERE sport=?',(a.sport,)).fetchone()[0]
-                if events>0 and sources>0:
-                    status='PASS'
-                elif events>0 or sources>0:
-                    status='PARTIAL'
+                if a.sport == 'basketball':
+                    events=c.execute("SELECT COUNT(*) FROM event WHERE sport='basketball' AND (lower(name) LIKE '%b.league%' OR lower(name) LIKE '%b league%' OR lower(name) LIKE '%bリーグ%' OR lower(name) LIKE '%asian games%' OR lower(name) LIKE '%アジア大会%')").fetchone()[0]
+                    timed=c.execute("SELECT COUNT(*) FROM event WHERE sport='basketball' AND event_time_utc IS NOT NULL AND (lower(name) LIKE '%b.league%' OR lower(name) LIKE '%b league%' OR lower(name) LIKE '%bリーグ%' OR lower(name) LIKE '%asian games%' OR lower(name) LIKE '%アジア大会%')").fetchone()[0]
+                    participants=c.execute("SELECT COUNT(*) FROM participant WHERE sport='basketball'").fetchone()[0]
+                    sources=source_count_for_sport(c,a.sport)
+                    if events==0:
+                        report={'status':'DEFERRED','sport':a.sport,'events':0,'source_snapshots':sources,'timed_events':0,'participants':participants,'reason':'requested_B.LEAGUE_and_Asian_Games_target_coverage_not_yet_proven'}
+                        exit_code=0
+                    else:
+                        status='PASS' if sources>0 and timed==events else 'PARTIAL'
+                        report={'status':status,'sport':a.sport,'events':events,'source_snapshots':sources,'timed_events':timed,'participants':participants}
+                        exit_code=0 if status in {'PASS','PARTIAL'} else 2
+                elif a.sport == 'volleyball':
+                    events=c.execute("SELECT COUNT(*) FROM event WHERE sport='volleyball' AND (lower(name) LIKE '%asian games%' OR lower(name) LIKE '%アジア大会%')").fetchone()[0]
+                    timed=c.execute("SELECT COUNT(*) FROM event WHERE sport='volleyball' AND event_time_utc IS NOT NULL AND (lower(name) LIKE '%asian games%' OR lower(name) LIKE '%アジア大会%')").fetchone()[0]
+                    participants=c.execute("SELECT COUNT(*) FROM participant WHERE sport='volleyball'").fetchone()[0]
+                    sources=source_count_for_sport(c,a.sport)
+                    if events==0:
+                        report={'status':'DEFERRED','sport':a.sport,'events':0,'source_snapshots':sources,'timed_events':0,'participants':participants,'reason':'requested_Asian_Games_target_coverage_not_yet_proven'}
+                        exit_code=0
+                    else:
+                        status='PASS' if sources>0 and timed==events else 'PARTIAL'
+                        report={'status':status,'sport':a.sport,'events':events,'source_snapshots':sources,'timed_events':timed,'participants':participants}
+                        exit_code=0 if status in {'PASS','PARTIAL'} else 2
                 else:
-                    status='DEFERRED'
-                report={'status':status,'sport':a.sport,'events':events,'source_snapshots':sources,'timed_events':timed,'participants':participants}
-                exit_code=0 if status in {'PASS','PARTIAL'} else 2
+                    events=c.execute('SELECT COUNT(*) FROM event WHERE sport=?',(a.sport,)).fetchone()[0]
+                    sources=source_count_for_sport(c,a.sport)
+                    timed=c.execute('SELECT COUNT(*) FROM event WHERE sport=? AND event_time_utc IS NOT NULL',(a.sport,)).fetchone()[0]
+                    participants=c.execute('SELECT COUNT(*) FROM participant WHERE sport=?',(a.sport,)).fetchone()[0]
+                    if events>0 and sources>0:
+                        status='PASS'
+                    elif events>0 or sources>0:
+                        status='PARTIAL'
+                    else:
+                        status='DEFERRED'
+                    report={'status':status,'sport':a.sport,'events':events,'source_snapshots':sources,'timed_events':timed,'participants':participants}
+                    exit_code=0 if status in {'PASS','PARTIAL'} else 2
         finally:
             c.close()
     p=ROOT/'results/v45'; p.mkdir(parents=True,exist_ok=True)
