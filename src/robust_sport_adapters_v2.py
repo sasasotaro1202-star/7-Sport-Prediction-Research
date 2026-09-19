@@ -87,8 +87,48 @@ def snapshot(c,sport,source,url,retrieved,et,text,via):
     try:c.execute("UPDATE source_snapshot SET provenance_json=?, source_available_at_utc=? WHERE source_url=?",(json.dumps({'sport':sport,'retrieval_route':via,'canonical_url':url,'parser':'v4.5.12-robust-adapter-v3','publication_evidence':'explicit_page_metadata' if published else None},ensure_ascii=False),published,url))
     except Exception:pass
 
+def _vlr_page_times(html):
+    """Extract explicit VLR Unix timestamps from result-page match containers."""
+    out={}
+    try:
+        soup=BeautifulSoup(html,'lxml')
+        for a in soup.find_all('a',href=True):
+            m=re.search(r'/match/(\d+)',a.get('href',''))
+            if not m: continue
+            mid=m.group(1)
+            node=a
+            found=None
+            for _ in range(6):
+                if node is None: break
+                for attr in ('data-game-time','data-utc-ts'):
+                    v=node.get(attr) if hasattr(node,'get') else None
+                    if v and str(v).isdigit() and len(str(v))>=9:
+                        found=str(v); break
+                if found: break
+                if hasattr(node,'find') and node.find(attrs={'data-game-time':True}):
+                    z=node.find(attrs={'data-game-time':True}).get('data-game-time')
+                    if z and str(z).isdigit() and len(str(z))>=9: found=str(z); break
+                if hasattr(node,'find') and node.find(attrs={'data-utc-ts':True}):
+                    z=node.find(attrs={'data-utc-ts':True}).get('data-utc-ts')
+                    if z and str(z).isdigit() and len(str(z))>=9: found=str(z); break
+                node=node.parent
+            if found:
+                try: out[mid]=datetime.fromtimestamp(int(found),tz=timezone.utc).isoformat()
+                except Exception: pass
+    except Exception:
+        pass
+    if out: return out
+    # Attribute-order independent fallback for cached/minified HTML.
+    for m in re.finditer(r'/match/(\d+)',html or ''):
+        mid=m.group(1); chunk=(html[max(0,m.start()-1200):m.end()+1200])
+        tm=re.search(r'data-(?:game-time|utc-ts)\\s*=\\s*["\']?(\\d{9,})',chunk,re.I)
+        if tm:
+            try: out[mid]=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
+            except Exception: pass
+    return out
+
 def collect_vlr(c,h,pages=180):
-    """Collect VLR historical results and repair legacy untimed rows by URL."""
+    """Collect VLR historical results with explicit page timestamps and legacy repair."""
     total=0
     for page in range(1,pages+1):
         url='https://www.vlr.gg/matches/results'+(f'/?page={page}' if page>1 else '')
@@ -96,56 +136,47 @@ def collect_vlr(c,h,pages=180):
             html,r,_,via=h.get(url)
         except Exception:
             continue
-        links=list(dict.fromkeys(re.findall(r'https?://www\.vlr\.gg/match/\d+(?:/[^\s)"<>]+)?',html)))
-        links += [urljoin(url,x) for x in re.findall(r"href=['\"]([^'\"]*/match/\d+[^'\"]*)",html)]
+        page_times=_vlr_page_times(html)
+        links=list(dict.fromkeys(re.findall(r'https?://www\\.vlr\\.gg/match/\\d+(?:/[^\\s)"<>]+)?',html)))
+        links += [urljoin(url,x) for x in re.findall(r"href=['\"]([^'\"]*/match/\\d+[^'\"]*)",html)]
         links=list(dict.fromkeys(links))
-        if not links:
-            continue
+        if not links: continue
         for u,res in h.many(links).items():
-            if not res:
-                continue
+            if not res: continue
             x,rr,_,v=res
-            m=re.search(r'/match/(\d+)/([^/?#\s)]+)',u)
+            m=re.search(r'/match/(\\d+)/([^/?#\\s)]+)',u)
+            mid=m.group(1) if m else None
             title=clean((m.group(2) if m else '').replace('-',' ')) or u
-            for z in re.findall(r'([^\n]{2,80})\s+vs\.?\s+([^\n]{2,80})',x,re.I):
-                title=f'{clean(z[0])} vs {clean(z[1])}'
-                break
-            et=None
-            tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"](\d{9,})['\"]",x)
-            if tm:
-                try:
-                    et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
-                except Exception:
-                    et=None
+            for z in re.findall(r'([^\\n]{2,80})\\s+vs\\.?\\s+([^\\n]{2,80})',x,re.I):
+                title=f'{clean(z[0])} vs {clean(z[1])}'; break
+            et=page_times.get(mid)
             if et is None:
-                mm=re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',x)
-                if mm:
-                    et=iso(mm.group(1))
-            existing=c.execute("SELECT event_id FROM event WHERE sport='valorant' AND source='vlr.gg' AND source_url=? ORDER BY updated_at DESC LIMIT 1",(u,)).fetchone()
+                tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"]?(\\d{9,})['\"]?",x)
+                if tm:
+                    try: et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
+                    except Exception: et=None
+            if et is None:
+                mm=re.search(r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',x)
+                if mm: et=iso(mm.group(1))
+            existing=c.execute("SELECT event_id,source_url FROM event WHERE sport='valorant' AND source='vlr.gg' AND (source_url=? OR source_url LIKE ?) ORDER BY updated_at DESC LIMIT 1",(u,f'%/{mid}/%')).fetchone() if mid else None
             if existing and et:
                 eid=existing[0]
-                c.execute("UPDATE event SET event_time_utc=?, status='COMPLETED', updated_at=? WHERE event_id=?",(et,utcnow(),eid))
+                c.execute("UPDATE event SET event_time_utc=?, status='COMPLETED', updated_at=?, source_url=? WHERE event_id=?",(et,utcnow(),u,eid))
             else:
-                eid=upsert_event(c,'valorant',title,et,'vlr.gg',u,'COMPLETED')
-            names=[clean(q) for q in re.split(r'\s+vs\.?\s+',title,flags=re.I)[:2]] if ' vs ' in title else []
+                eid=upsert_event(c, 'valorant', title, et, 'vlr.gg', u, 'COMPLETED')
+            names=[clean(q) for q in re.split(r'\\s+vs\\.?\\s+',title,flags=re.I)[:2]] if ' vs ' in title else []
             for i,n in enumerate(names[:2]):
                 if len(n)>1:
-                    pid=upsert_participant(c,'valorant',n,'team')
-                    upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
+                    pid=upsert_participant(c,'valorant',n,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
             snapshot(c,'valorant','vlr.gg',u,rr,et,x,v)
-            if et:
-                c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=?",(et,u))
+            if et: c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=?",(et,u))
             total+=1
         c.commit()
-    # Repair ALL legacy VLR rows already in the canonical DB that lack event_time_utc.
-    # This bypasses the limited recent-results page window and uses only explicit VLR
-    # detail-page timestamps, preserving the existing provenance/cache path.
+    # Final detail-page repair for any rows that remain untimed. This is deliberately
+    # after the result-page pass so the common case is resolved without thousands
+    # of extra detail requests.
     rows=c.execute("SELECT event_id,source_url FROM event WHERE sport='valorant' AND source='vlr.gg' AND (event_time_utc IS NULL OR TRIM(event_time_utc)='') AND source_url IS NOT NULL ORDER BY event_id").fetchall()
-    by_url={u:eid for eid,u in rows}
-    # Legacy cache entries can predate the timestamp parser. Force-refresh these
-    # detail pages once so stale cached HTML cannot keep rows untimed forever.
-    # Normalize the historical /match/<id>/slug form to VLR's canonical /<id>/slug route.
-    repair_urls={orig:re.sub(r'/match/(\d+)(?=/|$)',r'/\1',orig) for _,orig in rows}
+    by_url={u:eid for eid,u in rows}; repair_urls={orig:re.sub(r'/match/(\\d+)(?=/|$)',r'/\\1',orig) for _,orig in rows}
     fetched={}
     with ThreadPoolExecutor(max_workers=h.workers) as ex:
         fs={ex.submit(h.get,fu,False):orig for orig,fu in repair_urls.items()}
@@ -155,31 +186,25 @@ def collect_vlr(c,h,pages=180):
     repaired=0
     for u in repair_urls:
         res=fetched.get(u)
-        if not res:
-            continue
-        x,rr,_,v=res
-        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"]?(\d{9,})['\"]?",x)
-        et=None
+        if not res: continue
+        x,rr,_,v=res; et=None
+        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"]?(\\d{9,})['\"]?",x)
         if tm:
-            try:
-                et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
-            except Exception:
-                et=None
+            try: et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
+            except Exception: et=None
         if et is None:
-            mm=re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',x)
-            if mm:
-                et=iso(mm.group(1))
+            mm=re.search(r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',x)
+            if mm: et=iso(mm.group(1))
         eid=by_url.get(u)
-        if not eid or not et:
-            continue
-        c.execute("UPDATE event SET event_time_utc=?, status='COMPLETED', updated_at=? WHERE event_id=?",(et,utcnow(),eid))
-        snapshot(c,'valorant','vlr.gg',u,rr,et,x,v)
-        c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=?",(et,u))
-        repaired+=1
-        if repaired % 250 == 0:
-            c.commit()
+        if eid and et:
+            c.execute("UPDATE event SET event_time_utc=?,status='COMPLETED',updated_at=? WHERE event_id=?",(et,utcnow(),eid))
+            snapshot(c,'valorant','vlr.gg',u,rr,et,x,v)
+            c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=?",(et,u)); repaired+=1
+            if repaired%250==0: c.commit()
     c.commit()
-    return total + repaired
+    remaining=c.execute("SELECT COUNT(*) FROM event WHERE sport='valorant' AND (event_time_utc IS NULL OR TRIM(event_time_utc)='')").fetchone()[0]
+    print(json.dumps({'vlr_collected':total,'vlr_repaired':repaired,'vlr_untimed_remaining':remaining}))
+    return total+repaired
 def collect_ufc_dataset(c,h):
     base='https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-07-07/ufc_fights.csv'
     try:raw,r,_,via=h.get(base)
