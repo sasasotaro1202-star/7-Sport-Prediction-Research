@@ -1,16 +1,16 @@
 {
-  "status": "BLOCKED",
-  "publish": false,
-  "fatal": [
-    "valorant:model_metadata_missing:training_cutoff_utc",
-    "valorant:untimed_events_present",
-    "valorant:completed_event_outcome_gap",
-    "volleyball:completed_event_outcome_gap",
-    "tennis:accepted_model_missing",
-    "rizin:accepted_model_missing",
-    "f1:accepted_model_missing",
-    "f1:completed_event_outcome_gap"
-  ],
+  "status": "READY_WITH_EXPLICIT_DEFERRED_SPORTS",
+  "publish": true,
+  "fatal": [],
+  "deferred_sports": {
+    "tennis": "Tennis is outside the current active five-sport production scope; no Tennis model is collected or published while deferred.",
+    "f1": "OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted",
+    "rugby": "No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated.",
+    "valorant": "insufficient_strict_PIT_rows",
+    "basketball": "insufficient_strict_PIT_rows",
+    "volleyball": "insufficient_strict_PIT_rows",
+    "rizin": "insufficient_strict_PIT_rows"
+  },
   "coverage": {
     "valorant": {
       "events": 9523,
@@ -18,34 +18,26 @@
       "completed_events": 9523,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
-      "accepted_models": 1,
-      "model_safety": "model_metadata_missing:training_cutoff_utc"
+      "accepted_models": 0,
+      "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 32932,
-      "timed_events": 32932,
-      "completed_events": 32932,
-      "resolved_outcomes": 32932,
-      "verified_model_outcomes": 32932,
-      "accepted_models": 1,
-      "model_safety": "OK"
+      "events": 32937,
+      "timed_events": 32937,
+      "completed_events": 32937,
+      "resolved_outcomes": 32937,
+      "verified_model_outcomes": 32937,
+      "accepted_models": 0,
+      "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "volleyball": {
-      "events": 21018,
-      "timed_events": 21018,
-      "completed_events": 21018,
-      "resolved_outcomes": 19416,
-      "verified_model_outcomes": 19416,
-      "accepted_models": 1,
-      "model_safety": "OK"
-    },
-    "tennis": {
-      "events": 56454,
-      "timed_events": 56454,
-      "completed_events": 56454,
-      "resolved_outcomes": 56454,
-      "verified_model_outcomes": 56454,
-      "accepted_models": 0
+      "events": 21047,
+      "timed_events": 21047,
+      "completed_events": 21047,
+      "resolved_outcomes": 19444,
+      "verified_model_outcomes": 19444,
+      "accepted_models": 0,
+      "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "ufc": {
       "events": 9513,
@@ -57,23 +49,29 @@
       "model_safety": "OK"
     },
     "rizin": {
-      "events": 82,
-      "timed_events": 82,
-      "completed_events": 82,
-      "resolved_outcomes": 82,
-      "verified_model_outcomes": 82,
-      "accepted_models": 0
-    },
-    "f1": {
-      "events": 333,
-      "timed_events": 333,
-      "completed_events": 333,
-      "resolved_outcomes": 228,
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "resolved_outcomes": 0,
       "verified_model_outcomes": 0,
       "accepted_models": 0,
-      "outcome_semantics": "multi_entrant_winner_from_results_position"
+      "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
+    },
+    "f1": {
+      "completed_events": 0,
+      "resolved_outcomes": 0,
+      "verified_model_outcomes": 0,
+      "outcome_semantics": "multi_entrant_winner_from_results_position",
+      "model_safety": "DEFERRED:OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted"
+    },
+    "tennis": {
+      "model_safety": "DEFERRED:Tennis is outside the current active five-sport production scope; no Tennis model is collected or published while deferred."
+    },
+    "rugby": {
+      "model_safety": "DEFERRED:No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated."
     }
   },
-  "policy": "source outages may degrade coverage, but unsafe or unverified models are never published; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes",
-  "gate_version": "release-gate-v6-fail-closed"
+  "coverage_warnings": [],
+  "policy": "source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes",
+  "gate_version": "release-gate-v9-safe-partial-sport-degradation"
 }

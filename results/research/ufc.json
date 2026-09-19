@@ -4,10 +4,14 @@
   "models": [
     "random_forest"
   ],
-  "model_version": "44604118e660a30f",
+  "model_version": "3b921697bc5b56c2",
+  "feature_version": "strict-pit-v13-bounded-ensemble-frozen-holdout",
   "training_rows": 7293,
   "frozen_holdout_rows": 2058,
-  "features": 9,
+  "features": 6,
+  "training_cutoff_utc": "2022-10-01T00:00:00+00:00",
+  "git_commit_sha": "37c66c94b7e75d28bbfce244e36c96dc385c906d",
+  "artifact_path": "models/research/ufc_current.joblib",
   "selection_oos": {
     "logistic": {
       "logloss": 0.681079912891985,
@@ -38,6 +42,50 @@
       "n": 2553
     }
   },
+  "ensemble_selection": {
+    "random_forest": {
+      "logloss": 0.6810785571986292,
+      "brier": 0.24398616898940098,
+      "accuracy": 0.5797101449275363,
+      "ece": 0.00164940871046531,
+      "n": 2553
+    },
+    "extra_trees": {
+      "logloss": 0.681078557211991,
+      "brier": 0.24398616899562975,
+      "accuracy": 0.5797101449275363,
+      "ece": 0.0016494082299302582,
+      "n": 2553
+    },
+    "logistic": {
+      "logloss": 0.681079912891985,
+      "brier": 0.24398685552956725,
+      "accuracy": 0.5797101449275363,
+      "ece": 0.0016995126414022092,
+      "n": 2553
+    },
+    "random_forest+extra_trees": {
+      "logloss": 0.6810785572053101,
+      "brier": 0.24398616899251535,
+      "accuracy": 0.5797101449275363,
+      "ece": 0.0016494084701978021,
+      "n": 2553
+    },
+    "random_forest+logistic": {
+      "logloss": 0.681079232486923,
+      "brier": 0.24398651101418645,
+      "accuracy": 0.5797101449275363,
+      "ece": 0.0016744606759337955,
+      "n": 2553
+    },
+    "extra_trees+logistic": {
+      "logloss": 0.6810792324935601,
+      "brier": 0.24398651101727953,
+      "accuracy": 0.5797101449275363,
+      "ece": 0.0016744604356662516,
+      "n": 2553
+    }
+  },
   "holdout_metrics": {
     "logloss": 0.6893330710854134,
     "brier": 0.24806468770283832,
@@ -48,5 +96,6 @@
       "random_forest"
     ]
   },
+  "holdout_frozen": true,
   "production_fit_excludes_holdout": true
 }

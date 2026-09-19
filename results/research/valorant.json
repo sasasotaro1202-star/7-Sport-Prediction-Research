@@ -1,52 +1,7 @@
 {
   "sport": "valorant",
-  "status": "TRAINED",
-  "models": [
-    "random_forest"
-  ],
-  "model_version": "0a31adc530e81e2b",
-  "training_rows": 7265,
-  "frozen_holdout_rows": 2050,
-  "features": 9,
-  "selection_oos": {
-    "logistic": {
-      "logloss": 0.6793070350476162,
-      "brier": 0.24309559652284535,
-      "accuracy": 0.5863153755407,
-      "ece": 0.005853004138789713,
-      "n": 2543
-    },
-    "extra_trees": {
-      "logloss": 0.6793052024085431,
-      "brier": 0.24309472207360974,
-      "accuracy": 0.5863153755407,
-      "ece": 0.005834324465707362,
-      "n": 2543
-    },
-    "random_forest": {
-      "logloss": 0.6793052023765987,
-      "brier": 0.24309472205827565,
-      "accuracy": 0.5863153755407,
-      "ece": 0.005834324745668379,
-      "n": 2543
-    },
-    "hist_gb": {
-      "logloss": 0.6793068464257088,
-      "brier": 0.24309550814331163,
-      "accuracy": 0.5863153755407,
-      "ece": 0.005853006843268981,
-      "n": 2543
-    }
-  },
-  "holdout_metrics": {
-    "logloss": 0.6805270931338158,
-    "brier": 0.24371578325434623,
-    "accuracy": 0.5795121951219512,
-    "ece": 0.006162177168615168,
-    "n": 2050,
-    "models": [
-      "random_forest"
-    ]
-  },
-  "production_fit_excludes_holdout": true
+  "status": "DEFERRED",
+  "reason": "insufficient_strict_PIT_rows",
+  "rows": 0,
+  "features": 0
 }
