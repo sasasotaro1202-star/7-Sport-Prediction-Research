@@ -164,25 +164,6 @@ jobs:
         run: rm -f data/db/sports_v45.sqlite
       - name: Deferred scope note
         run: echo 'F1 and Rugby are intentionally deferred by project scope; no collection partition is required.'
-      - name: Clear merge working database
-        uses: actions/cache/restore@v4
-        with:
-          path: data/db
-          key: eight-sport-db-v4-rugby-${{ github.run_id }}
-      - name: Materialize Rugby partition only when coverage is actually present
-        run: |
-          set -euo pipefail
-          if [ ! -s data/db/rugby_v45.sqlite ]; then
-            echo 'RUGBY_PARTITION=DEFERRED_NO_DB'
-            exit 0
-          fi
-          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/rugby_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='rugby'\").fetchone()[0]); c.close()")
-          if [ "$events" -gt 0 ]; then
-            cp data/db/rugby_v45.sqlite hourly-artifacts/rugby/sports_v45.sqlite
-            echo "RUGBY_PARTITION=PASS events=$events"
-          else
-            echo "RUGBY_PARTITION=DEFERRED events=$events"
-          fi
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
@@ -199,8 +180,6 @@ jobs:
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
       - name: Robust adapters
         run: python -m src.robust_sport_adapters_v4
-      - name: F1 integrity
-        run: python -m src.f1_integrity_cleanup --vacuum
       - name: Outcomes
         run: python -m src.outcome_backfill
       - name: Strict PIT replay
