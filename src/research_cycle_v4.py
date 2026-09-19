@@ -41,7 +41,7 @@ def pool():
 def pairmap(c,s):
  d={}
  for eid,t,p,side,comp in c.execute("SELECT e.event_id,e.event_time_utc,ep.participant_id,ep.side,e.competition_id FROM event e JOIN event_participant ep ON ep.event_id=e.event_id WHERE e.sport=? AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL ORDER BY e.event_time_utc,e.event_id,ep.side",(s,)).fetchall():
-  if not target_event(s,'',comp): continue
+  if not t or not target_event(s,'',comp): continue
   d.setdefault(eid,{'time':t})[side]=p
  return d
 def outcome_maps(c,s,pairs):
