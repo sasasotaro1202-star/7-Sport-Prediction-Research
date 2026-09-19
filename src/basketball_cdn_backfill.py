@@ -49,9 +49,25 @@ def clean(x):
 
 
 def get(url, timeout=30):
-    r = requests.get(url, headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"}, timeout=timeout)
-    r.raise_for_status()
-    return r.text, utcnow(), r.headers
+    # Network/transient failures must not silently erase an otherwise valid
+    # historical partition. Retry boundedly with backoff while preserving the
+    # original retrieval timestamp as the provenance observation time.
+    last = None
+    for attempt in range(4):
+        try:
+            r = requests.get(
+                url,
+                headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"},
+                timeout=timeout,
+            )
+            r.raise_for_status()
+            return r.text, utcnow(), r.headers
+        except (requests.RequestException, TimeoutError) as exc:
+            last = exc
+            if attempt < 3:
+                import time
+                time.sleep(1.5 * (2 ** attempt))
+    raise last
 
 
 def parse_schedule_page(c, html, retrieved, url, season_year, month):
