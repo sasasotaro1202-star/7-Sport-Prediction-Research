@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import re,sys
 ROOT=Path(__file__).resolve().parents[1];FAILURES=[]
-EXPECTED_CORE={'valorant','basketball','volleyball','tennis','ufc','rizin'}
+EXPECTED_CORE={'valorant','basketball','volleyball','ufc','rizin'}
 
 def require(condition,message):
     if not condition: FAILURES.append(message)
@@ -16,20 +16,20 @@ def main():
     m=re.search(r"SPORTS=\(([^)]*)\)",research)
     actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
     require(EXPECTED_CORE<=actual,f'research engine missing sports: {sorted(EXPECTED_CORE-actual)}')
-    require(len(actual)==6,f'research engine active sports count is {len(actual)}, expected exactly 6')
+    require(len(actual)==5,f'research engine active sports count is {len(actual)}, expected exactly 5')
     require('matrix:' in workflow,'canonical workflow matrix missing')
     for sport in sorted(EXPECTED_CORE):
         require(re.search(rf'(?m)^\s*[-] {sport}$',workflow) is not None or sport in workflow,
                 f'canonical workflow missing sport token: {sport}')
     require('max-parallel: 8' in workflow or 'max-parallel: 6' in workflow,'canonical workflow parallelism declaration missing')
-    require('src.rugby_production' in workflow,'canonical workflow missing rugby collector')
-    require('--max-pages 150' in workflow,'canonical workflow missing bounded rugby collection')
-    require("data/db/rugby_coverage.json" in rugby,'rugby collector does not persist cached coverage state')
+    
     require('Eight Sport v4.5.15 Production' in workflow,'canonical workflow name is not eight-sport')
     require('seven canonical sports' not in workflow.lower(),'canonical workflow contains stale seven-sport wording')
     require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
     require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
     require('8-sport' in readme.lower(),'README does not explicitly declare eight-sport scope')
+    require('Tennis is currently deferred' in readme,'README does not declare Tennis deferred')
+    require('F1 and Rugby are currently deferred' in readme,'README does not declare F1/Rugby deferred')
 
     compact=research.replace(' ','')
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
@@ -44,8 +44,7 @@ def main():
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
     cache_guard=(ROOT/'src/partition_cache_guard.py').read_text(encoding='utf-8')
-    require('"rugby"' in cache_guard,'partition cache guard does not cover rugby')
-    require('restore-keys:' in workflow and 'eight-sport-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
+        require('restore-keys:' in workflow and 'eight-sport-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
     require('src.cache_health' in workflow and '--repair' in workflow,'production workflow does not validate/repair restored cache before collection')
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
