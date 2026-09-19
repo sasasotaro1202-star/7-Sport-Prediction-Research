@@ -15,8 +15,10 @@ def utc():return datetime.now(timezone.utc).isoformat()
 def h(x):return hashlib.sha256(json.dumps(x,sort_keys=True,default=str).encode()).hexdigest()[:16]
 def target_event(s,name,competition_id):
  n=(name or '').lower(); c=(competition_id or '').lower()
- if s=='basketball': return any(k in n or k in c for k in ('b.league','b league','bリーグ','asian games','アジア大会'))
- if s=='volleyball': return any(k in n or k in c for k in ('asian games','アジア大会'))
+ if s=='basketball':
+  return any(k in n or k in c for k in ('b.league','b league','bリーグ','asian games','アジア大会'))
+ if s=='volleyball':
+  return any(k in n or k in c for k in ('asian games','アジア大会'))
  return True
 def ece(y,p,b=10):
  y=np.asarray(y);p=np.asarray(p);z=0
