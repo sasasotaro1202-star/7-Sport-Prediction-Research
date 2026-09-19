@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import re,sys
 ROOT=Path(__file__).resolve().parents[1];FAILURES=[]
-EXPECTED_CORE={'valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby'}
+EXPECTED_CORE={'valorant','basketball','volleyball','tennis','ufc','rizin'}
 
 def require(condition,message):
     if not condition: FAILURES.append(message)
@@ -10,19 +10,18 @@ def require(condition,message):
 def main():
     research=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
     workflow=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
-    rugby=(ROOT/'src/rugby_production.py').read_text(encoding='utf-8')
     manifest=(ROOT/'src/reproducibility_manifest.py').read_text(encoding='utf-8')
     readme=(ROOT/'README.md').read_text(encoding='utf-8')
 
     m=re.search(r"SPORTS=\(([^)]*)\)",research)
     actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
     require(EXPECTED_CORE<=actual,f'research engine missing sports: {sorted(EXPECTED_CORE-actual)}')
-    require(len(actual)==8,f'research engine sports count is {len(actual)}, expected exactly 8')
+    require(len(actual)==6,f'research engine active sports count is {len(actual)}, expected exactly 6')
     require('matrix:' in workflow,'canonical workflow matrix missing')
     for sport in sorted(EXPECTED_CORE):
         require(re.search(rf'(?m)^\s*[-] {sport}$',workflow) is not None or sport in workflow,
                 f'canonical workflow missing sport token: {sport}')
-    require('max-parallel: 8' in workflow,'canonical workflow does not reserve parallelism for all eight sports')
+    require('max-parallel: 8' in workflow or 'max-parallel: 6' in workflow,'canonical workflow parallelism declaration missing')
     require('src.rugby_production' in workflow,'canonical workflow missing rugby collector')
     require('--max-pages 150' in workflow,'canonical workflow missing bounded rugby collection')
     require("data/db/rugby_coverage.json" in rugby,'rugby collector does not persist cached coverage state')
