@@ -64,23 +64,30 @@ def build(c,s):
   while j<len(hist) and hist[j][1]<t:
    _,_,a,b,o=hist[j];ra=ratings.get(a,1500.);rb=ratings.get(b,1500.);exp=1/(1+10**((rb-ra)/400));act=1 if o=='A' else 0;ratings[a]=ra+24*(act-exp);ratings[b]=rb+24*((1-act)-(1-exp));counts[a]=counts.get(a,0)+1;counts[b]=counts.get(b,0)+1;last[a]=hist[j][1];last[b]=hist[j][1];j+=1
   if eid not in labels:continue
-  p=pairs[eid];f={}
+  p=pairs[eid];f={};strict_evidence=0
+  # Do not count default Elo/median-imputation rows as strict PIT evidence.
+  # A row must contain at least one feature value whose source was observable
+  # at least 60 minutes before the prediction cutoff, or a provenance-verified
+  # historical outcome used to construct the rolling state.
   for side,pid in (('A',p['A']),('B',p['B'])):
    f[f'{side}__elo']=ratings.get(pid,1500.);f[f'{side}__history_n']=counts.get(pid,0);f[f'{side}__rest_days']=((datetime.fromisoformat(t.replace('Z','+00:00'))-datetime.fromisoformat(last[pid].replace('Z','+00:00'))).total_seconds()/86400) if pid in last else np.nan
    for st in cols:
-    v=c.execute("""SELECT ms.value_num FROM match_stats ms JOIN event pe ON pe.event_id=ms.event_id JOIN source_snapshot ss ON ss.source=ms.source AND ss.source_url=ms.source_url WHERE ms.sport=? AND ms.participant_id=? AND ms.stat_name=? AND pe.event_time_utc<? AND ms.value_num IS NOT NULL AND ms.effective_at_utc IS NOT NULL AND ms.effective_at_utc<=datetime(?,'-60 minutes') AND ss.availability_status='EXACT' AND ss.source_available_at_utc<=datetime(?,'-60 minutes') ORDER BY pe.event_time_utc DESC,ms.stat_id DESC LIMIT 20""",(s,pid,st,t,t,t)).fetchall();x=np.array([z[0] for z in v],float);w=np.exp(-np.arange(len(x))/5) if len(x) else np.array([]);f[f'{side}__{st}__n']=len(x);f[f'{side}__{st}__mean']=float(x.mean()) if len(x) else np.nan;f[f'{side}__{st}__last']=float(x[0]) if len(x) else np.nan;f[f'{side}__{st}__std']=float(x.std()) if len(x)>1 else np.nan;f[f'{side}__{st}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan;f[f'{side}__{st}__ewma5']=float((w*x).sum()/w.sum()) if len(x) else np.nan
+    v=c.execute("""SELECT ms.value_num FROM match_stats ms JOIN event pe ON pe.event_id=ms.event_id JOIN source_snapshot ss ON ss.source=ms.source AND ss.source_url=ms.source_url WHERE ms.sport=? AND ms.participant_id=? AND ms.stat_name=? AND pe.event_time_utc<? AND ms.value_num IS NOT NULL AND ms.effective_at_utc IS NOT NULL AND ms.effective_at_utc<=datetime(?,'-60 minutes') AND ss.availability_status='EXACT' AND ss.source_available_at_utc<=datetime(?,'-60 minutes') ORDER BY pe.event_time_utc DESC,ms.stat_id DESC LIMIT 20""",(s,pid,st,t,t,t)).fetchall();strict_evidence += len(v);x=np.array([z[0] for z in v],float);w=np.exp(-np.arange(len(x))/5) if len(x) else np.array([]);f[f'{side}__{st}__n']=len(x);f[f'{side}__{st}__mean']=float(x.mean()) if len(x) else np.nan;f[f'{side}__{st}__last']=float(x[0]) if len(x) else np.nan;f[f'{side}__{st}__std']=float(x.std()) if len(x)>1 else np.nan;f[f'{side}__{st}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan;f[f'{side}__{st}__ewma5']=float((w*x).sum()/w.sum()) if len(x) else np.nan
   for k in ('elo','history_n','rest_days'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for st in cols:
    for suf in ('mean','last','std','trend','ewma5','n'):
     a=f[f'A__{st}__{suf}'];b=f[f'B__{st}__{suf}'];f[f'D__{st}__{suf}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
+  prior_hist=any(hh[1] < t and (hh[2] in (p['A'],p['B']) or hh[3] in (p['A'],p['B'])) for hh in hist)
+  if strict_evidence == 0 and not prior_hist:
+   continue
   rows.append((eid,t,0 if labels[eid]=='A' else 1,f))
  return rows,sorted({k for _,_,_,f in rows for k in f})
 def metric(y,p):
  y=np.asarray(y,int);p=np.asarray(p,float);return {'logloss':float(log_loss(y,np.c_[1-p,p],labels=[0,1])),'brier':float(brier_score_loss(y,p)),'accuracy':float(accuracy_score(y,p>=.5)),'ece':float(ece(y,p)),'n':len(y)}
 def train(s):
  c=sqlite3.connect(DB);rows,fs=build(c,s)
- if len(rows)<100:return {'sport':s,'status':'DEFERRED','reason':'insufficient_strict_PIT_training_rows','rows':len(rows),'features':len(fs)}
+ if len(rows)<100:return {'sport':s,'status':'DEFERRED','reason':'insufficient_strict_PIT_training_rows','rows':len(rows),'features':len(fs),'provenance_rule':'pre-cutoff observed feature or provenance-verified historical outcome required'}
  X=np.array([[r[3].get(f,np.nan) for f in fs] for r in rows]);y=np.array([r[2] for r in rows]);sel=max(60,int(len(rows)*.78))
  if len(rows)-sel<20 or len(np.unique(y[sel:]))<2:return {'sport':s,'status':'DEFERRED','reason':'insufficient_locked_holdout','rows':len(rows),'holdout_rows':len(rows)-sel}
  res=[];start=max(50,int(sel*.70));step=max(10,min(30,sel-start))
@@ -102,7 +109,7 @@ def train(s):
  if old:
   tol=max(.002,.01*float(old['logloss']));ok=hold['logloss']<=float(old['logloss'])-tol;gate=f'new={hold["logloss"]:.6f};old={float(old["logloss"]):.6f};required={tol:.6f}'
  if not ok:return {'sport':s,'status':'REJECTED_CHALLENGER','reason':gate,'holdout_metrics':hold,'selection':res[0]}
- final=pool()[best];final.fit(X[:sel],y[:sel]);ver=h({'sport':s,'features':fs,'model':best,'rows':len(rows),'last':rows[-1][1],'holdout':hold});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);artifact=MODELS/f'{s}_current.joblib';joblib.dump({'model':final,'features':fs,'sport':s,'model_version':ver,'training_rows':len(rows)},artifact);sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v11-elo-history-locked-holdout','training_cutoff_utc':rows[-1][1],'git_commit_sha':sha,'artifact_path':str(artifact.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','holdout_frozen':True,'production_fit_excludes_holdout':True,'selection_gate':gate,'selection_metrics':res,'holdout_metrics':hold};c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[-1][1],h([(r[0],r[1],r[2]) for r in rows]),sha,str(artifact.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit();c.close();out={'sport':s,'status':'TRAINED','model':best,'model_version':ver,'training_rows':len(rows),'features':len(fs),'selection_metrics':res,'holdout_metrics':hold,'selection_gate':gate};(RESULTS/f'{s}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2));return out
+ final=pool()[best];final.fit(X[:sel],y[:sel]);ver=h({'sport':s,'features':fs,'model':best,'rows':len(rows),'last':rows[-1][1],'holdout':hold});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);artifact=MODELS/f'{s}_current.joblib';joblib.dump({'model':final,'features':fs,'sport':s,'model_version':ver,'training_rows':len(rows)},artifact);sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v12-provenance-eligible-rows-locked-holdout','training_cutoff_utc':rows[-1][1],'git_commit_sha':sha,'artifact_path':str(artifact.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','holdout_frozen':True,'production_fit_excludes_holdout':True,'selection_gate':gate,'selection_metrics':res,'holdout_metrics':hold};c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[-1][1],h([(r[0],r[1],r[2]) for r in rows]),sha,str(artifact.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit();c.close();out={'sport':s,'status':'TRAINED','model':best,'model_version':ver,'training_rows':len(rows),'features':len(fs),'selection_metrics':res,'holdout_metrics':hold,'selection_gate':gate};(RESULTS/f'{s}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2));return out
 def main():
  import argparse
  a=argparse.ArgumentParser();a.add_argument('--sport',choices=SPORTS);x=a.parse_args();print(json.dumps([train(s) for s in ([x.sport] if x.sport else SPORTS)],ensure_ascii=False,indent=2))
