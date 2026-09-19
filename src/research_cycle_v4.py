@@ -13,6 +13,11 @@ ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MOD
 POLICY={'valorant':('rating','acs','adr','kast','k_d','fk_fd'),'basketball':('points','rebounds','assists','steals','blocks','turnovers','fieldGoalPct','threePointPct','freeThrowPct'),'volleyball':('attack','serve','receive','block','error','sideout'),'tennis':('ace','double_fault','first_serve','first_serve_points_won','break_points_saved','break_points_won'),'ufc':('sig_str','takedown','td_pct','sub_attempts','control_time'),'rizin':('sig_str','takedown','td_pct','sub_attempts','control_time'),'f1':(),'rugby':()}
 def utc():return datetime.now(timezone.utc).isoformat()
 def h(x):return hashlib.sha256(json.dumps(x,sort_keys=True,default=str).encode()).hexdigest()[:16]
+def target_event(s,name,competition_id):
+ n=(name or '').lower(); c=(competition_id or '').lower()
+ if s=='basketball': return any(k in n or k in c for k in ('b.league','b league','bリーグ','asian games','アジア大会'))
+ if s=='volleyball': return any(k in n or k in c for k in ('asian games','アジア大会'))
+ return True
 def ece(y,p,b=10):
  y=np.asarray(y);p=np.asarray(p);z=0
  for lo,hi in zip(np.linspace(0,1,b,endpoint=False),np.linspace(0,1,b)):
@@ -33,7 +38,9 @@ def pool():
  return {k:TC(v) for k,v in {'logistic':Pipeline([('i',SimpleImputer(strategy='median')),('s',StandardScaler()),('m',LogisticRegression(max_iter=3000))]),'extra_trees':Pipeline([('i',SimpleImputer(strategy='median')),('m',ExtraTreesClassifier(n_estimators=350,min_samples_leaf=4,max_features='sqrt',n_jobs=-1,class_weight='balanced',random_state=42))]),'random_forest':Pipeline([('i',SimpleImputer(strategy='median')),('m',RandomForestClassifier(n_estimators=350,min_samples_leaf=4,max_features='sqrt',n_jobs=-1,class_weight='balanced',random_state=42))]),'hist_gb':Pipeline([('i',SimpleImputer(strategy='median')),('m',HistGradientBoostingClassifier(max_iter=300,learning_rate=.035,l2_regularization=1.0,random_state=42))])}.items()}
 def pairmap(c,s):
  d={}
- for eid,t,p,side in c.execute("SELECT e.event_id,e.event_time_utc,ep.participant_id,ep.side FROM event e JOIN event_participant ep ON ep.event_id=e.event_id WHERE e.sport=? AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL ORDER BY e.event_time_utc,e.event_id,ep.side",(s,)).fetchall():d.setdefault(eid,{'time':t})[side]=p
+ for eid,t,p,side,name,comp in c.execute("SELECT e.event_id,e.event_time_utc,ep.participant_id,ep.side,e.name,e.competition_id FROM event e JOIN event_participant ep ON ep.event_id=e.event_id WHERE e.sport=? AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL ORDER BY e.event_time_utc,e.event_id,ep.side",(s,)).fetchall():
+  if not target_event(s,name,comp): continue
+  d.setdefault(eid,{'time':t})[side]=p
  return d
 def outcome_maps(c,s,pairs):
  labels={};hist=[]
