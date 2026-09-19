@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "updated": "2026-09-19",
+  "active_scope": {
+    "volleyball": [
+      {"name":"Asian Games Volleyball","gender":"Men","category":"Asian Games","region":"Asia","status":"TARGET"},
+      {"name":"Asian Games Volleyball","gender":"Women","category":"Asian Games","region":"Asia","status":"TARGET"}
+    ],
+    "basketball": [
+      {"name":"B.LEAGUE","gender":"Men","category":"Professional domestic league","region":"Japan","status":"TARGET"},
+      {"name":"Asian Games Basketball","gender":"Men","category":"Asian Games","region":"Asia","status":"TARGET"},
+      {"name":"Asian Games Basketball","gender":"Women","category":"Asian Games","region":"Asia","status":"TARGET"}
+    ],
+    "ufc": [
+      {"name":"UFC","gender":"Men/Women","category":"MMA","region":"International","status":"TARGET"}
+    ],
+    "rizin": [
+      {"name":"RIZIN","gender":"Men/Women","category":"MMA","region":"Japan/International","status":"TARGET"}
+    ],
+    "valorant": [
+      {"name":"VALORANT","gender":"Open / women-focused competitions kept separate","category":"Esports","region":"Global","status":"TARGET"}
+    ],
+    "tennis": [
+      {"name":"Men's professional tennis","gender":"Men","category":"Professional tennis","region":"Global","status":"TARGET"},
+      {"name":"Women's professional tennis","gender":"Women","category":"Professional tennis","region":"Global","status":"TARGET"}
+    ]
+  },
+  "deferred_scope": {
+    "f1": "DEFERRED_BY_PROJECT_SCOPE",
+    "rugby": "DEFERRED_BY_PROJECT_SCOPE"
+  },
+  "rules": [
+    "Do not train or publish F1 or Rugby models while they are project-deferred.",
+    "Do not silently substitute other basketball, volleyball, tennis or esports competitions for the requested target scope.",
+    "B.LEAGUE and Asian Games coverage must be independently verified before being treated as collected.",
+    "Competition/gender/category must remain explicit; do not pool materially different competitions blindly.",
+    "PIT, leakage, chronological OOS, calibration and frozen-holdout gates remain mandatory."
+  ]
+}
