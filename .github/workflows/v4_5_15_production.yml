@@ -13,7 +13,7 @@ permissions:
   contents: write
 concurrency:
   group: eight-sport-canonical-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 env:
   PYTHONUNBUFFERED: '1'
 jobs:
