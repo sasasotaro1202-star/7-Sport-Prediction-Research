@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
-SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby')
+SPORTS=('valorant','basketball','volleyball','ufc','rizin','tennis','f1','rugby')
 
 
 def source_count_for_sport(c, sport):
