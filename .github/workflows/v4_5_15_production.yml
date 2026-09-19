@@ -62,7 +62,16 @@ jobs:
               # stays fast while provenance research continues automatically.
               if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --official-only; then echo 'basketball_backfill_status=OK'; else backfill_rc=$?; echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"; fi
               if [ "$(date -u +%H)" = "03" ]; then
-                if timeout --signal=TERM 900s python -m src.basketball_cdn_backfill --historical; then echo 'basketball_historical_status=OK'; else echo "basketball_historical_status=DEGRADED exit=$?"; fi
+                if timeout --signal=TERM 900s python -m src.basketball_cdn_backfill --historical; then
+                  echo 'basketball_historical_status=OK'
+                  if timeout --signal=TERM 600s python -m src.bleaguer_git_provenance --db data/db/sports_v45.sqlite --workers 6; then
+                    echo 'basketball_provenance_status=OK'
+                  else
+                    echo "basketball_provenance_status=DEGRADED exit=$?"
+                  fi
+                else
+                  echo "basketball_historical_status=DEGRADED exit=$?"
+                fi
               else
                 echo 'basketball_historical_status=THROTTLED'
               fi
