@@ -31,8 +31,8 @@ def _carry_forward_previous(c, sport, previous):
         return None
     if previous.get("feature_version") != "strict-pit-v13-bounded-ensemble-frozen-holdout":
         return None
-    artifact = ROOT / str(previous.get("artifact_path", ""))
-    if not artifact.is_file() or artifact.stat().st_size <= 0:
+    artifact = _restore_historical_artifact(sport, previous)
+    if artifact is None:
         return None
     required = ("model_version","feature_version","training_cutoff_utc",
                 "git_commit_sha","artifact_path","holdout_metrics")
@@ -60,13 +60,56 @@ def _carry_forward_previous(c, sport, previous):
     return meta
 
 def _previous_result(sport):
+    # Current result files are intentionally overwritten each run. Recover the
+    # last historically TRAINED result from git when the current run is deferred.
     p=RESULTS/f'{sport}.json'
-    if not p.exists():
+    if p.exists():
+        try:
+            current=json.loads(p.read_text(encoding="utf-8"))
+            if current.get("status") == "TRAINED":
+                return current
+        except Exception:
+            pass
+    path=f"results/research/{sport}.json"
+    try:
+        commits=subprocess.run(
+            ["git","log","--format=%H","-S\"status\": \"TRAINED\"","--",path],
+            cwd=ROOT,text=True,capture_output=True,check=False,timeout=20
+        ).stdout.splitlines()
+        for sha in commits:
+            raw=subprocess.run(["git","show",f"{sha}:{path}"],cwd=ROOT,text=True,
+                               capture_output=True,check=False,timeout=20)
+            if raw.returncode != 0:
+                continue
+            try:
+                obj=json.loads(raw.stdout)
+            except Exception:
+                continue
+            if obj.get("status") == "TRAINED":
+                obj["_historical_commit"] = sha
+                return obj
+    except Exception:
+        pass
+    return None
+
+def _restore_historical_artifact(sport, previous):
+    artifact_rel=str(previous.get("artifact_path") or f"models/research/{sport}_current.joblib")
+    target=ROOT/artifact_rel
+    if target.is_file() and target.stat().st_size>0:
+        return target
+    sha=previous.get("_historical_commit")
+    if not sha:
         return None
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
+        target.parent.mkdir(parents=True,exist_ok=True)
+        with target.open("wb") as out:
+            p=subprocess.run(["git","show",f"{sha}:{artifact_rel}"],cwd=ROOT,
+                             stdout=out,stderr=subprocess.PIPE,check=False,timeout=60)
+        if p.returncode==0 and target.is_file() and target.stat().st_size>0:
+            return target
     except Exception:
-        return None
+        pass
+    return None
 
 def train(s):
  if s=='f1':
