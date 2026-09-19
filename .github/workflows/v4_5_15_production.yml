@@ -56,7 +56,7 @@ jobs:
           if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
           backfill_rc=0
           case '${{ matrix.sport }}' in
-            basketball) if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --both; then echo 'basketball_backfill_status=OK'; else backfill_rc=$?; echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
+            basketball) if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --official-only; then echo 'basketball_backfill_status=OK'; else backfill_rc=$?; echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             volleyball) if timeout --signal=TERM 300s python -m src.volleyball_fivb_vis_backfill; then echo 'volleyball_backfill_status=OK'; else backfill_rc=$?; echo "volleyball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             valorant|rizin) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports '${{ matrix.sport }}'; then echo '${{ matrix.sport }}_backfill_status=OK'; else backfill_rc=$?; echo "${{ matrix.sport }}_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             ufc) if timeout --signal=TERM 120s python -m src.ufc_api_backfill --limit 200; then echo 'ufc_backfill_status=OK'; else backfill_rc=$?; echo "ufc_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
