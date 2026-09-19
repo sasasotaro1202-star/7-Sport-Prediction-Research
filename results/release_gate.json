@@ -13,20 +13,20 @@
   },
   "coverage": {
     "valorant": {
-      "events": 9523,
+      "events": 0,
       "timed_events": 0,
-      "completed_events": 9523,
-      "resolved_outcomes": 9518,
-      "verified_model_outcomes": 9518,
+      "completed_events": 0,
+      "resolved_outcomes": 0,
+      "verified_model_outcomes": 0,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 32937,
-      "timed_events": 32937,
-      "completed_events": 32937,
-      "resolved_outcomes": 32937,
-      "verified_model_outcomes": 32937,
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "resolved_outcomes": 0,
+      "verified_model_outcomes": 0,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
@@ -34,8 +34,8 @@
       "events": 21047,
       "timed_events": 21047,
       "completed_events": 21047,
-      "resolved_outcomes": 19444,
-      "verified_model_outcomes": 19444,
+      "resolved_outcomes": 19445,
+      "verified_model_outcomes": 19445,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
