@@ -29,7 +29,14 @@ def train(s):
   rows,fs=base.build(c,s)
   if len(rows)<120:
    return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'insufficient_strict_PIT_rows','rows':len(rows),'features':len(fs)})
-  X=np.array([[r[3].get(f,np.nan) for f in fs] for r in rows]);y=np.array([r[2] for r in rows]);sel=int(len(rows)*.78);hn=len(rows)-sel
+  X=np.array([[r[3].get(f,np.nan) for f in fs] for r in rows]);y=np.array([r[2] for r in rows])
+  # Never send all-missing columns into sklearn imputers. They carry no signal,
+  # make feature schemas unstable across folds, and can trigger silent column drops.
+  keep=np.isfinite(X).any(axis=0)
+  if not keep.any():
+   return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_observed_feature_values','rows':len(rows),'features':0})
+  fs=[f for f,k in zip(fs,keep) if k];X=X[:,keep]
+  sel=int(len(rows)*.78);hn=len(rows)-sel
   if hn<30 or len(np.unique(y[sel:]))<2:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'insufficient_frozen_holdout','rows':len(rows),'holdout_rows':hn})
   names=list(base.pool());start=max(60,int(sel*.65));step=max(10,min(30,int(sel*.06)));oos={}
   for name in names:
