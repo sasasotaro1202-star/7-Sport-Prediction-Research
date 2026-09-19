@@ -1,16 +1,16 @@
 # 8-Sport-Prediction-Research
 
-Eight sport-specific prediction/research engines with a provenance-first data foundation. The research and prediction policies remain isolated by sport.
+Eight sport-specific prediction/research engines with a provenance-first data foundation. The research and prediction policies remain isolated by sport. Current production scope is five sports: Basketball, Volleyball, UFC, RIZIN and VALORANT. Tennis is currently deferred; F1 and Rugby are currently deferred.
 
 ## Target sports
 - VALORANT
 - Basketball
 - Volleyball
-- Tennis
+- Tennis (currently deferred)
 - UFC
 - RIZIN
-- F1
-- Rugby
+- F1 (currently deferred)
+- Rugby (currently deferred)
 
 ## Non-negotiable rules
 1. Shared data foundation where appropriate; sport-specific research/prediction policies remain isolated.
@@ -62,7 +62,7 @@ X data is isolated from the production model: collection → PIT storage → ind
 
 ## GitHub Actions
 ### Canonical production
-`.github/workflows/v4_5_15_production.yml` runs all eight sports independently, restores/saves per-sport run-scoped caches, validates collection, reconstructs outcomes, builds strict PIT replay, runs an independent leakage audit, performs frozen-holdout research, applies quality/release gates, and persists safe outputs.
+`.github/workflows/v4_5_15_production.yml` runs the five active sports independently; Tennis, F1 and Rugby are deferred by project scope, restores/saves per-sport run-scoped caches, validates collection, reconstructs outcomes, builds strict PIT replay, runs an independent leakage audit, performs frozen-holdout research, applies quality/release gates, and persists safe outputs.
 
 ### Rugby coverage
 `.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby is included in the canonical eight-sport cycle, while its production model remains gated until the sport-specific PIT/OOS/release path is proven.
@@ -71,7 +71,7 @@ X data is isolated from the production model: collection → PIT storage → ind
 Cache/PIT health and production invariant workflows provide independent safety checks. A release gate is fail-closed: unsafe models are never published, and a blocked gate must be visible as a non-zero Action rather than a false green success.
 
 ## Definition of done
-A sport is production-ready only when it has reliable intended historical/current coverage, explicit provenance and PIT availability metadata, leakage-safe chronological OOS, calibrated probability evaluation, frozen-holdout acceptance, incumbent/challenger protection, production invariants, reproducible artifacts, and recovery from transient source/network failures.
+An active sport is production-ready only when it has reliable intended historical/current coverage, explicit provenance and PIT availability metadata, leakage-safe chronological OOS, calibrated probability evaluation, frozen-holdout acceptance, incumbent/challenger protection, production invariants, reproducible artifacts, and recovery from transient source/network failures.
 
 A successful GitHub Action is evidence that a run completed; it is not by itself evidence that a model is accurate, calibrated, leakage-free, or production-ready.
 
