@@ -94,7 +94,7 @@ def main():
     c=sqlite3.connect(DB)
     try:
         ok=c.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
-        required=('event','participant','event_participant','source_snapshot','event_outcome','model_state_snapshot')
+        required=('event','participant','event_participant','source_snapshot','event_outcome','model_state_snapshot','pit_replay')
         existing={x[0] for x in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
         missing_tables=[x for x in required if x not in existing]
         if not ok: r['fatal'].append('database_integrity_failed')
