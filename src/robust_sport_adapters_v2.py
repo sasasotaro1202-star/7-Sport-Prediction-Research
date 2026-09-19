@@ -104,12 +104,12 @@ def collect_vlr(c,h,pages=180):
             # VLR match pages expose an exact Unix match timestamp in the
             # match-item markup. Prefer it because date-only text is not enough
             # for PIT replay; never fabricate midnight from a date-only string.
-            tm=re.search(r'data-game-time=["\\'](\\d{9,})["\\']',x)
+            tm=re.search(r'data-game-time=["\'](\d{9,})["\']',x)
             if tm:
                 try: et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
                 except Exception: et=None
             if et is None:
-                for pat in (r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',):
+                for pat in (r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',):
                     mm=re.search(pat,x)
                     if mm: et=iso(mm.group(1));break
             eid=upsert_event(c,'valorant',title,et,'vlr.gg',u,'COMPLETED' if re.search(r'Completed|Final|finished',x,re.I) else 'SCHEDULED')
