@@ -28,7 +28,7 @@ def train(s):
  try:
   rows,fs=base.build(c,s)
   if len(rows)<120:
-   return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'insufficient_strict_PIT_rows','rows':len(rows),'features':len(fs)})
+   return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'insufficient_strict_PIT_rows','rows':len(rows),'features':len(fs),'provenance_rule':'pre-cutoff observed feature or provenance-verified historical outcome required'})
   X=np.array([[r[3].get(f,np.nan) for f in fs] for r in rows]);y=np.array([r[2] for r in rows])
   # Never send all-missing columns into sklearn imputers. They carry no signal,
   # make feature schemas unstable across folds, and can trigger silent column drops.
