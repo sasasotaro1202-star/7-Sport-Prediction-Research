@@ -123,6 +123,7 @@ def main():
                 latest[sport]=meta
         r['coverage']={s:{'events':int(counts.get(s,0)),'timed_events':int(timed.get(s,0)),'completed_events':int(completed.get(s,0)),'resolved_outcomes':int(resolved.get(s,0)),'verified_model_outcomes':int(verified.get(s,0)),'accepted_models':int(models.get(s,0))} for s in SPORTS}
         f1_completed,f1_resolved=_f1_resolved_counts(c)
+        r['coverage'].setdefault('f1', {})
         r['coverage']['f1'].update({'completed_events':f1_completed,'resolved_outcomes':f1_resolved,'verified_model_outcomes':0,'outcome_semantics':'multi_entrant_winner_from_results_position'})
         for ds in DEFERRED_SPORTS:
             ok, reason = _deferred_report_state(ds)
