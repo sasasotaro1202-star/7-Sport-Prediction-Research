@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-09-19T18:06:40.157710+00:00",
+  "timestamp_utc": "2026-09-19T18:25:54.501772+00:00",
   "status": "PASS_WITH_PENDING",
   "fatal": [],
   "pending": [
@@ -47,7 +47,7 @@
       "check": "source_timing_transparency",
       "ok": true,
       "exact_missing_source_available_at": 0,
-      "unverifiable_source_timestamps": 204,
+      "unverifiable_source_timestamps": 220,
       "policy": "UNVERIFIABLE is excluded from strict PIT learning"
     },
     {
