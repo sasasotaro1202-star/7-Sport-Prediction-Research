@@ -92,39 +92,49 @@ def collect_vlr(c,h,pages=180):
     total=0
     for page in range(1,pages+1):
         url='https://www.vlr.gg/matches/results'+(f'/?page={page}' if page>1 else '')
-        try:html,r,_,via=h.get(url)
-        except Exception:continue
-        links=list(dict.fromkeys(re.findall(r'https?://www\\.vlr\\.gg/match/\\d+(?:/[^\\s)"<>]+)?',html)))
-        links += [urljoin(url,x) for x in re.findall(r'href=["\\']([^"\\']*/match/\\d+[^"\\']*)',html)]
+        try:
+            html,r,_,via=h.get(url)
+        except Exception:
+            continue
+        links=list(dict.fromkeys(re.findall(r'https?://www\.vlr\.gg/match/\d+(?:/[^\s)"<>]+)?',html)))
+        links += [urljoin(url,x) for x in re.findall(r"href=['\"]([^'\"]*/match/\d+[^'\"]*)",html)]
         links=list(dict.fromkeys(links))
-        if not links: continue
+        if not links:
+            continue
         for u,res in h.many(links).items():
-            if not res: continue
+            if not res:
+                continue
             x,rr,_,v=res
-            m=re.search(r'/match/(\\d+)/([^/?#\\s)]+)',u)
+            m=re.search(r'/match/(\d+)/([^/?#\s)]+)',u)
             title=clean((m.group(2) if m else '').replace('-',' ')) or u
-            for z in re.findall(r'([^\\n]{2,80})\\s+vs\\.?\\s+([^\\n]{2,80})',x,re.I):
-                title=f'{clean(z[0])} vs {clean(z[1])}'; break
+            for z in re.findall(r'([^\n]{2,80})\s+vs\.?\s+([^\n]{2,80})',x,re.I):
+                title=f'{clean(z[0])} vs {clean(z[1])}'
+                break
             et=None
-            tm=re.search(r'data-game-time=["\\'](\\d{9,})["\\']',x)
+            tm=re.search(r"data-game-time=['\"](\d{9,})['\"]",x)
             if tm:
-                try: et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
-                except Exception: et=None
+                try:
+                    et=datetime.fromtimestamp(int(tm.group(1)),tz=timezone.utc).isoformat()
+                except Exception:
+                    et=None
             if et is None:
-                mm=re.search(r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',x)
-                if mm: et=iso(mm.group(1))
+                mm=re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',x)
+                if mm:
+                    et=iso(mm.group(1))
             existing=c.execute("SELECT event_id FROM event WHERE sport='valorant' AND source='vlr.gg' AND source_url=? ORDER BY updated_at DESC LIMIT 1",(u,)).fetchone()
             if existing and et:
                 eid=existing[0]
                 c.execute("UPDATE event SET event_time_utc=?, status='COMPLETED', updated_at=? WHERE event_id=?",(et,utcnow(),eid))
             else:
                 eid=upsert_event(c,'valorant',title,et,'vlr.gg',u,'COMPLETED')
-            names=[clean(q) for q in re.split(r'\\s+vs\\.?\\s+',title,flags=re.I)[:2]] if ' vs ' in title else []
+            names=[clean(q) for q in re.split(r'\s+vs\.?\s+',title,flags=re.I)[:2]] if ' vs ' in title else []
             for i,n in enumerate(names[:2]):
                 if len(n)>1:
-                    pid=upsert_participant(c,'valorant',n,'team');upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
+                    pid=upsert_participant(c,'valorant',n,'team')
+                    upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
             snapshot(c,'valorant','vlr.gg',u,rr,et,x,v)
-            if et: c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=?",(et,u))
+            if et:
+                c.execute("UPDATE source_snapshot SET event_time_utc=? WHERE source_url=?",(et,u))
             total+=1
         c.commit()
     return total
