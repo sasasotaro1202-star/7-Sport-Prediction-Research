@@ -147,7 +147,7 @@ def collect_vlr(c,h,pages=180):
         if not res:
             continue
         x,rr,_,v=res
-        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\\\"](\\d{9,})['\\\"]",x)
+        tm=re.search(r"(?:data-game-time|data-utc-ts)=['\"](\d{9,})['\"]",x)
         et=None
         if tm:
             try:
@@ -155,7 +155,7 @@ def collect_vlr(c,h,pages=180):
             except Exception:
                 et=None
         if et is None:
-            mm=re.search(r'(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z)',x)
+            mm=re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',x)
             if mm:
                 et=iso(mm.group(1))
         eid=by_url.get(u)
