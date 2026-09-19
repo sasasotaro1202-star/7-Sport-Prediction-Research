@@ -44,7 +44,7 @@ def main():
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
     cache_guard=(ROOT/'src/partition_cache_guard.py').read_text(encoding='utf-8')
-        require('restore-keys:' in workflow and 'eight-sport-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
+    require('restore-keys:' in workflow and 'eight-sport-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
     require('src.cache_health' in workflow and '--repair' in workflow,'production workflow does not validate/repair restored cache before collection')
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
