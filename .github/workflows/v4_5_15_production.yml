@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       max-parallel: 8
       matrix:
-        sport: [valorant, basketball, volleyball, tennis, ufc, rizin]
+        sport: [valorant, basketball, volleyball, ufc, rizin]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -61,7 +61,6 @@ jobs:
           backfill_rc=0
           case '${{ matrix.sport }}' in
             basketball) if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --both; then echo 'basketball_backfill_status=OK'; else backfill_rc=$?; echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
-            tennis) if timeout --signal=TERM 300s python -m src.tennis_public_backfill; then echo 'tennis_backfill_status=OK'; else backfill_rc=$?; echo "tennis_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             volleyball) if timeout --signal=TERM 300s python -m src.volleyball_fivb_vis_backfill; then echo 'volleyball_backfill_status=OK'; else backfill_rc=$?; echo "volleyball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             valorant|rizin) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports '${{ matrix.sport }}'; then echo '${{ matrix.sport }}_backfill_status=OK'; else backfill_rc=$?; echo "${{ matrix.sport }}_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             f1) if timeout --signal=TERM 45s python -m src.f1_openf1_backfill --start-year 2023 --end-year 2026 --timeout 15; then echo 'f1_backfill_status=OK'; else backfill_rc=$?; echo "f1_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
@@ -93,7 +92,7 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install dependencies with transient-network retry
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
-      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,ufc,rizin} data/db results models
+      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,ufc,rizin} data/db results models
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore VALORANT
@@ -121,15 +120,6 @@ jobs:
           key: eight-sport-db-v4-volleyball-${{ github.run_id }}
       - name: Materialize Volleyball partition
         run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite
-      - name: Clear merge working database
-        run: rm -f data/db/sports_v45.sqlite
-      - name: Restore Tennis
-        uses: actions/cache/restore@v4
-        with:
-          path: data/db
-          key: eight-sport-db-v4-tennis-${{ github.run_id }}
-      - name: Materialize Tennis partition
-        run: test -s data/db/sports_v45.sqlite && cp data/db/sports_v45.sqlite hourly-artifacts/tennis/sports_v45.sqlite
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore UFC
@@ -167,7 +157,7 @@ jobs:
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
-          for sport in valorant basketball volleyball tennis ufc; do
+          for sport in valorant basketball volleyball ufc; do
             test -s "hourly-artifacts/$sport/sports_v45.sqlite"
             python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
           done
