@@ -4,13 +4,13 @@
   "models": [
     "random_forest"
   ],
-  "model_version": "3b921697bc5b56c2",
+  "model_version": "1a3af6065e63449c",
   "feature_version": "strict-pit-v13-bounded-ensemble-frozen-holdout",
   "training_rows": 7293,
   "frozen_holdout_rows": 2058,
   "features": 6,
   "training_cutoff_utc": "2022-10-01T00:00:00+00:00",
-  "git_commit_sha": "9476b0e76ea125e9c9f5444a367a2d9e239dbb3c",
+  "git_commit_sha": "5afb728844d56a2f111febaec70be96454c2759d",
   "artifact_path": "models/research/ufc_current.joblib",
   "selection_oos": {
     "logistic": {
@@ -75,7 +75,7 @@
       "logloss": 0.681079232486923,
       "brier": 0.24398651101418645,
       "accuracy": 0.5797101449275363,
-      "ece": 0.0016744606759337955,
+      "ece": 0.0016744606759338315,
       "n": 2553
     },
     "extra_trees+logistic": {

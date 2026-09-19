@@ -2,6 +2,6 @@
   "sport": "rizin",
   "status": "DEFERRED",
   "reason": "insufficient_strict_PIT_rows",
-  "rows": 0,
-  "features": 0
+  "rows": 81,
+  "features": 9
 }
