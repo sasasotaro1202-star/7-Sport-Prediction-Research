@@ -112,6 +112,15 @@ def _restore_historical_artifact(sport, previous):
             continue
     return None
 
+def _artifact_loadable(path):
+    try:
+        obj=joblib.load(path)
+        if not isinstance(obj, dict): return False
+        if 'features' not in obj or not obj.get('features'): return False
+        return True
+    except Exception:
+        return False
+
 def _previous_model_from_db(c, sport):
     """Recover the last accepted model from the persistent partition DB.
     This is the primary continuity source; result JSON files are disposable outputs.
