@@ -47,6 +47,24 @@ def sid(*values):
     return hashlib.sha256("|".join("" if v is None else str(v) for v in values).encode()).hexdigest()[:32]
 
 
+def publication_time(html):
+    """Extract only an explicit publication timestamp from the official page.
+    Retrieval time and dateModified are intentionally not accepted as PIT evidence.
+    """
+    patterns = [
+        r'"datePublished"\s*:\s*"([^"]+)"',
+        r'<meta[^>]+property=["\']article:published_time["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+name=["\']datePublished["\'][^>]+content=["\']([^"\']+)["\']',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, html or "", re.I)
+        if m:
+            value = iso(m.group(1))
+            if value:
+                return value
+    return None
+
+
 def http(url, timeout=45):
     r = requests.get(url, headers={"User-Agent": "SevenSportResearchEngine/4.5.16"}, timeout=timeout)
     r.raise_for_status()
@@ -205,7 +223,27 @@ def backfill_rizin(c, max_pages=150):
             side="A" if "WIN" in left_marker.upper() else "B"
             add_outcome(c,"rizin",eid,p1,p2,side,url); labeled += 1; added += 1
         if matches:
-            add_snapshot(c,"rizin","jp.rizinff.com",url,retrieved,et,hashlib.sha256(raw.encode("utf-8","ignore")).hexdigest(),"UNVERIFIABLE")
+            payload_hash = hashlib.sha256(raw.encode("utf-8","ignore")).hexdigest()
+            add_snapshot(c,"rizin","jp.rizinff.com",url,retrieved,et,payload_hash,"UNVERIFIABLE")
+            # Promote only when the official page itself exposes an explicit
+            # publication timestamp. Retrieval time and event date are not
+            # historical availability evidence.
+            published_at = publication_time(raw)
+            if published_at and (not et or published_at <= et):
+                snapshot_id = sid("rizin","jp.rizinff.com",url,payload_hash)
+                c.execute(
+                    """UPDATE source_snapshot
+                       SET source_available_at_utc=?,
+                           availability_status='EXACT',
+                           provenance_json=?
+                       WHERE snapshot_id=?""",
+                    (published_at, json.dumps({
+                        "sport":"rizin",
+                        "parser":"v4.5.16",
+                        "evidence":"official_page_datePublished",
+                        "publication_time_utc":published_at,
+                    }, ensure_ascii=False), snapshot_id),
+                )
     coverage = {
         "status": "PASS" if added > 0 else "DEFERRED",
         "sport": "rizin",
