@@ -246,18 +246,33 @@ jobs:
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'chore: update eight-sport research results'
           git fetch origin main
-          if ! git rebase --autostash origin/main; then
+          rebase_with_generated_output_resolution() {
+            if git rebase --autostash origin/main; then
+              return 0
+            fi
+            conflicts=$(git diff --name-only --diff-filter=U || true)
+            if [ -n "$conflicts" ] && ! printf '%s\n' "$conflicts" | grep -Ev '^(results/|models/)' | grep -q .; then
+              echo 'INFO: resolving generated-output-only rebase conflict in favor of this completed run.'
+              printf '%s\n' "$conflicts" | while IFS= read -r f; do
+                [ -n "$f" ] || continue
+                git checkout --theirs -- "$f"
+                git add -- "$f"
+              done
+              GIT_EDITOR=true git -c core.editor=true rebase --continue
+              return $?
+            fi
             git rebase --abort || true
-            echo 'ERROR: main advanced with a non-replayable generated-output conflict.' >&2
+            echo 'ERROR: main advanced with a non-generated-file conflict.' >&2
+            return 1
+          }
+          if ! rebase_with_generated_output_resolution; then
             exit 1
           fi
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then exit 0; fi
             if [ "$attempt" -eq 3 ]; then exit 1; fi
             git fetch origin main
-            if ! git rebase --autostash origin/main; then
-              git rebase --abort || true
-              echo 'ERROR: generated-output commit conflicted while synchronizing main.' >&2
+            if ! rebase_with_generated_output_resolution; then
               exit 1
             fi
             sleep $((attempt * 5))
