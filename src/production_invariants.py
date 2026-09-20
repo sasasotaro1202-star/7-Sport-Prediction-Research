@@ -46,6 +46,27 @@ def main():
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
+
+    router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
+    require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
+    require('UNSUPPORTED_MULTICLASS_RESEARCH_ONLY' in router_src,'dynamic router lacks multiclass research-only guard')
+    require('router_unavailable' in router_src and 'multiclass_base_model_unsupported' in router_src,'dynamic router lacks safe prediction fallbacks')
+    try:
+        import numpy as np
+        from src import dynamic_model_router as dmrouter
+        train_x=np.array([[0.0,1.0],[0.0,1.0],[0.0,1.0]])
+        current_x=np.array([[0.0,1.0],[10.0,10.0]])
+        ctx=dmrouter._context(train_x,current_x)
+        require(ctx.shape==(2,4),'dynamic router context shape is not row-level')
+        require(not np.allclose(ctx[0],ctx[1]),'dynamic router context is still aggregate/repeated across rows')
+        multi=dmrouter.evaluate_router(
+            np.zeros((6,2)),np.array([0,1,2,0,1,2]),
+            ['a','b'],1,2,1,lambda: {},None
+        )
+        require(multi.get('status')=='UNSUPPORTED_MULTICLASS_RESEARCH_ONLY','dynamic router multiclass guard failed')
+    except Exception as exc:
+        require(False,f'dynamic router behavioral invariant failed: {exc}')
+
     cache_guard=(ROOT/'src/partition_cache_guard.py').read_text(encoding='utf-8')
     require('restore-keys:' in workflow and 'eight-sport-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
     require('src.cache_health' in workflow and '--repair' in workflow,'production workflow does not validate/repair restored cache before collection')
