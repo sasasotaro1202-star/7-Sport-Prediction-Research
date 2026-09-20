@@ -95,7 +95,7 @@ def _previous_result(sport):
 def _restore_historical_artifact(sport, previous):
     artifact_rel=str(previous.get("artifact_path") or f"models/research/{sport}_current.joblib")
     target=ROOT/artifact_rel
-    if target.is_file() and target.stat().st_size>0:
+    if target.is_file() and target.stat().st_size>0 and _artifact_loadable(target):
         return target
     shas=[]
     for sha in (previous.get("_historical_commit"), previous.get("git_commit_sha")):
@@ -106,7 +106,7 @@ def _restore_historical_artifact(sport, previous):
             with target.open("wb") as out:
                 p=subprocess.run(["git","show",f"{sha}:{artifact_rel}"],cwd=ROOT,
                                  stdout=out,stderr=subprocess.PIPE,check=False,timeout=60)
-            if p.returncode==0 and target.is_file() and target.stat().st_size>0:
+            if p.returncode==0 and target.is_file() and target.stat().st_size>0 and _artifact_loadable(target):
                 return target
         except Exception:
             continue
