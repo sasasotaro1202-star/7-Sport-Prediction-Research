@@ -72,9 +72,12 @@ def _previous_result(sport):
             pass
     path=f"results/research/{sport}.json"
     try:
+        # Inspect recent history directly instead of relying on git -S quoting.
+        # Result JSON is a generated artifact, so exact textual pickaxe matching is
+        # brittle across indentation/serialization changes.
         commits=subprocess.run(
-            ["git","log","--format=%H","-S\"status\": \"TRAINED\"","--",path],
-            cwd=ROOT,text=True,capture_output=True,check=False,timeout=20
+            ["git","log","--format=%H","-n","300","--",path],
+            cwd=ROOT,text=True,capture_output=True,check=False,timeout=30
         ).stdout.splitlines()
         for sha in commits:
             raw=subprocess.run(["git","show",f"{sha}:{path}"],cwd=ROOT,text=True,
