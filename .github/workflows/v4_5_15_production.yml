@@ -81,7 +81,8 @@ jobs:
               fi
               ;;
             volleyball) if timeout --signal=TERM 300s python -m src.volleyball_fivb_vis_backfill; then echo 'volleyball_backfill_status=OK'; else backfill_rc=$?; echo "volleyball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
-            valorant|rizin) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports '${{ matrix.sport }}'; then echo '${{ matrix.sport }}_backfill_status=OK'; else backfill_rc=$?; echo "${{ matrix.sport }}_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
+            valorant) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports valorant; then echo 'valorant_backfill_status=OK'; else backfill_rc=$?; echo "valorant_backfill_status=DEGRADED exit=$backfill_rc"; fi; if timeout --signal=TERM 300s python -m src.valorant_git_provenance; then echo 'valorant_provenance_status=OK'; else echo "valorant_provenance_status=DEGRADED exit=$?"; fi ;;
+            rizin) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports rizin; then echo 'rizin_backfill_status=OK'; else backfill_rc=$?; echo "rizin_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             ufc) if timeout --signal=TERM 120s python -m src.ufc_api_backfill --limit 200; then echo 'ufc_backfill_status=OK'; else backfill_rc=$?; echo "ufc_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
           esac
           guard_rc=0
