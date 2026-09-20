@@ -28,26 +28,34 @@ def _metric(y, p):
 
 
 def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
-    """PIT-safe context: only feature availability/distribution and sample size."""
+    """Build row-level PIT-safe routing context.
+
+    Context is derived only from data available at prediction time and the
+    historical training window. No target, future result, or current-match
+    outcome is used. Each current row receives its own missingness/shift
+    features rather than one aggregate context repeated across a fold.
+    """
     tr = np.asarray(train_x, dtype=float)
     cu = np.asarray(current_x, dtype=float)
-    tr_med = np.nanmedian(tr, axis=0)
+    if cu.ndim == 1:
+        cu = cu.reshape(1, -1)
+    tr_med = np.nanmedian(tr, axis=0) if tr.size else np.zeros(cu.shape[1])
     tr_med = np.where(np.isfinite(tr_med), tr_med, 0.0)
-    tr_scale = np.nanmedian(np.abs(tr - tr_med), axis=0)
+    tr_scale = np.nanmedian(np.abs(tr - tr_med), axis=0) if tr.size else np.ones(cu.shape[1])
     tr_scale = np.where(np.isfinite(tr_scale) & (tr_scale > 1e-9), tr_scale, 1.0)
-    miss = float(np.isnan(cu).mean()) if cu.size else 1.0
+    row_miss = np.isnan(cu).mean(axis=1) if cu.size else np.ones(len(cu))
+    z = np.abs(np.nan_to_num(cu, nan=tr_med) - tr_med) / tr_scale
+    z = np.where(np.isfinite(z), z, 0.0)
+    row_shift = np.nanmedian(z, axis=1) if z.size else np.zeros(len(cu))
+    row_shift = np.where(np.isfinite(row_shift), row_shift, 0.0)
     train_miss = float(np.isnan(tr).mean()) if tr.size else 1.0
-    shift = np.nanmedian(np.abs(np.nanmedian(cu, axis=0) - tr_med) / tr_scale) if cu.size else 0.0
-    if not np.isfinite(shift):
-        shift = 0.0
-    disagreement = 0.0
-    return np.array([
-        np.log1p(len(tr)),
-        train_miss,
-        miss,
-        float(shift),
-        disagreement,
-    ], dtype=float)
+    train_size = np.log1p(len(tr))
+    return np.column_stack([
+        np.full(len(cu), train_size, dtype=float),
+        np.full(len(cu), train_miss, dtype=float),
+        row_miss.astype(float),
+        row_shift.astype(float),
+    ])
 
 
 def evaluate_router(
@@ -89,8 +97,7 @@ def evaluate_router(
         bp = np.column_stack(base_pred)
         static = bp.mean(axis=1)
         ctx = _context(X[:end], X[end:te])
-        ctx_block = np.repeat(ctx.reshape(1, -1), te - end, axis=0)
-        features = np.column_stack([bp, ctx_block])
+        features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
 
         # A router must have enough prior OOF observations. Before that point,
         # fail safely to the incumbent fixed blend.
@@ -143,8 +150,8 @@ def fit_final_router(X, y, names, sel, start, step, pool_factory):
             model.fit(X[:end], y[:end])
             bp.append(np.clip(model.predict_proba(X[end:te])[:, 1], 1e-6, 1 - 1e-6))
         bp = np.column_stack(bp)
-        ctx = np.repeat(_context(X[:end], X[end:te]).reshape(1, -1), te - end, axis=0)
-        meta_X.extend(np.column_stack([bp, ctx]).tolist())
+        ctx = _context(X[:end], X[end:te])
+        meta_X.extend(np.column_stack([bp, ctx, np.std(bp, axis=1)]).tolist())
         meta_y.extend(y[end:te].tolist())
     if len(meta_y) < 60 or len(np.unique(meta_y)) < 2:
         return None
@@ -164,8 +171,8 @@ def predict_with_router(router, base_models, names, train_x, current_x):
     static = bp.mean(axis=1)
     if router is None:
         return static, {"fallback": True, "reason": "router_unavailable"}
-    ctx = np.repeat(_context(train_x, current_x).reshape(1, -1), len(current_x), axis=0)
-    rp = np.clip(router.predict_proba(np.column_stack([bp, ctx]))[:, 1], 1e-6, 1 - 1e-6)
+    ctx = _context(train_x, current_x)
+    rp = np.clip(router.predict_proba(np.column_stack([bp, ctx, np.std(bp, axis=1)]))[:, 1], 1e-6, 1 - 1e-6)
     # Fail-safe: extreme routing output is shrunk toward the incumbent blend.
     rp = 0.75 * rp + 0.25 * static
     return rp, {"fallback": False, "shrinkage": 0.25}
