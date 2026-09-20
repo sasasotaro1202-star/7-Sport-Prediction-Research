@@ -7,6 +7,7 @@ on:
   push:
     paths:
       - 'src/**'
+      - 'scripts/**'
       - '.github/workflows/v4_5_15_production.yml'
       - 'requirements.txt'
 permissions:
