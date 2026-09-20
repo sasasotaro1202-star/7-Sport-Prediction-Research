@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json, math, sqlite3
+from pathlib import Path
 
 
 def _artifact_valid(meta):
