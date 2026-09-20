@@ -2,6 +2,21 @@ from __future__ import annotations
 import json, math, sqlite3
 from pathlib import Path
 
+
+def _artifact_valid(meta):
+    p = ROOT / str(meta.get('artifact_path',''))
+    if not p.is_file() or p.stat().st_size <= 0:
+        return False
+    try:
+        import joblib
+        obj = joblib.load(p)
+        if not isinstance(obj, dict) or not obj.get('features'):
+            return False
+        return True
+    except Exception:
+        return False
+from pathlib import Path
+
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
 OUT=ROOT/'results/release_gate.json'
@@ -21,6 +36,7 @@ def _validate_model(meta):
     if missing: return False, f'model_metadata_missing:{",".join(missing)}'
     if meta.get('holdout_frozen') is not True: return False, 'holdout_not_frozen'
     if meta.get('production_fit_excludes_holdout') is not True: return False, 'production_fit_includes_holdout_or_unproven'
+    if not _artifact_valid(meta): return False, 'model_artifact_missing_or_unloadable'
     hm=meta.get('holdout_metrics') or {}
     for k in ('logloss','brier','accuracy','ece','n'):
         if not _finite(hm.get(k)): return False, f'holdout_metric_invalid:{k}'
