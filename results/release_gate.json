@@ -9,7 +9,6 @@
     "valorant": "insufficient_strict_PIT_rows",
     "basketball": "insufficient_strict_PIT_rows",
     "volleyball": "insufficient_strict_PIT_rows",
-    "ufc": "insufficient_strict_PIT_rows",
     "rizin": "insufficient_strict_PIT_rows"
   },
   "coverage": {
@@ -35,8 +34,8 @@
       "events": 21068,
       "timed_events": 21068,
       "completed_events": 21068,
-      "resolved_outcomes": 19456,
-      "verified_model_outcomes": 19456,
+      "resolved_outcomes": 19457,
+      "verified_model_outcomes": 19457,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
@@ -46,8 +45,8 @@
       "completed_events": 9513,
       "resolved_outcomes": 9513,
       "verified_model_outcomes": 9422,
-      "accepted_models": 0,
-      "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
+      "accepted_models": 1,
+      "model_safety": "OK"
     },
     "rizin": {
       "events": 81,

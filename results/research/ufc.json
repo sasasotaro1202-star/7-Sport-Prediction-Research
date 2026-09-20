@@ -1,8 +1,21 @@
 {
   "sport": "ufc",
-  "status": "DEFERRED",
+  "status": "DEFERRED_RETRAIN_CARRY_FORWARD",
   "reason": "insufficient_strict_PIT_rows",
   "rows": 0,
   "features": 0,
-  "provenance_rule": "pre-cutoff observed feature or provenance-verified historical outcome required"
+  "provenance_rule": "pre-cutoff observed feature or provenance-verified historical outcome required",
+  "carried_forward_model_version": "1a3af6065e63449c",
+  "carried_forward_training_cutoff_utc": "2022-10-01T00:00:00+00:00",
+  "carry_forward_artifact_path": "models/research/ufc_current.joblib",
+  "carry_forward_holdout_metrics": {
+    "logloss": 0.6893330710854134,
+    "brier": 0.24806468770283832,
+    "accuracy": 0.5568513119533528,
+    "ece": 0.03601054531183484,
+    "n": 2058,
+    "models": [
+      "random_forest"
+    ]
+  }
 }
