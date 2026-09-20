@@ -23,3 +23,5 @@ jobs:
           python-version: '3.12'
       - name: Run production invariants
         run: python -m src.production_invariants
+      - name: Validate dynamic router syntax and import safety
+        run: python scripts/validate_dynamic_router.py
