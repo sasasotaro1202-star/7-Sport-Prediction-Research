@@ -97,26 +97,45 @@ def _restore_historical_artifact(sport, previous):
     target=ROOT/artifact_rel
     if target.is_file() and target.stat().st_size>0:
         return target
-    sha=previous.get("_historical_commit")
-    if not sha:
-        return None
-    try:
-        target.parent.mkdir(parents=True,exist_ok=True)
-        with target.open("wb") as out:
-            p=subprocess.run(["git","show",f"{sha}:{artifact_rel}"],cwd=ROOT,
-                             stdout=out,stderr=subprocess.PIPE,check=False,timeout=60)
-        if p.returncode==0 and target.is_file() and target.stat().st_size>0:
-            return target
-    except Exception:
-        pass
+    shas=[]
+    for sha in (previous.get("_historical_commit"), previous.get("git_commit_sha")):
+        if sha and sha not in shas: shas.append(sha)
+    for sha in shas:
+        try:
+            target.parent.mkdir(parents=True,exist_ok=True)
+            with target.open("wb") as out:
+                p=subprocess.run(["git","show",f"{sha}:{artifact_rel}"],cwd=ROOT,
+                                 stdout=out,stderr=subprocess.PIPE,check=False,timeout=60)
+            if p.returncode==0 and target.is_file() and target.stat().st_size>0:
+                return target
+        except Exception:
+            continue
     return None
+
+def _previous_model_from_db(c, sport):
+    """Recover the last accepted model from the persistent partition DB.
+    This is the primary continuity source; result JSON files are disposable outputs.
+    """
+    try:
+        row=c.execute("SELECT metadata_json,model_version,feature_version,training_cutoff_utc,git_commit_sha,artifact_path,quality_status FROM model_state_snapshot WHERE sport=? AND market='winner' AND quality_status LIKE 'ACCEPTED%' ORDER BY as_of_utc DESC LIMIT 1",(sport,)).fetchone()
+        if not row:
+            return None
+        payload=json.loads(row[0] or '{}')
+        payload.setdefault('model_version',row[1]); payload.setdefault('feature_version',row[2])
+        payload.setdefault('training_cutoff_utc',row[3]); payload.setdefault('git_commit_sha',row[4])
+        payload.setdefault('artifact_path',row[5]); payload.setdefault('quality_status',row[6])
+        payload['status']='TRAINED'
+        payload['_db_recovered']=True
+        return payload
+    except Exception:
+        return None
 
 def train(s):
  if s=='f1':
   return _write_result(s,f1())
- previous=_previous_result(s)
  c=sqlite3.connect(DB)
  try:
+  previous=_previous_result(s) or _previous_model_from_db(c,s)
   rows,fs=base.build(c,s)
   if len(rows)<120:
    carried=_carry_forward_previous(c,s,previous)
