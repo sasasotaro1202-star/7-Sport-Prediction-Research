@@ -30,6 +30,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history is required for safe recovery of the last accepted
+          # frozen-holdout model when the current run has a transient PIT outage.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -99,6 +103,10 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history is required for safe recovery of the last accepted
+          # frozen-holdout model when the current run has a transient PIT outage.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
