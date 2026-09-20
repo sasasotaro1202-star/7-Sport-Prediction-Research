@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-09-20T14:15:15.395085+00:00",
-  "source_git_commit_sha": "0806cb61e3dede8244e994999698cc8788afc9ff",
+  "generated_at_utc": "2026-09-20T16:03:00.666454+00:00",
+  "source_git_commit_sha": "c90921e45ad7072d00d5311e5bdcdad12ca8b857",
   "requirements_sha256": "2a6160e13e062c8d6168a3b2c972bfa08710f75719c1ddcbf5149e038c3db50f",
   "sports": [
     "valorant",
@@ -16,7 +16,7 @@
   "event_counts": {
     "valorant": 9523,
     "basketball": 32937,
-    "volleyball": 21080,
+    "volleyball": 21081,
     "tennis": 0,
     "ufc": 9513,
     "rizin": 81,
@@ -27,8 +27,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 580849664,
-      "sha256": "857844f3a3c236de1b26105cb9fe956dfec1086432e13ef8a4b9c0a8a232b032"
+      "bytes": 586989568,
+      "sha256": "25b5d72a7df7a280da4d70714d3da84ead8591750e98638bef4217e6789fd3e7"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -38,13 +38,13 @@
       "path": "results/quality_gate.json",
       "exists": true,
       "bytes": 3613,
-      "sha256": "36ac790128b01a36fdeb42384fa83d0faad5991815991ed8cfa3b4e9749e6824"
+      "sha256": "e7ea813885c854ee973697c8a88b851fb3606118de5954c3f9d4c99a78acb7e0"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
       "bytes": 3271,
-      "sha256": "5bc300e81a80a8a21bea86aee8dc2f7f670630d7d9cfbed5d9a252691c134b01"
+      "sha256": "d3c10a2e8636a3c254f4cdbc2399351025ea15093155ae53e4f59d76ae7e82b9"
     },
     {
       "path": "results/pit_replay.json",
