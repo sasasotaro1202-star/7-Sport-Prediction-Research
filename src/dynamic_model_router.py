@@ -58,6 +58,36 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
     ])
 
 
+
+class DynamicModelRouter:
+    """Stateful wrapper for the leakage-safe challenger router."""
+    def __init__(self, names: Sequence[str], pool_factory):
+        self.names = tuple(names)
+        self.pool_factory = pool_factory
+        self.router = None
+        self.status = "UNFIT"
+
+    def fit(self, X, y, sel, start, step):
+        y_arr = np.asarray(y)
+        if len(np.unique(y_arr)) != 2:
+            self.router = None
+            self.status = "UNSUPPORTED_MULTICLASS_RESEARCH_ONLY"
+            return self
+        self.router = fit_final_router(
+            X, y_arr, self.names, sel, start, step, self.pool_factory
+        )
+        self.status = "FIT" if self.router is not None else "INSUFFICIENT_OOS"
+        return self
+
+    def predict(self, base_models, train_x, current_x):
+        return predict_with_router(
+            self.router, base_models, self.names, train_x, current_x
+        )
+
+def _require_binary_target(y):
+    return len(np.unique(np.asarray(y))) == 2
+
+
 def evaluate_router(
     X: np.ndarray,
     y: np.ndarray,
@@ -76,6 +106,8 @@ def evaluate_router(
     """
     X = np.asarray(X, dtype=float)
     y = np.asarray(y)
+    if not _require_binary_target(y):
+        return {"status": "UNSUPPORTED_MULTICLASS_RESEARCH_ONLY", "reason": "router_is_binary_only"}
     if sel <= start + step or len(names) < 2:
         return {"status": "INSUFFICIENT_OOS", "reason": "too_few_chronological_folds"}
 
@@ -139,6 +171,8 @@ def fit_final_router(X, y, names, sel, start, step, pool_factory):
     """Fit the final router from all pre-holdout chronological OOF predictions."""
     X = np.asarray(X, dtype=float)
     y = np.asarray(y)
+    if not _require_binary_target(y):
+        return None
     meta_X, meta_y = [], []
     for end in range(start, sel, step):
         te = min(end + step, sel)
@@ -166,7 +200,11 @@ def fit_final_router(X, y, names, sel, start, step, pool_factory):
 def predict_with_router(router, base_models, names, train_x, current_x):
     bp = []
     for name, model in zip(names, base_models):
-        bp.append(np.clip(model.predict_proba(current_x)[:, 1], 1e-6, 1 - 1e-6))
+        proba = np.asarray(model.predict_proba(current_x))
+        if proba.ndim != 2 or proba.shape[1] != 2:
+            static = np.full(len(current_x), 0.5, dtype=float)
+            return static, {"fallback": True, "reason": "multiclass_base_model_unsupported"}
+        bp.append(np.clip(proba[:, 1], 1e-6, 1 - 1e-6))
     bp = np.column_stack(bp)
     static = bp.mean(axis=1)
     if router is None:
@@ -176,3 +214,6 @@ def predict_with_router(router, base_models, names, train_x, current_x):
     # Fail-safe: extreme routing output is shrunk toward the incumbent blend.
     rp = 0.75 * rp + 0.25 * static
     return rp, {"fallback": False, "shrinkage": 0.25}
+
+
+__all__ = ["DynamicModelRouter", "evaluate_router", "fit_final_router", "predict_with_router"]
