@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'scripts/**'
       - '.github/workflows/**'
       - 'README.md'
   workflow_dispatch:
