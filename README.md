@@ -57,6 +57,9 @@ The system does not assume that one provider is complete. Cross-source reconcili
 ### Deep historical enrichment
 `src/tennis_public_backfill.py` provides ATP/WTA historical foundation with conservative archive-availability handling. `src/f1_openf1_backfill.py` adds OpenF1 session-result/timing observations for 2023 onward without assuming historical publication availability.
 
+### Dynamic model routing (challenger layer)
+`src/dynamic_model_router.py` implements a leakage-safe, chronological meta-selector as a research challenger. It consumes only out-of-fold base-model probabilities plus PIT-safe context (sample size, missingness, and feature-distribution shift). The selector is trained only from earlier OOS folds and falls back to the incumbent fixed ensemble when insufficient evidence exists. It is not promoted from OOS alone; frozen-holdout validation and the existing release gate remain mandatory.
+
 ### X research layer
 X data is isolated from the production model: collection → PIT storage → independent offline/OOS evaluation → challenger comparison. X is not directly wired into the incumbent production feature set.
 
