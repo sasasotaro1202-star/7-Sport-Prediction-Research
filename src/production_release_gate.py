@@ -1,6 +1,5 @@
 from __future__ import annotations
 import json, math, sqlite3
-from pathlib import Path
 
 
 def _artifact_valid(meta):
@@ -15,7 +14,6 @@ def _artifact_valid(meta):
         return True
     except Exception:
         return False
-from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
