@@ -290,7 +290,10 @@ def train(s):
     score['robust_window_objective']=float(np.average(win_ll,weights=recent_weights)+0.10*np.std(win_ll))
    else:
     score['robust_window_objective']=float(score['logloss']+0.10*score['fold_logloss_std'])
-   score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']
+   base_ll,regime_excess,regime_scores=_regime_robust_objective((name,),None)
+   score['regime_worst_excess']=float(regime_excess)
+   score['regime_groups']=len(regime_scores)
+   score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']+0.15*regime_excess
    oos[name]=score
   if not oos:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
   rank=sorted(oos,key=lambda k:(oos[k]['robust_objective'],oos[k]['brier'],oos[k]['ece']))
@@ -333,7 +336,10 @@ def train(s):
     score['robust_window_objective']=float(np.average(wll,weights=np.array([0.20,0.30,0.50]))+0.10*np.std(wll))
    else:
     score['robust_window_objective']=float(score['logloss']+0.10*score['fold_logloss_std'])
-   score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']
+   _,regime_excess,regime_scores=_regime_robust_objective(spec,None)
+   score['regime_worst_excess']=float(regime_excess)
+   score['regime_groups']=len(regime_scores)
+   score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']+0.15*regime_excess
    score['folds']=len(fold_ll)
    scores[key]=score
   if not scores:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_ensemble_selection_folds','rows':len(rows)})
@@ -347,6 +353,56 @@ def train(s):
   candidate_weights={name:1.0/len(best) for name in best}
   wa_a=wa_b=None;wa_weight=0.5;wa_metric=None
   wa_win_rate=0.0;wa_mean_delta=0.0;wa_fold_std=float('inf');wa_robust_gain=0.0
+
+  def _regime_robust_objective(spec, weights=None):
+   """Score pre-holdout OOF performance across a few fixed, PIT-safe regimes."""
+   regime_scores=[]
+   overall_pred=[]
+   overall_y=[]
+   for fold in oof_folds:
+    end=int(fold['end']);te=int(fold['te'])
+    fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
+    p=np.mean(fp,axis=1) if weights is None else np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1)
+    yy=y[end:te]
+    overall_pred.extend(p.tolist());overall_y.extend(yy.tolist())
+   overall=np.asarray(overall_pred,float)
+   target=np.asarray(overall_y,int)
+   base_ll=base.metric(target,overall)['logloss'] if len(target) else float('inf')
+   regime_names=[
+    'competition_is_asian_games','competition_is_bleague','short_rest_flag',
+    'games_last_7d','games_last_30d','recent_form_delta','elo_momentum'
+   ]
+   fs_index={name:i for i,name in enumerate(fs)}
+   for rn in regime_names:
+    idx=fs_index.get(rn)
+    if idx is None:continue
+    vals=[];labels=[]
+    for fold in oof_folds:
+     end=int(fold['end']);te=int(fold['te'])
+     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
+     p=np.mean(fp,axis=1) if weights is None else np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1)
+     yy=y[end:te]
+     z=X[end:te,idx]
+     finite=np.isfinite(z)
+     if not np.any(finite):continue
+     if rn in ('competition_is_asian_games','competition_is_bleague','short_rest_flag'):
+      group=(z>=0.5)
+      for g in (False,True):
+       m=finite & (group==g)
+       if m.sum()>=20 and len(np.unique(yy[m]))>1:
+        regime_scores.append((rn,str(g),base.metric(yy[m],p[m])['logloss'],int(m.sum())))
+     else:
+      zv=z[finite]
+      if zv.size<40:continue
+      med=float(np.nanmedian(zv))
+      for label,g in (('low',finite&(z<=med)),('high',finite&(z>med))):
+       if g.sum()>=20 and len(np.unique(yy[g]))>1:
+        regime_scores.append((rn,label,base.metric(yy[g],p[g])['logloss'],int(g.sum())))
+   if not regime_scores:
+    return base_ll,0.0,[]
+   worst=max(z[2] for z in regime_scores)
+   excess=max(0.0,worst-base_ll)
+   return base_ll,excess,regime_scores
 
   def _weighted_candidate_score(spec, weights):
    p_all=np.sum(np.column_stack([weights.get(n,0.0)*np.asarray(oof_probs[n],float) for n in spec]),axis=1)
@@ -376,6 +432,8 @@ def train(s):
    for wa in (0.20,0.30,0.40,0.50,0.60,0.70,0.80):
     weights={a:wa,b:1.0-wa}
     overall,robust,folds,wins=_weighted_candidate_score((a,b),weights)
+    _,regime_excess,_=_regime_robust_objective((a,b),weights)
+    robust += 0.15*regime_excess
     weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],(a,b),weights,folds))
   for spec in combinations(top_rank[:4],3):
    for wa in (0.20,0.30,0.40,0.50,0.60):
@@ -384,6 +442,8 @@ def train(s):
      if wc < 0.20 or wc > 0.60: continue
      weights={spec[0]:wa,spec[1]:wb,spec[2]:wc}
      overall,robust,folds,wins=_weighted_candidate_score(spec,weights)
+     _,regime_excess,_=_regime_robust_objective(spec,weights)
+     robust += 0.15*regime_excess
      weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],spec,weights,folds))
   if weighted_candidates:
    weighted_candidates.sort(key=lambda z:(z[0],z[2],z[3]))
