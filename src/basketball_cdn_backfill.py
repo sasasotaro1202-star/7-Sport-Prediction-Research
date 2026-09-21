@@ -199,7 +199,7 @@ def collect_historical_bleaguer(c):
                         except Exception:
                             continue
                         add_stat(c, eid, pid, pid, SPORT, stat_name, value, str(value),
-                                 "bleaguer-github", BLEAGUE_RAW.format(path=summary_path))
+                                 "bleaguer-github", BLEAGUE_RAW.format(path=summary_path), effective_at_utc=date)
                 total += 1
             except Exception:
                 continue
