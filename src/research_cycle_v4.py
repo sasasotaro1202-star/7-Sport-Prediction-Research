@@ -1,6 +1,6 @@
 from __future__ import annotations
 import hashlib,json,sqlite3,subprocess
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from bisect import bisect_right
 from pathlib import Path
 import joblib,numpy as np
@@ -145,7 +145,7 @@ def _make_stat_history_loader(c,s):
  return history,cache
 
 def build(c,s):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};recent_times={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    _,_,a,b,o=hist[j]
@@ -162,6 +162,8 @@ def build(c,s):
    recent_results.setdefault(a,[]).append(act)
    recent_results.setdefault(b,[]).append(1-act)
    recent_results[a]=recent_results[a][-20:];recent_results[b]=recent_results[b][-20:]
+   recent_times.setdefault(a,[]).append(t); recent_times.setdefault(b,[]).append(t)
+   recent_times[a]=recent_times[a][-30:]; recent_times[b]=recent_times[b][-30:]
    key=tuple(sorted((a,b)))
    first_win=(act==1) if a==key[0] else (1-act)==1
    h2h.setdefault(key,[]).append(1 if first_win else 0)
@@ -180,6 +182,11 @@ def build(c,s):
    f[f'{side}__elo_momentum']=f[f'{side}__elo_fast']-f[f'{side}__elo_slow']
    f[f'{side}__history_n']=counts.get(pid,0)
    f[f'{side}__rest_days']=((datetime.fromisoformat(t.replace('Z','+00:00'))-datetime.fromisoformat(last[pid].replace('Z','+00:00'))).total_seconds()/86400) if pid in last else np.nan
+   event_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
+   rt=recent_times.get(pid,[])
+   for dn in (7,14,30):
+    f[f'{side}__games_last_{dn}d']=float(sum(datetime.fromisoformat(z.replace('Z','+00:00'))>=event_dt-timedelta(days=dn) for z in rt))
+   f[f'{side}__short_rest_flag']=1.0 if np.isfinite(f[f'{side}__rest_days']) and f[f'{side}__rest_days']<2.0 else 0.0
    rr=recent_results.get(pid,[])
    for rn in (5,10,20):
     f[f'{side}__recent_winrate_{rn}']=float(np.mean(rr[-rn:])) if rr[-rn:] else np.nan
@@ -204,7 +211,7 @@ def build(c,s):
     f[f'{side}__{st}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
     f[f'{side}__{st}__ewma5']=float((w*x).sum()/w.sum()) if len(x) else np.nan
     f[f'{side}__{st}__age_days']=float(ages[0]) if len(ages) else np.nan
-  for k in ('elo','elo_fast','elo_slow','history_n','rest_days'):
+  for k in ('elo','elo_fast','elo_slow','history_n','rest_days','games_last_7d','games_last_14d','games_last_30d','short_rest_flag'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
