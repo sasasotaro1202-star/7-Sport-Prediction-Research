@@ -9,6 +9,8 @@ on:
       - 'src/bleaguer_git_provenance.py'
       - 'src/valorant_git_provenance.py'
       - 'src/pit_replay_builder.py'
+      - 'src/basketball_cdn_backfill.py'
+      - 'src/seven_sport_production.py'
 permissions:
   contents: read
 concurrency:
