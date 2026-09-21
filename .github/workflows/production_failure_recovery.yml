@@ -4,6 +4,8 @@ on:
   workflow_run:
     workflows:
       - Eight Sport v4.5.15 Production
+      - PIT History Expansion
+      - Rugby Coverage Production
       - Cache and PIT Health
       - Production Safety Audit
     types: [completed]
