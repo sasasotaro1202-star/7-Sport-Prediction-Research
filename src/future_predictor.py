@@ -75,7 +75,7 @@ def predict_sport(c,s,now):
         artifact=joblib.load(artifact_path)
     except Exception as exc:
         return {'sport':s,'status':'BLOCKED_ARTIFACT_LOAD','reason':type(exc).__name__}
-    if artifact.get('quality_status') not in (None,'ACCEPTED_LOCKED_HOLDOUT','ACCEPTED_AFTER_LOCKED_HOLDOUT'):
+    if artifact.get('quality_status') not in ('ACCEPTED_LOCKED_HOLDOUT','ACCEPTED_AFTER_LOCKED_HOLDOUT'):
         return {'sport':s,'status':'DEFERRED_ARTIFACT_NOT_ACCEPTED','quality_status':artifact.get('quality_status')}
     features=list(artifact.get('features') or [])
     models=list(artifact.get('models') or [])
@@ -133,6 +133,8 @@ def predict_sport(c,s,now):
             'event_id':eid,'event_time_utc':t,'prediction_cutoff_at_utc':(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat(),'side_a':a,'side_b':b,
             'probability_side_b':p,'probability_side_a':1.0-p,
             'strategy':strategy,'router_status':router_status,
+            'models':list(names) if strategy!='contextual_router' else list(rnames),
+            'ensemble_weights':dict(weights) if strategy!='contextual_router' else None,
             'model_version':artifact.get('model_version'),
             'feature_version':artifact.get('feature_version') or 'unknown',
             'generated_at_utc':now.isoformat(),
