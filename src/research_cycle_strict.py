@@ -4,6 +4,7 @@ from pathlib import Path
 from itertools import combinations
 import joblib,numpy as np
 from sklearn.linear_model import LogisticRegression
+from sklearn.isotonic import IsotonicRegression
 from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
@@ -18,29 +19,46 @@ def f1():
  finally:c.close()
  return {'sport':'f1','status':'DEFERRED_PIT','events':int(n),'exact_pit_source_snapshots':int(e),'reason':'OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted'}
 def _temporal_calibration_candidate(p, y):
-    """Choose a sigmoid probability calibrator using only pre-holdout OOS."""
+    """Choose none/sigmoid/isotonic calibration using only pre-holdout OOS."""
     p=np.clip(np.asarray(p,dtype=float),1e-6,1-1e-6)
     y=np.asarray(y,int)
     if len(p)<120 or len(np.unique(y))<2:
-        return {'accepted':False,'reason':'insufficient_preholdout_oos_for_calibration'}
+        return {'accepted':False,'method':'none','reason':'insufficient_preholdout_oos_for_calibration'}
     cut=max(60,int(len(p)*0.70))
     if len(np.unique(y[:cut]))<2 or len(np.unique(y[cut:]))<2:
-        return {'accepted':False,'reason':'calibration_split_lacks_both_classes'}
+        return {'accepted':False,'method':'none','reason':'calibration_split_lacks_both_classes'}
     z=np.log(p/(1.0-p)).reshape(-1,1)
-    cal=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
-    cal.fit(z[:cut],y[:cut])
     raw=base.metric(y[cut:],p[cut:])
-    cp=np.clip(cal.predict_proba(z[cut:])[:,1],1e-6,1-1e-6)
-    calibrated=base.metric(y[cut:],cp)
+    candidates=[('none',None,raw)]
+    sigmoid=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
+    sigmoid.fit(z[:cut],y[:cut])
+    sp=np.clip(sigmoid.predict_proba(z[cut:])[:,1],1e-6,1-1e-6)
+    candidates.append(('sigmoid',sigmoid,base.metric(y[cut:],sp)))
+    if len(p)>=300 and len(np.unique(p[:cut]))>=25:
+        iso=IsotonicRegression(y_min=1e-6,y_max=1-1e-6,out_of_bounds='clip')
+        iso.fit(p[:cut],y[:cut])
+        ip=np.clip(iso.predict(p[cut:]),1e-6,1-1e-6)
+        candidates.append(('isotonic',iso,base.metric(y[cut:],ip)))
+    candidates.sort(key=lambda x:(x[2]['logloss'],x[2]['brier'],x[2]['ece']))
+    method,model,score=candidates[0]
     required=max(0.001,0.003*raw['logloss'])
-    accepted=(calibrated['logloss']<=raw['logloss']-required
-              and calibrated['brier']<=raw['brier']+0.002
-              and calibrated['ece']<=raw['ece']+0.01)
+    accepted=(method!='none'
+              and score['logloss']<=raw['logloss']-required
+              and score['brier']<=raw['brier']+0.002
+              and score['ece']<=raw['ece']+0.01)
     if not accepted:
-        return {'accepted':False,'reason':'preholdout_validation_did_not_pass','raw_validation':raw,'calibrated_validation':calibrated,'required_logloss_improvement':required}
-    final_cal=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
-    final_cal.fit(z,y)
-    return {'accepted':True,'model':final_cal,'raw_validation':raw,'calibrated_validation':calibrated,'required_logloss_improvement':required}
+        return {'accepted':False,'method':'none','reason':'preholdout_validation_did_not_pass','raw_validation':raw,
+                'candidate_methods':{m:sc for m,_,sc in candidates},'required_logloss_improvement':required}
+    if method=='sigmoid':
+        final=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
+        final.fit(z,y)
+    else:
+        final=IsotonicRegression(y_min=1e-6,y_max=1-1e-6,out_of_bounds='clip')
+        final.fit(p,y)
+    return {'accepted':True,'method':method,'model':final,'raw_validation':raw,
+            'calibrated_validation':score,'candidate_methods':{m:sc for m,_,sc in candidates},
+            'required_logloss_improvement':required}
+
 
 def _write_result(s, payload):
     """Persist every research outcome, including DEFERRED/REJECTED states."""
@@ -307,8 +325,11 @@ def train(s):
     else np.mean([m.predict_proba(X[sel:])[:,1] for m in models],axis=0),
     dtype=float
    )
-   z_hold=np.log(np.clip(raw_hold_p,1e-6,1-1e-6)/(1.0-np.clip(raw_hold_p,1e-6,1-1e-6))).reshape(-1,1)
-   calibrated_hold_p=np.clip(probability_calibrator.predict_proba(z_hold)[:,1],1e-6,1-1e-6)
+   if calibration.get('method')=='sigmoid':
+    z_hold=np.log(np.clip(raw_hold_p,1e-6,1-1e-6)/(1.0-np.clip(raw_hold_p,1e-6,1-1e-6))).reshape(-1,1)
+    calibrated_hold_p=np.clip(probability_calibrator.predict_proba(z_hold)[:,1],1e-6,1-1e-6)
+   else:
+    calibrated_hold_p=np.clip(probability_calibrator.predict(raw_hold_p),1e-6,1-1e-6)
    hold_probability_calibrated=base.metric(y[sel:],calibrated_hold_p)
    hold_probability_calibrated['models']=list(best)
    hold_probability_calibrated['candidate_strategy']=candidate_label
