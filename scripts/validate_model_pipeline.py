@@ -21,6 +21,9 @@ def main():
     assert ctx.shape==(2,10), ctx.shape
     assert np.all(np.isfinite(ctx)), "router context contains non-finite values"
     assert not np.allclose(ctx[0],ctx[1]), "router context collapsed to one aggregate"
+    ref=router.context_reference(tr)
+    ctx_ref=router._context_from_reference(ref,cu)
+    assert np.allclose(ctx,ctx_ref,atol=1e-10,rtol=1e-10), 'compact router context reference changes routing context'
 
     # Recent model-loss state must use only supplied historical OOF losses.
     recent=router._recent_model_loss([[0.7,0.5],[0.4,0.8],[0.3,0.6]],2)
