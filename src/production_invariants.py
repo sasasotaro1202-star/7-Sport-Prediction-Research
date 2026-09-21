@@ -147,6 +147,8 @@ def main():
             'strict model feature version was not bumped after adding score-margin features')
     require('strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
             'carry-forward compatibility does not distinguish current v15 from prior v14 schema')
+    require('feature_version.startswith("strict-pit-v15-")' in strict_src,
+            'current v15 accepted artifacts are not eligible for safe carry-forward')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
             'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
