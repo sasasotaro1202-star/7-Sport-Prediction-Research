@@ -93,6 +93,14 @@ def predict_sport(c,s,now):
     if router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and router_obj is None:
         return {'sport':s,'status':'BLOCKED_ARTIFACT_ROUTER_STATE'}
     rows,_=base.build(c,s,include_unlabeled=True)
+    available_features=set()
+    for _,_,_,row_features in rows:
+        available_features.update(row_features.keys())
+    missing_schema=sorted(set(features)-available_features)
+    if missing_schema:
+        return {'sport':s,'status':'BLOCKED_ARTIFACT_FEATURE_SCHEMA','missing_features':missing_schema,
+                'artifact_feature_version':artifact.get('feature_version'),
+                'current_feature_count':len(available_features)}
     future=_future_events(c,s,now)
     outputs=[]
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
