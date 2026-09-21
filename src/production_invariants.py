@@ -140,6 +140,8 @@ def main():
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
     req_text=(ROOT/'requirements.txt').read_text(encoding='utf-8')
     require('lightgbm==4.7.0' in req_text,'LightGBM dependency is not pinned to the verified current release')
+    require('Install optional LightGBM challenger' not in workflow,'production workflow redundantly installs already-pinned LightGBM')
+    require('pip install --retries 5 --timeout 60 "lightgbm==4.7.0"' not in workflow,'production workflow has a duplicate LightGBM installation path')
     smoke_src=(ROOT/'scripts/model_system_smoke.py').read_text(encoding='utf-8')
     require('MODEL_SYSTEM_SMOKE: PASS' in smoke_src,'model system smoke test script is missing')
     inv_workflow=(ROOT/'.github/workflows/production_invariants.yml').read_text(encoding='utf-8')
