@@ -13,6 +13,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: .
+
 concurrency:
   group: production-invariants-validation
   # These workflows are read-only validators. Only the newest commit needs validation.
@@ -30,7 +33,7 @@ jobs:
       - name: Install validation dependencies
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - name: Run model system smoke test
-        run: python scripts/model_system_smoke.py
+        run: PYTHONPATH=. python scripts/model_system_smoke.py
       - name: Run production invariants
         run: python -m src.production_invariants
       - name: Validate dynamic router syntax and import safety
