@@ -20,7 +20,7 @@ def main():
     train=X[:220]
 
     pool=base.pool()
-    required={'logistic','extra_trees','random_forest','hist_gb','hist_gb_shallow','hist_gb_fast','lightgbm'}
+    required={'logistic','extra_trees','random_forest','hist_gb','hist_gb_shallow','hist_gb_fast','lightgbm','lightgbm_wide'}
     missing=required-set(pool)
     assert not missing, f"model pool missing: {sorted(missing)}"
 
@@ -59,6 +59,15 @@ def main():
 
     routed2,_=router.predict_with_router(selector,base_models,names,ref,current)
     assert routed2.shape==(len(current),) and np.all(np.isfinite(routed2))
+    folds=[]
+    for end,te in [(60,100),(100,140),(140,180),(180,220)]:
+        preds={n:np.clip(rng.uniform(0.08,0.92,size=te-end),1e-6,1-1e-6) for n in names}
+        folds.append({'end':end,'te':te,'preds':preds})
+    final_selector=router.fit_final_router_from_folds(X,y,names,folds,220)
+    assert final_selector is not None and final_selector.get('kind')=='contextual_loss_v1'
+    holdout_pred={n:np.clip(rng.uniform(0.08,0.92,size=40),1e-6,1-1e-6) for n in names}
+    router_hold=router.evaluate_frozen_holdout_router_from_folds(X,y,names,folds,220,holdout_pred)
+    assert router_hold.get('status') in {'EVALUATED','INSUFFICIENT_OOS'}
 
     p=np.clip(np.linspace(0.1,0.9,120),1e-6,1-1e-6)
     yy=(p>0.55).astype(int)
