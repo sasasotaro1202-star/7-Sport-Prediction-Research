@@ -36,10 +36,15 @@ jobs:
             exit 0
           fi
           anchor=$(date -u -d '2026-09-22 00:47:00' +%s)
+          # GitHub scheduled jobs can start a little after the nominal cron time.
+          # Compare at minute precision and accept a bounded boundary window so
+          # normal scheduler jitter does not silently skip a real 9-hour boundary.
           now=$(date -u +%s)
           delta=$((now-anchor))
-          if [ "$delta" -lt 0 ] || [ $((delta % 32400)) -ne 0 ]; then
-            echo "9-hour cadence guard: skip this 3-hour wake-up (delta=${delta}s)"
+          minute_delta=$((delta / 60))
+          remainder_minutes=$((minute_delta % 540))
+          if [ "$delta" -lt 0 ] || { [ "$remainder_minutes" -gt 5 ] && [ "$remainder_minutes" -lt 535 ]; }; then
+            echo "9-hour cadence guard: skip this 3-hour wake-up (delta=${delta}s remainder_minutes=${remainder_minutes})"
             echo 'run=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
