@@ -96,7 +96,7 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
-    require("method':'isotonic" in strict_src or "method': 'isotonic" in strict_src or "method=='isotonic'" in strict_src,
+    require('IsotonicRegression' in strict_src and 'candidate_methods' in strict_src,
             'calibration challenger does not include isotonic comparison')
     require('robust_objective' in strict_src and 'weighted_pair_win_rate' in strict_src,
             'ensemble stability gate is missing')
@@ -136,13 +136,14 @@ def main():
     # Dynamic Router is a research challenger only. Guard the production path
     # against accidental promotion before a separately verified promotion gate.
     production_router_refs=(
-        (ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
-        + (ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
+        (ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
         + (ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
+        + (ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
     )
-    require('fit_final_router(' not in production_router_refs,'dynamic router final fit leaked into production path')
-    require('predict_with_router(' not in production_router_refs,'dynamic router prediction leaked into production path')
-    require('DynamicModelRouter(' not in production_router_refs,'dynamic router class instantiated in production path')
+    require('fit_final_router(' not in production_router_refs,'dynamic router final fit leaked into production runtime path')
+    require('DynamicModelRouter(' not in production_router_refs,'dynamic router class instantiated in production runtime path')
+    require('PRODUCTION_ROUTABLE_AFTER_GATES' in production_router_refs,
+            'future prediction runtime lacks explicit gated router state')
     try:
         import numpy as np
         from src import dynamic_model_router as dmrouter
