@@ -36,8 +36,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/db/sports_v45.sqlite
-          key: seven-sport-db-v3-${{ matrix.sport }}-${{ github.run_id }}
-          restore-keys: seven-sport-db-v3-${{ matrix.sport }}-
+          key: eight-sport-db-v4-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            eight-sport-db-v4-${{ matrix.sport }}-pit-
+            eight-sport-db-v4-${{ matrix.sport }}-
       - name: Inspect cache integrity
         run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }}
   rugby-cache-health:
