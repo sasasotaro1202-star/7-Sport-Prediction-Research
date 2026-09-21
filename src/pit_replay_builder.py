@@ -92,13 +92,13 @@ def load_stat_history(c, sport, stat_names):
     marks=','.join('?' for _ in stat_names)
     sql=f"""
         WITH exact_source AS (
-            SELECT source,source_url,
+            SELECT source,source_url,event_time_utc,
                    MIN(source_available_at_utc) AS source_available_at_utc,
                    MIN(snapshot_id) AS snapshot_id
               FROM source_snapshot
              WHERE availability_status='EXACT'
                AND source_available_at_utc IS NOT NULL
-             GROUP BY source,source_url
+             GROUP BY source,source_url,event_time_utc
         ),
         ranked AS (
             SELECT ms.stat_id,ms.event_id,ms.participant_id,ms.stat_name,ms.value_num,
@@ -106,12 +106,19 @@ def load_stat_history(c, sport, stat_names):
                    ex.source_available_at_utc,ex.snapshot_id,
                    ROW_NUMBER() OVER (
                        PARTITION BY ms.event_id,ms.participant_id,ms.stat_name
-                       ORDER BY ms.stat_id DESC
+                       ORDER BY
+                         CASE WHEN ex.event_time_utc IS NOT NULL THEN 0 ELSE 1 END,
+                         ex.source_available_at_utc ASC,
+                         ms.effective_at_utc DESC,
+                         ms.observed_at_utc DESC,
+                         ms.stat_id DESC
                    ) AS rn
               FROM match_stats ms
               JOIN event pe ON pe.event_id=ms.event_id
               JOIN exact_source ex
-                ON ex.source=ms.source AND ex.source_url=ms.source_url
+                ON ex.source=ms.source
+               AND ex.source_url=ms.source_url
+               AND (ex.event_time_utc IS NULL OR ex.event_time_utc=pe.event_time_utc)
              WHERE ms.sport=?
                AND ms.stat_name IN ({marks})
                AND ms.value_num IS NOT NULL
