@@ -267,7 +267,8 @@ def train(s):
     oos[name]=score
   if not oos:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
   rank=sorted(oos,key=lambda k:(oos[k]['robust_objective'],oos[k]['brier'],oos[k]['ece']))
-  cands=[(n,) for n in rank[:3]]+list(combinations(rank[:3],2))
+  top_rank=rank[:4]
+  cands=[(n,) for n in top_rank]+list(combinations(top_rank,2))+list(combinations(top_rank,3))
   scores={}
   for spec in cands:
    key='+'.join(spec)
