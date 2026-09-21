@@ -11,6 +11,7 @@ DB=ROOT/'data/db/sports_v45.sqlite'
 MODELS=ROOT/'models/research'
 OUT=ROOT/'results/future_predictions.json'
 SPORTS=tuple(base.SPORTS)
+PIT_LEAD_MINUTES=60
 
 
 def utc_now():
@@ -42,10 +43,19 @@ def _future_events(c,s,now):
                   AND e.event_time_utc IS NOT NULL
                 ORDER BY e.event_time_utc,e.event_id""",(s,)
         ).fetchall()
-        if row[1] and _after_now(row[1],now)
+        if row[1] and _after_cutoff(row[1],now,PIT_LEAD_MINUTES)
         and str(row[2] or '').upper() not in {'COMPLETED','FINISHED','POST','FINAL','CANCELLED','VOID'}
     }
 
+
+def _after_cutoff(ts,now,lead_minutes):
+    try:
+        dt=datetime.fromisoformat(str(ts).replace('Z','+00:00'))
+        if dt.tzinfo is None:
+            dt=dt.replace(tzinfo=timezone.utc)
+        return dt > now and (dt-now).total_seconds() >= float(lead_minutes)*60.0
+    except Exception:
+        return False
 
 def _after_now(ts,now):
     try:
@@ -120,7 +130,7 @@ def predict_sport(c,s,now):
                  LEFT JOIN participant p ON p.participant_id=ep.participant_id
                 WHERE ep.event_id=?""",(eid,)).fetchone()
         outputs.append({
-            'event_id':eid,'event_time_utc':t,'side_a':a,'side_b':b,
+            'event_id':eid,'event_time_utc':t,'prediction_cutoff_at_utc':(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat(),'side_a':a,'side_b':b,
             'probability_side_b':p,'probability_side_a':1.0-p,
             'strategy':strategy,'router_status':router_status,
             'model_version':artifact.get('model_version'),
