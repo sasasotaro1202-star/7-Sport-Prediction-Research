@@ -38,6 +38,11 @@ def main():
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require('production_release_gate' in workflow,'production release gate missing')
+    predictor=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    require("apply_cal = None if strategy=='contextual_router' else cal" in predictor,
+            'future predictor may apply fixed-ensemble calibration to Router output')
+    require("use_router=router_status=='PRODUCTION_ROUTABLE_AFTER_GATES'" in predictor,
+            'future predictor lacks explicit Router promotion gate')
     require('Verify workflow SHA is current main before any mutable work' in workflow,
             'canonical Production lacks stale-workflow SHA fail-closed guard')
     require('Verify merge run SHA is current main before mutable work' in workflow,
