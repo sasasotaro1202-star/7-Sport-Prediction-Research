@@ -46,6 +46,11 @@ def main():
             'merge job is not configured to run after collector degradation while skipping intentionally skipped collection')
     require('  push:' not in workflow,
             'canonical production workflow should not create heavy push-triggered queue')
+    accelerated=(ROOT/'src/research_accelerated.py').read_text(encoding='utf-8')
+    require('final.fit(X[:holdout_start],y[:holdout_start])' in accelerated,
+            'accelerated research final fit must exclude frozen holdout')
+    require('final.fit(X,y)' not in accelerated,
+            'accelerated research must never fit final model on full dataset including holdout')
     recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
     require('PIT History Expansion' in recovery and 'Rugby Coverage Production' in recovery,
             'bounded recovery does not cover PIT and Rugby workflows')
