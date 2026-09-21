@@ -141,6 +141,8 @@ def main():
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
+    require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
+            'research features lack score-margin strength signals')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
             'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
