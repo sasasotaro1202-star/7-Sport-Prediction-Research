@@ -8,6 +8,7 @@ on:
   push:
     paths:
       - 'src/**'
+      - 'scripts/**'
       - '.github/workflows/**'
       - 'requirements.txt'
 
