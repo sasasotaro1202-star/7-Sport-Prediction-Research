@@ -7,3 +7,4 @@ lxml>=5.3
 python-dateutil>=2.9
 pydantic>=2.8
 joblib>=1.4
+lightgbm>=4.5
