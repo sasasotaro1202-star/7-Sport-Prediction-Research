@@ -174,7 +174,9 @@ def build(c,s):
     a=f[f'A__{st}__{base_suf}'];b=f[f'B__{st}__{base_suf}']
     denom=abs(a)+abs(b)+1e-6 if np.isfinite(a) and np.isfinite(b) else np.nan
     f[f'D__{st}__{base_suf}_relative']=(a-b)/denom if np.isfinite(denom) else np.nan
-  prior_hist=any(hh[1] < t and (hh[2] in (p['A'],p['B']) or hh[3] in (p['A'],p['B'])) for hh in hist)
+  # counts is already updated only with outcomes strictly before the current event.
+  # Reuse it instead of scanning the entire historical outcome list per event.
+  prior_hist=(counts.get(p['A'],0)>0 or counts.get(p['B'],0)>0)
   if strict_evidence == 0 and not prior_hist:
    continue
   rows.append((eid,t,0 if labels[eid]=='A' else 1,f))
