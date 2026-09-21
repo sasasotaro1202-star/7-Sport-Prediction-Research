@@ -147,7 +147,7 @@ def _make_stat_history_loader(c,s):
  return history,cache
 
 def build(c,s,include_unlabeled=False):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};recent_times={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    _,_,a,b,o=hist[j]
@@ -166,7 +166,10 @@ def build(c,s,include_unlabeled=False):
    recent_results[a]=recent_results[a][-20:];recent_results[b]=recent_results[b][-20:]
    result_time=hist[j][1]
    recent_times.setdefault(a,[]).append(result_time); recent_times.setdefault(b,[]).append(result_time)
-   recent_times[a]=recent_times[a][-30:]; recent_times[b]=recent_times[b][-30:]
+   recent_times[a]=recent_times[a][-100:]; recent_times[b]=recent_times[b][-100:]
+   recent_opponent_elo.setdefault(a,[]).append(rb)
+   recent_opponent_elo.setdefault(b,[]).append(ra)
+   recent_opponent_elo[a]=recent_opponent_elo[a][-20:]; recent_opponent_elo[b]=recent_opponent_elo[b][-20:]
    key=tuple(sorted((a,b)))
    first_win=(act==1) if a==key[0] else (1-act)==1
    h2h.setdefault(key,[]).append(1 if first_win else 0)
@@ -194,6 +197,10 @@ def build(c,s,include_unlabeled=False):
    for rn in (5,10,20):
     f[f'{side}__recent_winrate_{rn}']=float(np.mean(rr[-rn:])) if rr[-rn:] else np.nan
    f[f'{side}__recent_form_delta']=f[f'{side}__recent_winrate_5']-f[f'{side}__recent_winrate_20'] if np.isfinite(f[f'{side}__recent_winrate_5']) and np.isfinite(f[f'{side}__recent_winrate_20']) else np.nan
+   relo=recent_opponent_elo.get(pid,[])
+   for rn in (5,10,20):
+    f[f'{side}__opponent_elo_mean_{rn}']=float(np.mean(relo[-rn:])) if relo[-rn:] else np.nan
+   f[f'{side}__opponent_elo_delta']=f[f'{side}__opponent_elo_mean_5']-f[f'{side}__opponent_elo_mean_20'] if np.isfinite(f[f'{side}__opponent_elo_mean_5']) and np.isfinite(f[f'{side}__opponent_elo_mean_20']) else np.nan
    for st in cols:
     pred_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
     cutoff_dt=pred_dt-__import__('datetime').timedelta(minutes=60)
@@ -217,6 +224,8 @@ def build(c,s,include_unlabeled=False):
   for k in ('elo','elo_fast','elo_slow','history_n','rest_days','games_last_7d','games_last_14d','games_last_30d','short_rest_flag'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta'):
+   a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
+  for k in ('opponent_elo_mean_5','opponent_elo_mean_10','opponent_elo_mean_20','opponent_elo_delta'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   f['D__elo_momentum']= (f['A__elo_momentum']-f['B__elo_momentum']) if np.isfinite(f['A__elo_momentum']) and np.isfinite(f['B__elo_momentum']) else np.nan
   key=tuple(sorted((p['A'],p['B'])))
