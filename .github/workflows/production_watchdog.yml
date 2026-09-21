@@ -40,22 +40,19 @@ jobs:
             done
           done
 
-      - name: Cancel stale queued production runs
+      - name: Cancel stale unfinished heavy runs from old commits
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           main_sha=$(git rev-parse HEAD)
-          now=$(date -u +%s)
-          gh run list --workflow "v4_5_15_production.yml" --limit 50 --json databaseId,status,event,createdAt,headSha             --jq '.[] | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
-          while IFS=$'\t' read -r run_id status event created_at head_sha; do
-            [ -n "$run_id" ] || continue
-            created_ts=$(date -u -d "$created_at" +%s)
-            age=$((now-created_ts))
-            if [ "$status" = "queued" ] && [ "$age" -ge 1800 ] && [ "$head_sha" != "$main_sha" ]; then
-              echo "STALE_QUEUED_PRODUCTION run_id=$run_id age=${age}s sha=$head_sha main=$main_sha"
+          for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
+            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha --jq '.[] | select(.headSha != "'"$main_sha"'" and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")) | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
+            while IFS=$'	' read -r run_id status event created_at head_sha; do
+              [ -n "$run_id" ] || continue
+              echo "STALE_UNFINISHED_HEAVY_RUN run_id=$run_id status=$status event=$event sha=$head_sha main=$main_sha workflow=$workflow"
               gh run cancel "$run_id"
-            fi
+            done
           done
 
       - name: Ensure latest-main production is continuously scheduled
