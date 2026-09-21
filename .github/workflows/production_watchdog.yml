@@ -85,15 +85,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          main_sha=$(git rev-parse HEAD)
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
-            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha               --jq '.[] | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
+            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha --jq '.[] | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
             while IFS=$'\t' read -r run_id status event created_at head_sha; do
               [ -n "$run_id" ] || continue
               [ "$status" = "in_progress" ] || continue
+              if [ "$head_sha" != "$main_sha" ]; then
+                echo "STALE_SHA_HEAVY_RUN run_id=$run_id workflow=$workflow event=$event sha=$head_sha main=$main_sha"
+                gh run cancel "$run_id"
+                continue
+              fi
               created_ts=$(date -u -d "$created_at" +%s)
               now=$(date -u +%s)
               age=$((now-created_ts))
-              # Match each workflow's explicit timeout with a bounded grace period.
               limit=8100
               if [ "$workflow" = "pit_history_expansion.yml" ]; then limit=2700; fi
               if [ "$age" -ge "$limit" ]; then
