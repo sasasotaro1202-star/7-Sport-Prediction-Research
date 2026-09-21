@@ -40,6 +40,8 @@ def main():
     require('production_release_gate' in workflow,'production release gate missing')
     require('Verify workflow SHA is current main before any mutable work' in workflow,
             'canonical Production lacks stale-workflow SHA fail-closed guard')
+    require('Verify merge run SHA is current main before mutable work' in workflow,
+            'canonical Production merge job lacks stale-workflow SHA fail-closed guard')
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
     require('Verify workflow SHA is current main before any mutable work' in pit_workflow,
             'PIT History Expansion lacks stale-workflow SHA fail-closed guard')
