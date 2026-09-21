@@ -534,7 +534,8 @@ def train(s):
                    and router_eval['ece_change'] <= .02
                    and router_holdout['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
                    and router_holdout['brier_improvement'] >= -.002
-                   and router_holdout['ece_change'] <= .02)
+                   and router_holdout['ece_change'] <= .02
+                   and router_holdout['dynamic_router']['ece'] <= .20)
   final_router=None
   router_models_artifact={}
   router_feature_reference=None
