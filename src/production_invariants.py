@@ -83,6 +83,7 @@ def main():
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
+    strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
     research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
@@ -116,8 +117,7 @@ def main():
     require('UNSUPPORTED_MULTICLASS_RESEARCH_ONLY' in router_src,'dynamic router lacks multiclass research-only guard')
     require('router_unavailable' in router_src and 'multiclass_base_model_unsupported' in router_src,'dynamic router lacks safe prediction fallbacks')
     require('evaluate_frozen_holdout_router' in router_src,'dynamic router lacks frozen-holdout evaluation')
-    strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
-    require('router_holdout=router.evaluate_frozen_holdout_router' in strict_src,'strict research cycle does not evaluate router on frozen holdout')
+    require('router_holdout=router.evaluate_frozen_holdout_router_from_folds' in strict_src,'strict research cycle does not evaluate router on frozen holdout')
     require('router_holdout.get(\'status\') == \'EVALUATED\'' in strict_src,'router promotion gate does not require frozen-holdout evaluation')
     # Dynamic Router is a research challenger only. Guard the production path
     # against accidental promotion before a separately verified promotion gate.
