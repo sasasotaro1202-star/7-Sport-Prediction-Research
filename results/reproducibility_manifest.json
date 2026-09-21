@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-09-21T00:22:18.887903+00:00",
-  "source_git_commit_sha": "3bf80e258c3106892f9cb71fe02a55a2b278000c",
+  "generated_at_utc": "2026-09-21T05:05:38.363511+00:00",
+  "source_git_commit_sha": "bc9bef8d5e7bb80b2ce8d13427c5db2622e04fb6",
   "requirements_sha256": "2a6160e13e062c8d6168a3b2c972bfa08710f75719c1ddcbf5149e038c3db50f",
   "sports": [
     "valorant",
@@ -27,8 +27,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 629837824,
-      "sha256": "9fb5684f36c0fc8f63c90e4489623270fe71b1305731689e67a48451ab32fe94"
+      "bytes": 635928576,
+      "sha256": "7ba2341f8a68f11984e32b60436987ef91938e0c61fc4ddfcd22c3f4067ec98d"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -38,7 +38,7 @@
       "path": "results/quality_gate.json",
       "exists": true,
       "bytes": 3613,
-      "sha256": "72932ee3397b327e8a20107bcccee635056b50ce33d4ab731a4166290e860bb1"
+      "sha256": "e49d9186d6810eae28c351ffc8c45322ea92120f6189027c9c11a47f32d096c0"
     },
     {
       "path": "results/release_gate.json",
