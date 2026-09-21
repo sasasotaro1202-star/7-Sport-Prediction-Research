@@ -38,7 +38,13 @@ class TC:
   if s>=len(y) or len(np.unique(y[:s]))<2:self.b.fit(X,y);self.c=None;return self
   self.b.fit(X[:s],y[:s]);r=np.clip(self.b.predict_proba(X[s:])[:,1],1e-6,1-1e-6)
   if len(np.unique(y[s:]))<2:self.c=None;return self
-  self.c=LogisticRegression(max_iter=1000).fit(np.log(r/(1-r)).reshape(-1,1),y[s:]);return self
+  self.c=LogisticRegression(max_iter=1000).fit(np.log(r/(1-r)).reshape(-1,1),y[s:])
+  # Keep the calibrator fit isolated to the tail of the training fold, then
+  # refit the base estimator on all data available before the OOS/future row.
+  # This recovers the 20% calibration holdout for model fitting without using
+  # any future/test labels and preserves chronological OOS safety.
+  self.b.fit(X,y)
+  return self
  def predict_proba(self,X):
   r=np.clip(self.b.predict_proba(X)[:,1],1e-6,1-1e-6);p=r if self.c is None else self.c.predict_proba(np.log(r/(1-r)).reshape(-1,1))[:,1];return np.c_[1-p,p]
 def pool():
