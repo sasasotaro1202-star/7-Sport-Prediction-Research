@@ -265,6 +265,57 @@ def train(s):
     if len(yy)>=20 and len(np.unique(yy))>1:
      out.append(base.metric(np.asarray(yy),np.asarray(pp)))
    return out
+  def _regime_robust_objective(spec, weights=None):
+   """Score pre-holdout OOF performance across a few fixed, PIT-safe regimes."""
+   regime_scores=[]
+   overall_pred=[]
+   overall_y=[]
+   for fold in oof_folds:
+    end=int(fold['end']);te=int(fold['te'])
+    fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
+    p=np.mean(fp,axis=1) if weights is None else np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1)
+    yy=y[end:te]
+    overall_pred.extend(p.tolist());overall_y.extend(yy.tolist())
+   overall=np.asarray(overall_pred,float)
+   target=np.asarray(overall_y,int)
+   base_ll=base.metric(target,overall)['logloss'] if len(target) else float('inf')
+   regime_names=[
+    'competition_is_asian_games','competition_is_bleague',
+    'D__short_rest_flag','D__games_last_7d','D__games_last_30d',
+    'D__recent_form_delta','D__elo_momentum'
+   ]
+   fs_index={name:i for i,name in enumerate(fs)}
+   for rn in regime_names:
+    idx=fs_index.get(rn)
+    if idx is None:continue
+    vals=[];labels=[]
+    for fold in oof_folds:
+     end=int(fold['end']);te=int(fold['te'])
+     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
+     p=np.mean(fp,axis=1) if weights is None else np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1)
+     yy=y[end:te]
+     z=X[end:te,idx]
+     finite=np.isfinite(z)
+     if not np.any(finite):continue
+     if rn in ('competition_is_asian_games','competition_is_bleague','D__short_rest_flag'):
+      group=(z>=0.5)
+      for g in (False,True):
+       m=finite & (group==g)
+       if m.sum()>=20 and len(np.unique(yy[m]))>1:
+        regime_scores.append((rn,str(g),base.metric(yy[m],p[m])['logloss'],int(m.sum())))
+     else:
+      zv=z[finite]
+      if zv.size<40:continue
+      med=float(np.nanmedian(zv))
+      for label,g in (('low',finite&(z<=med)),('high',finite&(z>med))):
+       if g.sum()>=20 and len(np.unique(yy[g]))>1:
+        regime_scores.append((rn,label,base.metric(yy[g],p[g])['logloss'],int(g.sum())))
+   if not regime_scores:
+    return base_ll,0.0,[]
+   worst=max(z[2] for z in regime_scores)
+   excess=max(0.0,worst-base_ll)
+   return base_ll,excess,regime_scores
+
   oos={}
   for name in names:
    p=np.asarray(oof_probs[name],float)
@@ -354,56 +405,6 @@ def train(s):
   wa_a=wa_b=None;wa_weight=0.5;wa_metric=None
   wa_win_rate=0.0;wa_mean_delta=0.0;wa_fold_std=float('inf');wa_robust_gain=0.0
 
-  def _regime_robust_objective(spec, weights=None):
-   """Score pre-holdout OOF performance across a few fixed, PIT-safe regimes."""
-   regime_scores=[]
-   overall_pred=[]
-   overall_y=[]
-   for fold in oof_folds:
-    end=int(fold['end']);te=int(fold['te'])
-    fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
-    p=np.mean(fp,axis=1) if weights is None else np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1)
-    yy=y[end:te]
-    overall_pred.extend(p.tolist());overall_y.extend(yy.tolist())
-   overall=np.asarray(overall_pred,float)
-   target=np.asarray(overall_y,int)
-   base_ll=base.metric(target,overall)['logloss'] if len(target) else float('inf')
-   regime_names=[
-    'competition_is_asian_games','competition_is_bleague',
-    'D__short_rest_flag','D__games_last_7d','D__games_last_30d',
-    'D__recent_form_delta','D__elo_momentum'
-   ]
-   fs_index={name:i for i,name in enumerate(fs)}
-   for rn in regime_names:
-    idx=fs_index.get(rn)
-    if idx is None:continue
-    vals=[];labels=[]
-    for fold in oof_folds:
-     end=int(fold['end']);te=int(fold['te'])
-     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
-     p=np.mean(fp,axis=1) if weights is None else np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1)
-     yy=y[end:te]
-     z=X[end:te,idx]
-     finite=np.isfinite(z)
-     if not np.any(finite):continue
-     if rn in ('competition_is_asian_games','competition_is_bleague','D__short_rest_flag'):
-      group=(z>=0.5)
-      for g in (False,True):
-       m=finite & (group==g)
-       if m.sum()>=20 and len(np.unique(yy[m]))>1:
-        regime_scores.append((rn,str(g),base.metric(yy[m],p[m])['logloss'],int(m.sum())))
-     else:
-      zv=z[finite]
-      if zv.size<40:continue
-      med=float(np.nanmedian(zv))
-      for label,g in (('low',finite&(z<=med)),('high',finite&(z>med))):
-       if g.sum()>=20 and len(np.unique(yy[g]))>1:
-        regime_scores.append((rn,label,base.metric(yy[g],p[g])['logloss'],int(g.sum())))
-   if not regime_scores:
-    return base_ll,0.0,[]
-   worst=max(z[2] for z in regime_scores)
-   excess=max(0.0,worst-base_ll)
-   return base_ll,excess,regime_scores
 
   def _weighted_candidate_score(spec, weights):
    p_all=np.sum(np.column_stack([weights.get(n,0.0)*np.asarray(oof_probs[n],float) for n in spec]),axis=1)
