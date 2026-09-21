@@ -176,6 +176,71 @@ def _require_binary_target(y):
     return len(np.unique(np.asarray(y))) == 2
 
 
+def evaluate_router_from_folds(
+    X: np.ndarray,
+    y: np.ndarray,
+    names: Sequence[str],
+    folds: Sequence[Dict],
+    sel: int,
+    metric=None,
+) -> Dict:
+    """Evaluate the contextual router using already-computed chronological OOF predictions."""
+    X=np.asarray(X,dtype=float); y=np.asarray(y)
+    meta_X=[]; meta_losses=[]; static_pred=[]; router_pred=[]; targets=[]
+    used_folds=0
+    for fold in folds:
+        end=int(fold['end']); te=int(fold['te'])
+        bp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in names])
+        ctx=_context(X[:end],X[end:te])
+        history_loss=_recent_model_loss(meta_losses,len(names))
+        features=np.column_stack([bp,ctx,np.std(bp,axis=1),np.repeat(history_loss[None,:],len(bp),axis=0)])
+        selector=_fit_contextual_loss_selector(
+            np.asarray(meta_X,dtype=float) if meta_X else np.empty((0,features.shape[1])),
+            np.asarray(meta_losses,dtype=float) if meta_losses else np.empty((0,len(names)))
+        )
+        routed=_route_with_contextual_loss_selector(selector,bp,ctx,history_loss)
+        if routed is None:routed=np.mean(bp,axis=1)
+        static_pred.extend(np.mean(bp,axis=1).tolist());router_pred.extend(routed.tolist());targets.extend(y[end:te].tolist())
+        yt=y[end:te].astype(float)
+        losses=-(yt[:,None]*np.log(bp)+(1.0-yt[:,None])*np.log(1.0-bp))
+        meta_X.extend(features.tolist());meta_losses.extend(losses.tolist());used_folds+=1
+    if len(meta_losses)<120:
+        return {'status':'INSUFFICIENT_OOS','reason':'insufficient_router_training_oof','oos_rows':len(meta_losses)}
+    static_m=_metric(np.asarray(targets),static_pred);router_m=_metric(np.asarray(targets),router_pred)
+    return {'status':'EVALUATED','folds':used_folds,'oos_rows':len(meta_losses),'fixed_ensemble':static_m,'dynamic_router':router_m,'logloss_improvement':static_m['logloss']-router_m['logloss'],'brier_improvement':static_m['brier']-router_m['brier'],'ece_change':router_m['ece']-static_m['ece'],'policy':'challenger_only; reused chronological OOF base predictions; frozen holdout untouched'}
+
+def evaluate_frozen_holdout_router_from_folds(
+    X: np.ndarray,
+    y: np.ndarray,
+    names: Sequence[str],
+    folds: Sequence[Dict],
+    sel: int,
+    holdout_pred: Dict[str, np.ndarray],
+) -> Dict:
+    """Evaluate contextual router on frozen holdout using precomputed pre-holdout OOF base predictions."""
+    X=np.asarray(X,dtype=float); y=np.asarray(y)
+    meta_X=[]; meta_losses=[]
+    for fold in folds:
+        end=int(fold['end']); te=int(fold['te'])
+        bp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in names])
+        ctx=_context(X[:end],X[end:te])
+        history_loss=_recent_model_loss(meta_losses,len(names))
+        features=np.column_stack([bp,ctx,np.std(bp,axis=1),np.repeat(history_loss[None,:],len(bp),axis=0)])
+        yt=y[end:te].astype(float)
+        losses=-(yt[:,None]*np.log(bp)+(1.0-yt[:,None])*np.log(1.0-bp))
+        meta_X.extend(features.tolist());meta_losses.extend(losses.tolist())
+    selector=_fit_contextual_loss_selector(np.asarray(meta_X,dtype=float),np.asarray(meta_losses,dtype=float))
+    if selector is None:
+        return {'status':'INSUFFICIENT_OOS','reason':'insufficient_router_training_oof','oos_rows':len(meta_losses)}
+    bp=np.column_stack([np.asarray(holdout_pred[n],dtype=float) for n in names])
+    static=np.mean(bp,axis=1);ctx=_context(X[:sel],X[sel:])
+    routed=_route_with_contextual_loss_selector(selector,bp,ctx,_recent_model_loss(meta_losses,len(names)))
+    if routed is None:
+        return {'status':'INSUFFICIENT_OOS','reason':'contextual_router_fit_failed','oos_rows':len(meta_losses)}
+    target=y[sel:]
+    static_m=_metric(target,static);routed_m=_metric(target,routed)
+    return {'status':'EVALUATED','oos_training_rows':len(meta_losses),'holdout_rows':len(target),'fixed_ensemble':static_m,'dynamic_router':routed_m,'logloss_improvement':static_m['logloss']-routed_m['logloss'],'brier_improvement':static_m['brier']-routed_m['brier'],'ece_change':routed_m['ece']-static_m['ece'],'policy':'router_fit_pre_holdout_only; reused chronological OOF base predictions; frozen_holdout_labels_used_only_for_scoring'}
+
 def evaluate_router(
     X: np.ndarray,
     y: np.ndarray,
@@ -383,4 +448,4 @@ def predict_with_router(router, base_models, names, train_x, current_x):
     return routed, {"fallback": False, "router_kind": "contextual_loss_v1", "shrinkage": 0.25}
 
 
-__all__ = ["DynamicModelRouter", "evaluate_router", "fit_final_router", "predict_with_router"]
+__all__ = ["DynamicModelRouter", "evaluate_router", "evaluate_router_from_folds", "evaluate_frozen_holdout_router_from_folds", "fit_final_router", "predict_with_router"]
