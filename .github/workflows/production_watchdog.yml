@@ -5,6 +5,11 @@ on:
   schedule:
     # Lightweight 5-minute recovery polling; heavy work remains hourly/9-hourly.
     - cron: '*/5 * * * *'
+  workflow_run:
+    workflows:
+      - Production Invariants
+    types: [completed]
+
 
 permissions:
   actions: write
