@@ -1,0 +1,68 @@
+name: Rugby Coverage Production
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Rugby coverage is lightweight and remains explicitly separate from the
+    # canonical five-sport model pipeline until sport-specific PIT evidence passes.
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rugby-coverage-production
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  collect:
+    name: Collect Rugby coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies with transient-network retry
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Prepare runtime directories
+        run: mkdir -p data/db results/v45
+      - name: Restore latest Rugby coverage database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/rugby_v45.sqlite
+          key: rugby-v45-db-${{ github.run_id }}
+          restore-keys: |
+            rugby-v45-db-
+      - name: Collect official Rugby coverage
+        run: python -m src.rugby_production --max-pages 150
+      - name: Validate dedicated Rugby database
+        run: python -m src.cache_health --db data/db/rugby_v45.sqlite --sport rugby
+      - name: Compile Rugby collector
+        run: python -m compileall -q src/rugby_production.py
+      - name: Save Rugby coverage database
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/db/rugby_v45.sqlite
+            data/db/rugby_coverage.json
+          key: rugby-v45-db-${{ github.run_id }}
+      - name: Upload Rugby coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rugby-coverage-${{ github.run_id }}
+          path: |
+            results/v45/rugby_coverage.json
+            data/db/rugby_coverage.json
+          if-no-files-found: warn
+          retention-days: 7
