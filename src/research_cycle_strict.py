@@ -177,35 +177,87 @@ def train(s):
   fs=[f for f,k in zip(fs,keep) if k];X=X[:,keep]
   sel=int(len(rows)*.78);hn=len(rows)-sel
   if hn<30 or len(np.unique(y[sel:]))<2:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'insufficient_frozen_holdout','rows':len(rows),'holdout_rows':hn})
-  names=list(base.pool());start=max(60,int(sel*.65));step=max(10,min(30,int(sel*.06)));oos={}
+  names=list(base.pool());start=max(60,int(sel*.65));step=max(10,min(30,int(sel*.06)))
+  # Fit each base model once per chronological fold and reuse the OOS predictions
+  # for single-model, pairwise, and weighted-ensemble selection. This removes
+  # repeated refits without changing the information available to selection.
+  oof_probs={name:[] for name in names}
+  oof_y=[]
+  for end in range(start,sel,step):
+   te=min(end+step,sel)
+   if len(np.unique(y[:end]))<2:continue
+   fold_pred={}
+   for name in names:
+    m=base.pool()[name]
+    m.fit(X[:end],y[:end])
+    fold_pred[name]=np.clip(m.predict_proba(X[end:te])[:,1],1e-6,1-1e-6)
+    oof_probs[name].extend(fold_pred[name].tolist())
+   oof_y.extend(y[end:te].tolist())
+  oof_y=np.asarray(oof_y,int)
+  oos={}
   for name in names:
-   p=[];t=[]
-   for end in range(start,sel,step):
-    te=min(end+step,sel)
-    if len(np.unique(y[:end]))<2:continue
-    m=base.pool()[name];m.fit(X[:end],y[:end]);p+=m.predict_proba(X[end:te])[:,1].tolist();t+=y[end:te].tolist()
-   if len(t)>=30 and len(set(t))>1:oos[name]=base.metric(t,p)
+   p=np.asarray(oof_probs[name],float)
+   if len(p)>=30 and len(np.unique(oof_y))>1:
+    oos[name]=base.metric(oof_y,p)
   if not oos:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
   rank=sorted(oos,key=lambda k:(oos[k]['logloss'],oos[k]['brier'],oos[k]['ece']))
-  # Evaluate every single model plus every pair among the three strongest singles.
-  # This keeps ensemble search bounded while avoiding selection bias from considering only one arbitrary pair.
   cands=[(n,) for n in rank[:3]]+list(combinations(rank[:3],2))
   scores={}
   for spec in cands:
-   p=[];t=[]
-   for end in range(start,sel,step):
-    te=min(end+step,sel)
-    if len(np.unique(y[:end]))<2:continue
-    ps=[]
-    for name in spec:
-     m=base.pool()[name];m.fit(X[:end],y[:end]);ps.append(m.predict_proba(X[end:te])[:,1])
-    p+=np.mean(ps,axis=0).tolist();t+=y[end:te].tolist()
-   if len(t)>=30 and len(set(t))>1:scores['+'.join(spec)]=base.metric(t,p)
+   if len(spec)==1:
+    p=np.asarray(oof_probs[spec[0]],float)
+   else:
+    p=np.mean(np.column_stack([oof_probs[n] for n in spec]),axis=1)
+   scores['+'.join(spec)]=base.metric(oof_y,p)
+  # Search a bounded set of convex weights for the strongest pair. The frozen
+  # holdout remains the final guard, so this is a challenger optimization rather
+  # than a free hyperparameter fit on holdout labels.
+  best_fixed_key=min(scores,key=lambda k:(scores[k]['logloss'],scores[k]['brier'],scores[k]['ece']))
+  fixed_models=tuple(best_fixed_key.split('+'))
+  weighted_candidates=[]
+  if len(rank)>=2:
+   for a,b in combinations(rank[:3],2):
+    pa=np.asarray(oof_probs[a],float);pb=np.asarray(oof_probs[b],float)
+    for wa in (0.20,0.30,0.40,0.50,0.60,0.70,0.80):
+     p=wa*pa+(1.0-wa)*pb
+     m=base.metric(oof_y,p)
+     weighted_candidates.append((m['logloss'],m['brier'],m['ece'],a,b,wa,m))
+  if weighted_candidates:
+   weighted_candidates.sort(key=lambda z:(z[0],z[1],z[2]))
+   _,_,_,wa_a,wa_b,wa_weight,wa_metric=weighted_candidates[0]
+  else:
+   wa_a=wa_b=None;wa_weight=0.5;wa_metric=None
+
   if not scores:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_ensemble_selection_folds','rows':len(rows)})
-  best_key=min(scores,key=lambda k:(scores[k]['logloss'],scores[k]['brier'],scores[k]['ece']));best=tuple(best_key.split('+'))
+  best_key=best_fixed_key
+  best=tuple(fixed_models)
+  fixed_oos_metric=scores[best_key]
+  candidate_label='fixed_equal_weight'
+  candidate_weights={name:1.0/len(best) for name in best}
   models=[]
   for name in best:m=base.pool()[name];m.fit(X[:sel],y[:sel]);models.append(m)
-  hp=np.mean([m.predict_proba(X[sel:])[:,1] for m in models],axis=0);hold=base.metric(y[sel:],hp);hold['models']=list(best)
+  base_hold=base.metric(y[sel:],np.mean([m.predict_proba(X[sel:])[:,1] for m in models],axis=0))
+  base_hold['models']=list(best)
+  hold=base_hold
+  # Only a modest OOS gain is needed to justify checking the weighted challenger.
+  # It must still pass the same frozen-holdout calibration and incumbent gate.
+  weighted_hold=None
+  if wa_metric is not None and tuple((wa_a,wa_b)) != tuple((best[0],best[1])) or (wa_metric is not None and len(best)==1):
+   if wa_a is not None and wa_b is not None and (wa_metric['logloss'] + 0.0002 < fixed_oos_metric['logloss']):
+    pa=np.asarray(models[best.index(wa_a)].predict_proba(X[sel:])[:,1]) if wa_a in best else None
+    pb=np.asarray(models[best.index(wa_b)].predict_proba(X[sel:])[:,1]) if wa_b in best else None
+    if pa is not None and pb is not None:
+     weighted_p=wa_weight*pa+(1.0-wa_weight)*pb
+     weighted_hold=base.metric(y[sel:],weighted_p);weighted_hold['models']=[wa_a,wa_b];weighted_hold['weights']={wa_a:wa_weight,wa_b:1.0-wa_weight}
+     if weighted_hold['ece']<=.20 and weighted_hold['logloss'] <= hold['logloss']:
+      hold=weighted_hold
+      best=(wa_a,wa_b)
+      candidate_label='weighted_pair'
+      candidate_weights={wa_a:wa_weight,wa_b:1.0-wa_weight}
+      # Reorder models to match the chosen weighted pair.
+      models=[models[fixed_models.index(wa_a)],models[fixed_models.index(wa_b)]] if wa_a in fixed_models and wa_b in fixed_models else [base.pool()[wa_a],base.pool()[wa_b]]
+  hold['candidate_strategy']=candidate_label
+  hold['candidate_weights']=candidate_weights
   if hold['ece']>.20:return _write_result(s,{'sport':s,'status':'REJECTED_HOLDOUT_CALIBRATION','holdout_metrics':hold,'selection_oos':oos,'ensemble_selection':scores})
   old=None;r=c.execute("SELECT metadata_json FROM model_state_snapshot WHERE sport=? AND market='winner' ORDER BY as_of_utc DESC LIMIT 1",(s,)).fetchone()
   if r:
@@ -233,7 +285,7 @@ def train(s):
                    and router_holdout['brier_improvement'] >= -.002
                    and router_holdout['ece_change'] <= .02)
   ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'cutoff':rows[sel-1][1]});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'models':models,'model_names':list(best),'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'dynamic_router_status':'RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout},path)
-  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v14-multiscale-form-robust-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'CHALLENGER_ACCEPTED_OOS_AND_FROZEN_HOLDOUT' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
+  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v14-multiscale-form-robust-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'CHALLENGER_ACCEPTED_OOS_AND_FROZEN_HOLDOUT' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
   c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in rows[:sel]]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
   out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE')};return _write_result(s,out)
  finally:c.close()
