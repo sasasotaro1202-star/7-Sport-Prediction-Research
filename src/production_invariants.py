@@ -49,6 +49,15 @@ def main():
     require('workflow_run:' not in workflow,
             'canonical production workflow should not create a second heavy run after PIT completion')
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
+    require((ROOT/'.github/workflows/rugby_production.yml').exists(),
+            'Rugby coverage workflow is missing')
+    rugby_workflow=(ROOT/'.github/workflows/rugby_production.yml').read_text(encoding='utf-8')
+    require('workflow_dispatch:' in rugby_workflow and 'cron:' in rugby_workflow,
+            'Rugby coverage workflow lacks manual/scheduled execution')
+    require('src.rugby_production' in rugby_workflow and 'rugby_v45.sqlite' in rugby_workflow,
+            'Rugby coverage workflow is not wired to the dedicated Rugby collector/database')
+    require('  push:' not in rugby_workflow,
+            'Rugby coverage workflow should not create heavy push-triggered queue')
     require('  push:' not in pit_workflow,
             'PIT expansion should not create heavy push-triggered queue')
     require("minute_delta=$((delta / 60))" in pit_workflow,
