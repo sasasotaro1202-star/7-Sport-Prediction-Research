@@ -5,10 +5,6 @@ on:
   schedule:
     # Lightweight 5-minute recovery polling; heavy work remains hourly/9-hourly.
     - cron: '*/5 * * * *'
-  workflow_run:
-    workflows:
-      - Production Invariants
-      - Production Safety Audit
     types: [completed]
 
 permissions:
@@ -78,7 +74,9 @@ jobs:
           # A successful validation event may start Production immediately,
           # but only when this exact main SHA has never had a Production run.
           # Scheduled wakes retain the normal hourly spacing.
-          if { [ "$GITHUB_EVENT_NAME" = "workflow_run" ] && [ "$active_latest" -eq 0 ] && [ -z "$latest_created" ] && [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; } || { [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$active_latest" -eq 0 ] && [ "$age" -ge 3300 ]; }; then
+          # Five-minute wakes keep the canonical hourly Production cadence and
+          # recover a brand-new main SHA when it has no run yet.
+          if [ "$active_latest" -eq 0 ] && [ "$age" -ge 3300 ]; then
             echo "DISPATCH_LATEST_MAIN_PRODUCTION age=${age}s main=$main_sha"
             gh workflow run v4_5_15_production.yml --ref main
           else
