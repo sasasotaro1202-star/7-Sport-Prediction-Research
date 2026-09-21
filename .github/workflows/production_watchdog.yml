@@ -102,6 +102,31 @@ jobs:
           else
             echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok main=$main_sha"
           fi
+      - name: Backfill a missed 9-hour PIT boundary once per boundary window
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          main_sha=$(git rev-parse HEAD)
+          anchor=$(date -u -d '2026-09-22 00:47:00' +%s)
+          now=$(date -u +%s)
+          delta=$((now-anchor))
+          if [ "$delta" -lt 0 ]; then
+            echo "PIT_BOUNDARY_NOT_STARTED"
+            exit 0
+          fi
+          phase=$((delta % 32400))
+          boundary_start=$((now-phase))
+          pit=$(gh run list --workflow "pit_history_expansion.yml" --limit 100 --json databaseId,status,event,conclusion,createdAt,headSha)
+          active=$(printf '%s' "$pit" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
+          scheduled_success=$(printf '%s' "$pit" | jq --arg sha "$main_sha" --argjson start "$boundary_start" '[.[] | select(.headSha==$sha and .event=="schedule" and .conclusion=="success") | (.createdAt | fromdateiso8601) | select(. >= $start)] | length')
+          manual_attempt=$(printf '%s' "$pit" | jq --arg sha "$main_sha" --argjson start "$boundary_start" '[.[] | select(.headSha==$sha and .event=="workflow_dispatch") | (.createdAt | fromdateiso8601) | select(. >= $start)] | length')
+          if [ "$phase" -le 1800 ] && [ "$active" -eq 0 ] && [ "$scheduled_success" -eq 0 ] && [ "$manual_attempt" -eq 0 ]; then
+            echo "DISPATCH_MISSED_PIT_BOUNDARY main=$main_sha phase=${phase}s boundary_start=$boundary_start"
+            gh workflow run pit_history_expansion.yml --ref main
+          else
+            echo "PIT_BOUNDARY_GUARD phase=${phase}s active=$active scheduled_success=$scheduled_success manual_attempt=$manual_attempt"
+          fi
       - name: Cancel over-time production and PIT runs
         env:
           GH_TOKEN: ${{ github.token }}
