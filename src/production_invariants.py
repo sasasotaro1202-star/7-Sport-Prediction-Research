@@ -46,6 +46,8 @@ def main():
             'merge job is not configured to run after collector degradation while skipping intentionally skipped collection')
     require('  push:' not in workflow,
             'canonical production workflow should not create heavy push-triggered queue')
+    require('workflow_run:' not in workflow,
+            'canonical production workflow should not create a second heavy run after PIT completion')
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
     require('  push:' not in pit_workflow,
             'PIT expansion should not create heavy push-triggered queue')
