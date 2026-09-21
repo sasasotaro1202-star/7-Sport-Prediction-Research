@@ -46,6 +46,7 @@ def main():
         rng.uniform(0,0.2,size=(220,1)),
         rng.uniform(0.3,0.9,size=(220,4)),
     ])
+    meta_losses=np.clip(rng.normal(loc=0.68,scale=0.08,size=(220,len(names))),0.05,2.0)
     recent_list=router._recent_model_loss(meta_losses.tolist(),len(names))
     recent_array=router._recent_model_loss(meta_losses,len(names))
     assert recent_list.shape==(len(names),) and recent_array.shape==(len(names),) and np.all(np.isfinite(recent_array))
