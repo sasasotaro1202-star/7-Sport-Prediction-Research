@@ -20,7 +20,7 @@ def main():
     train=X[:220]
 
     pool=base.pool()
-    required={'logistic','extra_trees','random_forest','hist_gb','hist_gb_shallow','hist_gb_fast','lightgbm','lightgbm_wide'}
+    required={'logistic','extra_trees','random_forest','hist_gb','hist_gb_shallow','hist_gb_fast','hist_gb_recent_600','lightgbm','lightgbm_wide','lightgbm_recent_800'}
     missing=required-set(pool)
     assert not missing, f"model pool missing: {sorted(missing)}"
 
