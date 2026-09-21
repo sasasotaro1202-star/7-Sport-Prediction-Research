@@ -237,6 +237,15 @@ def build(c,s,include_unlabeled=False):
    for rn in (5,10,20):
     f[f'{side}__recent_winrate_{rn}']=float(np.mean(rr[-rn:])) if rr[-rn:] else np.nan
    f[f'{side}__recent_form_delta']=f[f'{side}__recent_winrate_5']-f[f'{side}__recent_winrate_20'] if np.isfinite(f[f'{side}__recent_winrate_5']) and np.isfinite(f[f'{side}__recent_winrate_20']) else np.nan
+   streak=0
+   if rr:
+    last_result=rr[-1]
+    for rv in reversed(rr):
+     if rv==last_result: streak+=1
+     else: break
+   f[f'{side}__current_streak']=float(streak) if rr else 0.0
+   f[f'{side}__streak_won']=float(streak) if rr and last_result==1 else 0.0
+   f[f'{side}__streak_lost']=float(streak) if rr and last_result==0 else 0.0
    relo=recent_opponent_elo.get(pid,[])
    for rn in (5,10,20):
     f[f'{side}__opponent_elo_mean_{rn}']=float(np.mean(relo[-rn:])) if relo[-rn:] else np.nan
@@ -245,6 +254,10 @@ def build(c,s,include_unlabeled=False):
    for rn in (5,10,20):
     f[f'{side}__recent_margin_mean_{rn}']=float(np.mean(rmg[-rn:])) if rmg[-rn:] else np.nan
    f[f'{side}__recent_margin_delta']=f[f'{side}__recent_margin_mean_5']-f[f'{side}__recent_margin_mean_20'] if np.isfinite(f[f'{side}__recent_margin_mean_5']) and np.isfinite(f[f'{side}__recent_margin_mean_20']) else np.nan
+   f[f'{side}__recent_margin_std_5']=float(np.std(rmg[-5:])) if len(rmg)>=2 else np.nan
+   f[f'{side}__recent_margin_std_20']=float(np.std(rmg[-20:])) if len(rmg)>=2 else np.nan
+   stat_with_data=0
+   stat_age_sum=0.0
    for st in cols:
     pred_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
     cutoff_dt=pred_dt-__import__('datetime').timedelta(minutes=60)
@@ -265,13 +278,21 @@ def build(c,s,include_unlabeled=False):
     f[f'{side}__{st}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
     f[f'{side}__{st}__ewma5']=float((w*x).sum()/w.sum()) if len(x) else np.nan
     f[f'{side}__{st}__age_days']=float(ages[0]) if len(ages) else np.nan
+    if len(x):
+     stat_with_data+=1
+     stat_age_sum+=float(ages[0]) if len(ages) else 0.0
+  for side,pid in (('A',p['A']),('B',p['B'])):
+   f[f'{side}__stat_coverage']=float(stat_with_data/len(cols)) if cols else np.nan
+   f[f'{side}__stat_freshness_mean_days']=float(stat_age_sum/stat_with_data) if stat_with_data else np.nan
   for k in ('elo','elo_fast','elo_slow','history_n','rest_days','games_last_7d','games_last_14d','games_last_30d','short_rest_flag'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
-  for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta'):
+  for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta','current_streak','streak_won','streak_lost'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for k in ('opponent_elo_mean_5','opponent_elo_mean_10','opponent_elo_mean_20','opponent_elo_delta'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
-  for k in ('recent_margin_mean_5','recent_margin_mean_10','recent_margin_mean_20','recent_margin_delta'):
+  for k in ('recent_margin_mean_5','recent_margin_mean_10','recent_margin_mean_20','recent_margin_delta','recent_margin_std_5','recent_margin_std_20'):
+   a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
+  for k in ('stat_coverage','stat_freshness_mean_days'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   f['D__elo_momentum']= (f['A__elo_momentum']-f['B__elo_momentum']) if np.isfinite(f['A__elo_momentum']) and np.isfinite(f['B__elo_momentum']) else np.nan
   key=tuple(sorted((p['A'],p['B'])))
