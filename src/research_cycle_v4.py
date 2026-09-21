@@ -281,7 +281,6 @@ def build(c,s,include_unlabeled=False):
     if len(x):
      stat_with_data+=1
      stat_age_sum+=float(ages[0]) if len(ages) else 0.0
-  for side,pid in (('A',p['A']),('B',p['B'])):
    f[f'{side}__stat_coverage']=float(stat_with_data/len(cols)) if cols else np.nan
    f[f'{side}__stat_freshness_mean_days']=float(stat_age_sum/stat_with_data) if stat_with_data else np.nan
   for k in ('elo','elo_fast','elo_slow','history_n','rest_days','games_last_7d','games_last_14d','games_last_30d','short_rest_flag'):
