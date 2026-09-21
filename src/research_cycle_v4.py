@@ -162,7 +162,8 @@ def build(c,s):
    recent_results.setdefault(a,[]).append(act)
    recent_results.setdefault(b,[]).append(1-act)
    recent_results[a]=recent_results[a][-20:];recent_results[b]=recent_results[b][-20:]
-   recent_times.setdefault(a,[]).append(t); recent_times.setdefault(b,[]).append(t)
+   result_time=hist[j][1]
+   recent_times.setdefault(a,[]).append(result_time); recent_times.setdefault(b,[]).append(result_time)
    recent_times[a]=recent_times[a][-30:]; recent_times[b]=recent_times[b][-30:]
    key=tuple(sorted((a,b)))
    first_win=(act==1) if a==key[0] else (1-act)==1
