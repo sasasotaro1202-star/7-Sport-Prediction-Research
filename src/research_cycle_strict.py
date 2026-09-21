@@ -230,10 +230,13 @@ def train(s):
   fs=[f for f,k in zip(fs,keep) if k];X=X[:,keep]
   sel=int(len(rows)*.78);hn=len(rows)-sel
   if hn<30 or len(np.unique(y[sel:]))<2:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'insufficient_frozen_holdout','rows':len(rows),'holdout_rows':hn})
-  names=list(base.pool());start=max(60,int(sel*.65));step=max(10,min(30,int(sel*.06)))
-  # Fit each base model once per chronological fold and reuse the OOS predictions
-  # for single-model, pairwise, and weighted-ensemble selection. This removes
-  # repeated refits without changing the information available to selection.
+  names=list(base.pool())
+  # Multi-window walk-forward OOS: reuse one common fold set to evaluate
+  # several historical windows, reducing sensitivity to one arbitrary start.
+  window_fracs=(0.55,0.60,0.65)
+  window_starts=[max(60,int(sel*f)) for f in window_fracs]
+  start=min(window_starts)
+  step=max(10,min(30,int(sel*.06)))
   oof_probs={name:[] for name in names}
   oof_y=[]
   oof_folds=[]
@@ -249,22 +252,46 @@ def train(s):
    oof_y.extend(y[end:te].tolist())
    oof_folds.append({'end':end,'te':te,'preds':fold_pred})
   oof_y=np.asarray(oof_y,int)
+  if len(oof_y)<30 or len(np.unique(oof_y))<2:
+   return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
+  def _window_metric_for_preds(pred_by_fold):
+   out=[]
+   for ws in window_starts:
+    yy=[];pp=[]
+    for fold in oof_folds:
+     if int(fold['end'])<ws:continue
+     yy.extend(y[int(fold['end']):int(fold['te'])].tolist())
+     pp.extend(pred_by_fold[int(fold['end'])])
+    if len(yy)>=20 and len(np.unique(yy))>1:
+     out.append(base.metric(np.asarray(yy),np.asarray(pp)))
+   return out
   oos={}
   for name in names:
    p=np.asarray(oof_probs[name],float)
-   if len(p)>=30 and len(np.unique(oof_y))>1:
-    score=base.metric(oof_y,p)
-    fold_ll=[]
-    fold_brier=[]
-    for fold in oof_folds:
-     yy=y[int(fold['end']):int(fold['te'])]
-     pred=np.asarray(fold['preds'][name],dtype=float)
-     fold_ll.append(base.metric(yy,pred)['logloss'])
-     fold_brier.append(base.metric(yy,pred)['brier'])
-    score['fold_logloss_std']=float(np.std(fold_ll)) if fold_ll else float('inf')
-    score['fold_brier_std']=float(np.std(fold_brier)) if fold_brier else float('inf')
-    score['robust_objective']=score['logloss']+0.10*score['fold_logloss_std']
-    oos[name]=score
+   score=base.metric(oof_y,p)
+   fold_ll=[];fold_brier=[]
+   for fold in oof_folds:
+    yy=y[int(fold['end']):int(fold['te'])]
+    pred=np.asarray(fold['preds'][name],dtype=float)
+    fold_ll.append(base.metric(yy,pred)['logloss'])
+    fold_brier.append(base.metric(yy,pred)['brier'])
+   win_scores=_window_metric_for_preds({int(f['end']):f['preds'][name] for f in oof_folds})
+   win_ll=np.asarray([z['logloss'] for z in win_scores],dtype=float)
+   win_brier=np.asarray([z['brier'] for z in win_scores],dtype=float)
+   score['fold_logloss_std']=float(np.std(fold_ll)) if fold_ll else float('inf')
+   score['fold_brier_std']=float(np.std(fold_brier)) if fold_brier else float('inf')
+   score['window_logloss_mean']=float(np.mean(win_ll)) if len(win_ll) else float('inf')
+   score['window_logloss_std']=float(np.std(win_ll)) if len(win_ll) else float('inf')
+   score['window_brier_mean']=float(np.mean(win_brier)) if len(win_brier) else float('inf')
+   score['window_count']=int(len(win_scores))
+   # Recent windows receive more weight, while dispersion penalizes brittle edges.
+   if len(win_scores)==3:
+    recent_weights=np.array([0.20,0.30,0.50])
+    score['robust_window_objective']=float(np.average(win_ll,weights=recent_weights)+0.10*np.std(win_ll))
+   else:
+    score['robust_window_objective']=float(score['logloss']+0.10*score['fold_logloss_std'])
+   score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']
+   oos[name]=score
   if not oos:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
   rank=sorted(oos,key=lambda k:(oos[k]['robust_objective'],oos[k]['brier'],oos[k]['ece']))
   top_rank=rank[:4]
@@ -277,58 +304,38 @@ def train(s):
    else:
     p=np.mean(np.column_stack([oof_probs[n] for n in spec]),axis=1)
    score=base.metric(oof_y,p)
-   fold_ll=[]
-   fold_brier=[]
+   fold_ll=[];fold_brier=[]
+   window_scores=[]
+   for ws in window_starts:
+    yy=[];pp=[]
+    for fold in oof_folds:
+     if int(fold['end'])<ws:continue
+     yy.extend(y[int(fold['end']):int(fold['te'])].tolist())
+     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
+     pp.extend(np.mean(fp,axis=1).tolist())
+    if len(yy)>=20 and len(np.unique(yy))>1:
+     window_scores.append(base.metric(np.asarray(yy),np.asarray(pp)))
    for fold in oof_folds:
     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
     pred=np.mean(fp,axis=1)
     yy=y[int(fold['end']):int(fold['te'])]
     fold_ll.append(base.metric(yy,pred)['logloss'])
     fold_brier.append(base.metric(yy,pred)['brier'])
+   wll=np.asarray([z['logloss'] for z in window_scores],dtype=float)
+   wb=np.asarray([z['brier'] for z in window_scores],dtype=float)
    score['fold_logloss_std']=float(np.std(fold_ll)) if fold_ll else float('inf')
    score['fold_brier_std']=float(np.std(fold_brier)) if fold_brier else float('inf')
-   score['folds']=len(fold_ll)
-   score['robust_objective']=score['logloss']+0.10*score['fold_logloss_std']
-   scores[key]=score
-  # Search a bounded set of convex weights for the strongest pair. The frozen
-  # holdout remains the final guard, so this is a challenger optimization rather
-  # than a free hyperparameter fit on holdout labels.
-  # Fixed candidate selection is stability-aware: mean OOS LogLoss plus a small
-  # fold-variance penalty.
-  best_fixed_key=min(scores,key=lambda k:(scores[k]['robust_objective'],scores[k]['brier'],scores[k]['ece']))
-  fixed_models=tuple(best_fixed_key.split('+'))
-  weighted_candidates=[]
-  # Compare weighted pairs against the same stability-selected fixed candidate
-  # fold-by-fold. A weighted pair is eligible only when it improves OOS and is
-  # not concentrated in a small subset of historical regimes.
-  baseline_spec=tuple(best_fixed_key.split('+'))
-  for a,b in combinations(rank[:3],2) if len(rank)>=2 else []:
-   pa=np.asarray(oof_probs[a],float);pb=np.asarray(oof_probs[b],float)
-   for wa in (0.20,0.30,0.40,0.50,0.60,0.70,0.80):
-    p=wa*pa+(1.0-wa)*pb
-    m=base.metric(oof_y,p)
-    fold_delta=[]
-    for fold in oof_folds:
-     yy=y[int(fold['end']):int(fold['te'])]
-     pred=wa*np.asarray(fold['preds'][a],dtype=float)+(1.0-wa)*np.asarray(fold['preds'][b],dtype=float)
-     base_fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in baseline_spec])
-     base_pred=np.mean(base_fp,axis=1)
-     fold_delta.append(base.metric(yy,base_pred)['logloss']-base.metric(yy,pred)['logloss'])
-    win_rate=float(np.mean(np.asarray(fold_delta)>=-0.001)) if fold_delta else 0.0
-    mean_delta=float(np.mean(fold_delta)) if fold_delta else -np.inf
-    fold_std=float(np.std(fold_delta)) if fold_delta else float('inf')
-    robust_gain=mean_delta-0.10*fold_std
-    weighted_candidates.append((m['logloss'],m['brier'],m['ece'],a,b,wa,m,win_rate,mean_delta,fold_std,robust_gain))
-  if weighted_candidates:
-   weighted_candidates.sort(key=lambda z:(-z[10],-z[7],z[0],z[1]))
-   candidate=weighted_candidates[0]
-   if candidate[10] > 0.0002 and candidate[7] >= 0.55:
-    _,_,_,wa_a,wa_b,wa_weight,wa_metric,wa_win_rate,wa_mean_delta,wa_fold_std,wa_robust_gain=candidate
+   score['window_logloss_mean']=float(np.mean(wll)) if len(wll) else float('inf')
+   score['window_logloss_std']=float(np.std(wll)) if len(wll) else float('inf')
+   score['window_brier_mean']=float(np.mean(wb)) if len(wb) else float('inf')
+   score['window_count']=len(window_scores)
+   if len(window_scores)==3:
+    score['robust_window_objective']=float(np.average(wll,weights=np.array([0.20,0.30,0.50]))+0.10*np.std(wll))
    else:
-    wa_a=wa_b=None;wa_weight=0.5;wa_metric=None;wa_win_rate=0.0;wa_mean_delta=0.0;wa_fold_std=float('inf');wa_robust_gain=0.0
-  else:
-   wa_a=wa_b=None;wa_weight=0.5;wa_metric=None;wa_win_rate=0.0;wa_mean_delta=0.0;wa_fold_std=float('inf');wa_robust_gain=0.0
-
+    score['robust_window_objective']=float(score['logloss']+0.10*score['fold_logloss_std'])
+   score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']
+   score['folds']=len(fold_ll)
+   scores[key]=score
   if not scores:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_ensemble_selection_folds','rows':len(rows)})
   best_key=best_fixed_key
   best=tuple(fixed_models)
