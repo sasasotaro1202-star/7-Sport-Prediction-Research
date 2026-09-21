@@ -96,9 +96,11 @@ def main():
             'ensemble stability gate is missing')
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
     require('source_snapshot ss' in research_base and 'ROW_NUMBER() OVER' in research_base,'PIT stat history loader does not prevent source snapshot/stat duplication')
+    require('(ss.event_time_utc IS NULL OR ss.event_time_utc=pe.event_time_utc)' in research_base,'PIT stat snapshot is not event-time constrained')
     require('def _make_stat_history_loader' in research_base,'PIT stat history cache loader is missing')
     require('from bisect import bisect_right' in research_base and 'idx=bisect_right(times,event_ts)-1' in research_base,
             'PIT stat history lookup is not using bounded indexed time search')
+    require('(ss.event_time_utc IS NULL OR ss.event_time_utc=e.event_time_utc)' in research_base,'PIT outcome snapshot is not event-time constrained')
     require('Candidate selection is OOS-only' in strict_src,'ensemble candidate selection is not explicitly OOS-only')
     require("weighted_hold['logloss'] <= hold['logloss']" not in strict_src,
             'frozen holdout is being used to choose between ensemble candidates')
