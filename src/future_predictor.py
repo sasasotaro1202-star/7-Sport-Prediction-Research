@@ -84,7 +84,7 @@ def predict_sport(c,s,now):
     use_router=router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and artifact.get('dynamic_router') is not None
     rnames=list(artifact.get('dynamic_router_names') or [])
     rmodels=artifact.get('dynamic_router_models') or {}
-    rref=np.asarray(artifact.get('dynamic_router_feature_reference'),dtype=float) if artifact.get('dynamic_router_feature_reference') is not None else None
+    rref=artifact.get('dynamic_router_feature_reference') if artifact.get('dynamic_router_feature_reference') is not None else None
     cal=artifact.get('probability_calibrator')
     cal_method=str((artifact.get('probability_calibration') or {}).get('method') or 'none')
     model_map={n:m for n,m in zip(names,models)}
