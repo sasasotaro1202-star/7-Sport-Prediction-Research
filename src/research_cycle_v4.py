@@ -73,7 +73,7 @@ def outcome_maps(c,s,pairs):
 def statcols(c,s):
  w=POLICY[s];q=','.join('?'*len(w));return [r[0] for r in c.execute(f'SELECT stat_name FROM match_stats WHERE sport=? AND stat_name IN ({q}) GROUP BY stat_name',(s,*w)).fetchall()]
 def build(c,s):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};h2h={};j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    _,_,a,b,o=hist[j]
@@ -90,6 +90,10 @@ def build(c,s):
    recent_results.setdefault(a,[]).append(act)
    recent_results.setdefault(b,[]).append(1-act)
    recent_results[a]=recent_results[a][-20:];recent_results[b]=recent_results[b][-20:]
+   key=tuple(sorted((a,b)))
+   first_win=(act==1) if a==key[0] else (1-act)==1
+   h2h.setdefault(key,[]).append(1 if first_win else 0)
+   h2h[key]=h2h[key][-20:]
    j+=1
   if eid not in labels:continue
   p=pairs[eid];f={};strict_evidence=0
@@ -101,6 +105,7 @@ def build(c,s):
    f[f'{side}__elo']=ratings.get(pid,1500.)
    f[f'{side}__elo_fast']=ratings_fast.get(pid,1500.)
    f[f'{side}__elo_slow']=ratings_slow.get(pid,1500.)
+   f[f'{side}__elo_momentum']=f[f'{side}__elo_fast']-f[f'{side}__elo_slow']
    f[f'{side}__history_n']=counts.get(pid,0)
    f[f'{side}__rest_days']=((datetime.fromisoformat(t.replace('Z','+00:00'))-datetime.fromisoformat(last[pid].replace('Z','+00:00'))).total_seconds()/86400) if pid in last else np.nan
    rr=recent_results.get(pid,[])
@@ -149,6 +154,19 @@ def build(c,s):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
+  f['D__elo_momentum']= (f['A__elo_momentum']-f['B__elo_momentum']) if np.isfinite(f['A__elo_momentum']) and np.isfinite(f['B__elo_momentum']) else np.nan
+  key=tuple(sorted((p['A'],p['B'])))
+  hh=h2h.get(key,[])
+  a_first=(p['A']==key[0])
+  if hh:
+   for rn in (5,20):
+    vals=hh[-rn:]
+    first_wr=float(np.mean(vals))
+    a_wr=first_wr if a_first else 1.0-first_wr
+    f[f'D__h2h_winrate_{rn}']=2.0*a_wr-1.0
+   f['D__h2h_matches']=float(len(hh))
+  else:
+   f['D__h2h_winrate_5']=np.nan;f['D__h2h_winrate_20']=np.nan;f['D__h2h_matches']=0.0
   for st in cols:
    for suf in ('mean','median','q25','q75','iqr','last','std','trend','ewma5','n','age_days'):
     a=f[f'A__{st}__{suf}'];b=f[f'B__{st}__{suf}'];f[f'D__{st}__{suf}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
