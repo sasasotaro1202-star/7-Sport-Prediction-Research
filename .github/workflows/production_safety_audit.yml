@@ -15,8 +15,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-safety-audit
-  cancel-in-progress: false
+  group: production-safety-validation
+  # Read-only validation: only the newest commit needs validation.
+  cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: '1'
