@@ -59,6 +59,20 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
     row_dispersion = np.where(np.isfinite(row_dispersion), row_dispersion, 0.0)
     train_feature_std = np.nanmedian(np.nanstd(tr, axis=0)) if tr.size else 0.0
     train_feature_std = float(train_feature_std) if np.isfinite(train_feature_std) else 0.0
+    # Recent-vs-long-history regime signals: all are computed from data available
+    # before the current fold/row and therefore remain PIT-safe.
+    recent_n = min(120, len(tr))
+    recent = tr[-recent_n:] if recent_n else tr
+    recent_med = np.nanmedian(recent, axis=0) if recent.size else tr_med
+    recent_med = np.where(np.isfinite(recent_med), recent_med, tr_med)
+    regime_z = np.abs(recent_med - tr_med) / tr_scale
+    regime_shift = float(np.nanmedian(regime_z)) if regime_z.size else 0.0
+    recent_std = np.nanmedian(np.nanstd(recent, axis=0)) if recent.size else train_feature_std
+    recent_std = float(recent_std) if np.isfinite(recent_std) else train_feature_std
+    recent_z = np.abs(np.nan_to_num(cu, nan=recent_med) - recent_med) / tr_scale
+    recent_z = np.where(np.isfinite(recent_z), recent_z, 0.0)
+    row_recent_shift = np.nanmedian(recent_z, axis=1) if recent_z.size else np.zeros(len(cu))
+    row_recent_shift = np.where(np.isfinite(row_recent_shift), row_recent_shift, 0.0)
     train_size = np.log1p(len(tr))
     return np.column_stack([
         np.full(len(cu), train_size, dtype=float),
@@ -68,6 +82,9 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
         row_abs_z.astype(float),
         row_dispersion.astype(float),
         np.full(len(cu), train_feature_std, dtype=float),
+        np.full(len(cu), regime_shift, dtype=float),
+        row_recent_shift.astype(float),
+        np.full(len(cu), recent_std, dtype=float),
     ])
 
 
