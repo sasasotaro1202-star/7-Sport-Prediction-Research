@@ -37,6 +37,16 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: requirements.txt
+      - name: Verify workflow SHA is current main before any mutable work
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          if [ "$GITHUB_SHA" != "$main_sha" ]; then
+            echo "STALE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
+            exit 1
+          fi
+
       - name: Install dependencies with transient-network retry
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - run: mkdir -p data/raw/http_cache data/db results models
