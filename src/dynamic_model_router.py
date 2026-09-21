@@ -492,6 +492,30 @@ def fit_final_router(X, y, names, sel, start, step, pool_factory):
         selector['history_loss']=_recent_model_loss(meta_losses,len(names))
     return selector
 
+def fit_final_router_from_folds(
+    X: np.ndarray,
+    y: np.ndarray,
+    names: Sequence[str],
+    folds: Sequence[Dict],
+    sel: int,
+) -> Dict | None:
+    """Fit the final contextual loss router from already-computed chronological OOF folds."""
+    X=np.asarray(X,dtype=float); y=np.asarray(y)
+    meta_X=[]; meta_losses=[]
+    for fold in folds:
+        end=int(fold['end']); te=int(fold['te'])
+        bp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in names])
+        ctx=_context(X[:end],X[end:te])
+        history_loss=_recent_model_loss(meta_losses,len(names))
+        features=np.column_stack([bp,ctx,np.std(bp,axis=1),np.repeat(history_loss[None,:],len(bp),axis=0)])
+        yt=y[end:te].astype(float)
+        losses=-(yt[:,None]*np.log(bp)+(1.0-yt[:,None])*np.log(1.0-bp))
+        meta_X.extend(features.tolist()); meta_losses.extend(losses.tolist())
+    selector=_fit_contextual_loss_selector(np.asarray(meta_X,dtype=float),np.asarray(meta_losses,dtype=float))
+    if selector is not None:
+        selector['history_loss']=_recent_model_loss(meta_losses,len(names))
+    return selector
+
 def predict_with_router(router, base_models, names, train_x, current_x):
     bp = []
     for name, model in zip(names, base_models):
