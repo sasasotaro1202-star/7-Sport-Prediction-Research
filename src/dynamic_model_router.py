@@ -89,6 +89,69 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
 
 
 
+def context_reference(train_x: np.ndarray) -> Dict:
+    """Compact PIT-safe reference sufficient to reproduce _context exactly."""
+    tr=np.asarray(train_x,dtype=float)
+    tr_med=np.nanmedian(tr,axis=0) if tr.size else np.zeros(tr.shape[1])
+    tr_med=np.where(np.isfinite(tr_med),tr_med,0.0)
+    tr_scale=np.nanmedian(np.abs(tr-tr_med),axis=0) if tr.size else np.ones(tr.shape[1])
+    tr_scale=np.where(np.isfinite(tr_scale)&(tr_scale>1e-9),tr_scale,1.0)
+    recent_n=min(120,len(tr))
+    recent=tr[-recent_n:] if recent_n else tr
+    recent_med=np.nanmedian(recent,axis=0) if recent.size else tr_med
+    recent_med=np.where(np.isfinite(recent_med),recent_med,tr_med)
+    regime_z=np.abs(recent_med-tr_med)/tr_scale
+    regime_shift=float(np.nanmedian(regime_z)) if regime_z.size else 0.0
+    recent_std=float(np.nanmedian(np.nanstd(recent,axis=0))) if recent.size else float(np.nanmedian(np.nanstd(tr,axis=0))) if tr.size else 0.0
+    if not np.isfinite(recent_std): recent_std=0.0
+    train_feature_std=float(np.nanmedian(np.nanstd(tr,axis=0))) if tr.size else 0.0
+    if not np.isfinite(train_feature_std): train_feature_std=0.0
+    return {
+        'n':int(len(tr)),
+        'train_miss':float(np.isnan(tr).mean()) if tr.size else 1.0,
+        'tr_med':tr_med.tolist(),
+        'tr_scale':tr_scale.tolist(),
+        'recent_med':recent_med.tolist(),
+        'regime_shift':regime_shift,
+        'recent_std':recent_std,
+        'train_feature_std':train_feature_std,
+    }
+
+
+def _context_from_reference(reference: Dict, current_x: np.ndarray) -> np.ndarray:
+    cu=np.asarray(current_x,dtype=float)
+    if cu.ndim==1: cu=cu.reshape(1,-1)
+    tr_med=np.asarray(reference.get('tr_med') or np.zeros(cu.shape[1]),dtype=float)
+    tr_scale=np.asarray(reference.get('tr_scale') or np.ones(cu.shape[1]),dtype=float)
+    recent_med=np.asarray(reference.get('recent_med') or tr_med,dtype=float)
+    if len(tr_med)!=cu.shape[1] or len(tr_scale)!=cu.shape[1] or len(recent_med)!=cu.shape[1]:
+        return _context(np.asarray(reference.get('fallback_train_x') or [],dtype=float),cu)
+    tr_scale=np.where(np.isfinite(tr_scale)&(tr_scale>1e-9),tr_scale,1.0)
+    row_miss=np.isnan(cu).mean(axis=1) if cu.size else np.ones(len(cu))
+    z=np.abs(np.nan_to_num(cu,nan=tr_med)-tr_med)/tr_scale
+    z=np.where(np.isfinite(z),z,0.0)
+    row_shift=np.nanmedian(z,axis=1) if z.size else np.zeros(len(cu))
+    row_shift=np.where(np.isfinite(row_shift),row_shift,0.0)
+    row_abs_z=np.nanmean(z,axis=1) if z.size else np.zeros(len(cu))
+    row_abs_z=np.where(np.isfinite(row_abs_z),row_abs_z,0.0)
+    row_dispersion=np.nanstd(np.nan_to_num(cu,nan=tr_med),axis=1) if cu.size else np.zeros(len(cu))
+    row_dispersion=np.where(np.isfinite(row_dispersion),row_dispersion,0.0)
+    recent_z=np.abs(np.nan_to_num(cu,nan=recent_med)-recent_med)/tr_scale
+    recent_z=np.where(np.isfinite(recent_z),recent_z,0.0)
+    row_recent_shift=np.nanmedian(recent_z,axis=1) if recent_z.size else np.zeros(len(cu))
+    row_recent_shift=np.where(np.isfinite(row_recent_shift),row_recent_shift,0.0)
+    n=max(0,int(reference.get('n',0)))
+    return np.column_stack([
+        np.full(len(cu),np.log1p(n),dtype=float),
+        np.full(len(cu),float(reference.get('train_miss',1.0)),dtype=float),
+        row_miss.astype(float),row_shift.astype(float),row_abs_z.astype(float),
+        row_dispersion.astype(float),
+        np.full(len(cu),float(reference.get('train_feature_std',0.0)),dtype=float),
+        np.full(len(cu),float(reference.get('regime_shift',0.0)),dtype=float),
+        row_recent_shift.astype(float),
+        np.full(len(cu),float(reference.get('recent_std',0.0)),dtype=float),
+    ])
+
 def _recent_model_loss(meta_losses: Sequence[Sequence[float]], n_models: int) -> np.ndarray:
     """Recent OOF log-loss state using only rows observed before the current fold."""
     if not meta_losses:
@@ -441,11 +504,11 @@ def predict_with_router(router, base_models, names, train_x, current_x):
     static = bp.mean(axis=1)
     if router is None:
         return static, {"fallback": True, "reason": "router_unavailable"}
-    ctx = _context(train_x, current_x)
+    ctx = _context_from_reference(train_x, current_x) if isinstance(train_x,dict) else _context(train_x, current_x)
     routed = _route_with_contextual_loss_selector(router, bp, ctx)
     if routed is None:
         return static, {"fallback": True, "reason": "contextual_router_unavailable"}
     return routed, {"fallback": False, "router_kind": "contextual_loss_v1", "shrinkage": 0.25}
 
 
-__all__ = ["DynamicModelRouter", "evaluate_router", "evaluate_router_from_folds", "evaluate_frozen_holdout_router_from_folds", "fit_final_router", "predict_with_router"]
+__all__ = ["DynamicModelRouter", "context_reference", "evaluate_router", "evaluate_router_from_folds", "evaluate_frozen_holdout_router_from_folds", "fit_final_router", "predict_with_router"]
