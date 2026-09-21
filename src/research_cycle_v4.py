@@ -49,7 +49,7 @@ def pool():
   'hist_gb':Pipeline([('i',SimpleImputer(strategy='median')),('m',HistGradientBoostingClassifier(max_iter=300,learning_rate=.035,l2_regularization=1.0,max_leaf_nodes=31,random_state=42))]),
   'hist_gb_shallow':Pipeline([('i',SimpleImputer(strategy='median')),('m',HistGradientBoostingClassifier(max_iter=260,learning_rate=.045,l2_regularization=2.0,max_leaf_nodes=7,random_state=43))]),
   'hist_gb_fast':Pipeline([('i',SimpleImputer(strategy='median')),('m',HistGradientBoostingClassifier(max_iter=220,learning_rate=.055,l2_regularization=1.5,max_leaf_nodes=15,random_state=44))]),
-  **({'lightgbm':Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=360,learning_rate=.03,num_leaves=15,min_child_samples=35,subsample=.85,colsample_bytree=.85,reg_alpha=.1,reg_lambda=2.0,verbosity=-1,n_jobs=-1,random_state=45))])} if LGBMClassifier is not None else {})
+  **({'lightgbm':Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=360,learning_rate=.03,num_leaves=15,min_child_samples=35,subsample=.85,colsample_bytree=.85,reg_alpha=.1,reg_lambda=2.0,verbosity=-1,n_jobs=-1,random_state=45,deterministic=True,force_col_wise=True))])} if LGBMClassifier is not None else {})
  }.items()}
 def pairmap(c,s):
  d={}
