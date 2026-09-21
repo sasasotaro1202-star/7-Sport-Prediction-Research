@@ -96,7 +96,7 @@ def main():
     require('Candidate selection is OOS-only' in strict_src,'ensemble candidate selection is not explicitly OOS-only')
     require("weighted_hold['logloss'] <= hold['logloss']" not in strict_src,
             'frozen holdout is being used to choose between ensemble candidates')
-    require('holdout_probability_calibrated' in strict_src and 'probability_calibration' in strict_src,
+    require('hold_probability_calibrated' in strict_src and 'probability_calibration' in strict_src,
             'probability calibration challenger path is missing')
     require('ROW_NUMBER() OVER' in research_base and 'PARTITION BY ms.event_id' in research_base,
             'PIT stat cache does not deduplicate multiple stat rows per event')
