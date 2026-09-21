@@ -83,6 +83,15 @@ def main():
             'PIT stat cache does not deduplicate multiple stat rows per event')
     require('counts.get(p[\'A\'],0)>0 or counts.get(p[\'B\'],0)>0' in research_base,
             'prior-history eligibility does not use constant-time state')
+    replay_builder=(ROOT/'src/pit_replay_builder.py').read_text(encoding='utf-8')
+    require("FEATURE_VERSION='pit-v3-fast-dedup-exact-source'" in replay_builder,
+            'strict PIT replay builder is not on the deduplicated fast implementation')
+    require('ROW_NUMBER() OVER' in replay_builder and 'PARTITION BY ms.event_id,ms.participant_id,ms.stat_name' in replay_builder,
+            'strict PIT replay builder does not deduplicate stats per event/participant/metric')
+    require('def load_stat_history' in replay_builder and 'def select_prior' in replay_builder,
+            'strict PIT replay builder lacks bulk history loading/indexed in-memory PIT selection')
+    require('executemany' in replay_builder,
+            'strict PIT replay builder does not batch feature writes')
 
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
     require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
