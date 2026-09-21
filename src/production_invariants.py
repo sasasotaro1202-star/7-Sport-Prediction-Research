@@ -117,6 +117,11 @@ def main():
             'PIT expansion should not create heavy push-triggered queue')
     require("minute_delta=$((delta / 60))" in pit_workflow,
             'PIT cadence guard must tolerate normal GitHub schedule jitter at minute precision')
+    watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
+    require('Backfill a missed 9-hour PIT boundary once per boundary window' in watchdog,
+            'watchdog lacks missed 9-hour PIT recovery')
+    require('manual_attempt' in watchdog and 'scheduled_success' in watchdog,
+            'watchdog PIT recovery lacks one-attempt-per-boundary guard')
     require("remainder_minutes=$((minute_delta % 540))" in pit_workflow,
             'PIT cadence guard must preserve the exact 9-hour epoch phase')
     require('echo \'run=false\' >> "$GITHUB_OUTPUT"' in pit_workflow,
