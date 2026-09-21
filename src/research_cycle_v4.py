@@ -72,8 +72,52 @@ def outcome_maps(c,s,pairs):
  return labels,hist
 def statcols(c,s):
  w=POLICY[s];q=','.join('?'*len(w));return [r[0] for r in c.execute(f'SELECT stat_name FROM match_stats WHERE sport=? AND stat_name IN ({q}) GROUP BY stat_name',(s,*w)).fetchall()]
+def _make_stat_history_loader(c,s):
+ cache={}
+ def load(pid,st):
+  key=(pid,st)
+  if key not in cache:
+   rows=c.execute("""SELECT value_num,event_time_utc,effective_at_utc,source_available_at_utc
+                      FROM (
+                        SELECT ms.value_num,pe.event_time_utc,ms.effective_at_utc,
+                               (SELECT MIN(ss.source_available_at_utc)
+                                  FROM source_snapshot ss
+                                 WHERE ss.source=ms.source
+                                   AND ss.source_url=ms.source_url
+                                   AND ss.availability_status='EXACT'
+                                   AND ss.source_available_at_utc IS NOT NULL) AS source_available_at_utc,
+                               ROW_NUMBER() OVER (
+                                 PARTITION BY ms.event_id
+                                 ORDER BY ms.stat_id DESC
+                               ) AS rn
+                          FROM match_stats ms
+                          JOIN event pe ON pe.event_id=ms.event_id
+                         WHERE ms.sport=?
+                           AND ms.participant_id=?
+                           AND ms.stat_name=?
+                           AND ms.value_num IS NOT NULL
+                           AND ms.effective_at_utc IS NOT NULL
+                      )
+                     WHERE rn=1 AND source_available_at_utc IS NOT NULL
+                     ORDER BY event_time_utc DESC""",(s,pid,st)).fetchall()
+   cache[key]=[(float(v),et,ea,sa) for v,et,ea,sa in rows]
+  return cache[key]
+ def history(pid,st,event_time,cutoff_dt):
+  out=[]
+  for value,et,eff,src_avail in load(pid,st):
+   if et is None or et>=event_time:
+    continue
+   if eff is None or src_avail is None:
+    continue
+   if eff<=cutoff_dt and src_avail<=cutoff_dt:
+    out.append((value,et,src_avail))
+    if len(out)>=20:
+     break
+  return out
+ return history,cache
+
 def build(c,s):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};h2h={};j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    _,_,a,b,o=hist[j]
@@ -113,30 +157,12 @@ def build(c,s):
     f[f'{side}__recent_winrate_{rn}']=float(np.mean(rr[-rn:])) if rr[-rn:] else np.nan
    f[f'{side}__recent_form_delta']=f[f'{side}__recent_winrate_5']-f[f'{side}__recent_winrate_20'] if np.isfinite(f[f'{side}__recent_winrate_5']) and np.isfinite(f[f'{side}__recent_winrate_20']) else np.nan
    for st in cols:
-    v=c.execute("""SELECT ms.value_num,pe.event_time_utc
-                           FROM match_stats ms
-                           JOIN event pe ON pe.event_id=ms.event_id
-                          WHERE ms.sport=?
-                            AND ms.participant_id=?
-                            AND ms.stat_name=?
-                            AND pe.event_time_utc<?
-                            AND ms.value_num IS NOT NULL
-                            AND ms.effective_at_utc IS NOT NULL
-                            AND ms.effective_at_utc<=datetime(?,'-60 minutes')
-                            AND EXISTS (
-                                SELECT 1 FROM source_snapshot ss
-                                 WHERE ss.source=ms.source
-                                   AND ss.source_url=ms.source_url
-                                   AND ss.availability_status='EXACT'
-                                   AND ss.source_available_at_utc IS NOT NULL
-                                   AND ss.source_available_at_utc<=datetime(?,'-60 minutes')
-                            )
-                          ORDER BY pe.event_time_utc DESC,ms.stat_id DESC
-                          LIMIT 20""",(s,pid,st,t,t,t)).fetchall()
+    pred_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
+    cutoff_dt=pred_dt-__import__('datetime').timedelta(minutes=60)
+    v=stat_history(pid,st,t,cutoff_dt)
     strict_evidence += len(v)
     x=np.array([z[0] for z in v],float)
     times=[datetime.fromisoformat(z[1].replace('Z','+00:00')) for z in v if z[1]]
-    pred_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
     ages=np.array([max(0.0,(pred_dt-z).total_seconds()/86400.0) for z in times],float)
     w=np.exp(-np.arange(len(x))/5) if len(x) else np.array([])
     f[f'{side}__{st}__n']=len(x)
