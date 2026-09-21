@@ -209,6 +209,7 @@ def train(s):
   # repeated refits without changing the information available to selection.
   oof_probs={name:[] for name in names}
   oof_y=[]
+  oof_folds=[]
   for end in range(start,sel,step):
    te=min(end+step,sel)
    if len(np.unique(y[:end]))<2:continue
@@ -219,6 +220,7 @@ def train(s):
     fold_pred[name]=np.clip(m.predict_proba(X[end:te])[:,1],1e-6,1-1e-6)
     oof_probs[name].extend(fold_pred[name].tolist())
    oof_y.extend(y[end:te].tolist())
+   oof_folds.append({'end':end,'te':te,'preds':fold_pred})
   oof_y=np.asarray(oof_y,int)
   oos={}
   for name in names:
@@ -332,8 +334,15 @@ def train(s):
   # Challenger-only dynamic routing. It is evaluated on chronological OOS before the frozen holdout.
   # The router can never promote itself from OOS alone; the incumbent remains the safe fallback.
   router_names=list(rank[:4])
-  router_eval=router.evaluate_router(X,y,router_names,sel,start,step,base.pool,base.metric)
-  router_holdout=router.evaluate_frozen_holdout_router(X,y,router_names,sel,start,step,base.pool,base.metric)
+  router_eval=router.evaluate_router_from_folds(X,y,router_names,oof_folds,sel,base.metric)
+  router_holdout_models={name:model for name,model in zip(best,models)}
+  for name in router_names:
+   if name not in router_holdout_models:
+    m=base.pool()[name]
+    m.fit(X[:sel],y[:sel])
+    router_holdout_models[name]=m
+  router_holdout_pred={name:np.clip(router_holdout_models[name].predict_proba(X[sel:])[:,1],1e-6,1-1e-6) for name in router_names}
+  router_holdout=router.evaluate_frozen_holdout_router_from_folds(X,y,router_names,oof_folds,sel,router_holdout_pred)
   router_accept = (router_eval.get('status') == 'EVALUATED'
                    and router_holdout.get('status') == 'EVALUATED'
                    and router_eval['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
