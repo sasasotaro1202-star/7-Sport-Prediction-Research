@@ -105,7 +105,9 @@ jobs:
   merge:
     name: Merge, research, and release gate
     needs: collect
-    if: always()
+    # Skip merge/research when collection was skipped or failed. In particular,
+    # a failed/deferred PIT workflow must not enter merge with zero partitions.
+    if: needs.collect.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
