@@ -69,6 +69,10 @@ def main():
             'production watchdog lacks exact-main active-run guard')
     require('gh workflow run v4_5_15_production.yml --ref main' in watchdog,
             'production watchdog cannot self-heal latest main when idle')
+    require("cron: '*/5 * * * *'" in watchdog,
+            'production watchdog does not have a 5-minute recovery cadence')
+    require('[ "$active_latest" -eq 0 ] && [ "$age" -ge 3300 ]' in watchdog,
+            'production watchdog lacks bounded hourly recovery guard')
     require('GITHUB_EVENT_NAME' in watchdog and 'active_latest' in watchdog,
             'production watchdog latest-main dispatch guard is incomplete')
     recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
