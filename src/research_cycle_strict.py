@@ -22,7 +22,7 @@ def _write_result(s, payload):
     (RESULTS/f'{s}.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
     return payload
 
-def _carry_forward_previous(c, sport, previous):
+def _carry_forward_previous(c, sport, previous, current_features):
     """Keep the last accepted production model during a transient PIT/data outage.
     This never creates a new model: it only re-registers an already accepted,
     holdout-frozen artifact when the current run cannot reproduce enough strict
@@ -30,10 +30,11 @@ def _carry_forward_previous(c, sport, previous):
     """
     if not isinstance(previous, dict) or previous.get("status") != "TRAINED":
         return None
-    if previous.get("feature_version") != "strict-pit-v13-bounded-ensemble-frozen-holdout":
+    feature_version=str(previous.get("feature_version") or "")
+    if not (feature_version.startswith("strict-pit-v13-") or feature_version.startswith("strict-pit-v14-")):
         return None
     artifact = _restore_historical_artifact(sport, previous)
-    if artifact is None:
+    if artifact is None or not _artifact_features_compatible(artifact, current_features):
         return None
     required = ("model_version","feature_version","training_cutoff_utc",
                 "git_commit_sha","artifact_path","holdout_metrics")
@@ -59,6 +60,14 @@ def _carry_forward_previous(c, sport, previous):
                json.dumps(meta,ensure_ascii=False)))
     c.commit()
     return meta
+
+def _artifact_features_compatible(path, current_features):
+    try:
+        obj=joblib.load(path)
+        old_features=set(obj.get("features") or [])
+        return bool(old_features) and old_features.issubset(set(current_features))
+    except Exception:
+        return False
 
 def _previous_result(sport):
     # Current result files are intentionally overwritten each run. Recover the
@@ -151,7 +160,7 @@ def train(s):
   previous=_previous_result(s) or _previous_model_from_db(c,s)
   rows,fs=base.build(c,s)
   if len(rows)<120:
-   carried=_carry_forward_previous(c,s,previous)
+   carried=_carry_forward_previous(c,s,previous,fs)
    payload={'sport':s,'status':'DEFERRED_RETRAIN_CARRY_FORWARD' if carried else 'DEFERRED','reason':'insufficient_strict_PIT_rows','rows':len(rows),'features':len(fs),'provenance_rule':'pre-cutoff observed feature or provenance-verified historical outcome required'}
    if carried:
     payload['carried_forward_model_version']=carried['model_version']
@@ -224,7 +233,7 @@ def train(s):
                    and router_holdout['brier_improvement'] >= -.002
                    and router_holdout['ece_change'] <= .02)
   ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'cutoff':rows[sel-1][1]});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'models':models,'model_names':list(best),'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'dynamic_router_status':'RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout},path)
-  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v13-bounded-ensemble-frozen-holdout','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'CHALLENGER_ACCEPTED_OOS_AND_FROZEN_HOLDOUT' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
+  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v14-multiscale-form-robust-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'CHALLENGER_ACCEPTED_OOS_AND_FROZEN_HOLDOUT' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
   c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in rows[:sel]]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
   out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE')};return _write_result(s,out)
  finally:c.close()
