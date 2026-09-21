@@ -65,8 +65,8 @@ jobs:
           main_sha=$(git rev-parse HEAD)
           now=$(date -u +%s)
           state=$(gh run list --workflow "v4_5_15_production.yml" --limit 50 --json databaseId,status,event,createdAt,headSha)
-          active_latest=$(printf '%s' "$state" | jq '[.[] | select(.headSha==$ENV.main_sha and (.status=="queued" or .status=="in_progress"))] | length')
-          latest_created=$(printf '%s' "$state" | jq -r '[.[] | select(.headSha==$ENV.main_sha)] | map(.createdAt) | sort | last // empty')
+          active_latest=$(printf '%s' "$state" | jq --arg main_sha "$main_sha" '[.[] | select(.headSha==$main_sha and (.status=="queued" or .status=="in_progress"))] | length')
+          latest_created=$(printf '%s' "$state" | jq --arg main_sha "$main_sha" -r '[.[] | select(.headSha==$main_sha)] | map(.createdAt) | sort | last // empty')
           age=999999
           if [ -n "$latest_created" ]; then
             latest_ts=$(date -u -d "$latest_created" +%s)
