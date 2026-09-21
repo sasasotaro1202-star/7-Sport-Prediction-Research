@@ -49,6 +49,12 @@ def main():
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
     require('  push:' not in pit_workflow,
             'PIT expansion should not create heavy push-triggered queue')
+    require("minute_delta=$((delta / 60))" in pit_workflow,
+            'PIT cadence guard must tolerate normal GitHub schedule jitter at minute precision')
+    require("remainder_minutes=$((minute_delta % 540))" in pit_workflow,
+            'PIT cadence guard must preserve the exact 9-hour epoch phase')
+    require('echo \'run=false\' >> "$GITHUB_OUTPUT"' in pit_workflow,
+            'PIT cadence guard must fail closed by skipping non-boundary wakes')
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
