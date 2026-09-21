@@ -9,6 +9,7 @@ training. Promotion remains controlled by research_cycle_strict.py.
 """
 from typing import Dict, Iterable, List, Sequence, Tuple
 import numpy as np
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -71,6 +72,49 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
 
 
 
+def _fit_contextual_loss_selector(meta_features: np.ndarray, meta_losses: np.ndarray):
+    """Fit one PIT-safe loss forecaster per base model using only prior OOF rows."""
+    X = np.asarray(meta_features, dtype=float)
+    L = np.asarray(meta_losses, dtype=float)
+    if X.ndim != 2 or L.ndim != 2 or len(X) < 120 or len(X) != len(L):
+        return None
+    selectors = []
+    for j in range(L.shape[1]):
+        model = HistGradientBoostingRegressor(
+            max_iter=120,
+            learning_rate=0.04,
+            max_leaf_nodes=7,
+            min_samples_leaf=20,
+            l2_regularization=2.0,
+            random_state=42 + j,
+        )
+        model.fit(X, L[:, j])
+        selectors.append(model)
+    return {"kind": "contextual_loss_v1", "selectors": selectors}
+
+
+def _route_with_contextual_loss_selector(selector, bp: np.ndarray, ctx: np.ndarray):
+    """Convert predicted per-model loss into conservative situation-specific weights."""
+    if not isinstance(selector, dict) or selector.get("kind") != "contextual_loss_v1":
+        return None
+    selectors = selector.get("selectors") or []
+    if not selectors:
+        return None
+    features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
+    predicted = np.column_stack([m.predict(features) for m in selectors])
+    predicted = np.where(np.isfinite(predicted), predicted, np.nanmedian(predicted, axis=0))
+    baseline = np.mean(bp, axis=1)
+    # Lower predicted log-loss => larger weight. Temperature prevents brittle winner-take-all routing.
+    centered = predicted - np.min(predicted, axis=1, keepdims=True)
+    weights = np.exp(-centered / 0.15)
+    weights /= np.maximum(weights.sum(axis=1, keepdims=True), 1e-12)
+    # Conservative shrinkage toward equal weighting reduces regime overreaction.
+    weights = 0.75 * weights + 0.25 / bp.shape[1]
+    routed = np.sum(bp * weights, axis=1)
+    return np.clip(0.75 * routed + 0.25 * baseline, 1e-6, 1 - 1e-6)
+
+
+
 class DynamicModelRouter:
     """Stateful wrapper for the leakage-safe challenger router."""
     def __init__(self, names: Sequence[str], pool_factory):
@@ -108,14 +152,9 @@ def evaluate_router(
     start: int,
     step: int,
     pool_factory,
-    metric= None,
+    metric=None,
 ) -> Dict:
-    """Nested chronological OOS comparison of fixed blend vs dynamic router.
-
-    Base models are refit for every chronological fold. The meta-model is fit
-    only on earlier OOS folds, never on the current fold. This prevents the
-    router from learning from the target it is being evaluated on.
-    """
+    """Nested chronological OOS comparison with a contextual loss router."""
     X = np.asarray(X, dtype=float)
     y = np.asarray(y)
     if not _require_binary_target(y):
@@ -123,10 +162,10 @@ def evaluate_router(
     if sel <= start + step or len(names) < 2:
         return {"status": "INSUFFICIENT_OOS", "reason": "too_few_chronological_folds"}
 
-    meta_X: List[np.ndarray] = []
-    meta_y: List[int] = []
-    static_pred: List[float] = []
-    router_pred: List[float] = []
+    meta_X = []
+    meta_losses = []
+    static_pred = []
+    router_pred = []
     used_folds = 0
 
     for end in range(start, sel, step):
@@ -143,42 +182,46 @@ def evaluate_router(
         ctx = _context(X[:end], X[end:te])
         features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
 
-        # A router must have enough prior OOF observations. Before that point,
-        # fail safely to the incumbent fixed blend.
-        if len(meta_y) >= 60 and len(np.unique(meta_y)) == 2:
-            router = Pipeline([
-                ("scale", StandardScaler()),
-                ("model", LogisticRegression(C=0.25, max_iter=2000, random_state=42)),
-            ])
-            router.fit(np.asarray(meta_X), np.asarray(meta_y))
-            rp = np.clip(router.predict_proba(features)[:, 1], 1e-6, 1 - 1e-6)
-        else:
-            rp = static.copy()
+        selector = _fit_contextual_loss_selector(
+            np.asarray(meta_X, dtype=float) if meta_X else np.empty((0, features.shape[1])),
+            np.asarray(meta_losses, dtype=float) if meta_losses else np.empty((0, len(names))),
+        )
+        routed = _route_with_contextual_loss_selector(selector, bp, ctx)
+        if routed is None:
+            routed = static.copy()
 
         static_pred.extend(static.tolist())
-        router_pred.extend(rp.tolist())
+        router_pred.extend(routed.tolist())
+
+        yt = y[end:te].astype(float)
+        fold_losses = -(
+            yt[:, None] * np.log(bp)
+            + (1.0 - yt[:, None]) * np.log(1.0 - bp)
+        )
         meta_X.extend(features.tolist())
-        meta_y.extend(y[end:te].tolist())
+        meta_losses.extend(fold_losses.tolist())
         used_folds += 1
 
-    if len(meta_y) < 60 or len(np.unique(meta_y)) < 2:
-        return {"status": "INSUFFICIENT_OOS", "reason": "insufficient_router_training_oof", "oos_rows": len(meta_y)}
+    if len(meta_losses) < 120:
+        return {
+            "status": "INSUFFICIENT_OOS",
+            "reason": "insufficient_router_training_oof",
+            "oos_rows": len(meta_losses),
+        }
 
-    static_m = _metric(meta_y, static_pred)
-    router_m = _metric(meta_y, router_pred)
+    static_m = _metric(y[start:sel], static_pred)
+    router_m = _metric(y[start:sel], router_pred)
     return {
         "status": "EVALUATED",
         "folds": used_folds,
-        "oos_rows": len(meta_y),
+        "oos_rows": len(meta_losses),
         "fixed_ensemble": static_m,
         "dynamic_router": router_m,
         "logloss_improvement": static_m["logloss"] - router_m["logloss"],
         "brier_improvement": static_m["brier"] - router_m["brier"],
         "ece_change": router_m["ece"] - static_m["ece"],
-        "policy": "challenger_only; chronological OOF; frozen holdout untouched",
+        "policy": "challenger_only; chronological OOF; contextual per-model loss forecasting; frozen holdout untouched",
     }
-
-
 
 def evaluate_frozen_holdout_router(
     X: np.ndarray,
@@ -190,12 +233,7 @@ def evaluate_frozen_holdout_router(
     pool_factory,
     metric=None,
 ) -> Dict:
-    """Evaluate a router trained only on pre-holdout OOF data on the frozen holdout.
-
-    Holdout labels are used only for final scoring. Neither the router nor any
-    base model is fit on holdout rows, so this is a genuine frozen-holdout
-    promotion guard rather than another selector pass.
-    """
+    """Evaluate a contextual loss router fit only on pre-holdout OOF rows."""
     X = np.asarray(X, dtype=float)
     y = np.asarray(y)
     if not _require_binary_target(y):
@@ -203,8 +241,8 @@ def evaluate_frozen_holdout_router(
     if sel <= start or sel >= len(y) or len(names) < 2:
         return {"status": "INSUFFICIENT_HOLDOUT", "reason": "invalid_frozen_holdout_split"}
 
-    meta_X: List[np.ndarray] = []
-    meta_y: List[int] = []
+    meta_X = []
+    meta_losses = []
     for end in range(start, sel, step):
         te = min(end + step, sel)
         if te <= end or len(np.unique(y[:end])) < 2:
@@ -216,17 +254,18 @@ def evaluate_frozen_holdout_router(
             bp.append(np.clip(model.predict_proba(X[end:te])[:, 1], 1e-6, 1 - 1e-6))
         bp = np.column_stack(bp)
         ctx = _context(X[:end], X[end:te])
-        meta_X.extend(np.column_stack([bp, ctx, np.std(bp, axis=1)]).tolist())
-        meta_y.extend(y[end:te].tolist())
+        features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
+        yt = y[end:te].astype(float)
+        fold_losses = -(
+            yt[:, None] * np.log(bp)
+            + (1.0 - yt[:, None]) * np.log(1.0 - bp)
+        )
+        meta_X.extend(features.tolist())
+        meta_losses.extend(fold_losses.tolist())
 
-    if len(meta_y) < 60 or len(np.unique(meta_y)) < 2:
-        return {"status": "INSUFFICIENT_OOS", "reason": "insufficient_router_training_oof", "oos_rows": len(meta_y)}
-
-    router_model = Pipeline([
-        ("scale", StandardScaler()),
-        ("model", LogisticRegression(C=0.25, max_iter=2000, random_state=42)),
-    ])
-    router_model.fit(np.asarray(meta_X), np.asarray(meta_y))
+    selector = _fit_contextual_loss_selector(np.asarray(meta_X, dtype=float), np.asarray(meta_losses, dtype=float))
+    if selector is None:
+        return {"status": "INSUFFICIENT_OOS", "reason": "insufficient_router_training_oof", "oos_rows": len(meta_losses)}
 
     bp = []
     for name in names:
@@ -236,33 +275,33 @@ def evaluate_frozen_holdout_router(
     bp = np.column_stack(bp)
     static = bp.mean(axis=1)
     ctx = _context(X[:sel], X[sel:])
-    routed = np.clip(
-        router_model.predict_proba(np.column_stack([bp, ctx, np.std(bp, axis=1)]))[:, 1],
-        1e-6, 1 - 1e-6
-    )
-    routed = 0.75 * routed + 0.25 * static
+    routed = _route_with_contextual_loss_selector(selector, bp, ctx)
+    if routed is None:
+        return {"status": "INSUFFICIENT_OOS", "reason": "contextual_router_fit_failed", "oos_rows": len(meta_losses)}
+
     target = y[sel:]
     static_m = _metric(target, static)
     routed_m = _metric(target, routed)
     return {
         "status": "EVALUATED",
-        "oos_training_rows": len(meta_y),
+        "oos_training_rows": len(meta_losses),
         "holdout_rows": len(target),
         "fixed_ensemble": static_m,
         "dynamic_router": routed_m,
         "logloss_improvement": static_m["logloss"] - routed_m["logloss"],
         "brier_improvement": static_m["brier"] - routed_m["brier"],
         "ece_change": routed_m["ece"] - static_m["ece"],
-        "policy": "router_fit_pre_holdout_only; frozen_holdout_labels_used_only_for_scoring",
+        "policy": "router_fit_pre_holdout_only; per-model OOF loss targets; frozen_holdout_labels_used_only_for_scoring",
     }
 
 def fit_final_router(X, y, names, sel, start, step, pool_factory):
-    """Fit the final router from all pre-holdout chronological OOF predictions."""
+    """Fit the final contextual loss router from pre-holdout chronological OOF."""
     X = np.asarray(X, dtype=float)
     y = np.asarray(y)
     if not _require_binary_target(y):
         return None
-    meta_X, meta_y = [], []
+    meta_X = []
+    meta_losses = []
     for end in range(start, sel, step):
         te = min(end + step, sel)
         if te <= end or len(np.unique(y[:end])) < 2:
@@ -274,17 +313,18 @@ def fit_final_router(X, y, names, sel, start, step, pool_factory):
             bp.append(np.clip(model.predict_proba(X[end:te])[:, 1], 1e-6, 1 - 1e-6))
         bp = np.column_stack(bp)
         ctx = _context(X[:end], X[end:te])
-        meta_X.extend(np.column_stack([bp, ctx, np.std(bp, axis=1)]).tolist())
-        meta_y.extend(y[end:te].tolist())
-    if len(meta_y) < 60 or len(np.unique(meta_y)) < 2:
-        return None
-    router = Pipeline([
-        ("scale", StandardScaler()),
-        ("model", LogisticRegression(C=0.25, max_iter=2000, random_state=42)),
-    ])
-    router.fit(np.asarray(meta_X), np.asarray(meta_y))
-    return router
-
+        features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
+        yt = y[end:te].astype(float)
+        fold_losses = -(
+            yt[:, None] * np.log(bp)
+            + (1.0 - yt[:, None]) * np.log(1.0 - bp)
+        )
+        meta_X.extend(features.tolist())
+        meta_losses.extend(fold_losses.tolist())
+    return _fit_contextual_loss_selector(
+        np.asarray(meta_X, dtype=float),
+        np.asarray(meta_losses, dtype=float),
+    )
 
 def predict_with_router(router, base_models, names, train_x, current_x):
     bp = []
@@ -299,10 +339,10 @@ def predict_with_router(router, base_models, names, train_x, current_x):
     if router is None:
         return static, {"fallback": True, "reason": "router_unavailable"}
     ctx = _context(train_x, current_x)
-    rp = np.clip(router.predict_proba(np.column_stack([bp, ctx, np.std(bp, axis=1)]))[:, 1], 1e-6, 1 - 1e-6)
-    # Fail-safe: extreme routing output is shrunk toward the incumbent blend.
-    rp = 0.75 * rp + 0.25 * static
-    return rp, {"fallback": False, "shrinkage": 0.25}
+    routed = _route_with_contextual_loss_selector(router, bp, ctx)
+    if routed is None:
+        return static, {"fallback": True, "reason": "contextual_router_unavailable"}
+    return routed, {"fallback": False, "router_kind": "contextual_loss_v1", "shrinkage": 0.25}
 
 
 __all__ = ["DynamicModelRouter", "evaluate_router", "fit_final_router", "predict_with_router"]
