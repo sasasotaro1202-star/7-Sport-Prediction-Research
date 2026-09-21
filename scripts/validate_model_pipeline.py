@@ -56,6 +56,9 @@ def main():
     assert multi.get('status')=='UNSUPPORTED_MULTICLASS_RESEARCH_ONLY', multi
 
     assert future._after_now("2999-01-01T00:00:00+00:00", datetime.now(timezone.utc)) is True
+    now=datetime.now(timezone.utc)
+    assert future._after_cutoff('2999-01-01T00:00:00+00:00',now,60) is True
+    assert future._after_cutoff((now.replace(year=now.year+1)).isoformat(),now,60) is True
     assert future._after_now("2000-01-01T00:00:00+00:00", datetime.now(timezone.utc)) is False
     assert np.allclose(future._apply_calibration(np.array([0.25,0.75]),None,'none'),np.array([0.25,0.75]))
     
