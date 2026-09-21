@@ -242,22 +242,28 @@ def train(s):
   # Only a modest OOS gain is needed to justify checking the weighted challenger.
   # It must still pass the same frozen-holdout calibration and incumbent gate.
   weighted_hold=None
-  if wa_metric is not None and tuple((wa_a,wa_b)) != tuple((best[0],best[1])) or (wa_metric is not None and len(best)==1):
-   if wa_a is not None and wa_b is not None and (wa_metric['logloss'] + 0.0002 < fixed_oos_metric['logloss']):
-    pa=np.asarray(models[best.index(wa_a)].predict_proba(X[sel:])[:,1]) if wa_a in best else None
-    pb=np.asarray(models[best.index(wa_b)].predict_proba(X[sel:])[:,1]) if wa_b in best else None
-    if pa is not None and pb is not None:
-     weighted_p=wa_weight*pa+(1.0-wa_weight)*pb
-     weighted_hold=base.metric(y[sel:],weighted_p);weighted_hold['models']=[wa_a,wa_b];weighted_hold['weights']={wa_a:wa_weight,wa_b:1.0-wa_weight}
-     if weighted_hold['ece']<=.20 and weighted_hold['logloss'] <= hold['logloss']:
-      hold=weighted_hold
-      best=(wa_a,wa_b)
-      candidate_label='weighted_pair'
-      candidate_weights={wa_a:wa_weight,wa_b:1.0-wa_weight}
-      # Reorder models to match the chosen weighted pair.
-      models=[models[fixed_models.index(wa_a)],models[fixed_models.index(wa_b)]] if wa_a in fixed_models and wa_b in fixed_models else [base.pool()[wa_a],base.pool()[wa_b]]
+  if wa_metric is not None and wa_a is not None and wa_b is not None and (wa_metric['logloss'] + 0.0002 < fixed_oos_metric['logloss']):
+   candidate_model_map={name:model for name,model in zip(fixed_models,models)}
+   for name in (wa_a,wa_b):
+    if name not in candidate_model_map:
+     m=base.pool()[name]
+     m.fit(X[:sel],y[:sel])
+     candidate_model_map[name]=m
+   pa=np.asarray(candidate_model_map[wa_a].predict_proba(X[sel:])[:,1])
+   pb=np.asarray(candidate_model_map[wa_b].predict_proba(X[sel:])[:,1])
+   weighted_p=wa_weight*pa+(1.0-wa_weight)*pb
+   weighted_hold=base.metric(y[sel:],weighted_p)
+   weighted_hold['models']=[wa_a,wa_b]
+   weighted_hold['weights']={wa_a:wa_weight,wa_b:1.0-wa_weight}
+   if weighted_hold['ece']<=.20 and weighted_hold['logloss'] <= hold['logloss']:
+    hold=weighted_hold
+    best=(wa_a,wa_b)
+    candidate_label='weighted_pair'
+    candidate_weights={wa_a:wa_weight,wa_b:1.0-wa_weight}
+    models=[candidate_model_map[wa_a],candidate_model_map[wa_b]]
   hold['candidate_strategy']=candidate_label
   hold['candidate_weights']=candidate_weights
+  selected_oos_metric = wa_metric if candidate_label=='weighted_pair' and wa_metric is not None else fixed_oos_metric
   if hold['ece']>.20:return _write_result(s,{'sport':s,'status':'REJECTED_HOLDOUT_CALIBRATION','holdout_metrics':hold,'selection_oos':oos,'ensemble_selection':scores})
   old=None;r=c.execute("SELECT metadata_json FROM model_state_snapshot WHERE sport=? AND market='winner' ORDER BY as_of_utc DESC LIMIT 1",(s,)).fetchone()
   if r:
@@ -278,10 +284,10 @@ def train(s):
   router_holdout=router.evaluate_frozen_holdout_router(X,y,router_names,sel,start,step,base.pool,base.metric)
   router_accept = (router_eval.get('status') == 'EVALUATED'
                    and router_holdout.get('status') == 'EVALUATED'
-                   and router_eval['logloss_improvement'] >= max(.001,.005*scores[best_key]['logloss'])
+                   and router_eval['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
                    and router_eval['brier_improvement'] >= -.002
                    and router_eval['ece_change'] <= .02
-                   and router_holdout['logloss_improvement'] >= max(.001,.005*scores[best_key]['logloss'])
+                   and router_holdout['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
                    and router_holdout['brier_improvement'] >= -.002
                    and router_holdout['ece_change'] <= .02)
   ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'cutoff':rows[sel-1][1]});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'models':models,'model_names':list(best),'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'dynamic_router_status':'RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout},path)
