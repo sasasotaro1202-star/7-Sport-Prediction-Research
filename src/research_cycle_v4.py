@@ -196,6 +196,9 @@ def build(c,s,include_unlabeled=False):
    j+=1
   if eid not in labels and not include_unlabeled:continue
   p=pairs[eid];f={};strict_evidence=0
+  comp=str(p.get('competition_id') or '').lower()
+  f['competition_is_asian_games']=1.0 if ('asian games' in comp or 'アジア大会' in comp) else 0.0
+  f['competition_is_bleague']=1.0 if ('b.league' in comp or 'b league' in comp or 'bリーグ' in comp) else 0.0
   # Do not count default Elo/median-imputation rows as strict PIT evidence.
   # A row must contain at least one feature value whose source was observable
   # at least 60 minutes before the prediction cutoff, or a provenance-verified
