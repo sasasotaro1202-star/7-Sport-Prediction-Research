@@ -1,0 +1,89 @@
+name: PIT History Expansion
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 */6 * * *'
+  push:
+    paths:
+      - '.github/workflows/pit_history_expansion.yml'
+      - 'src/bleaguer_git_provenance.py'
+      - 'src/valorant_git_provenance.py'
+      - 'src/pit_replay_builder.py'
+permissions:
+  contents: read
+concurrency:
+  group: pit-history-expansion
+  cancel-in-progress: false
+env:
+  PYTHONUNBUFFERED: '1'
+jobs:
+  expand:
+    name: Expand PIT history (${{ matrix.sport }})
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        sport: [basketball, valorant]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore latest sport database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: pit-history-seed-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            eight-sport-db-v4-${{ matrix.sport }}-pit-
+            eight-sport-db-v4-${{ matrix.sport }}-
+      - name: Validate restored database
+        run: |
+          python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
+          python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+      - name: Prove historical source availability
+        run: |
+          set -uo pipefail
+          if [ '${{ matrix.sport }}' = 'basketball' ]; then
+            python -m src.bleaguer_git_provenance --db data/db/sports_v45.sqlite --workers 6
+          else
+            python -m src.valorant_git_provenance
+          fi
+      - name: Build strict PIT replay history
+        run: python -m src.pit_replay_builder --sport ${{ matrix.sport }}
+      - name: Measure PIT expansion
+        run: |
+          python - <<'PY'
+          import json, sqlite3
+          from pathlib import Path
+          sport='${{ matrix.sport }}'
+          con=sqlite3.connect('data/db/sports_v45.sqlite')
+          rows=con.execute("SELECT COUNT(*) FROM pit_replay WHERE replay_status='REPLAYABLE' AND event_id IN (SELECT event_id FROM event WHERE sport=?)",(sport,)).fetchone()[0]
+          features=con.execute("SELECT COUNT(*) FROM pit_feature_snapshot WHERE sport=? AND leakage_status='CLEAN'",(sport,)).fetchone()[0]
+          exact=con.execute("SELECT COUNT(*) FROM source_snapshot WHERE availability_status='EXACT' AND provenance_json LIKE '%github_commit_identical_blob%' ").fetchone()[0]
+          events=con.execute("SELECT COUNT(*) FROM event WHERE sport=?",(sport,)).fetchone()[0]
+          con.close()
+          report={'status':'OK','sport':sport,'events':events,'replayable_rows':rows,'clean_pit_features':features,'exact_provenance_snapshots':exact}
+          Path('results').mkdir(exist_ok=True)
+          Path(f'results/pit_history_expansion_{sport}.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          PY
+      - name: Save PIT-enriched database
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: eight-sport-db-v4-${{ matrix.sport }}-pit-${{ github.run_id }}
+      - name: Upload PIT expansion report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-history-expansion-${{ matrix.sport }}-${{ github.run_id }}
+          path: results/pit_history_expansion_${{ matrix.sport }}.json
+          retention-days: 14
