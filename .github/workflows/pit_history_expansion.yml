@@ -49,6 +49,9 @@ jobs:
         run: |
           python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
           python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+      - name: Materialize immutable historical corpus
+        if: matrix.sport == 'basketball'
+        run: python -m src.basketball_cdn_backfill --historical
       - name: Prove historical source availability
         run: |
           set -uo pipefail
