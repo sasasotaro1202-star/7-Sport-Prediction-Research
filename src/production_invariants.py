@@ -64,6 +64,13 @@ def main():
             'accelerated research final fit must exclude frozen holdout')
     require('final.fit(X,y)' not in accelerated,
             'accelerated research must never fit final model on full dataset including holdout')
+    watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
+    require('GITHUB_EVENT_NAME' not in watchdog or 'active_latest' in watchdog,
+            'production watchdog lacks exact-main active-run guard')
+    require('gh workflow run v4_5_15_production.yml --ref main' in watchdog,
+            'production watchdog cannot self-heal latest main when idle')
+    require('GITHUB_EVENT_NAME' in watchdog and 'active_latest' in watchdog,
+            'production watchdog latest-main dispatch guard is incomplete')
     recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
     require('PIT History Expansion' in recovery and 'Rugby Coverage Production' in recovery,
             'bounded recovery does not cover PIT and Rugby workflows')
