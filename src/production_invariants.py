@@ -156,6 +156,7 @@ def main():
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
     require('lightgbm_wide' in research_base,'wide LightGBM challenger is missing from the model pool')
+    require('subsample_freq=1' in research_base,'LightGBM row bagging is not explicitly enabled')
     require('hist_gb_recent_600' in research_base and 'lightgbm_recent_800' in research_base,
             'recent-window model challengers are missing from the model pool')
     smoke_src=(ROOT/'scripts/model_system_smoke.py').read_text(encoding='utf-8')
