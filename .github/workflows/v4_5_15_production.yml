@@ -4,12 +4,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '17 * * * *'
-  push:
-    paths:
-      - 'src/**'
-      - 'scripts/**'
-      - '.github/workflows/v4_5_15_production.yml'
-      - 'requirements.txt'
+  # Production runs continuously on the hourly schedule, after successful PIT
+  # expansion, or manually. Avoid push-triggered heavy runs so code commits do
+  # not create an unbounded queue behind long research executions.
   workflow_run:
     workflows: ['PIT History Expansion']
     types: [completed]
