@@ -272,13 +272,14 @@ def train(s):
   # Search a bounded set of convex weights for the strongest pair. The frozen
   # holdout remains the final guard, so this is a challenger optimization rather
   # than a free hyperparameter fit on holdout labels.
-  best_fixed_key=min(scores,key=lambda k:(scores[k]['logloss'],scores[k]['brier'],scores[k]['ece']))
+  # Fixed candidate selection is stability-aware: mean OOS LogLoss plus a small
+  # fold-variance penalty.
+  best_fixed_key=min(scores,key=lambda k:(scores[k]['robust_objective'],scores[k]['brier'],scores[k]['ece']))
   fixed_models=tuple(best_fixed_key.split('+'))
   weighted_candidates=[]
-  # Compare weighted pairs against the best fixed candidate fold-by-fold. A
-  # weighted pair is eligible only when it improves OOS and is not concentrated
-  # in a small subset of historical regimes.
-  best_fixed_key=min(scores,key=lambda k:(scores[k]['robust_objective'],scores[k]['brier'],scores[k]['ece']))
+  # Compare weighted pairs against the same stability-selected fixed candidate
+  # fold-by-fold. A weighted pair is eligible only when it improves OOS and is
+  # not concentrated in a small subset of historical regimes.
   baseline_spec=tuple(best_fixed_key.split('+'))
   for a,b in combinations(rank[:3],2) if len(rank)>=2 else []:
    pa=np.asarray(oof_probs[a],float);pb=np.asarray(oof_probs[b],float)
