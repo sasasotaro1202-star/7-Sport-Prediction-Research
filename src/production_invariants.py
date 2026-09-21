@@ -145,6 +145,13 @@ def main():
     require('DynamicModelRouter(' not in production_router_refs,'dynamic router class instantiated in production runtime path')
     require('PRODUCTION_ROUTABLE_AFTER_GATES' in production_router_refs,
             'future prediction runtime lacks explicit gated router state')
+    future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    require("apply_cal = None if strategy=='contextual_router' else cal" in future_src,
+            'future predictor can apply ensemble calibration to Router output distribution')
+    require("artifact.get('quality_status')" in future_src and 'DEFERRED_ARTIFACT_NOT_ACCEPTED' in future_src,
+            'future predictor does not fail closed on unaccepted artifacts')
+    require("'quality_status':'ACCEPTED_LOCKED_HOLDOUT'" in strict_src,
+            'strict research artifact does not persist explicit accepted quality state')
     try:
         import numpy as np
         from src import dynamic_model_router as dmrouter
