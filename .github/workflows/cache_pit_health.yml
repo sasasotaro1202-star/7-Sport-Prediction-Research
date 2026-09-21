@@ -12,8 +12,9 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: cache-pit-health
-  cancel-in-progress: false
+  group: cache-pit-health-validation
+  # Read-only validation: only the newest commit needs validation.
+  cancel-in-progress: true
 jobs:
   cache-health:
     name: Cache health ${{ matrix.sport }}
