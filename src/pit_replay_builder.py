@@ -9,6 +9,17 @@ from src.storage.db_v45 import utcnow
 
 DB='data/db/sports_v45.sqlite'
 MIN_PIT_GAP=timedelta(minutes=60)
+FEATURE_VERSION='pit-v2-exact-source-no-same-event'
+
+def sport_fingerprint(c, sport):
+    """Cheap invalidation key for incremental PIT replay; does not change eligibility."""
+    vals=[]
+    vals.append(c.execute("SELECT COUNT(*), MAX(event_time_utc) FROM event WHERE sport=?",(sport,)).fetchone())
+    vals.append(c.execute("SELECT COUNT(*), MAX(effective_at_utc) FROM match_stats WHERE sport=?",(sport,)).fetchone())
+    vals.append(c.execute("SELECT COUNT(*) FROM event_participant ep JOIN event e ON e.event_id=ep.event_id WHERE e.sport=?",(sport,)).fetchone()[0])
+    vals.append(c.execute("SELECT COUNT(*), MAX(observed_at_utc) FROM event_outcome WHERE sport=?",(sport,)).fetchone())
+    vals.append(c.execute("SELECT COUNT(*), MAX(source_available_at_utc) FROM source_snapshot WHERE availability_status='EXACT' AND source_available_at_utc IS NOT NULL").fetchone())
+    return hashlib.sha256('|'.join(str(x) for x in vals).encode()).hexdigest()
 
 
 def hid(*xs):
@@ -26,6 +37,7 @@ def main():
     c=sqlite3.connect(DB); c.row_factory=sqlite3.Row
     totals={}
     for sport in sports:
+        fingerprint=sport_fingerprint(c,sport)
         events=c.execute("SELECT event_id,event_time_utc FROM event WHERE sport=? AND event_time_utc IS NOT NULL ORDER BY event_time_utc,event_id",(sport,)).fetchall()
         replayable=deferred=features_written=0
         for e in events:
@@ -42,6 +54,9 @@ def main():
             cutoff_dt=event_dt-MIN_PIT_GAP
             cutoff=cutoff_dt.astimezone(timezone.utc).isoformat()
             replay_id=hid('pit-replay-v2',sport,eid,cutoff)
+            existing=c.execute("SELECT replay_status,feature_version,dataset_hash FROM pit_replay WHERE replay_id=?",(replay_id,)).fetchone()
+            if existing and existing['feature_version']==FEATURE_VERSION and existing['dataset_hash']==fingerprint:
+                continue
             c.execute("DELETE FROM pit_feature_snapshot WHERE replay_id=?",(replay_id,))
             feature_count=0; sides_ok=0
             for p in ps:
@@ -84,7 +99,7 @@ def main():
             c.execute("""INSERT OR REPLACE INTO pit_replay
                 (replay_id,event_id,prediction_cutoff_at_utc,cutoff_rule,replay_status,leakage_status,model_version,feature_version,research_cycle,git_commit_sha,data_snapshot_id,dataset_hash,created_at_utc,reason)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (replay_id,eid,cutoff,'event_time_minus_60m',status,'CLEAN',None,'pit-v2-exact-source-no-same-event','strict-pit',None,None,None,utcnow(),reason))
+                (replay_id,eid,cutoff,'event_time_minus_60m',status,'CLEAN',None,FEATURE_VERSION,'strict-pit',None,None,fingerprint,utcnow(),reason))
             features_written+=feature_count
         c.commit(); totals[sport]={'events_seen':len(events),'replayable':replayable,'deferred':deferred,'feature_snapshots':features_written}
     c.close(); print(json.dumps({'status':'OK','minimum_pit_gap_minutes':60,'sports':totals},ensure_ascii=False,indent=2))
