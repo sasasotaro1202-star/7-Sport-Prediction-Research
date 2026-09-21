@@ -10,6 +10,9 @@ on:
       - 'scripts/**'
       - '.github/workflows/v4_5_15_production.yml'
       - 'requirements.txt'
+  workflow_run:
+    workflows: ['PIT History Expansion']
+    types: [completed]
 permissions:
   contents: write
 concurrency:
@@ -21,6 +24,7 @@ env:
   PYTHONUNBUFFERED: '1'
 jobs:
   collect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     name: Collect ${{ matrix.sport }}
     strategy:
       fail-fast: false
