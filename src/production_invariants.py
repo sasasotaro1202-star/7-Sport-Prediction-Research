@@ -136,6 +136,8 @@ def main():
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
+    require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
+            'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
     req_text=(ROOT/'requirements.txt').read_text(encoding='utf-8')
