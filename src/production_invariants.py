@@ -80,6 +80,8 @@ def main():
             'production watchdog does not have the configured 5-minute recovery cadence')
     require('active_latest' in watchdog and 'seen_latest' in watchdog and 'latest_created' in watchdog,
             'production watchdog lacks active/seen/latest-created state guards')
+    require('active_any' in watchdog and '[ "$active_any" -eq 0 ]' in watchdog,
+            'production watchdog may dispatch a new heavy run before all prior runs have stopped')
     require('inv_ok' in watchdog and 'safety_ok' in watchdog,
             'production watchdog must verify both same-SHA validators before dispatch')
     require('[ \"$active_latest\" -eq 0 ]' in watchdog and '[ \"$age\" -ge 3300 ]' in watchdog,
