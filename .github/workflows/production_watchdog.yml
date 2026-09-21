@@ -70,9 +70,10 @@ jobs:
               created_ts=$(date -u -d "$created_at" +%s)
               now=$(date -u +%s)
               age=$((now-created_ts))
-              # Canonical Production/PIT jobs have explicit time budgets; allow a
-              # bounded grace period before watchdog cancellation.
-              if [ "$age" -ge 8100 ]; then
+              # Match each workflow's explicit timeout with a bounded grace period.
+              limit=8100
+              if [ "$workflow" = "pit_history_expansion.yml" ]; then limit=2700; fi
+              if [ "$age" -ge "$limit" ]; then
                 echo "OVERTIME_HEAVY_RUN run_id=$run_id age=${age}s workflow=$workflow event=$event sha=$head_sha"
                 gh run cancel "$run_id"
               fi
