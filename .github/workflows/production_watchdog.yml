@@ -33,7 +33,7 @@ jobs:
             "pit_history_expansion.yml"
           )
           for workflow in "${workflows[@]}"; do
-            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha               --jq '.[] | select(.event=="push") | [.databaseId,.status,.createdAt,.headSha] | @tsv' |
+            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha               --jq '.[] | select(.event=="push" and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")) | [.databaseId,.status,.createdAt,.headSha] | @tsv' |
             while IFS=$'\t' read -r run_id status created_at head_sha; do
               [ -n "$run_id" ] || continue
               echo "LEGACY_PUSH_RUN run_id=$run_id status=$status created_at=$created_at sha=$head_sha workflow=$workflow"
