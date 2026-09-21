@@ -337,54 +337,91 @@ def train(s):
    score['folds']=len(fold_ll)
    scores[key]=score
   if not scores:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_ensemble_selection_folds','rows':len(rows)})
-  best_key=best_fixed_key
-  best=tuple(fixed_models)
-  fixed_oos_metric=scores[best_key]
+  # Candidate selection is strictly pre-holdout. Equal-weight and bounded weighted
+  # ensembles are compared on chronological OOS robustness only.
+  best_fixed_key=min(scores,key=lambda k:(scores[k]['robust_objective'],scores[k]['brier'],scores[k]['ece']))
+  fixed_models=tuple(best_fixed_key.split('+'))
+  fixed_oos_metric=scores[best_fixed_key]
+  best=fixed_models
   candidate_label='fixed_equal_weight'
   candidate_weights={name:1.0/len(best) for name in best}
+  wa_a=wa_b=None;wa_weight=0.5;wa_metric=None
+  wa_win_rate=0.0;wa_mean_delta=0.0;wa_fold_std=float('inf');wa_robust_gain=0.0
+
+  def _weighted_candidate_score(spec, weights):
+   p_all=np.sum(np.column_stack([weights.get(n,0.0)*np.asarray(oof_probs[n],float) for n in spec]),axis=1)
+   overall=base.metric(oof_y,p_all)
+   fold_losses=[];window_scores=[]
+   for ws in window_starts:
+    yy=[];pp=[]
+    for fold in oof_folds:
+     if int(fold['end'])<ws:continue
+     yy.extend(y[int(fold['end']):int(fold['te'])].tolist())
+     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
+     pp.extend(np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1).tolist())
+    if len(yy)>=20 and len(np.unique(yy))>1:
+     window_scores.append(base.metric(np.asarray(yy),np.asarray(pp)))
+   for fold in oof_folds:
+    yy=y[int(fold['end']):int(fold['te'])]
+    fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
+    pp=np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1)
+    if len(yy)>=20 and len(np.unique(yy))>1:
+     fold_losses.append(base.metric(yy,pp)['logloss'])
+   wl=np.asarray([m['logloss'] for m in window_scores],dtype=float)
+   robust=float(np.average(wl,weights=np.array([0.20,0.30,0.50]))+0.10*np.std(wl)+0.05*np.std(fold_losses)) if len(window_scores)==3 else float(overall['logloss']+0.15*np.std(fold_losses))
+   return overall,robust,fold_losses,window_scores
+
+  weighted_candidates=[]
+  for a,b in combinations(top_rank,2):
+   for wa in (0.20,0.30,0.40,0.50,0.60,0.70,0.80):
+    weights={a:wa,b:1.0-wa}
+    overall,robust,folds,wins=_weighted_candidate_score((a,b),weights)
+    weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],(a,b),weights,folds))
+  for spec in combinations(top_rank[:4],3):
+   for wa in (0.20,0.30,0.40,0.50,0.60):
+    for wb in (0.20,0.30,0.40,0.50,0.60):
+     wc=1.0-wa-wb
+     if wc < 0.20 or wc > 0.60: continue
+     weights={spec[0]:wa,spec[1]:wb,spec[2]:wc}
+     overall,robust,folds,wins=_weighted_candidate_score(spec,weights)
+     weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],spec,weights,folds))
+  if weighted_candidates:
+   weighted_candidates.sort(key=lambda z:(z[0],z[2],z[3]))
+   wc=weighted_candidates[0]
+   weighted_robust=wc[0]
+   if weighted_robust + 0.0002 < fixed_oos_metric['robust_objective']:
+    spec=tuple(wc[4])
+    cand_weights=dict(wc[5])
+    wa_metric={'logloss':wc[1],'brier':wc[2],'ece':wc[3],'robust_objective':weighted_robust,'fold_logloss_std':float(np.std(wc[6])) if wc[6] else float('inf')}
+    wa_a=spec[0];wa_b=spec[1];wa_weight=float(cand_weights[wa_a])
+    wa_win_rate=float(np.mean([1.0 if d <= fixed_oos_metric['logloss'] else 0.0 for d in wc[6]])) if wc[6] else 0.0
+    wa_mean_delta=float(fixed_oos_metric['logloss']-wc[1])
+    wa_fold_std=float(np.std(wc[6])) if wc[6] else float('inf')
+    wa_robust_gain=float(fixed_oos_metric['robust_objective']-weighted_robust)
+    best=spec
+    candidate_label='weighted_ensemble'
+    candidate_weights=cand_weights
+
   models=[]
-  for name in best:m=base.pool()[name];m.fit(X[:sel],y[:sel]);models.append(m)
-  base_hold=base.metric(y[sel:],np.mean([m.predict_proba(X[sel:])[:,1] for m in models],axis=0))
-  base_hold['models']=list(best)
-  hold=base_hold
-  # Candidate selection is OOS-only. The frozen holdout is never used to
-  # choose between candidate models; it is reserved for final scoring/gating.
-  weighted_hold=None
-  if wa_metric is not None and wa_a is not None and wa_b is not None and (wa_metric['logloss'] + 0.0002 < fixed_oos_metric['logloss']):
-   candidate_model_map={name:model for name,model in zip(fixed_models,models)}
-   for name in (wa_a,wa_b):
-    if name not in candidate_model_map:
-     m=base.pool()[name]
-     m.fit(X[:sel],y[:sel])
-     candidate_model_map[name]=m
-   pa=np.asarray(candidate_model_map[wa_a].predict_proba(X[sel:])[:,1])
-   pb=np.asarray(candidate_model_map[wa_b].predict_proba(X[sel:])[:,1])
-   weighted_p=wa_weight*pa+(1.0-wa_weight)*pb
-   weighted_hold=base.metric(y[sel:],weighted_p)
-   weighted_hold['models']=[wa_a,wa_b]
-   weighted_hold['weights']={wa_a:wa_weight,wa_b:1.0-wa_weight}
-   hold=weighted_hold
-   best=(wa_a,wa_b)
-   candidate_label='weighted_pair'
-   candidate_weights={wa_a:wa_weight,wa_b:1.0-wa_weight}
-   models=[candidate_model_map[wa_a],candidate_model_map[wa_b]]
+  for name in best:
+   m=base.pool()[name]
+   m.fit(X[:sel],y[:sel])
+   models.append(m)
+  hold_p=np.sum(np.column_stack([models[i].predict_proba(X[sel:])[:,1]*candidate_weights[name] for i,name in enumerate(best)]),axis=1)
+  hold=base.metric(y[sel:],hold_p)
+  hold['models']=list(best)
   hold['candidate_strategy']=candidate_label
   hold['candidate_weights']=candidate_weights
-  selected_oos_metric = wa_metric if candidate_label=='weighted_pair' and wa_metric is not None else fixed_oos_metric
+  selected_oos_metric = wa_metric if candidate_label=='weighted_ensemble' and wa_metric is not None else fixed_oos_metric
   selected_oos_p = np.asarray(
-   wa_weight*np.asarray(oof_probs[wa_a],float)+(1.0-wa_weight)*np.asarray(oof_probs[wa_b],float)
-   if candidate_label=='weighted_pair' and wa_a is not None and wa_b is not None
-   else np.mean(np.column_stack([oof_probs[n] for n in best]),axis=1),
+   np.sum(np.column_stack([np.asarray(oof_probs[n],float)*candidate_weights[n] for n in best]),axis=1),
    dtype=float
   )
   calibration=_temporal_calibration_candidate(selected_oos_p,oof_y)
   probability_calibrator=calibration.get('model') if calibration.get('accepted') else None
   if probability_calibrator is not None:
    raw_hold_p=np.asarray(
-    candidate_weights[wa_a]*np.asarray(models[0].predict_proba(X[sel:])[:,1])+
-    candidate_weights[wa_b]*np.asarray(models[1].predict_proba(X[sel:])[:,1])
-    if candidate_label=='weighted_pair' and wa_a is not None and wa_b is not None
-    else np.mean([m.predict_proba(X[sel:])[:,1] for m in models],axis=0),
+    np.sum(np.column_stack([np.asarray(models[i].predict_proba(X[sel:])[:,1])*candidate_weights[name] for i,name in enumerate(best)]),axis=1),
     dtype=float
    )
    if calibration.get('method')=='sigmoid':
