@@ -56,31 +56,28 @@ jobs:
             done
           done
 
-      - name: Ensure latest-main production is continuously scheduled
+      - name: Ensure validated latest-main production is continuously scheduled
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           main_sha=$(git rev-parse HEAD)
-          now=$(date -u +%s)
-          state=$(gh run list --workflow "v4_5_15_production.yml" --limit 50 --json databaseId,status,event,createdAt,headSha)
-          active_latest=$(printf '%s' "$state" | jq --arg main_sha "$main_sha" '[.[] | select(.headSha==$main_sha and (.status=="queued" or .status=="in_progress"))] | length')
-          latest_created=$(printf '%s' "$state" | jq --arg main_sha "$main_sha" -r '[.[] | select(.headSha==$main_sha)] | map(.createdAt) | sort | last // empty')
-          age=999999
-          if [ -n "$latest_created" ]; then
-            latest_ts=$(date -u -d "$latest_created" +%s)
-            age=$((now-latest_ts))
-          fi
-          # A successful validation event may start Production immediately,
-          # but only when this exact main SHA has never had a Production run.
-          # Scheduled wakes retain the normal hourly spacing.
-          # Five-minute wakes keep the canonical hourly Production cadence and
-          # recover a brand-new main SHA when it has no run yet.
-          if [ "$active_latest" -eq 0 ] && [ "$age" -ge 3300 ]; then
-            echo "DISPATCH_LATEST_MAIN_PRODUCTION age=${age}s main=$main_sha"
+          state=$(gh run list --workflow "v4_5_15_production.yml" --limit 100 --json databaseId,status,event,createdAt,headSha)
+          active_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
+          seen_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha)] | length')
+
+          inv=$(gh run list --workflow "production_invariants.yml" --limit 50 --json databaseId,status,conclusion,headSha)
+          safety=$(gh run list --workflow "production_safety_audit.yml" --limit 50 --json databaseId,status,conclusion,headSha)
+          inv_ok=$(printf '%s' "$inv" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
+          safety_ok=$(printf '%s' "$safety" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
+
+          # Exactly one Production run is allowed for each validated main SHA.
+          # Both read-only validators must have passed for that same SHA first.
+          if [ "$active_latest" -eq 0 ] && [ "$seen_latest" -eq 0 ] && [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ]; then
+            echo "DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION main=$main_sha inv_ok=$inv_ok safety_ok=$safety_ok"
             gh workflow run v4_5_15_production.yml --ref main
           else
-            echo "LATEST_MAIN_PRODUCTION_ACTIVE_OR_RECENT active=$active_latest age=${age}s main=$main_sha"
+            echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok main=$main_sha"
           fi
       - name: Cancel over-time production and PIT runs
         env:
