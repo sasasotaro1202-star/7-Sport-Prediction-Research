@@ -49,6 +49,7 @@ jobs:
           path: data/db
           key: eight-sport-db-v4-${{ matrix.sport }}-${{ github.sha }}
           restore-keys: |
+            eight-sport-db-v4-${{ matrix.sport }}-pit-
             eight-sport-db-v4-${{ matrix.sport }}-
       - name: Validate/repair restored database before collection
         run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
