@@ -19,7 +19,7 @@ def f1():
  finally:c.close()
  return {'sport':'f1','status':'DEFERRED_PIT','events':int(n),'exact_pit_source_snapshots':int(e),'reason':'OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted'}
 def _temporal_calibration_candidate(p, y):
-    """Choose none/sigmoid/isotonic calibration using only pre-holdout OOS."""
+    """Choose none/sigmoid/beta/isotonic calibration using only pre-holdout OOS."""
     p=np.clip(np.asarray(p,dtype=float),1e-6,1-1e-6)
     y=np.asarray(y,int)
     if len(p)<120 or len(np.unique(y))<2:
@@ -34,6 +34,12 @@ def _temporal_calibration_candidate(p, y):
     sigmoid.fit(z[:cut],y[:cut])
     sp=np.clip(sigmoid.predict_proba(z[cut:])[:,1],1e-6,1-1e-6)
     candidates.append(('sigmoid',sigmoid,base.metric(y[cut:],sp)))
+    # Beta calibration: logistic regression on log(p) and log(1-p).
+    beta=np.column_stack([np.log(p),np.log(1.0-p)])
+    beta_model=LogisticRegression(C=0.25,max_iter=2000,random_state=43)
+    beta_model.fit(beta[:cut],y[:cut])
+    bp=np.clip(beta_model.predict_proba(beta[cut:])[:,1],1e-6,1-1e-6)
+    candidates.append(('beta',beta_model,base.metric(y[cut:],bp)))
     if len(p)>=300 and len(np.unique(p[:cut]))>=25:
         iso=IsotonicRegression(y_min=1e-6,y_max=1-1e-6,out_of_bounds='clip')
         iso.fit(p[:cut],y[:cut])
@@ -52,6 +58,9 @@ def _temporal_calibration_candidate(p, y):
     if method=='sigmoid':
         final=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
         final.fit(z,y)
+    elif method=='beta':
+        final=LogisticRegression(C=0.25,max_iter=2000,random_state=43)
+        final.fit(np.column_stack([np.log(p),np.log(1.0-p)]),y)
     else:
         final=IsotonicRegression(y_min=1e-6,y_max=1-1e-6,out_of_bounds='clip')
         final.fit(p,y)
@@ -373,6 +382,9 @@ def train(s):
    if calibration.get('method')=='sigmoid':
     z_hold=np.log(np.clip(raw_hold_p,1e-6,1-1e-6)/(1.0-np.clip(raw_hold_p,1e-6,1-1e-6))).reshape(-1,1)
     calibrated_hold_p=np.clip(probability_calibrator.predict_proba(z_hold)[:,1],1e-6,1-1e-6)
+   elif calibration.get('method')=='beta':
+    bp_hold=np.column_stack([np.log(np.clip(raw_hold_p,1e-6,1-1e-6)),np.log(1.0-np.clip(raw_hold_p,1e-6,1-1e-6))])
+    calibrated_hold_p=np.clip(probability_calibrator.predict_proba(bp_hold)[:,1],1e-6,1-1e-6)
    else:
     calibrated_hold_p=np.clip(probability_calibrator.predict(raw_hold_p),1e-6,1-1e-6)
    hold_probability_calibrated=base.metric(y[sel:],calibrated_hold_p)
