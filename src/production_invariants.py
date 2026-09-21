@@ -65,8 +65,8 @@ def main():
     require('final.fit(X,y)' not in accelerated,
             'accelerated research must never fit final model on full dataset including holdout')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
-    require("workflows:\n      - Production Invariants" in watchdog,
-            'production watchdog must recheck after successful same-SHA validator completion')
+    require("workflows:\n      - Production Invariants\n      - Production Safety Audit" in watchdog,
+            'production watchdog must recheck after completion of either same-SHA validator')
     require("types: [completed]" in watchdog,
             'production watchdog must support validator-completion recovery events')
     require("cron: '*/5 * * * *'" in watchdog,
