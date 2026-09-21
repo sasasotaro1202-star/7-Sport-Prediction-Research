@@ -244,9 +244,20 @@ def train(s):
   for name in names:
    p=np.asarray(oof_probs[name],float)
    if len(p)>=30 and len(np.unique(oof_y))>1:
-    oos[name]=base.metric(oof_y,p)
+    score=base.metric(oof_y,p)
+    fold_ll=[]
+    fold_brier=[]
+    for fold in oof_folds:
+     yy=y[int(fold['end']):int(fold['te'])]
+     pred=np.asarray(fold['preds'][name],dtype=float)
+     fold_ll.append(base.metric(yy,pred)['logloss'])
+     fold_brier.append(base.metric(yy,pred)['brier'])
+    score['fold_logloss_std']=float(np.std(fold_ll)) if fold_ll else float('inf')
+    score['fold_brier_std']=float(np.std(fold_brier)) if fold_brier else float('inf')
+    score['robust_objective']=score['logloss']+0.10*score['fold_logloss_std']
+    oos[name]=score
   if not oos:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
-  rank=sorted(oos,key=lambda k:(oos[k]['logloss'],oos[k]['brier'],oos[k]['ece']))
+  rank=sorted(oos,key=lambda k:(oos[k]['robust_objective'],oos[k]['brier'],oos[k]['ece']))
   cands=[(n,) for n in rank[:3]]+list(combinations(rank[:3],2))
   scores={}
   for spec in cands:
