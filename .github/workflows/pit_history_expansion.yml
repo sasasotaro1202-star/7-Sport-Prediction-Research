@@ -2,7 +2,7 @@ name: PIT History Expansion
 on:
   workflow_dispatch:
   schedule:
-    - cron: '47 */6 * * *'
+    - cron: '47 */9 * * *'
   push:
     paths:
       - '.github/workflows/pit_history_expansion.yml'
