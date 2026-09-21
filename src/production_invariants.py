@@ -168,8 +168,10 @@ def main():
     require("apply_cal = None if strategy=='contextual_router' else cal" in future_src,
             'future predictor can apply ensemble calibration to Router output distribution')
     gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
-    require("ensemble_weights" in gate_src and "weighted_pair" in gate_src and "sum(float(weights" in gate_src,
+    require("ensemble_weights" in gate_src and "weighted_pair" in gate_src and "weighted_ensemble" in gate_src and "sum(float(weights" in gate_src,
             'release gate does not validate persisted ensemble weights')
+    require("weights.get(n,0.0)) < 0.0" in gate_src,
+            'release gate does not reject negative ensemble weights')
     require("probability_calibrator" in gate_src and "dynamic_router_models" in gate_src,
             'release gate does not validate calibration/router artifact state')
     require("method=='beta'" in future_src and "np.column_stack([np.log(p),np.log(1.0-p)])" in future_src,
