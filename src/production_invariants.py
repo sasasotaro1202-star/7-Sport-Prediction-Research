@@ -143,6 +143,10 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
             'research features lack score-margin strength signals')
+    require('strict-pit-v15-multiscale-margin-regime-features' in strict_src,
+            'strict model feature version was not bumped after adding score-margin features')
+    require('strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
+            'carry-forward compatibility does not distinguish current v15 from prior v14 schema')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
             'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
