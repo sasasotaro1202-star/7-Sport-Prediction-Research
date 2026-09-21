@@ -134,10 +134,10 @@ def upsert_ep(c, eid, pid, team_id=None, side=None, role=None, source=None, url=
               (eid,pid,team_id,side,role,None,None,source,url,None,'UNVERIFIABLE'))
 
 
-def add_stat(c, eid, pid, team_id, sport, name, num, text, source, url):
+def add_stat(c, eid, pid, team_id, sport, name, num, text, source, url, effective_at_utc=None):
     c.execute('''INSERT OR REPLACE INTO match_stats(stat_id,event_id,participant_id,team_id,sport,observed_at_utc,effective_at_utc,stat_name,value_num,value_text,unit,source,source_url,quality_status,confidence)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-              (sid(eid,pid,sport,name,num,text,source),eid,pid,team_id,sport,utcnow(),None,name,num,text,None,source,url,'UNVERIFIABLE',None))
+              (sid(eid,pid,sport,name,num,text,source),eid,pid,team_id,sport,utcnow(),effective_at_utc,name,num,text,None,source,url,'UNVERIFIABLE',None))
 
 
 def add_snapshot(c, sport, source, url, retrieved, event_time, payload_hash, avail='UNVERIFIABLE', payload_path=None):
