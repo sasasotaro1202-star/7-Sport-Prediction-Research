@@ -65,6 +65,8 @@ def predict_sport(c,s,now):
         artifact=joblib.load(artifact_path)
     except Exception as exc:
         return {'sport':s,'status':'BLOCKED_ARTIFACT_LOAD','reason':type(exc).__name__}
+    if artifact.get('quality_status') not in (None,'ACCEPTED_LOCKED_HOLDOUT','ACCEPTED_AFTER_LOCKED_HOLDOUT'):
+        return {'sport':s,'status':'DEFERRED_ARTIFACT_NOT_ACCEPTED','quality_status':artifact.get('quality_status')}
     features=list(artifact.get('features') or [])
     models=list(artifact.get('models') or [])
     names=list(artifact.get('model_names') or [])
@@ -102,7 +104,11 @@ def predict_sport(c,s,now):
             total=sum(pweights)
             raw=np.asarray([z/max(total,1e-12)],dtype=float)
             strategy=str(artifact.get('ensemble_strategy') or 'fixed_equal_weight')
-        p=float(_apply_calibration(raw,cal,cal_method)[0])
+        # The stored outer calibrator was trained for the selected fixed/weighted
+        # ensemble. Never apply it to a different Router output distribution.
+        apply_cal = None if strategy=='contextual_router' else cal
+        apply_method = 'none' if strategy=='contextual_router' else cal_method
+        p=float(_apply_calibration(raw,apply_cal,apply_method)[0])
         a,b=c.execute(
             """SELECT GROUP_CONCAT(CASE WHEN side='A' THEN canonical_name END),
                       GROUP_CONCAT(CASE WHEN side='B' THEN canonical_name END)
