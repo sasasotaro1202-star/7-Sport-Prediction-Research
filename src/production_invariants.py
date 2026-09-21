@@ -143,10 +143,10 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
             'research features lack score-margin strength signals')
-    require('strict-pit-v15-multiscale-margin-regime-features' in strict_src,
-            'strict model feature version was not bumped after adding score-margin features')
-    require('strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
-            'carry-forward compatibility does not distinguish current v15 from prior v14 schema')
+    require('strict-pit-v16-coverage-streak-margin-regime-features' in strict_src,
+            'strict model feature version was not bumped after adding coverage/streak features')
+    require('strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
+            'carry-forward compatibility does not preserve v14/v15 while enabling current v16 schema')
     require('feature_version.startswith("strict-pit-v15-")' in strict_src,
             'current v15 accepted artifacts are not eligible for safe carry-forward')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
@@ -177,6 +177,8 @@ def main():
     require('window_fracs=(0.55,0.60,0.65)' in strict_src and 'robust_window_objective' in strict_src,
             'multi-window walk-forward robustness selection is missing')
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
+    require('__stat_coverage' in research_base and '__current_streak' in research_base and '__recent_margin_std_20' in research_base,
+            'research features lack PIT coverage/streak/volatility signals')
     require('source_snapshot ss' in research_base and 'ROW_NUMBER() OVER' in research_base,'PIT stat history loader does not prevent source snapshot/stat duplication')
     require('(ss.event_time_utc IS NULL OR ss.event_time_utc=pe.event_time_utc)' in research_base,'PIT stat snapshot is not event-time constrained')
     require('def _make_stat_history_loader' in research_base,'PIT stat history cache loader is missing')
