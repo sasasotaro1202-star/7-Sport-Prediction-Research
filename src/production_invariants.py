@@ -67,6 +67,8 @@ def main():
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('workflow_run:' in watchdog and 'Production Invariants' in watchdog and 'Production Safety Audit' in watchdog,
             'watchdog is not wired to validator completion events')
+    require('\n  push:' not in watchdog,
+            'production watchdog should not duplicate validator-completion monitoring with push triggers')
     require('cron: \'*/5 * * * *\'' in watchdog,
             'production watchdog does not have the configured 5-minute recovery cadence')
     require("cron: '*/5 * * * *'" in watchdog,
