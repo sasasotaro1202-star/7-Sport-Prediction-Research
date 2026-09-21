@@ -13,6 +13,14 @@ on:
       - 'requirements.txt'
       - 'config/**'
 
+  # React immediately when either read-only validator completes. The job remains
+  # lightweight and dispatches Production only after both same-SHA validators pass.
+  workflow_run:
+    workflows:
+      - Production Invariants
+      - Production Safety Audit
+    types: [completed]
+
 permissions:
   actions: write
   contents: read
