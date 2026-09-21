@@ -31,9 +31,9 @@ def sport_fingerprint(c, sport):
              FROM match_stats WHERE sport=?""",(sport,)
     ).fetchone()
     ep=c.execute(
-        """SELECT COUNT(*),MAX(ep.event_id)
-             FROM event_participant ep
-             JOIN event e ON e.event_id=ep.event_id
+        """SELECT COUNT(ep.event_id),MAX(ep.event_id)
+             FROM event_participant AS ep
+             JOIN event AS e ON e.event_id=ep.event_id
             WHERE e.sport=?""",(sport,)
     ).fetchone()
     out=c.execute(
