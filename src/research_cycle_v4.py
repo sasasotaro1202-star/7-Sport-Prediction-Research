@@ -65,7 +65,8 @@ def outcome_maps(c,s,pairs):
                    WHERE ss.source=o.source
                      AND ss.source_url=o.source_url
                      AND ss.availability_status='EXACT'
-                     AND ss.source_available_at_utc IS NOT NULL) AS source_available_at_utc
+                     AND ss.source_available_at_utc IS NOT NULL
+                     AND (ss.event_time_utc IS NULL OR ss.event_time_utc=e.event_time_utc)) AS source_available_at_utc
           FROM event e
           JOIN event_outcome o
             ON o.event_id=e.event_id
@@ -98,7 +99,8 @@ def _make_stat_history_loader(c,s):
                                  WHERE ss.source=ms.source
                                    AND ss.source_url=ms.source_url
                                    AND ss.availability_status='EXACT'
-                                   AND ss.source_available_at_utc IS NOT NULL) AS source_available_at_utc,
+                                   AND ss.source_available_at_utc IS NOT NULL
+                                   AND (ss.event_time_utc IS NULL OR ss.event_time_utc=pe.event_time_utc)) AS source_available_at_utc,
                                ROW_NUMBER() OVER (
                                  PARTITION BY ms.event_id
                                  ORDER BY ms.stat_id DESC
