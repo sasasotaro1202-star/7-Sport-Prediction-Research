@@ -249,9 +249,6 @@ def evaluate_router_from_folds(
 ) -> Dict:
     """Evaluate the contextual router using already-computed chronological OOF predictions."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
-    expected=len(y)-int(sel)
-    if any(len(np.asarray(holdout_pred.get(n,[])))!=expected for n in names):
-        return {'status':'INSUFFICIENT_OOS','reason':'holdout_prediction_shape_mismatch','expected_rows':expected,'received_rows':{n:len(np.asarray(holdout_pred.get(n,[]))) for n in names}}
     meta_X=[]; meta_losses=[]; static_pred=[]; router_pred=[]; targets=[]
     used_folds=0
     for fold in folds:
@@ -285,6 +282,10 @@ def evaluate_frozen_holdout_router_from_folds(
 ) -> Dict:
     """Evaluate contextual router on frozen holdout using precomputed pre-holdout OOF base predictions."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
+    expected=len(y)-int(sel)
+    if expected<1 or any(len(np.asarray(holdout_pred.get(n,[])))!=expected for n in names):
+        return {'status':'INSUFFICIENT_OOS','reason':'holdout_prediction_shape_mismatch','expected_rows':expected,
+                'received_rows':{n:len(np.asarray(holdout_pred.get(n,[]))) for n in names}}
     meta_X=[]; meta_losses=[]
     for fold in folds:
         end=int(fold['end']); te=int(fold['te'])
