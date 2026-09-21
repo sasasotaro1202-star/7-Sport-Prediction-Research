@@ -19,10 +19,14 @@ def _artifact_valid(meta):
             return False
         if any((not _finite(weights.get(n,0.0))) for n in names):
             return False
+        if any(float(weights.get(n,0.0)) < 0.0 for n in names):
+            return False
         if abs(sum(float(weights.get(n,0.0)) for n in names)-1.0) > 1e-6:
             return False
+        if any(k not in names for k in weights if _finite(weights.get(k)) and float(weights.get(k)) > 0.0):
+            return False
         strategy=str(obj.get('ensemble_strategy') or '')
-        if strategy not in {'fixed_equal_weight','weighted_pair'}:
+        if strategy not in {'fixed_equal_weight','weighted_pair','weighted_ensemble'}:
             return False
         cal=obj.get('probability_calibration')
         if cal is not None:
