@@ -3,6 +3,7 @@ import hashlib,json,sqlite3,subprocess
 from pathlib import Path
 from itertools import combinations
 import joblib,numpy as np
+from sklearn.linear_model import LogisticRegression
 from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
@@ -16,6 +17,31 @@ def f1():
  try:n=c.execute("select count(*) from event where sport='f1'").fetchone()[0];e=c.execute("select count(*) from source_snapshot where source='OpenF1' and availability_status='EXACT'").fetchone()[0]
  finally:c.close()
  return {'sport':'f1','status':'DEFERRED_PIT','events':int(n),'exact_pit_source_snapshots':int(e),'reason':'OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted'}
+def _temporal_calibration_candidate(p, y):
+    """Choose a sigmoid probability calibrator using only pre-holdout OOS."""
+    p=np.clip(np.asarray(p,dtype=float),1e-6,1-1e-6)
+    y=np.asarray(y,int)
+    if len(p)<120 or len(np.unique(y))<2:
+        return {'accepted':False,'reason':'insufficient_preholdout_oos_for_calibration'}
+    cut=max(60,int(len(p)*0.70))
+    if len(np.unique(y[:cut]))<2 or len(np.unique(y[cut:]))<2:
+        return {'accepted':False,'reason':'calibration_split_lacks_both_classes'}
+    z=np.log(p/(1.0-p)).reshape(-1,1)
+    cal=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
+    cal.fit(z[:cut],y[:cut])
+    raw=base.metric(y[cut:],p[cut:])
+    cp=np.clip(cal.predict_proba(z[cut:])[:,1],1e-6,1-1e-6)
+    calibrated=base.metric(y[cut:],cp)
+    required=max(0.001,0.003*raw['logloss'])
+    accepted=(calibrated['logloss']<=raw['logloss']-required
+              and calibrated['brier']<=raw['brier']+0.002
+              and calibrated['ece']<=raw['ece']+0.01)
+    if not accepted:
+        return {'accepted':False,'reason':'preholdout_validation_did_not_pass','raw_validation':raw,'calibrated_validation':calibrated,'required_logloss_improvement':required}
+    final_cal=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
+    final_cal.fit(z,y)
+    return {'accepted':True,'model':final_cal,'raw_validation':raw,'calibrated_validation':calibrated,'required_logloss_improvement':required}
+
 def _write_result(s, payload):
     """Persist every research outcome, including DEFERRED/REJECTED states."""
     RESULTS.mkdir(parents=True,exist_ok=True)
@@ -264,6 +290,32 @@ def train(s):
   hold['candidate_strategy']=candidate_label
   hold['candidate_weights']=candidate_weights
   selected_oos_metric = wa_metric if candidate_label=='weighted_pair' and wa_metric is not None else fixed_oos_metric
+  selected_oos_p = np.asarray(
+   wa_weight*np.asarray(oof_probs[wa_a],float)+(1.0-wa_weight)*np.asarray(oof_probs[wa_b],float)
+   if candidate_label=='weighted_pair' and wa_a is not None and wa_b is not None
+   else np.mean(np.column_stack([oof_probs[n] for n in best]),axis=1),
+   dtype=float
+  )
+  calibration=_temporal_calibration_candidate(selected_oos_p,oof_y)
+  probability_calibrator=calibration.get('model') if calibration.get('accepted') else None
+  if probability_calibrator is not None:
+   raw_hold_p=np.asarray(
+    candidate_weights[wa_a]*np.asarray(models[0].predict_proba(X[sel:])[:,1])+
+    candidate_weights[wa_b]*np.asarray(models[1].predict_proba(X[sel:])[:,1])
+    if candidate_label=='weighted_pair' and wa_a is not None and wa_b is not None
+    else np.mean([m.predict_proba(X[sel:])[:,1] for m in models],axis=0),
+    dtype=float
+   )
+   z_hold=np.log(np.clip(raw_hold_p,1e-6,1-1e-6)/(1.0-np.clip(raw_hold_p,1e-6,1-1e-6))).reshape(-1,1)
+   calibrated_hold_p=np.clip(probability_calibrator.predict_proba(z_hold)[:,1],1e-6,1-1e-6)
+   hold_probability_calibrated=base.metric(y[sel:],calibrated_hold_p)
+   hold_probability_calibrated['models']=list(best)
+   hold_probability_calibrated['candidate_strategy']=candidate_label
+   hold_probability_calibrated['candidate_weights']=candidate_weights
+   hold_probability_calibrated['calibration_applied']=True
+   hold=hold_probability_calibrated
+  else:
+   hold['calibration_applied']=False
   if hold['ece']>.20:return _write_result(s,{'sport':s,'status':'REJECTED_HOLDOUT_CALIBRATION','holdout_metrics':hold,'selection_oos':oos,'ensemble_selection':scores})
   old=None;r=c.execute("SELECT metadata_json FROM model_state_snapshot WHERE sport=? AND market='winner' ORDER BY as_of_utc DESC LIMIT 1",(s,)).fetchone()
   if r:
@@ -290,10 +342,10 @@ def train(s):
                    and router_holdout['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
                    and router_holdout['brier_improvement'] >= -.002
                    and router_holdout['ece_change'] <= .02)
-  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'cutoff':rows[sel-1][1]});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'models':models,'model_names':list(best),'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'dynamic_router_status':'RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout},path)
-  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v14-multiscale-form-robust-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'CHALLENGER_ACCEPTED_OOS_AND_FROZEN_HOLDOUT' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
+  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'cutoff':rows[sel-1][1]});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'dynamic_router_status':'RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration},path)
+  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v14-multiscale-form-robust-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'CHALLENGER_ACCEPTED_OOS_AND_FROZEN_HOLDOUT' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
   c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in rows[:sel]]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
-  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE')};return _write_result(s,out)
+  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE')};return _write_result(s,out)
  finally:c.close()
 def main():
  import argparse
