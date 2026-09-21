@@ -477,7 +477,7 @@ def train(s):
   router_models_artifact={}
   router_feature_reference=None
   if router_accept:
-   final_router=router.fit_final_router(X,y,router_names,sel,start,step,base.pool)
+   final_router=router.fit_final_router_from_folds(X,y,router_names,oof_folds,sel)
    if final_router is None:
     router_accept=False
    else:
