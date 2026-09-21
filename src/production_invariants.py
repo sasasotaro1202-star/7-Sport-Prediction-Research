@@ -64,6 +64,8 @@ def main():
             'accelerated research final fit must exclude frozen holdout')
     require('final.fit(X,y)' not in accelerated,
             'accelerated research must never fit final model on full dataset including holdout')
+    require('workflow_run:' in watchdog and 'Production Invariants' in watchdog and 'Production Safety Audit' in watchdog,
+            'watchdog is not wired to validator completion events')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('cron: \'*/5 * * * *\'' in watchdog,
             'production watchdog does not have the configured 5-minute recovery cadence')
