@@ -44,6 +44,7 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
     tr_scale = np.nanmedian(np.abs(tr - tr_med), axis=0) if tr.size else np.ones(cu.shape[1])
     tr_scale = np.where(np.isfinite(tr_scale) & (tr_scale > 1e-9), tr_scale, 1.0)
     row_miss = np.isnan(cu).mean(axis=1) if cu.size else np.ones(len(cu))
+    train_miss = float(np.isnan(tr).mean()) if tr.size else 1.0
     z = np.abs(np.nan_to_num(cu, nan=tr_med) - tr_med) / tr_scale
     z = np.where(np.isfinite(z), z, 0.0)
     row_shift = np.nanmedian(z, axis=1) if z.size else np.zeros(len(cu))
