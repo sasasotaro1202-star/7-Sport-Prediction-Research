@@ -1,8 +1,150 @@
 {
   "sport": "basketball",
-  "status": "DEFERRED",
-  "reason": "insufficient_strict_PIT_rows",
-  "rows": 0,
-  "features": 0,
-  "provenance_rule": "pre-cutoff observed feature or provenance-verified historical outcome required"
+  "status": "TRAINED",
+  "models": [
+    "hist_gb",
+    "extra_trees"
+  ],
+  "model_version": "683452bc5df9cdde",
+  "feature_version": "strict-pit-v13-bounded-ensemble-frozen-holdout",
+  "training_rows": 2613,
+  "frozen_holdout_rows": 738,
+  "features": 114,
+  "training_cutoff_utc": "2021-11-23T00:00:00+00:00",
+  "git_commit_sha": "279e3c4a26646f1532b827663a1f36416df486a7",
+  "artifact_path": "models/research/basketball_current.joblib",
+  "selection_oos": {
+    "logistic": {
+      "logloss": 0.6827704737355619,
+      "brier": 0.2447183033886958,
+      "accuracy": 0.5573770491803278,
+      "ece": 0.018489726217798062,
+      "n": 915
+    },
+    "extra_trees": {
+      "logloss": 0.634740637488672,
+      "brier": 0.22063339953188588,
+      "accuracy": 0.6480874316939891,
+      "ece": 0.02365988100049727,
+      "n": 915
+    },
+    "random_forest": {
+      "logloss": 0.6400233908751859,
+      "brier": 0.2237707563663191,
+      "accuracy": 0.6349726775956284,
+      "ece": 0.01850662469352525,
+      "n": 915
+    },
+    "hist_gb": {
+      "logloss": 0.6339980943018173,
+      "brier": 0.22215409119471713,
+      "accuracy": 0.6404371584699453,
+      "ece": 0.0319502211404611,
+      "n": 915
+    }
+  },
+  "ensemble_selection": {
+    "hist_gb": {
+      "logloss": 0.6339980943018173,
+      "brier": 0.22215409119471713,
+      "accuracy": 0.6404371584699453,
+      "ece": 0.0319502211404611,
+      "n": 915
+    },
+    "extra_trees": {
+      "logloss": 0.634740637488672,
+      "brier": 0.22063339953188585,
+      "accuracy": 0.6480874316939891,
+      "ece": 0.02365988100049727,
+      "n": 915
+    },
+    "random_forest": {
+      "logloss": 0.6400233908751859,
+      "brier": 0.2237707563663191,
+      "accuracy": 0.6349726775956284,
+      "ece": 0.018506624693525237,
+      "n": 915
+    },
+    "hist_gb+extra_trees": {
+      "logloss": 0.6311305280769001,
+      "brier": 0.2204788177783676,
+      "accuracy": 0.6480874316939891,
+      "ece": 0.01862238684323244,
+      "n": 915
+    },
+    "hist_gb+random_forest": {
+      "logloss": 0.634779420409869,
+      "brier": 0.22223424235977685,
+      "accuracy": 0.6316939890710382,
+      "ece": 0.019585232968645953,
+      "n": 915
+    },
+    "extra_trees+random_forest": {
+      "logloss": 0.6365028080987513,
+      "brier": 0.2219143751427397,
+      "accuracy": 0.6382513661202186,
+      "ece": 0.021778379501433718,
+      "n": 915
+    }
+  },
+  "holdout_metrics": {
+    "logloss": 0.6832789114663705,
+    "brier": 0.24519538694527598,
+    "accuracy": 0.535230352303523,
+    "ece": 0.03022934999935175,
+    "n": 738,
+    "models": [
+      "hist_gb",
+      "extra_trees"
+    ]
+  },
+  "holdout_frozen": true,
+  "production_fit_excludes_holdout": true,
+  "dynamic_router": {
+    "status": "EVALUATED",
+    "folds": 31,
+    "oos_rows": 915,
+    "fixed_ensemble": {
+      "logloss": 0.6350078518593167,
+      "brier": 0.22246517113432532,
+      "ece": 0.0177508837465938,
+      "accuracy": 0.6295081967213115,
+      "n": 915
+    },
+    "dynamic_router": {
+      "logloss": 0.6571266520343361,
+      "brier": 0.2301822511002489,
+      "ece": 0.022601033794332776,
+      "accuracy": 0.6273224043715847,
+      "n": 915
+    },
+    "logloss_improvement": -0.022118800175019326,
+    "brier_improvement": -0.007717079965923579,
+    "ece_change": 0.004850150047738977,
+    "policy": "challenger_only; chronological OOF; frozen holdout untouched"
+  },
+  "dynamic_router_holdout": {
+    "status": "EVALUATED",
+    "oos_training_rows": 915,
+    "holdout_rows": 738,
+    "fixed_ensemble": {
+      "logloss": 0.681061658156817,
+      "brier": 0.24418361792487242,
+      "ece": 0.02011549270124481,
+      "accuracy": 0.5528455284552846,
+      "n": 738
+    },
+    "dynamic_router": {
+      "logloss": 0.6841901165258595,
+      "brier": 0.2457380908104606,
+      "ece": 0.023908905874964203,
+      "accuracy": 0.535230352303523,
+      "n": 738
+    },
+    "logloss_improvement": -0.0031284583690425194,
+    "brier_improvement": -0.0015544728855881873,
+    "ece_change": 0.003793413173719392,
+    "policy": "router_fit_pre_holdout_only; frozen_holdout_labels_used_only_for_scoring"
+  },
+  "dynamic_router_status": "FALLBACK_FIXED_ENSEMBLE"
 }

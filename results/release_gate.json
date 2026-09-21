@@ -7,7 +7,6 @@
     "f1": "OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted",
     "rugby": "No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated.",
     "valorant": "insufficient_strict_PIT_rows",
-    "basketball": "insufficient_strict_PIT_rows",
     "volleyball": "insufficient_strict_PIT_rows",
     "rizin": "insufficient_strict_PIT_rows"
   },
@@ -27,15 +26,15 @@
       "completed_events": 39126,
       "resolved_outcomes": 39126,
       "verified_model_outcomes": 39126,
-      "accepted_models": 0,
-      "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
+      "accepted_models": 1,
+      "model_safety": "OK"
     },
     "volleyball": {
-      "events": 21104,
-      "timed_events": 21104,
-      "completed_events": 21104,
-      "resolved_outcomes": 19476,
-      "verified_model_outcomes": 19476,
+      "events": 21109,
+      "timed_events": 21109,
+      "completed_events": 21109,
+      "resolved_outcomes": 19480,
+      "verified_model_outcomes": 19480,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
