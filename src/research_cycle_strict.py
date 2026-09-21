@@ -250,29 +250,62 @@ def train(s):
   cands=[(n,) for n in rank[:3]]+list(combinations(rank[:3],2))
   scores={}
   for spec in cands:
+   key='+'.join(spec)
    if len(spec)==1:
     p=np.asarray(oof_probs[spec[0]],float)
    else:
     p=np.mean(np.column_stack([oof_probs[n] for n in spec]),axis=1)
-   scores['+'.join(spec)]=base.metric(oof_y,p)
+   score=base.metric(oof_y,p)
+   fold_ll=[]
+   fold_brier=[]
+   for fold in oof_folds:
+    fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
+    pred=np.mean(fp,axis=1)
+    yy=y[int(fold['end']):int(fold['te'])]
+    fold_ll.append(base.metric(yy,pred)['logloss'])
+    fold_brier.append(base.metric(yy,pred)['brier'])
+   score['fold_logloss_std']=float(np.std(fold_ll)) if fold_ll else float('inf')
+   score['fold_brier_std']=float(np.std(fold_brier)) if fold_brier else float('inf')
+   score['folds']=len(fold_ll)
+   score['robust_objective']=score['logloss']+0.10*score['fold_logloss_std']
+   scores[key]=score
   # Search a bounded set of convex weights for the strongest pair. The frozen
   # holdout remains the final guard, so this is a challenger optimization rather
   # than a free hyperparameter fit on holdout labels.
   best_fixed_key=min(scores,key=lambda k:(scores[k]['logloss'],scores[k]['brier'],scores[k]['ece']))
   fixed_models=tuple(best_fixed_key.split('+'))
   weighted_candidates=[]
-  if len(rank)>=2:
-   for a,b in combinations(rank[:3],2):
-    pa=np.asarray(oof_probs[a],float);pb=np.asarray(oof_probs[b],float)
-    for wa in (0.20,0.30,0.40,0.50,0.60,0.70,0.80):
-     p=wa*pa+(1.0-wa)*pb
-     m=base.metric(oof_y,p)
-     weighted_candidates.append((m['logloss'],m['brier'],m['ece'],a,b,wa,m))
+  # Compare weighted pairs against the best fixed candidate fold-by-fold. A
+  # weighted pair is eligible only when it improves OOS and is not concentrated
+  # in a small subset of historical regimes.
+  best_fixed_key=min(scores,key=lambda k:(scores[k]['robust_objective'],scores[k]['brier'],scores[k]['ece']))
+  baseline_spec=tuple(best_fixed_key.split('+'))
+  for a,b in combinations(rank[:3],2) if len(rank)>=2 else []:
+   pa=np.asarray(oof_probs[a],float);pb=np.asarray(oof_probs[b],float)
+   for wa in (0.20,0.30,0.40,0.50,0.60,0.70,0.80):
+    p=wa*pa+(1.0-wa)*pb
+    m=base.metric(oof_y,p)
+    fold_delta=[]
+    for fold in oof_folds:
+     yy=y[int(fold['end']):int(fold['te'])]
+     pred=wa*np.asarray(fold['preds'][a],dtype=float)+(1.0-wa)*np.asarray(fold['preds'][b],dtype=float)
+     base_fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in baseline_spec])
+     base_pred=np.mean(base_fp,axis=1)
+     fold_delta.append(base.metric(yy,base_pred)['logloss']-base.metric(yy,pred)['logloss'])
+    win_rate=float(np.mean(np.asarray(fold_delta)>=-0.001)) if fold_delta else 0.0
+    mean_delta=float(np.mean(fold_delta)) if fold_delta else -np.inf
+    fold_std=float(np.std(fold_delta)) if fold_delta else float('inf')
+    robust_gain=mean_delta-0.10*fold_std
+    weighted_candidates.append((m['logloss'],m['brier'],m['ece'],a,b,wa,m,win_rate,mean_delta,fold_std,robust_gain))
   if weighted_candidates:
-   weighted_candidates.sort(key=lambda z:(z[0],z[1],z[2]))
-   _,_,_,wa_a,wa_b,wa_weight,wa_metric=weighted_candidates[0]
+   weighted_candidates.sort(key=lambda z:(-z[10],-z[7],z[0],z[1]))
+   candidate=weighted_candidates[0]
+   if candidate[10] > 0.0002 and candidate[7] >= 0.55:
+    _,_,_,wa_a,wa_b,wa_weight,wa_metric,wa_win_rate,wa_mean_delta,wa_fold_std,wa_robust_gain=candidate
+   else:
+    wa_a=wa_b=None;wa_weight=0.5;wa_metric=None;wa_win_rate=0.0;wa_mean_delta=0.0;wa_fold_std=float('inf');wa_robust_gain=0.0
   else:
-   wa_a=wa_b=None;wa_weight=0.5;wa_metric=None
+   wa_a=wa_b=None;wa_weight=0.5;wa_metric=None;wa_win_rate=0.0;wa_mean_delta=0.0;wa_fold_std=float('inf');wa_robust_gain=0.0
 
   if not scores:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_ensemble_selection_folds','rows':len(rows)})
   best_key=best_fixed_key
@@ -372,7 +405,7 @@ def train(s):
                    and router_holdout['brier_improvement'] >= -.002
                    and router_holdout['ece_change'] <= .02)
   ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'cutoff':rows[sel-1][1]});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'dynamic_router_status':'RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration},path)
-  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v14-multiscale-form-robust-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'CHALLENGER_ACCEPTED_OOS_AND_FROZEN_HOLDOUT' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
+  sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v14-multiscale-form-robust-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_win_rate':wa_win_rate,'weighted_pair_mean_delta':wa_mean_delta,'weighted_pair_fold_delta_std':wa_fold_std,'weighted_pair_robust_gain':wa_robust_gain,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'CHALLENGER_ACCEPTED_OOS_AND_FROZEN_HOLDOUT' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
   c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in rows[:sel]]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
   out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE')};return _write_result(s,out)
  finally:c.close()
