@@ -48,13 +48,24 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
     z = np.where(np.isfinite(z), z, 0.0)
     row_shift = np.nanmedian(z, axis=1) if z.size else np.zeros(len(cu))
     row_shift = np.where(np.isfinite(row_shift), row_shift, 0.0)
-    train_miss = float(np.isnan(tr).mean()) if tr.size else 1.0
+    # Additional regime/context signals are row-local and PIT-safe. They let the
+    # router react to unusual feature magnitude, cross-feature disagreement, and
+    # the stability of the historical training window without using any target.
+    row_abs_z = np.nanmean(z, axis=1) if z.size else np.zeros(len(cu))
+    row_abs_z = np.where(np.isfinite(row_abs_z), row_abs_z, 0.0)
+    row_dispersion = np.nanstd(np.nan_to_num(cu, nan=tr_med), axis=1) if cu.size else np.zeros(len(cu))
+    row_dispersion = np.where(np.isfinite(row_dispersion), row_dispersion, 0.0)
+    train_feature_std = np.nanmedian(np.nanstd(tr, axis=0)) if tr.size else 0.0
+    train_feature_std = float(train_feature_std) if np.isfinite(train_feature_std) else 0.0
     train_size = np.log1p(len(tr))
     return np.column_stack([
         np.full(len(cu), train_size, dtype=float),
         np.full(len(cu), train_miss, dtype=float),
         row_miss.astype(float),
         row_shift.astype(float),
+        row_abs_z.astype(float),
+        row_dispersion.astype(float),
+        np.full(len(cu), train_feature_std, dtype=float),
     ])
 
 
