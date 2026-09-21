@@ -33,9 +33,13 @@ jobs:
     steps:
       - name: Enforce true 9-hour cadence
         id: cadence
-        if: github.event_name == 'schedule'
         run: |
           set -euo pipefail
+          if [ '${{ github.event_name }}' != 'schedule' ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo 'manual/push trigger: RUN'
+            exit 0
+          fi
           anchor=$(date -u -d '2026-09-22 00:47:00' +%s)
           now=$(date -u +%s)
           delta=$((now-anchor))
@@ -47,9 +51,11 @@ jobs:
           echo 'run=true' >> "$GITHUB_OUTPUT"
           echo '9-hour cadence guard: RUN'
       - uses: actions/checkout@v4
+        if: steps.cadence.outputs.run == 'true'
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
+        if: steps.cadence.outputs.run == 'true'
         with:
           python-version: '3.12'
           cache: pip
@@ -72,8 +78,7 @@ jobs:
           python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
           python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
       - name: Materialize immutable historical corpus
-        if: steps.cadence.outputs.run == 'true'
-        if: matrix.sport == 'basketball'
+        if: steps.cadence.outputs.run == 'true' && matrix.sport == 'basketball'
         run: python -m src.basketball_cdn_backfill --historical
       - name: Prove historical source availability
         if: steps.cadence.outputs.run == 'true'
