@@ -38,6 +38,11 @@ def main():
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require('production_release_gate' in workflow,'production release gate missing')
+    require('Verify workflow SHA is current main before any mutable work' in workflow,
+            'canonical Production lacks stale-workflow SHA fail-closed guard')
+    pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
+    require('Verify workflow SHA is current main before any mutable work' in pit_workflow,
+            'PIT History Expansion lacks stale-workflow SHA fail-closed guard')
     require('timeout --signal=TERM 2700s python -m src.pit_replay_builder' in workflow,
             'strict PIT replay lacks a bounded runtime budget')
     require('timeout --signal=TERM 2400s python -m src.research_cycle_strict' in workflow,
