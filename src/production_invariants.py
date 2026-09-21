@@ -235,6 +235,9 @@ def main():
         recent=dmrouter._recent_model_loss([[0.8,0.7],[0.6,0.9]],2)
         require(recent.shape==(2,) and np.all(np.isfinite(recent)),'dynamic router recent loss state is invalid')
         require('HistGradientBoostingRegressor' in router_src,'dynamic router contextual loss forecaster is missing')
+    base_src=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
+    require('self.b.fit(X,y)' in base_src and 'preserves chronological OOS safety' in base_src,
+            'calibrated base wrapper does not refit on all pre-cutoff training data')
         require(not np.allclose(ctx[0],ctx[1]),'dynamic router context is still aggregate/repeated across rows')
         multi=dmrouter.evaluate_router(
             np.zeros((6,2)),np.array([0,1,2,0,1,2]),
