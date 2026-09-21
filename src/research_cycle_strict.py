@@ -267,8 +267,8 @@ def train(s):
   base_hold=base.metric(y[sel:],np.mean([m.predict_proba(X[sel:])[:,1] for m in models],axis=0))
   base_hold['models']=list(best)
   hold=base_hold
-  # Only a modest OOS gain is needed to justify checking the weighted challenger.
-  # It must still pass the same frozen-holdout calibration and incumbent gate.
+  # Candidate selection is OOS-only. The frozen holdout is never used to
+  # choose between candidate models; it is reserved for final scoring/gating.
   weighted_hold=None
   if wa_metric is not None and wa_a is not None and wa_b is not None and (wa_metric['logloss'] + 0.0002 < fixed_oos_metric['logloss']):
    candidate_model_map={name:model for name,model in zip(fixed_models,models)}
@@ -283,12 +283,11 @@ def train(s):
    weighted_hold=base.metric(y[sel:],weighted_p)
    weighted_hold['models']=[wa_a,wa_b]
    weighted_hold['weights']={wa_a:wa_weight,wa_b:1.0-wa_weight}
-   if weighted_hold['ece']<=.20 and weighted_hold['logloss'] <= hold['logloss']:
-    hold=weighted_hold
-    best=(wa_a,wa_b)
-    candidate_label='weighted_pair'
-    candidate_weights={wa_a:wa_weight,wa_b:1.0-wa_weight}
-    models=[candidate_model_map[wa_a],candidate_model_map[wa_b]]
+   hold=weighted_hold
+   best=(wa_a,wa_b)
+   candidate_label='weighted_pair'
+   candidate_weights={wa_a:wa_weight,wa_b:1.0-wa_weight}
+   models=[candidate_model_map[wa_a],candidate_model_map[wa_b]]
   hold['candidate_strategy']=candidate_label
   hold['candidate_weights']=candidate_weights
   selected_oos_metric = wa_metric if candidate_label=='weighted_pair' and wa_metric is not None else fixed_oos_metric
