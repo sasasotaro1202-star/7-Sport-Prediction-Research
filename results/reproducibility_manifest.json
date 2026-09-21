@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-09-21T15:10:18.112697+00:00",
-  "source_git_commit_sha": "279e3c4a26646f1532b827663a1f36416df486a7",
+  "generated_at_utc": "2026-09-21T19:05:51.662663+00:00",
+  "source_git_commit_sha": "14e087aa5721b922a2e4102f4616c8750b28df04",
   "requirements_sha256": "2a6160e13e062c8d6168a3b2c972bfa08710f75719c1ddcbf5149e038c3db50f",
   "sports": [
     "valorant",
@@ -16,7 +16,7 @@
   "event_counts": {
     "valorant": 9523,
     "basketball": 39126,
-    "volleyball": 21109,
+    "volleyball": 21112,
     "tennis": 0,
     "ufc": 9513,
     "rizin": 81,
@@ -27,8 +27,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 1190207488,
-      "sha256": "78e44b5f63c55070c644bd95e023c9f03335e7f3292ab3c49fde3c78f6905b7b"
+      "bytes": 1209651200,
+      "sha256": "6a8acddeb1030a1969987019671777ebd9e27f746050821e9f8eab0e97807f51"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -38,13 +38,13 @@
       "path": "results/quality_gate.json",
       "exists": true,
       "bytes": 3591,
-      "sha256": "fe98d3ab75fc80e78b9dae4df606e3d56c3143369354c8d76cdad5a1a735d4bf"
+      "sha256": "292cac2d3f68706dd725222e5b416942eb3e274c59cb7be758ff48b6ed1fcabc"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
-      "bytes": 3271,
-      "sha256": "ca4387e88179ecaffb66602dab2a1a2e10e79f4efe7a24a88ee8096288943d87"
+      "bytes": 3186,
+      "sha256": "1227da41c4469085bf3ca4239adc4b2003f327594f75beac0478c6ba535ba778"
     },
     {
       "path": "results/pit_replay.json",
@@ -57,8 +57,8 @@
     {
       "path": "results/research/basketball.json",
       "exists": true,
-      "bytes": 4196,
-      "sha256": "dd7e76139e28d27a6124b9752f847a4528363b03bcda7dea938c64d22e65544c"
+      "bytes": 4200,
+      "sha256": "5c3c25160d9e4fbea7a68ce731d478cd574c1924ce25478a7b06a8704733028c"
     },
     {
       "path": "results/research/f1.json",
@@ -100,7 +100,7 @@
       "path": "models/research/basketball_current.joblib",
       "exists": true,
       "bytes": 22453101,
-      "sha256": "23273893da9d90dceeafffc1975613f3fb89cf370489baca9e15597a36c00318"
+      "sha256": "2f80d358ce97469d1c97e4d087cefff65a0419097b821e8f7cdfd51d0b495bdf"
     },
     {
       "path": "models/research/ufc_current.joblib",

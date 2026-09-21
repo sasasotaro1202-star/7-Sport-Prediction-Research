@@ -5,31 +5,31 @@
     "hist_gb",
     "extra_trees"
   ],
-  "model_version": "683452bc5df9cdde",
+  "model_version": "ae662d0388901418",
   "feature_version": "strict-pit-v13-bounded-ensemble-frozen-holdout",
   "training_rows": 2613,
   "frozen_holdout_rows": 738,
   "features": 114,
   "training_cutoff_utc": "2021-11-23T00:00:00+00:00",
-  "git_commit_sha": "279e3c4a26646f1532b827663a1f36416df486a7",
+  "git_commit_sha": "14e087aa5721b922a2e4102f4616c8750b28df04",
   "artifact_path": "models/research/basketball_current.joblib",
   "selection_oos": {
     "logistic": {
-      "logloss": 0.6827704737355619,
-      "brier": 0.2447183033886958,
+      "logloss": 0.68276931785965,
+      "brier": 0.24471766853948576,
       "accuracy": 0.5573770491803278,
-      "ece": 0.018489726217798062,
+      "ece": 0.018493274964687226,
       "n": 915
     },
     "extra_trees": {
-      "logloss": 0.634740637488672,
+      "logloss": 0.6347406374886719,
       "brier": 0.22063339953188588,
       "accuracy": 0.6480874316939891,
-      "ece": 0.02365988100049727,
+      "ece": 0.023659881000497332,
       "n": 915
     },
     "random_forest": {
-      "logloss": 0.6400233908751859,
+      "logloss": 0.640023390875186,
       "brier": 0.2237707563663191,
       "accuracy": 0.6349726775956284,
       "ece": 0.01850662469352525,
@@ -52,17 +52,17 @@
       "n": 915
     },
     "extra_trees": {
-      "logloss": 0.634740637488672,
-      "brier": 0.22063339953188585,
+      "logloss": 0.6347406374886719,
+      "brier": 0.22063339953188588,
       "accuracy": 0.6480874316939891,
-      "ece": 0.02365988100049727,
+      "ece": 0.023659881000497276,
       "n": 915
     },
     "random_forest": {
       "logloss": 0.6400233908751859,
       "brier": 0.2237707563663191,
       "accuracy": 0.6349726775956284,
-      "ece": 0.018506624693525237,
+      "ece": 0.01850662469352525,
       "n": 915
     },
     "hist_gb+extra_trees": {
@@ -83,7 +83,7 @@
       "logloss": 0.6365028080987513,
       "brier": 0.2219143751427397,
       "accuracy": 0.6382513661202186,
-      "ece": 0.021778379501433718,
+      "ece": 0.02177837950143365,
       "n": 915
     }
   },
@@ -105,22 +105,22 @@
     "folds": 31,
     "oos_rows": 915,
     "fixed_ensemble": {
-      "logloss": 0.6350078518593167,
-      "brier": 0.22246517113432532,
-      "ece": 0.0177508837465938,
+      "logloss": 0.6350068639454434,
+      "brier": 0.22246469832902258,
+      "ece": 0.017751167894793616,
       "accuracy": 0.6295081967213115,
       "n": 915
     },
     "dynamic_router": {
-      "logloss": 0.6571266520343361,
-      "brier": 0.2301822511002489,
-      "ece": 0.022601033794332776,
+      "logloss": 0.6571252537836652,
+      "brier": 0.23018031483408685,
+      "ece": 0.02259931920053645,
       "accuracy": 0.6273224043715847,
       "n": 915
     },
-    "logloss_improvement": -0.022118800175019326,
-    "brier_improvement": -0.007717079965923579,
-    "ece_change": 0.004850150047738977,
+    "logloss_improvement": -0.022118389838221786,
+    "brier_improvement": -0.007715616505064277,
+    "ece_change": 0.004848151305742836,
     "policy": "challenger_only; chronological OOF; frozen holdout untouched"
   },
   "dynamic_router_holdout": {
@@ -128,22 +128,22 @@
     "oos_training_rows": 915,
     "holdout_rows": 738,
     "fixed_ensemble": {
-      "logloss": 0.681061658156817,
-      "brier": 0.24418361792487242,
-      "ece": 0.02011549270124481,
+      "logloss": 0.6810616571118606,
+      "brier": 0.24418361765123572,
+      "ece": 0.020115476451652885,
       "accuracy": 0.5528455284552846,
       "n": 738
     },
     "dynamic_router": {
-      "logloss": 0.6841901165258595,
-      "brier": 0.2457380908104606,
-      "ece": 0.023908905874964203,
+      "logloss": 0.6841902306951736,
+      "brier": 0.24573820682979775,
+      "ece": 0.02390937503314764,
       "accuracy": 0.535230352303523,
       "n": 738
     },
-    "logloss_improvement": -0.0031284583690425194,
-    "brier_improvement": -0.0015544728855881873,
-    "ece_change": 0.003793413173719392,
+    "logloss_improvement": -0.003128573583312977,
+    "brier_improvement": -0.0015545891785620214,
+    "ece_change": 0.0037938985814947555,
     "policy": "router_fit_pre_holdout_only; frozen_holdout_labels_used_only_for_scoring"
   },
   "dynamic_router_status": "FALLBACK_FIXED_ENSEMBLE"
