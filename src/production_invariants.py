@@ -149,8 +149,8 @@ def main():
             'strict model feature version was not bumped after adding coverage/streak features')
     require('strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
             'carry-forward compatibility does not preserve v14/v15 while enabling current v16 schema')
-    require('feature_version.startswith("strict-pit-v15-")' in strict_src,
-            'current v15 accepted artifacts are not eligible for safe carry-forward')
+    require('feature_version.startswith("strict-pit-v15-")' in strict_src and 'feature_version.startswith("strict-pit-v16-")' in strict_src,
+            'v15/v16 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
             'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
@@ -195,8 +195,6 @@ def main():
     hold_calc_pos=strict_src.find("hold=base.metric(y[sel:],hold_p)")
     require(best_sel_pos >= 0 and hold_calc_pos >= 0 and best_sel_pos < hold_calc_pos,
             'ensemble candidate selection is not executed before frozen holdout scoring')
-    require("weighted_hold['logloss'] <= hold['logloss']" not in strict_src,
-            'frozen holdout is being used to choose between ensemble candidates')
     require("weighted_hold['logloss'] <= hold['logloss']" not in strict_src,
             'frozen holdout is being used to choose between ensemble candidates')
     require('hold_probability_calibrated' in strict_src and 'probability_calibration' in strict_src,
