@@ -12,6 +12,35 @@ def _artifact_valid(meta):
         obj = joblib.load(p)
         if not isinstance(obj, dict) or not obj.get('features'):
             return False
+        names=list(obj.get('model_names') or [])
+        models=list(obj.get('models') or [])
+        weights=obj.get('ensemble_weights') or {}
+        if not names or not models or len(names)!=len(models):
+            return False
+        if any((not _finite(weights.get(n,0.0))) for n in names):
+            return False
+        if abs(sum(float(weights.get(n,0.0)) for n in names)-1.0) > 1e-6:
+            return False
+        strategy=str(obj.get('ensemble_strategy') or '')
+        if strategy not in {'fixed_equal_weight','weighted_pair'}:
+            return False
+        cal=obj.get('probability_calibration')
+        if cal is not None:
+            method=str(cal.get('method') or '')
+            if method not in {'none','sigmoid','beta','isotonic'}:
+                return False
+            if method!='none' and obj.get('probability_calibrator') is None:
+                return False
+        router_status=str(obj.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
+        if router_status=='PRODUCTION_ROUTABLE_AFTER_GATES':
+            if obj.get('dynamic_router') is None:
+                return False
+            rnames=list(obj.get('dynamic_router_names') or [])
+            rmodels=obj.get('dynamic_router_models') or {}
+            if not rnames or any(n not in rmodels for n in rnames):
+                return False
+            if obj.get('dynamic_router_feature_reference') is None:
+                return False
         return True
     except Exception:
         return False
