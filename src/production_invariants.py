@@ -67,7 +67,7 @@ def main():
         train_x=np.array([[0.0,1.0],[0.0,1.0],[0.0,1.0]])
         current_x=np.array([[0.0,1.0],[10.0,10.0]])
         ctx=dmrouter._context(train_x,current_x)
-        require(ctx.shape==(2,4),'dynamic router context shape is not row-level')
+        require(ctx.shape==(2,7),'dynamic router context shape is not row-level or regime context is incomplete')
         require(not np.allclose(ctx[0],ctx[1]),'dynamic router context is still aggregate/repeated across rows')
         multi=dmrouter.evaluate_router(
             np.zeros((6,2)),np.array([0,1,2,0,1,2]),
