@@ -69,6 +69,8 @@ def main():
             'production watchdog lacks required action permission or newest-run concurrency')
     require('v4_5_15_production.yml' in watchdog and 'pit_history_expansion.yml' in watchdog,
             'production watchdog does not monitor both heavy workflows')
+    require('select(.event=="push" and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))' in watchdog,
+            'production watchdog must cancel only unfinished legacy heavy runs')
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
     require((ROOT/'.github/workflows/rugby_production.yml').exists(),
             'Rugby coverage workflow is missing')
