@@ -91,6 +91,19 @@ def outcome_maps(c,s,pairs):
     if datetime.fromisoformat(avail.replace('Z','+00:00'))<=datetime.fromisoformat(t.replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=60):hist.append((eid,t,p['A'],p['B'],o))
    except Exception:pass
  return labels,hist
+def outcome_margin_map(c,s):
+ out={}
+ try:
+  rows=c.execute("""SELECT event_id,score_a,score_b
+                     FROM event_outcome
+                    WHERE sport=? AND outcome_status='VERIFIED'
+                      AND score_a IS NOT NULL AND score_b IS NOT NULL""",(s,)).fetchall()
+  for eid,sa,sb in rows:
+   try: out[eid]=float(sa)-float(sb)
+   except Exception: pass
+ except sqlite3.DatabaseError:
+  pass
+ return out
 def statcols(c,s):
  w=POLICY[s];q=','.join('?'*len(w));return [r[0] for r in c.execute(f'SELECT stat_name FROM match_stats WHERE sport=? AND stat_name IN ({q}) GROUP BY stat_name',(s,*w)).fetchall()]
 def _make_stat_history_loader(c,s):
@@ -166,7 +179,7 @@ def _make_stat_history_loader(c,s):
  return history,cache
 
 def build(c,s,include_unlabeled=False):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    _,_,a,b,o=hist[j]
@@ -189,6 +202,11 @@ def build(c,s,include_unlabeled=False):
    recent_opponent_elo.setdefault(a,[]).append(rb)
    recent_opponent_elo.setdefault(b,[]).append(ra)
    recent_opponent_elo[a]=recent_opponent_elo[a][-20:]; recent_opponent_elo[b]=recent_opponent_elo[b][-20:]
+   margin=margin_map.get(hist[j][0])
+   if margin is not None:
+    recent_margins.setdefault(a,[]).append(margin)
+    recent_margins.setdefault(b,[]).append(-margin)
+    recent_margins[a]=recent_margins[a][-20:]; recent_margins[b]=recent_margins[b][-20:]
    key=tuple(sorted((a,b)))
    first_win=(act==1) if a==key[0] else (1-act)==1
    h2h.setdefault(key,[]).append(1 if first_win else 0)
@@ -223,6 +241,10 @@ def build(c,s,include_unlabeled=False):
    for rn in (5,10,20):
     f[f'{side}__opponent_elo_mean_{rn}']=float(np.mean(relo[-rn:])) if relo[-rn:] else np.nan
    f[f'{side}__opponent_elo_delta']=f[f'{side}__opponent_elo_mean_5']-f[f'{side}__opponent_elo_mean_20'] if np.isfinite(f[f'{side}__opponent_elo_mean_5']) and np.isfinite(f[f'{side}__opponent_elo_mean_20']) else np.nan
+   rmg=recent_margins.get(pid,[])
+   for rn in (5,10,20):
+    f[f'{side}__recent_margin_mean_{rn}']=float(np.mean(rmg[-rn:])) if rmg[-rn:] else np.nan
+   f[f'{side}__recent_margin_delta']=f[f'{side}__recent_margin_mean_5']-f[f'{side}__recent_margin_mean_20'] if np.isfinite(f[f'{side}__recent_margin_mean_5']) and np.isfinite(f[f'{side}__recent_margin_mean_20']) else np.nan
    for st in cols:
     pred_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
     cutoff_dt=pred_dt-__import__('datetime').timedelta(minutes=60)
@@ -248,6 +270,8 @@ def build(c,s,include_unlabeled=False):
   for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for k in ('opponent_elo_mean_5','opponent_elo_mean_10','opponent_elo_mean_20','opponent_elo_delta'):
+   a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
+  for k in ('recent_margin_mean_5','recent_margin_mean_10','recent_margin_mean_20','recent_margin_delta'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   f['D__elo_momentum']= (f['A__elo_momentum']-f['B__elo_momentum']) if np.isfinite(f['A__elo_momentum']) and np.isfinite(f['B__elo_momentum']) else np.nan
   key=tuple(sorted((p['A'],p['B'])))
