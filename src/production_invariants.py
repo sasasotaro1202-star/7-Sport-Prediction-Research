@@ -168,6 +168,10 @@ def main():
             'calibration challenger does not include isotonic/beta comparison')
     require('robust_objective' in strict_src and 'weighted_pair_win_rate' in strict_src,
             'ensemble stability gate is missing')
+    regime_pos=strict_src.find('def _regime_robust_objective')
+    oos_pos=strict_src.find('oos={}',regime_pos if regime_pos>=0 else 0)
+    require(regime_pos>=0 and oos_pos>=0 and regime_pos<oos_pos,
+            'regime robustness scorer must be defined before model selection invokes it')
     require('window_fracs=(0.55,0.60,0.65)' in strict_src and 'robust_window_objective' in strict_src,
             'multi-window walk-forward robustness selection is missing')
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
