@@ -31,11 +31,11 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "volleyball": {
-      "events": 21100,
-      "timed_events": 21100,
-      "completed_events": 21100,
-      "resolved_outcomes": 19473,
-      "verified_model_outcomes": 19473,
+      "events": 21103,
+      "timed_events": 21103,
+      "completed_events": 21103,
+      "resolved_outcomes": 19474,
+      "verified_model_outcomes": 19474,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
