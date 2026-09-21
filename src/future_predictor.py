@@ -25,7 +25,12 @@ def _apply_calibration(p, calibrator, method):
     if method=='sigmoid':
         z=np.log(p/(1.0-p)).reshape(-1,1)
         return np.clip(calibrator.predict_proba(z)[:,1],1e-6,1-1e-6)
-    return np.clip(calibrator.predict(p),1e-6,1-1e-6)
+    if method=='beta':
+        z=np.column_stack([np.log(p),np.log(1.0-p)])
+        return np.clip(calibrator.predict_proba(z)[:,1],1e-6,1-1e-6)
+    if method=='isotonic':
+        return np.clip(calibrator.predict(p),1e-6,1-1e-6)
+    return p
 
 
 def _future_events(c,s,now):
