@@ -46,11 +46,25 @@ def pairmap(c,s):
  return d
 def outcome_maps(c,s,pairs):
  labels={};hist=[]
- q="""SELECT e.event_id,e.event_time_utc,o.outcome,o.source,o.source_url,ss.source_available_at_utc,ss.availability_status FROM event e JOIN event_outcome o ON o.event_id=e.event_id AND o.outcome_status='VERIFIED' AND o.outcome IN ('A','B') LEFT JOIN source_snapshot ss ON ss.source=o.source AND ss.source_url=o.source_url WHERE e.sport=? ORDER BY e.event_time_utc,e.event_id"""
- for eid,t,o,src,url,avail,status in c.execute(q,(s,)).fetchall():
+ q="""SELECT e.event_id,e.event_time_utc,o.outcome,o.source,o.source_url,
+                 (SELECT MIN(ss.source_available_at_utc)
+                    FROM source_snapshot ss
+                   WHERE ss.source=o.source
+                     AND ss.source_url=o.source_url
+                     AND ss.availability_status='EXACT'
+                     AND ss.source_available_at_utc IS NOT NULL) AS source_available_at_utc
+          FROM event e
+          JOIN event_outcome o
+            ON o.event_id=e.event_id
+           AND o.outcome_status='VERIFIED'
+           AND o.outcome IN ('A','B')
+         WHERE e.sport=?
+         ORDER BY e.event_time_utc,e.event_id"""
+ for eid,t,o,src,url,avail in c.execute(q,(s,)).fetchall():
   p=pairs.get(eid)
   if not p or 'A' not in p or 'B' not in p:continue
   labels[eid]=o
+  status='EXACT' if avail else None
   if status=='EXACT' and avail:
    try:
     if datetime.fromisoformat(avail.replace('Z','+00:00'))<=datetime.fromisoformat(t.replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=60):hist.append((eid,t,p['A'],p['B'],o))
@@ -72,12 +86,52 @@ def build(c,s):
   for side,pid in (('A',p['A']),('B',p['B'])):
    f[f'{side}__elo']=ratings.get(pid,1500.);f[f'{side}__history_n']=counts.get(pid,0);f[f'{side}__rest_days']=((datetime.fromisoformat(t.replace('Z','+00:00'))-datetime.fromisoformat(last[pid].replace('Z','+00:00'))).total_seconds()/86400) if pid in last else np.nan
    for st in cols:
-    v=c.execute("""SELECT ms.value_num FROM match_stats ms JOIN event pe ON pe.event_id=ms.event_id JOIN source_snapshot ss ON ss.source=ms.source AND ss.source_url=ms.source_url WHERE ms.sport=? AND ms.participant_id=? AND ms.stat_name=? AND pe.event_time_utc<? AND ms.value_num IS NOT NULL AND ms.effective_at_utc IS NOT NULL AND ms.effective_at_utc<=datetime(?,'-60 minutes') AND ss.availability_status='EXACT' AND ss.source_available_at_utc<=datetime(?,'-60 minutes') ORDER BY pe.event_time_utc DESC,ms.stat_id DESC LIMIT 20""",(s,pid,st,t,t,t)).fetchall();strict_evidence += len(v);x=np.array([z[0] for z in v],float);w=np.exp(-np.arange(len(x))/5) if len(x) else np.array([]);f[f'{side}__{st}__n']=len(x);f[f'{side}__{st}__mean']=float(x.mean()) if len(x) else np.nan;f[f'{side}__{st}__last']=float(x[0]) if len(x) else np.nan;f[f'{side}__{st}__std']=float(x.std()) if len(x)>1 else np.nan;f[f'{side}__{st}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan;f[f'{side}__{st}__ewma5']=float((w*x).sum()/w.sum()) if len(x) else np.nan
+    v=c.execute("""SELECT ms.value_num,pe.event_time_utc
+                           FROM match_stats ms
+                           JOIN event pe ON pe.event_id=ms.event_id
+                          WHERE ms.sport=?
+                            AND ms.participant_id=?
+                            AND ms.stat_name=?
+                            AND pe.event_time_utc<?
+                            AND ms.value_num IS NOT NULL
+                            AND ms.effective_at_utc IS NOT NULL
+                            AND ms.effective_at_utc<=datetime(?,'-60 minutes')
+                            AND EXISTS (
+                                SELECT 1 FROM source_snapshot ss
+                                 WHERE ss.source=ms.source
+                                   AND ss.source_url=ms.source_url
+                                   AND ss.availability_status='EXACT'
+                                   AND ss.source_available_at_utc IS NOT NULL
+                                   AND ss.source_available_at_utc<=datetime(?,'-60 minutes')
+                            )
+                          ORDER BY pe.event_time_utc DESC,ms.stat_id DESC
+                          LIMIT 20""",(s,pid,st,t,t,t)).fetchall()
+    strict_evidence += len(v)
+    x=np.array([z[0] for z in v],float)
+    times=[datetime.fromisoformat(z[1].replace('Z','+00:00')) for z in v if z[1]]
+    pred_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
+    ages=np.array([max(0.0,(pred_dt-z).total_seconds()/86400.0) for z in times],float)
+    w=np.exp(-np.arange(len(x))/5) if len(x) else np.array([])
+    f[f'{side}__{st}__n']=len(x)
+    f[f'{side}__{st}__mean']=float(x.mean()) if len(x) else np.nan
+    f[f'{side}__{st}__median']=float(np.median(x)) if len(x) else np.nan
+    f[f'{side}__{st}__q25']=float(np.quantile(x,.25)) if len(x) else np.nan
+    f[f'{side}__{st}__q75']=float(np.quantile(x,.75)) if len(x) else np.nan
+    f[f'{side}__{st}__iqr']=float(np.quantile(x,.75)-np.quantile(x,.25)) if len(x) else np.nan
+    f[f'{side}__{st}__last']=float(x[0]) if len(x) else np.nan
+    f[f'{side}__{st}__std']=float(x.std()) if len(x)>1 else np.nan
+    f[f'{side}__{st}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
+    f[f'{side}__{st}__ewma5']=float((w*x).sum()/w.sum()) if len(x) else np.nan
+    f[f'{side}__{st}__age_days']=float(ages[0]) if len(ages) else np.nan
   for k in ('elo','history_n','rest_days'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for st in cols:
-   for suf in ('mean','last','std','trend','ewma5','n'):
+   for suf in ('mean','median','q25','q75','iqr','last','std','trend','ewma5','n','age_days'):
     a=f[f'A__{st}__{suf}'];b=f[f'B__{st}__{suf}'];f[f'D__{st}__{suf}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
+   for base_suf in ('mean','median','last','ewma5'):
+    a=f[f'A__{st}__{base_suf}'];b=f[f'B__{st}__{base_suf}']
+    denom=abs(a)+abs(b)+1e-6 if np.isfinite(a) and np.isfinite(b) else np.nan
+    f[f'D__{st}__{base_suf}_relative']=(a-b)/denom if np.isfinite(denom) else np.nan
   prior_hist=any(hh[1] < t and (hh[2] in (p['A'],p['B']) or hh[3] in (p['A'],p['B'])) for hh in hist)
   if strict_evidence == 0 and not prior_hist:
    continue
