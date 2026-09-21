@@ -38,6 +38,12 @@ def main():
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require('production_release_gate' in workflow,'production release gate missing')
+    require('timeout --signal=TERM 2700s python -m src.pit_replay_builder' in workflow,
+            'strict PIT replay lacks a bounded runtime budget')
+    require('timeout --signal=TERM 2400s python -m src.research_cycle_strict' in workflow,
+            'strict research cycle lacks a bounded runtime budget')
+    require('timeout --signal=TERM 900s python -m src.independent_leakage_audit' in workflow,
+            'independent leakage audit lacks a bounded runtime budget')
     require('source failures degrade explicitly' in workflow,'resilient source-failure policy missing')
     require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
     require('backfill_status=DEGRADED' in workflow,'backfill degradation is not explicitly recorded')
