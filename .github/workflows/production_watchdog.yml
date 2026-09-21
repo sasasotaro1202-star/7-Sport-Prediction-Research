@@ -5,6 +5,18 @@ on:
   schedule:
     # Lightweight 5-minute recovery polling; heavy work remains hourly/9-hourly.
     - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/**'
+      - 'requirements.txt'
+      - 'config/**'
+  workflow_run:
+    workflows:
+      - Production Invariants
+      - Production Safety Audit
+    types: [completed]
 
 permissions:
   actions: write
