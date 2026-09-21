@@ -70,6 +70,7 @@ jobs:
           main_sha=$(git rev-parse HEAD)
           state=$(gh run list --workflow "v4_5_15_production.yml" --limit 100 --json databaseId,status,event,createdAt,headSha)
           active_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
+          active_any=$(printf '%s' "$state" | jq '[.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")] | length')
           seen_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha)] | length')
           latest_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')
 
@@ -81,7 +82,7 @@ jobs:
           # Dispatch only after both same-SHA validators pass. The first run for a
           # SHA is immediate; later retries are bounded to one per hourly window.
           dispatch=false
-          if [ "$active_latest" -eq 0 ] && [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ]; then
+          if [ "$active_any" -eq 0 ] && [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ]; then
             if [ "$seen_latest" -eq 0 ]; then
               dispatch=true
             elif [ -n "$latest_created" ]; then
@@ -95,7 +96,7 @@ jobs:
             echo "DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION main=$main_sha inv_ok=$inv_ok safety_ok=$safety_ok"
             gh workflow run v4_5_15_production.yml --ref main
           else
-            echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok main=$main_sha"
+            echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest active_any=$active_any seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok main=$main_sha"
           fi
       - name: Backfill a missed 9-hour PIT boundary once per boundary window
         env:
