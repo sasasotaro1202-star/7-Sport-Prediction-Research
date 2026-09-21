@@ -154,7 +154,7 @@ def _context_from_reference(reference: Dict, current_x: np.ndarray) -> np.ndarra
 
 def _recent_model_loss(meta_losses: Sequence[Sequence[float]], n_models: int) -> np.ndarray:
     """Recent OOF log-loss state using only rows observed before the current fold."""
-    if not meta_losses:
+    if meta_losses is None or len(meta_losses) == 0:
         return np.full(n_models, np.log(2.0), dtype=float)
     arr=np.asarray(meta_losses[-180:],dtype=float)
     if arr.ndim!=2 or arr.shape[1]!=n_models:
