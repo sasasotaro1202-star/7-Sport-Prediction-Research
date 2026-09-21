@@ -104,6 +104,9 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
+    req_text=(ROOT/'requirements.txt').read_text(encoding='utf-8')
+    require('lightgbm==4.7.0' in req_text,'LightGBM dependency is not pinned to the verified current release')
+
     require('IsotonicRegression' in strict_src and 'candidate_methods' in strict_src and "'beta'" in strict_src,
             'calibration challenger does not include isotonic/beta comparison')
     require('robust_objective' in strict_src and 'weighted_pair_win_rate' in strict_src,
