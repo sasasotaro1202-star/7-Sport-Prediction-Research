@@ -77,6 +77,8 @@ def main():
             'production watchdog latest-main dispatch guard is incomplete')
     require('[ "$GITHUB_EVENT_NAME" != "push" ] && [ "$active_latest" -eq 0 ]' in watchdog,
             'production watchdog may dispatch heavy Production from push events')
+    require('[ -z "$latest_created" ]' in watchdog,
+            'validation-triggered Production dispatch must require an unseen main SHA')
     recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
     require('PIT History Expansion' in recovery and 'Rugby Coverage Production' in recovery,
             'bounded recovery does not cover PIT and Rugby workflows')
