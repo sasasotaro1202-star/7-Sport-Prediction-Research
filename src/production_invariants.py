@@ -81,6 +81,12 @@ def main():
     require('echo \'run=false\' >> "$GITHUB_OUTPUT"' in pit_workflow,
             'PIT cadence guard must fail closed by skipping non-boundary wakes')
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
+    future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    require((ROOT/'src/future_predictor.py').exists(),'future prediction inference module is missing')
+    require('src.future_predictor' in workflow,'canonical production workflow does not execute future prediction inference')
+    require('accepted-artifact-only' in future_src,'future predictor is not restricted to accepted artifacts')
+    require('PRODUCTION_ROUTABLE_AFTER_GATES' in future_src and 'contextual_router' in future_src,
+            'future predictor lacks gated situation-specific routing path')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
     strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
