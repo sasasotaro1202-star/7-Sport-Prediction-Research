@@ -230,6 +230,11 @@ def main():
 
     cache_guard=(ROOT/'src/partition_cache_guard.py').read_text(encoding='utf-8')
     require('restore-keys:' in workflow and 'eight-sport-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
+    merge_section=workflow[workflow.index('  merge:'):] if '  merge:' in workflow else ''
+    require('Verify merge workflow SHA is current main before any mutable work' in merge_section,
+            'production merge lacks an independent current-main SHA guard')
+    require('STALE_MERGE_WORKFLOW_SHA' in merge_section,
+            'production merge stale-SHA guard does not fail closed with explicit status')
     require((ROOT/'scripts/validate_model_pipeline.py').exists(),'model pipeline regression test script is missing')
     require('validate_model_pipeline.py' in (ROOT/'.github/workflows/production_invariants.yml').read_text(encoding='utf-8'),'production invariants workflow does not execute model pipeline regression checks')
     require('src.cache_health' in workflow and '--repair' in workflow,'production workflow does not validate/repair restored cache before collection')
