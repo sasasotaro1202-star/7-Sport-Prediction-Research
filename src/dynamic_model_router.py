@@ -110,14 +110,17 @@ def _fit_contextual_loss_selector(meta_features: np.ndarray, meta_losses: np.nda
     return {"kind": "contextual_loss_v1", "selectors": selectors}
 
 
-def _route_with_contextual_loss_selector(selector, bp: np.ndarray, ctx: np.ndarray):
+def _route_with_contextual_loss_selector(selector, bp: np.ndarray, ctx: np.ndarray, history_loss=None):
     """Convert predicted per-model loss into conservative situation-specific weights."""
     if not isinstance(selector, dict) or selector.get("kind") != "contextual_loss_v1":
         return None
     selectors = selector.get("selectors") or []
     if not selectors:
         return None
-    features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
+    hl = np.asarray(history_loss if history_loss is not None else selector.get('history_loss'), dtype=float)
+    if hl.ndim != 1 or len(hl) != bp.shape[1]:
+        hl = np.full(bp.shape[1], np.log(2.0), dtype=float)
+    features = np.column_stack([bp, ctx, np.std(bp, axis=1), np.repeat(hl[None, :], len(bp), axis=0)])
     predicted = np.column_stack([m.predict(features) for m in selectors])
     predicted = np.where(np.isfinite(predicted), predicted, np.nanmedian(predicted, axis=0))
     baseline = np.mean(bp, axis=1)
@@ -203,7 +206,7 @@ def evaluate_router(
             np.asarray(meta_X, dtype=float) if meta_X else np.empty((0, features.shape[1])),
             np.asarray(meta_losses, dtype=float) if meta_losses else np.empty((0, len(names))),
         )
-        routed = _route_with_contextual_loss_selector(selector, bp, ctx)
+        routed = _route_with_contextual_loss_selector(selector, bp, ctx, history_loss)
         if routed is None:
             routed = static.copy()
 
@@ -292,7 +295,7 @@ def evaluate_frozen_holdout_router(
     bp = np.column_stack(bp)
     static = bp.mean(axis=1)
     ctx = _context(X[:sel], X[sel:])
-    routed = _route_with_contextual_loss_selector(selector, bp, ctx)
+    routed = _route_with_contextual_loss_selector(selector, bp, ctx, _recent_model_loss(meta_losses,len(names)))
     if routed is None:
         return {"status": "INSUFFICIENT_OOS", "reason": "contextual_router_fit_failed", "oos_rows": len(meta_losses)}
 
@@ -338,10 +341,13 @@ def fit_final_router(X, y, names, sel, start, step, pool_factory):
         )
         meta_X.extend(features.tolist())
         meta_losses.extend(fold_losses.tolist())
-    return _fit_contextual_loss_selector(
+    selector=_fit_contextual_loss_selector(
         np.asarray(meta_X, dtype=float),
         np.asarray(meta_losses, dtype=float),
     )
+    if selector is not None:
+        selector['history_loss']=_recent_model_loss(meta_losses,len(names))
+    return selector
 
 def predict_with_router(router, base_models, names, train_x, current_x):
     bp = []
