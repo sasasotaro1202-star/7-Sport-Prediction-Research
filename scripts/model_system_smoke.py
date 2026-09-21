@@ -65,7 +65,7 @@ def main():
         folds.append({'end':end,'te':te,'preds':preds})
     final_selector=router.fit_final_router_from_folds(X,y,names,folds,220)
     assert final_selector is not None and final_selector.get('kind')=='contextual_loss_v1'
-    holdout_pred={n:np.clip(rng.uniform(0.08,0.92,size=40),1e-6,1-1e-6) for n in names}
+    holdout_pred={n:np.clip(rng.uniform(0.08,0.92,size=len(y)-220),1e-6,1-1e-6) for n in names}
     router_hold=router.evaluate_frozen_holdout_router_from_folds(X,y,names,folds,220,holdout_pred)
     assert router_hold.get('status') in {'EVALUATED','INSUFFICIENT_OOS'}
 
