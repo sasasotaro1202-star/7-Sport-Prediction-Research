@@ -1,0 +1,80 @@
+name: Production Run Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,37 * * * *'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: production-run-watchdog
+  cancel-in-progress: true
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Cancel legacy push-triggered heavy runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflows=(
+            "v4_5_15_production.yml"
+            "pit_history_expansion.yml"
+          )
+          for workflow in "${workflows[@]}"; do
+            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha               --jq '.[] | select(.event=="push") | [.databaseId,.status,.createdAt,.headSha] | @tsv' |
+            while IFS=$'\t' read -r run_id status created_at head_sha; do
+              [ -n "$run_id" ] || continue
+              echo "LEGACY_PUSH_RUN run_id=$run_id status=$status created_at=$created_at sha=$head_sha workflow=$workflow"
+              gh run cancel "$run_id"
+            done
+          done
+
+      - name: Cancel stale queued production runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          main_sha=$(git rev-parse HEAD)
+          now=$(date -u +%s)
+          gh run list --workflow "v4_5_15_production.yml" --limit 50 --json databaseId,status,event,createdAt,headSha             --jq '.[] | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
+          while IFS=$'\t' read -r run_id status event created_at head_sha; do
+            [ -n "$run_id" ] || continue
+            created_ts=$(date -u -d "$created_at" +%s)
+            age=$((now-created_ts))
+            if [ "$status" = "queued" ] && [ "$age" -ge 1800 ] && [ "$head_sha" != "$main_sha" ]; then
+              echo "STALE_QUEUED_PRODUCTION run_id=$run_id age=${age}s sha=$head_sha main=$main_sha"
+              gh run cancel "$run_id"
+            fi
+          done
+
+      - name: Cancel over-time production and PIT runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
+            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha               --jq '.[] | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
+            while IFS=$'\t' read -r run_id status event created_at head_sha; do
+              [ -n "$run_id" ] || continue
+              [ "$status" = "in_progress" ] || continue
+              created_ts=$(date -u -d "$created_at" +%s)
+              now=$(date -u +%s)
+              age=$((now-created_ts))
+              # Canonical Production/PIT jobs have explicit time budgets; allow a
+              # bounded grace period before watchdog cancellation.
+              if [ "$age" -ge 8100 ]; then
+                echo "OVERTIME_HEAVY_RUN run_id=$run_id age=${age}s workflow=$workflow event=$event sha=$head_sha"
+                gh run cancel "$run_id"
+              fi
+            done
+          done
