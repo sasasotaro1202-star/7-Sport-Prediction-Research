@@ -97,8 +97,8 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
-    require('IsotonicRegression' in strict_src and 'candidate_methods' in strict_src,
-            'calibration challenger does not include isotonic comparison')
+    require('IsotonicRegression' in strict_src and 'candidate_methods' in strict_src and "'beta'" in strict_src,
+            'calibration challenger does not include isotonic/beta comparison')
     require('robust_objective' in strict_src and 'weighted_pair_win_rate' in strict_src,
             'ensemble stability gate is missing')
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
