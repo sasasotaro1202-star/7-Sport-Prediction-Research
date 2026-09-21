@@ -159,7 +159,12 @@ def main():
             'future prediction runtime lacks explicit gated router state')
     future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
     require("apply_cal = None if strategy=='contextual_router' else cal" in future_src,
-            'future predictor can apply ensemble calibration to Router output distribution')\n    require("method=='beta'" in future_src and "np.column_stack([np.log(p),np.log(1.0-p)])" in future_src,
+            'future predictor can apply ensemble calibration to Router output distribution')
+    gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
+    require("ensemble_weights" in gate_src and "weighted_pair" in gate_src and "sum(float(weights" in gate_src,
+            'release gate does not validate persisted ensemble weights')
+    require("probability_calibrator" in gate_src and "dynamic_router_models" in gate_src,
+            'release gate does not validate calibration/router artifact state')\n    require("method=='beta'" in future_src and "np.column_stack([np.log(p),np.log(1.0-p)])" in future_src,
             'future predictor does not implement Beta calibration transform safely')
     require("method=='isotonic'" in future_src,
             'future predictor does not implement isotonic calibration branch')
