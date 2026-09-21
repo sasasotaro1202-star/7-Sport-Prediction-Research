@@ -73,6 +73,10 @@ def predict_sport(c,s,now):
     weights=artifact.get('ensemble_weights') or {}
     if not features or not models or not names or len(models)!=len(names):
         return {'sport':s,'status':'BLOCKED_ARTIFACT_SCHEMA'}
+    router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
+    router_obj=artifact.get('dynamic_router')
+    if router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and router_obj is None:
+        return {'sport':s,'status':'BLOCKED_ARTIFACT_ROUTER_STATE'}
     rows,_=base.build(c,s,include_unlabeled=True)
     future=_future_events(c,s,now)
     outputs=[]
