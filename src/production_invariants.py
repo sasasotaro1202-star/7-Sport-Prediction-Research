@@ -51,6 +51,10 @@ def main():
     require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
     require('UNSUPPORTED_MULTICLASS_RESEARCH_ONLY' in router_src,'dynamic router lacks multiclass research-only guard')
     require('router_unavailable' in router_src and 'multiclass_base_model_unsupported' in router_src,'dynamic router lacks safe prediction fallbacks')
+    require('evaluate_frozen_holdout_router' in router_src,'dynamic router lacks frozen-holdout evaluation')
+    strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
+    require('router_holdout=router.evaluate_frozen_holdout_router' in strict_src,'strict research cycle does not evaluate router on frozen holdout')
+    require('router_holdout.get(\'status\') == \'EVALUATED\'' in strict_src,'router promotion gate does not require frozen-holdout evaluation')
     # Dynamic Router is a research challenger only. Guard the production path
     # against accidental promotion before a separately verified promotion gate.
     production_router_refs=(
