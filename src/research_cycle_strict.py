@@ -369,8 +369,9 @@ def train(s):
    target=np.asarray(overall_y,int)
    base_ll=base.metric(target,overall)['logloss'] if len(target) else float('inf')
    regime_names=[
-    'competition_is_asian_games','competition_is_bleague','short_rest_flag',
-    'games_last_7d','games_last_30d','recent_form_delta','elo_momentum'
+    'competition_is_asian_games','competition_is_bleague',
+    'D__short_rest_flag','D__games_last_7d','D__games_last_30d',
+    'D__recent_form_delta','D__elo_momentum'
    ]
    fs_index={name:i for i,name in enumerate(fs)}
    for rn in regime_names:
@@ -385,7 +386,7 @@ def train(s):
      z=X[end:te,idx]
      finite=np.isfinite(z)
      if not np.any(finite):continue
-     if rn in ('competition_is_asian_games','competition_is_bleague','short_rest_flag'):
+     if rn in ('competition_is_asian_games','competition_is_bleague','D__short_rest_flag'):
       group=(z>=0.5)
       for g in (False,True):
        m=finite & (group==g)
