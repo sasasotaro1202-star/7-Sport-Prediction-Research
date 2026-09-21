@@ -1,6 +1,7 @@
 from __future__ import annotations
 import hashlib,json,sqlite3,subprocess
 from datetime import datetime,timezone
+from bisect import bisect_right
 from pathlib import Path
 import joblib,numpy as np
 from sklearn.ensemble import ExtraTreesClassifier,HistGradientBoostingClassifier,RandomForestClassifier
@@ -106,18 +107,33 @@ def _make_stat_history_loader(c,s):
                            AND ms.effective_at_utc IS NOT NULL
                       )
                      WHERE rn=1 AND source_available_at_utc IS NOT NULL
-                     ORDER BY event_time_utc DESC""",(s,pid,st)).fetchall()
-   cache[key]=[(float(v),et,ea,sa) for v,et,ea,sa in rows]
+                     ORDER BY event_time_utc ASC""",(s,pid,st)).fetchall()
+   prepared=[]
+   times=[]
+   for value,et,eff,src_avail in rows:
+    try:
+     et_dt=datetime.fromisoformat(str(et).replace('Z','+00:00'))
+     eff_dt=datetime.fromisoformat(str(eff).replace('Z','+00:00'))
+     avail_dt=datetime.fromisoformat(str(src_avail).replace('Z','+00:00'))
+    except Exception:
+     continue
+    et_ts=et_dt.timestamp(); eff_ts=eff_dt.timestamp(); avail_ts=avail_dt.timestamp()
+    prepared.append((et_ts,float(value),eff_ts,avail_ts))
+    times.append(et_ts)
+   cache[key]=(times,prepared)
   return cache[key]
  def history(pid,st,event_time,cutoff_dt):
+  times,prepared=load(pid,st)
+  event_ts=datetime.fromisoformat(str(event_time).replace('Z','+00:00')).timestamp()
+  cutoff_ts=cutoff_dt.timestamp()
+  idx=bisect_right(times,event_ts)-1
   out=[]
-  for value,et,eff,src_avail in load(pid,st):
-   if et is None or et>=event_time:
+  for i in range(idx,-1,-1):
+   et_ts,value,eff_ts,avail_ts=prepared[i]
+   if et_ts>=event_ts:
     continue
-   if eff is None or src_avail is None:
-    continue
-   if eff<=cutoff_dt and src_avail<=cutoff_dt:
-    out.append((value,et,src_avail))
+   if eff_ts<=cutoff_ts and avail_ts<=cutoff_ts:
+    out.append((value,datetime.fromtimestamp(et_ts,timezone.utc).isoformat(),datetime.fromtimestamp(avail_ts,timezone.utc).isoformat()))
     if len(out)>=20:
      break
   return out
