@@ -115,6 +115,10 @@ def main():
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
     req_text=(ROOT/'requirements.txt').read_text(encoding='utf-8')
     require('lightgbm==4.7.0' in req_text,'LightGBM dependency is not pinned to the verified current release')
+    smoke_src=(ROOT/'scripts/model_system_smoke.py').read_text(encoding='utf-8')
+    require('MODEL_SYSTEM_SMOKE: PASS' in smoke_src,'model system smoke test script is missing')
+    inv_workflow=(ROOT/'.github/workflows/production_invariants.yml').read_text(encoding='utf-8')
+    require('python scripts/model_system_smoke.py' in inv_workflow,'model system smoke test is not wired into Invariants')
 
     require('IsotonicRegression' in strict_src and 'candidate_methods' in strict_src and "'beta'" in strict_src,
             'calibration challenger does not include isotonic/beta comparison')
