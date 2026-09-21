@@ -42,7 +42,8 @@ def main():
     require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
     require('backfill_status=DEGRADED' in workflow,'backfill degradation is not explicitly recorded')
     require('collection_guard_status=FAILED' in workflow,'collection guard failure is not explicitly surfaced')
-    require('if: always()' in workflow,'merge job is not configured to run after collector degradation')
+    require('if: always() && needs.collect.result != \'skipped\'' in workflow,
+            'merge job is not configured to run after collector degradation while skipping intentionally skipped collection')
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
