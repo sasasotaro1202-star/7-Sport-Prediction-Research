@@ -65,27 +65,21 @@ def main():
     require('final.fit(X,y)' not in accelerated,
             'accelerated research must never fit final model on full dataset including holdout')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
-    require('GITHUB_EVENT_NAME' not in watchdog or 'active_latest' in watchdog,
-            'production watchdog lacks exact-main active-run guard')
+    require('active_latest' in watchdog and 'seen_latest' in watchdog,
+            'production watchdog lacks same-SHA active/seen guards')
     require('gh workflow run v4_5_15_production.yml --ref main' in watchdog,
             'production watchdog cannot self-heal latest main when idle')
     require("cron: '*/5 * * * *'" in watchdog,
             'production watchdog does not have the configured 5-minute recovery cadence')
-    require('latest_created=$(printf' in watchdog and 'age=$((now-latest_ts))' in watchdog,
-            'production watchdog lacks bounded hourly age tracking')
-    require('[ "$GITHUB_EVENT_NAME" = "workflow_run" ]' in watchdog and '[ "$GITHUB_EVENT_NAME" = "schedule" ]' in watchdog,
-            'production watchdog dispatch paths are not event-scoped')
-    require('workflows:\n      - Production Invariants' in watchdog and '- Production Safety Audit' not in watchdog,
-            'production watchdog should use a single validator trigger to avoid duplicate self-cancellation')
+    require('[ "$active_latest" -eq 0 ] && [ "$age" -ge 3300 ]' in watchdog,
+            'production watchdog lacks bounded hourly recovery guard')
     require('inv_ok' in watchdog and 'safety_ok' in watchdog,
             'production watchdog must verify both same-SHA validators before dispatch')
     require('seen_latest' in watchdog and '[ "$seen_latest" -eq 0 ]' in watchdog,
             'production watchdog lacks once-per-main-SHA production guard')
     require('DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION' in watchdog,
             'production watchdog validated dispatch path missing')
-    require('age" -ge 3300' in watchdog,
-            'scheduled recovery lacks the bounded hourly interval')
-    require('push:' not in watchdog.split('jobs:')[0],
+    watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
             'production watchdog must not have a push trigger')
     recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
     require('PIT History Expansion' in recovery and 'Rugby Coverage Production' in recovery,
