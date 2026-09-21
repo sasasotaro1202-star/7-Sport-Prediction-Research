@@ -73,10 +73,24 @@ def outcome_maps(c,s,pairs):
 def statcols(c,s):
  w=POLICY[s];q=','.join('?'*len(w));return [r[0] for r in c.execute(f'SELECT stat_name FROM match_stats WHERE sport=? AND stat_name IN ({q}) GROUP BY stat_name',(s,*w)).fetchall()]
 def build(c,s):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};counts={};last={};j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
-   _,_,a,b,o=hist[j];ra=ratings.get(a,1500.);rb=ratings.get(b,1500.);exp=1/(1+10**((rb-ra)/400));act=1 if o=='A' else 0;ratings[a]=ra+24*(act-exp);ratings[b]=rb+24*((1-act)-(1-exp));counts[a]=counts.get(a,0)+1;counts[b]=counts.get(b,0)+1;last[a]=hist[j][1];last[b]=hist[j][1];j+=1
+   _,_,a,b,o=hist[j]
+   ra=ratings.get(a,1500.);rb=ratings.get(b,1500.)
+   raf=ratings_fast.get(a,1500.);rbf=ratings_fast.get(b,1500.)
+   ras=ratings_slow.get(a,1500.);rbs=ratings_slow.get(b,1500.)
+   act=1 if o=='A' else 0
+   exp=1/(1+10**((rb-ra)/400));expf=1/(1+10**((rbf-raf)/400));exps=1/(1+10**((rbs-ras)/400))
+   ratings[a]=ra+24*(act-exp);ratings[b]=rb+24*((1-act)-(1-exp))
+   ratings_fast[a]=raf+36*(act-expf);ratings_fast[b]=rbf+36*((1-act)-(1-expf))
+   ratings_slow[a]=ras+12*(act-exps);ratings_slow[b]=rbs+12*((1-act)-(1-exps))
+   counts[a]=counts.get(a,0)+1;counts[b]=counts.get(b,0)+1
+   last[a]=hist[j][1];last[b]=hist[j][1]
+   recent_results.setdefault(a,[]).append(act)
+   recent_results.setdefault(b,[]).append(1-act)
+   recent_results[a]=recent_results[a][-20:];recent_results[b]=recent_results[b][-20:]
+   j+=1
   if eid not in labels:continue
   p=pairs[eid];f={};strict_evidence=0
   # Do not count default Elo/median-imputation rows as strict PIT evidence.
@@ -84,7 +98,15 @@ def build(c,s):
   # at least 60 minutes before the prediction cutoff, or a provenance-verified
   # historical outcome used to construct the rolling state.
   for side,pid in (('A',p['A']),('B',p['B'])):
-   f[f'{side}__elo']=ratings.get(pid,1500.);f[f'{side}__history_n']=counts.get(pid,0);f[f'{side}__rest_days']=((datetime.fromisoformat(t.replace('Z','+00:00'))-datetime.fromisoformat(last[pid].replace('Z','+00:00'))).total_seconds()/86400) if pid in last else np.nan
+   f[f'{side}__elo']=ratings.get(pid,1500.)
+   f[f'{side}__elo_fast']=ratings_fast.get(pid,1500.)
+   f[f'{side}__elo_slow']=ratings_slow.get(pid,1500.)
+   f[f'{side}__history_n']=counts.get(pid,0)
+   f[f'{side}__rest_days']=((datetime.fromisoformat(t.replace('Z','+00:00'))-datetime.fromisoformat(last[pid].replace('Z','+00:00'))).total_seconds()/86400) if pid in last else np.nan
+   rr=recent_results.get(pid,[])
+   for rn in (5,10,20):
+    f[f'{side}__recent_winrate_{rn}']=float(np.mean(rr[-rn:])) if rr[-rn:] else np.nan
+   f[f'{side}__recent_form_delta']=f[f'{side}__recent_winrate_5']-f[f'{side}__recent_winrate_20'] if np.isfinite(f[f'{side}__recent_winrate_5']) and np.isfinite(f[f'{side}__recent_winrate_20']) else np.nan
    for st in cols:
     v=c.execute("""SELECT ms.value_num,pe.event_time_utc
                            FROM match_stats ms
@@ -123,7 +145,9 @@ def build(c,s):
     f[f'{side}__{st}__trend']=float(x[0]-x[-1]) if len(x)>1 else np.nan
     f[f'{side}__{st}__ewma5']=float((w*x).sum()/w.sum()) if len(x) else np.nan
     f[f'{side}__{st}__age_days']=float(ages[0]) if len(ages) else np.nan
-  for k in ('elo','history_n','rest_days'):
+  for k in ('elo','elo_fast','elo_slow','history_n','rest_days'):
+   a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
+  for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for st in cols:
    for suf in ('mean','median','q25','q75','iqr','last','std','trend','ewma5','n','age_days'):
