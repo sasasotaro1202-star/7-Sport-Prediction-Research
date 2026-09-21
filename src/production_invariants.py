@@ -92,6 +92,7 @@ def main():
     strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
     research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
+    require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
