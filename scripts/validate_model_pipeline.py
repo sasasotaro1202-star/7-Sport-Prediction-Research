@@ -27,6 +27,24 @@ def main():
     assert recent.shape==(2,)
     assert np.all(np.isfinite(recent)), recent
 
+    # End-to-end contextual router smoke test: fit on synthetic chronological OOF
+    # loss data and verify finite situation-specific routing output.
+    rng=np.random.default_rng(42)
+    meta_features=rng.normal(size=(160,14))
+    meta_losses=np.column_stack([
+        0.55+0.20*(meta_features[:,0]>0)+rng.normal(0,0.03,160),
+        0.60+0.15*(meta_features[:,1]>0)+rng.normal(0,0.03,160),
+    ])
+    selector=router._fit_contextual_loss_selector(meta_features,meta_losses)
+    assert selector is not None and selector.get('kind')=='contextual_loss_v1', selector
+    bp=np.clip(rng.uniform(.1,.9,size=(8,2)),1e-6,1-1e-6)
+    routed=router._route_with_contextual_loss_selector(
+        selector,bp,np.asarray([[0.1]*10,[0.2]*10,[0.3]*10,[0.4]*10,[0.5]*10,[0.6]*10,[0.7]*10,[0.8]*10]),
+        router._recent_model_loss(meta_losses.tolist(),2)
+    )
+    assert routed.shape==(8,) and np.all(np.isfinite(routed)), routed
+    assert np.all((routed>0)&(routed<1)), routed
+
     # Multiclass must fail closed for the binary router.
     multi=router.evaluate_router(
         np.zeros((10,2)),np.array([0,1,2,0,1,2,0,1,2,0]),
