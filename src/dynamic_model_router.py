@@ -179,6 +179,83 @@ def evaluate_router(
     }
 
 
+
+def evaluate_frozen_holdout_router(
+    X: np.ndarray,
+    y: np.ndarray,
+    names: Sequence[str],
+    sel: int,
+    start: int,
+    step: int,
+    pool_factory,
+    metric=None,
+) -> Dict:
+    """Evaluate a router trained only on pre-holdout OOF data on the frozen holdout.
+
+    Holdout labels are used only for final scoring. Neither the router nor any
+    base model is fit on holdout rows, so this is a genuine frozen-holdout
+    promotion guard rather than another selector pass.
+    """
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y)
+    if not _require_binary_target(y):
+        return {"status": "UNSUPPORTED_MULTICLASS_RESEARCH_ONLY", "reason": "router_is_binary_only"}
+    if sel <= start or sel >= len(y) or len(names) < 2:
+        return {"status": "INSUFFICIENT_HOLDOUT", "reason": "invalid_frozen_holdout_split"}
+
+    meta_X: List[np.ndarray] = []
+    meta_y: List[int] = []
+    for end in range(start, sel, step):
+        te = min(end + step, sel)
+        if te <= end or len(np.unique(y[:end])) < 2:
+            continue
+        bp = []
+        for name in names:
+            model = pool_factory()[name]
+            model.fit(X[:end], y[:end])
+            bp.append(np.clip(model.predict_proba(X[end:te])[:, 1], 1e-6, 1 - 1e-6))
+        bp = np.column_stack(bp)
+        ctx = _context(X[:end], X[end:te])
+        meta_X.extend(np.column_stack([bp, ctx, np.std(bp, axis=1)]).tolist())
+        meta_y.extend(y[end:te].tolist())
+
+    if len(meta_y) < 60 or len(np.unique(meta_y)) < 2:
+        return {"status": "INSUFFICIENT_OOS", "reason": "insufficient_router_training_oof", "oos_rows": len(meta_y)}
+
+    router_model = Pipeline([
+        ("scale", StandardScaler()),
+        ("model", LogisticRegression(C=0.25, max_iter=2000, random_state=42)),
+    ])
+    router_model.fit(np.asarray(meta_X), np.asarray(meta_y))
+
+    bp = []
+    for name in names:
+        model = pool_factory()[name]
+        model.fit(X[:sel], y[:sel])
+        bp.append(np.clip(model.predict_proba(X[sel:])[:, 1], 1e-6, 1 - 1e-6))
+    bp = np.column_stack(bp)
+    static = bp.mean(axis=1)
+    ctx = _context(X[:sel], X[sel:])
+    routed = np.clip(
+        router_model.predict_proba(np.column_stack([bp, ctx, np.std(bp, axis=1)]))[:, 1],
+        1e-6, 1 - 1e-6
+    )
+    routed = 0.75 * routed + 0.25 * static
+    target = y[sel:]
+    static_m = _metric(target, static)
+    routed_m = _metric(target, routed)
+    return {
+        "status": "EVALUATED",
+        "oos_training_rows": len(meta_y),
+        "holdout_rows": len(target),
+        "fixed_ensemble": static_m,
+        "dynamic_router": routed_m,
+        "logloss_improvement": static_m["logloss"] - routed_m["logloss"],
+        "brier_improvement": static_m["brier"] - routed_m["brier"],
+        "ece_change": routed_m["ece"] - static_m["ece"],
+        "policy": "router_fit_pre_holdout_only; frozen_holdout_labels_used_only_for_scoring",
+    }
+
 def fit_final_router(X, y, names, sel, start, step, pool_factory):
     """Fit the final router from all pre-holdout chronological OOF predictions."""
     X = np.asarray(X, dtype=float)
