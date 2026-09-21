@@ -26,6 +26,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Verify workflow SHA is current main before any mutable work
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          if [ "$GITHUB_SHA" != "$main_sha" ]; then
+            echo "STALE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
+            exit 1
+          fi
+
       - name: Enforce true 9-hour cadence
         id: cadence
         run: |
