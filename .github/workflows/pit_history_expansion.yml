@@ -32,6 +32,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Enforce true 9-hour cadence
+        id: cadence
         if: github.event_name == 'schedule'
         run: |
           set -euo pipefail
@@ -40,8 +41,10 @@ jobs:
           delta=$((now-anchor))
           if [ "$delta" -lt 0 ] || [ $((delta % 32400)) -ne 0 ]; then
             echo "9-hour cadence guard: skip this 3-hour wake-up (delta=${delta}s)"
-            exit 78
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo 'run=true' >> "$GITHUB_OUTPUT"
           echo '9-hour cadence guard: RUN'
       - uses: actions/checkout@v4
         with:
@@ -52,8 +55,10 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
       - name: Install dependencies
+        if: steps.cadence.outputs.run == 'true'
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - name: Restore latest sport database
+        if: steps.cadence.outputs.run == 'true'
         uses: actions/cache/restore@v4
         with:
           path: data/db
@@ -62,13 +67,16 @@ jobs:
             eight-sport-db-v4-${{ matrix.sport }}-pit-
             eight-sport-db-v4-${{ matrix.sport }}-
       - name: Validate restored database
+        if: steps.cadence.outputs.run == 'true'
         run: |
           python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
           python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
       - name: Materialize immutable historical corpus
+        if: steps.cadence.outputs.run == 'true'
         if: matrix.sport == 'basketball'
         run: python -m src.basketball_cdn_backfill --historical
       - name: Prove historical source availability
+        if: steps.cadence.outputs.run == 'true'
         run: |
           set -uo pipefail
           if [ '${{ matrix.sport }}' = 'basketball' ]; then
@@ -77,8 +85,10 @@ jobs:
             python -m src.valorant_git_provenance
           fi
       - name: Build strict PIT replay history
+        if: steps.cadence.outputs.run == 'true'
         run: python -m src.pit_replay_builder --sport ${{ matrix.sport }}
       - name: Measure PIT expansion
+        if: steps.cadence.outputs.run == 'true'
         run: |
           python - <<'PY'
           import json, sqlite3
@@ -96,11 +106,13 @@ jobs:
           print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
       - name: Save PIT-enriched database
+        if: steps.cadence.outputs.run == 'true'
         uses: actions/cache/save@v4
         with:
           path: data/db
           key: eight-sport-db-v4-${{ matrix.sport }}-pit-${{ github.run_id }}
       - name: Upload PIT expansion report
+        if: steps.cadence.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: pit-history-expansion-${{ matrix.sport }}-${{ github.run_id }}
