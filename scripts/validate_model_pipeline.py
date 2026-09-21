@@ -1,5 +1,6 @@
 from __future__ import annotations
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 import numpy as np
 
@@ -9,6 +10,7 @@ if str(ROOT) not in sys.path:
 
 from src import dynamic_model_router as router
 from src import research_cycle_strict as strict
+from src import future_predictor as future
 
 
 def main():
@@ -32,6 +34,10 @@ def main():
     )
     assert multi.get('status')=='UNSUPPORTED_MULTICLASS_RESEARCH_ONLY', multi
 
+    assert future._after_now("2999-01-01T00:00:00+00:00", datetime.now(timezone.utc)) is True
+    assert future._after_now("2000-01-01T00:00:00+00:00", datetime.now(timezone.utc)) is False
+    assert np.allclose(future._apply_calibration(np.array([0.25,0.75]),None,'none'),np.array([0.25,0.75]))
+    
     # Probability calibration challenger must not fabricate acceptance on weak data.
     weak=strict._temporal_calibration_candidate(np.full(40,0.5),np.array([0,1]*20))
     assert weak.get('accepted') is False, weak
