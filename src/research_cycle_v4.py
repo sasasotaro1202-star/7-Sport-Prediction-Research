@@ -146,7 +146,7 @@ def _make_stat_history_loader(c,s):
   return out
  return history,cache
 
-def build(c,s):
+def build(c,s,include_unlabeled=False):
  pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};recent_times={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
@@ -172,7 +172,7 @@ def build(c,s):
    h2h.setdefault(key,[]).append(1 if first_win else 0)
    h2h[key]=h2h[key][-20:]
    j+=1
-  if eid not in labels:continue
+  if eid not in labels and not include_unlabeled:continue
   p=pairs[eid];f={};strict_evidence=0
   # Do not count default Elo/median-imputation rows as strict PIT evidence.
   # A row must contain at least one feature value whose source was observable
@@ -243,7 +243,7 @@ def build(c,s):
   prior_hist=(counts.get(p['A'],0)>0 or counts.get(p['B'],0)>0)
   if strict_evidence == 0 and not prior_hist:
    continue
-  rows.append((eid,t,0 if labels[eid]=='A' else 1,f))
+  rows.append((eid,t,(0 if labels[eid]=='A' else 1) if eid in labels else None,f))
  return rows,sorted({k for _,_,_,f in rows for k in f})
 def metric(y,p):
  y=np.asarray(y,int);p=np.asarray(p,float);return {'logloss':float(log_loss(y,np.c_[1-p,p],labels=[0,1])),'brier':float(brier_score_loss(y,p)),'accuracy':float(accuracy_score(y,p>=.5)),'ece':float(ece(y,p)),'n':len(y)}
