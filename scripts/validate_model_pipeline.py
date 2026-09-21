@@ -30,7 +30,7 @@ def main():
     # End-to-end contextual router smoke test: fit on synthetic chronological OOF
     # loss data and verify finite situation-specific routing output.
     rng=np.random.default_rng(42)
-    meta_features=rng.normal(size=(160,14))
+    meta_features=rng.normal(size=(160,15))
     meta_losses=np.column_stack([
         0.55+0.20*(meta_features[:,0]>0)+rng.normal(0,0.03,160),
         0.60+0.15*(meta_features[:,1]>0)+rng.normal(0,0.03,160),
