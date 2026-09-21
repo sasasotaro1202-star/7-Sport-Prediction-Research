@@ -51,6 +51,16 @@ def main():
     require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
     require('UNSUPPORTED_MULTICLASS_RESEARCH_ONLY' in router_src,'dynamic router lacks multiclass research-only guard')
     require('router_unavailable' in router_src and 'multiclass_base_model_unsupported' in router_src,'dynamic router lacks safe prediction fallbacks')
+    # Dynamic Router is a research challenger only. Guard the production path
+    # against accidental promotion before a separately verified promotion gate.
+    production_router_refs=(
+        (ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
+        + (ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
+        + (ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
+    )
+    require('fit_final_router(' not in production_router_refs,'dynamic router final fit leaked into production path')
+    require('predict_with_router(' not in production_router_refs,'dynamic router prediction leaked into production path')
+    require('DynamicModelRouter(' not in production_router_refs,'dynamic router class instantiated in production path')
     try:
         import numpy as np
         from src import dynamic_model_router as dmrouter
