@@ -5,14 +5,9 @@ on:
     # GitHub cron cannot express a true rolling 9-hour cadence across UTC day boundaries.
     # Wake every 3 hours and run the expensive expansion only on 9-hour epoch boundaries.
     - cron: '47 */3 * * *'
-  push:
-    paths:
-      - '.github/workflows/pit_history_expansion.yml'
-      - 'src/bleaguer_git_provenance.py'
-      - 'src/valorant_git_provenance.py'
-      - 'src/pit_replay_builder.py'
-      - 'src/basketball_cdn_backfill.py'
-      - 'src/seven_sport_production.py'
+  # Heavy PIT expansion runs on the true 9-hour schedule or manually. Pushes are
+  # validated by the lightweight safety/invariant workflows instead of queuing
+  # another expensive historical replay.
 permissions:
   contents: read
 concurrency:
