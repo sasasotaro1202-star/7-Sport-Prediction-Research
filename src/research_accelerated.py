@@ -43,13 +43,13 @@ def train_sport_locked(sport):
     if not accept:
         out={'sport':sport,'status':'REJECTED_CHALLENGER','reason':gate,'selected_model':selected,'development_models':dev,'holdout_metrics':hold,'training_rows':n}
         c.close(); RESULTS.mkdir(parents=True,exist_ok=True); (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
-    final=rc.model_pool()[selected]; final.fit(X,y); version=_hash({'sport':sport,'features':features,'model':selected,'rows':n,'last_event':rows[-1][1],'development':dev,'holdout':hold})
+    final=rc.model_pool()[selected]; final.fit(X[:holdout_start],y[:holdout_start]); version=_hash({'sport':sport,'features':features,'model':selected,'rows':holdout_start,'last_event':rows[holdout_start-1][1],'development':dev,'holdout':hold})
     MODELS.mkdir(parents=True,exist_ok=True); RESULTS.mkdir(parents=True,exist_ok=True); artifact=MODELS/f'{sport}_{version}.joblib'; joblib.dump({'model':final,'features':features,'sport':sport,'model_version':version,'training_rows':n},artifact)
     gitsha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip() or None
     metadata={'sport':sport,'market':'winner','model_version':version,'feature_version':'strict-pit-v5-locked-holdout','training_cutoff_utc':rows[-1][1],'git_commit_sha':gitsha,'artifact_path':str(artifact.relative_to(ROOT)),'quality_status':'ACCEPTED_AFTER_LOCKED_HOLDOUT','selection_gate':gate,'development_metrics':dev,'holdout_metrics':hold}
     c.execute("INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",(_hash(metadata),sport,'winner',rc.utc(),version,'strict-pit-v5-locked-holdout',rows[-1][1],_hash([(r[0],r[1],r[2]) for r in rows]),gitsha,str(artifact.relative_to(ROOT)),'ACCEPTED_AFTER_LOCKED_HOLDOUT',json.dumps(metadata,ensure_ascii=False)))
     c.commit(); c.close()
-    out={'sport':sport,'status':'TRAINED','model':selected,'model_version':version,'training_rows':n,'features':len(features),'development_models':dev,'holdout_metrics':hold,'selection_gate':gate}; (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
+    out={'sport':sport,'status':'TRAINED','model':selected,'model_version':version,'training_rows':holdout_start,'features':len(features),'development_models':dev,'holdout_metrics':hold,'selection_gate':gate}; (RESULTS/f'{sport}.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); return out
 def main():
     import argparse
     ap=argparse.ArgumentParser(); ap.add_argument('--sport',choices=rc.SPORTS); a=ap.parse_args(); sports=[a.sport] if a.sport else list(rc.SPORTS); print(json.dumps([train_sport_locked(s) for s in sports],ensure_ascii=False,indent=2))
