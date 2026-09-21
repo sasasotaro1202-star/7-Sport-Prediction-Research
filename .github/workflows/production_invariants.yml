@@ -33,3 +33,5 @@ jobs:
         run: python -m src.production_invariants
       - name: Validate dynamic router syntax and import safety
         run: python scripts/validate_dynamic_router.py
+      - name: Validate model pipeline regression contracts
+        run: python scripts/validate_model_pipeline.py
