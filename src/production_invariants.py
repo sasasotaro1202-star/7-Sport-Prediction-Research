@@ -69,6 +69,11 @@ def main():
     require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
+    research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
+    require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
+    require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
+    require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
+    require('EXISTS (' in research_base and 'source_snapshot ss' in research_base,'PIT stat query does not prevent source snapshot duplication')
 
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
     require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
@@ -95,6 +100,10 @@ def main():
         current_x=np.array([[0.0,1.0],[10.0,10.0]])
         ctx=dmrouter._context(train_x,current_x)
         require(ctx.shape==(2,10),'dynamic router context shape is not row-level or regime context is incomplete')
+        require(hasattr(dmrouter,'_recent_model_loss'),'dynamic router missing recent model-loss state helper')
+        recent=dmrouter._recent_model_loss([[0.8,0.7],[0.6,0.9]],2)
+        require(recent.shape==(2,) and np.all(np.isfinite(recent)),'dynamic router recent loss state is invalid')
+        require('HistGradientBoostingRegressor' in router_src,'dynamic router contextual loss forecaster is missing')
         require(not np.allclose(ctx[0],ctx[1]),'dynamic router context is still aggregate/repeated across rows')
         multi=dmrouter.evaluate_router(
             np.zeros((6,2)),np.array([0,1,2,0,1,2]),
