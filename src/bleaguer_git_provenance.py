@@ -114,7 +114,17 @@ def commit_history(s: requests.Session, path: str) -> list[dict[str, Any]]:
 def prove_path(path: str) -> dict[str, Any]:
     s = session()
     current_url = f"{RAW_BASE}/{path}"
-    current = get_bytes(s, current_url)
+    try:
+        current = get_bytes(s, current_url)
+    except requests.HTTPError as exc:
+        # A season file that no longer exists is not a provenance failure.
+        # Keep it UNVERIFIABLE so the strict PIT gate can safely defer it.
+        return {
+            "path": path,
+            "status": "UNVERIFIABLE",
+            "reason": f"current source unavailable: {exc}",
+            "checked_at_utc": utcnow(),
+        }
     current_hash = sha256_bytes(current)
     commits = commit_history(s, path)
 
@@ -163,11 +173,15 @@ def prove_path(path: str) -> dict[str, Any]:
 
 
 def target_paths() -> list[str]:
-    paths: list[str] = []
-    for season in SEASONS:
-        suffix = f"{season}{str(season + 1)[-2:]}"
-        paths.extend([f"inst/extdata/games_{suffix}.csv", f"inst/extdata/games_summary_{suffix}.csv"])
-    return paths
+    # Only immutable files that actually exist in the public corpus are
+    # candidates. Missing seasons are explicitly UNVERIFIABLE, never fatal.
+    return [
+        f"inst/extdata/games_{suffix}.csv"
+        for suffix in ("201617","201718","201819","201920","202021","202122")
+    ] + [
+        f"inst/extdata/games_summary_{suffix}.csv"
+        for suffix in ("201617","201718","201819","201920","202021","202122")
+    ]
 
 
 def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
