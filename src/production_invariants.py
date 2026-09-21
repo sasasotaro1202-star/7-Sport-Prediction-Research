@@ -75,8 +75,14 @@ def main():
             'production watchdog lacks bounded hourly recovery guard')
     require('GITHUB_EVENT_NAME' in watchdog and 'active_latest' in watchdog,
             'production watchdog latest-main dispatch guard is incomplete')
-    require('[ "$GITHUB_EVENT_NAME" != "push" ] && [ "$active_latest" -eq 0 ]' in watchdog,
-            'production watchdog may dispatch heavy Production from push events')
+    require('workflows:\n      - Production Invariants' in watchdog and '- Production Safety Audit' not in watchdog,
+            'production watchdog should use a single validator trigger to avoid duplicate self-cancellation')
+    require('inv_ok' in watchdog and 'safety_ok' in watchdog,
+            'production watchdog must verify both same-SHA validators before dispatch')
+    require('seen_latest' in watchdog and 'seen_latest" -eq 0' in watchdog,
+            'production watchdog lacks once-per-main-SHA production guard')
+    require('DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION' in watchdog,
+            'production watchdog validated dispatch path missing')
     require('[ -z "$latest_created" ]' in watchdog,
             'validation-triggered Production dispatch must require an unseen main SHA')
     recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
