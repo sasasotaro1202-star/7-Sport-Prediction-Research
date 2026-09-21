@@ -147,6 +147,10 @@ def main():
             'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
+    require('lightgbm_wide' in research_base,'wide LightGBM challenger is missing from the model pool')
+    smoke_src=(ROOT/'scripts/model_system_smoke.py').read_text(encoding='utf-8')
+    require("'lightgbm_wide'" in smoke_src and 'fit_final_router_from_folds' in smoke_src,
+            'model smoke does not cover the full model pool and final router reuse')
     req_text=(ROOT/'requirements.txt').read_text(encoding='utf-8')
     require('lightgbm==4.7.0' in req_text,'LightGBM dependency is not pinned to the verified current release')
     require('Install optional LightGBM challenger' not in workflow,'production workflow redundantly installs already-pinned LightGBM')
