@@ -103,7 +103,19 @@ def _make_stat_history_loader(c,s):
                                    AND (ss.event_time_utc IS NULL OR ss.event_time_utc=pe.event_time_utc)) AS source_available_at_utc,
                                ROW_NUMBER() OVER (
                                  PARTITION BY ms.event_id
-                                 ORDER BY ms.stat_id DESC
+                                 ORDER BY
+                                   CASE WHEN (
+                                     SELECT MIN(ss.source_available_at_utc)
+                                       FROM source_snapshot ss
+                                      WHERE ss.source=ms.source
+                                        AND ss.source_url=ms.source_url
+                                        AND ss.availability_status='EXACT'
+                                        AND ss.source_available_at_utc IS NOT NULL
+                                        AND (ss.event_time_utc IS NULL OR ss.event_time_utc=pe.event_time_utc)
+                                   ) IS NOT NULL THEN 0 ELSE 1 END,
+                                   ms.effective_at_utc DESC,
+                                   ms.observed_at_utc DESC,
+                                   ms.stat_id DESC
                                ) AS rn
                           FROM match_stats ms
                           JOIN event pe ON pe.event_id=ms.event_id
