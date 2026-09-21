@@ -74,7 +74,9 @@ jobs:
             latest_ts=$(date -u -d "$latest_created" +%s)
             age=$((now-latest_ts))
           fi
-          if [ "$GITHUB_EVENT_NAME" != "push" ] && [ "$active_latest" -eq 0 ] && [ "$age" -ge 3300 ]; then
+          # On push, start the newest main immediately when no run for that exact
+          # SHA exists. On scheduled wakes, require the normal ~55-minute gap.
+          if { [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$active_latest" -eq 0 ]; } || { [ "$GITHUB_EVENT_NAME" != "push" ] && [ "$active_latest" -eq 0 ] && [ "$age" -ge 3300 ]; }; then
             echo "DISPATCH_LATEST_MAIN_PRODUCTION age=${age}s main=$main_sha"
             gh workflow run v4_5_15_production.yml --ref main
           else
