@@ -65,22 +65,30 @@ def main():
     require('final.fit(X,y)' not in accelerated,
             'accelerated research must never fit final model on full dataset including holdout')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
-    require('active_latest' in watchdog and 'seen_latest' in watchdog,
-            'production watchdog lacks same-SHA active/seen guards')
-    require('gh workflow run v4_5_15_production.yml --ref main' in watchdog,
-            'production watchdog cannot self-heal latest main when idle')
+    require("workflows:\n      - Production Invariants" in watchdog,
+            'production watchdog must recheck after successful same-SHA validator completion')
+    require("types: [completed]" in watchdog,
+            'production watchdog must support validator-completion recovery events')
     require("cron: '*/5 * * * *'" in watchdog,
             'production watchdog does not have the configured 5-minute recovery cadence')
-    require('[ "$active_latest" -eq 0 ] && [ "$age" -ge 3300 ]' in watchdog,
-            'production watchdog lacks bounded hourly recovery guard')
+    require('active_latest' in watchdog and 'seen_latest' in watchdog and 'latest_created' in watchdog,
+            'production watchdog lacks active/seen/latest-created state guards')
     require('inv_ok' in watchdog and 'safety_ok' in watchdog,
             'production watchdog must verify both same-SHA validators before dispatch')
-    require('seen_latest' in watchdog and '[ "$seen_latest" -eq 0 ]' in watchdog,
-            'production watchdog lacks once-per-main-SHA production guard')
+    require('[ \"$active_latest\" -eq 0 ]' in watchdog and '[ \"$age\" -ge 3300 ]' in watchdog,
+            'production watchdog lacks bounded hourly recovery guard')
+    require('seen_latest' in watchdog and '[ \"$seen_latest\" -eq 0 ]' in watchdog,
+            'production watchdog lacks first-run guard')
     require('DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION' in watchdog,
             'production watchdog validated dispatch path missing')
-    watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
-            'production watchdog must not have a push trigger')
+    require('gh run cancel' in watchdog and 'actions: write' in watchdog,
+            'production watchdog lacks automatic heavy-run recovery')
+    require('v4_5_15_production.yml' in watchdog and 'pit_history_expansion.yml' in watchdog,
+            'production watchdog does not monitor both heavy workflows')
+    require('select(.event=="push" and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))' in watchdog,
+            'production watchdog must cancel only unfinished legacy heavy runs')
+    require('production_watchdog.yml' in (ROOT/'.github/workflows/production_watchdog.yml').as_posix(),
+            'production watchdog path invariant missing')
     recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
     require('PIT History Expansion' in recovery and 'Rugby Coverage Production' in recovery,
             'bounded recovery does not cover PIT and Rugby workflows')
