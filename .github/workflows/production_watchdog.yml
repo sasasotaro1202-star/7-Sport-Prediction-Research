@@ -5,14 +5,6 @@ on:
   schedule:
     # Lightweight 5-minute recovery polling; heavy work remains hourly/9-hourly.
     - cron: '*/5 * * * *'
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - '.github/workflows/**'
-      - 'requirements.txt'
-      - 'config/**'
-
   # React immediately when either read-only validator completes. The job remains
   # lightweight and dispatches Production only after both same-SHA validators pass.
   workflow_run:
