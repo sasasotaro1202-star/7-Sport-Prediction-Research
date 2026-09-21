@@ -108,6 +108,8 @@ def main():
             'calibration challenger does not include isotonic/beta comparison')
     require('robust_objective' in strict_src and 'weighted_pair_win_rate' in strict_src,
             'ensemble stability gate is missing')
+    require('window_fracs=(0.55,0.60,0.65)' in strict_src and 'robust_window_objective' in strict_src,
+            'multi-window walk-forward robustness selection is missing')
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
     require('source_snapshot ss' in research_base and 'ROW_NUMBER() OVER' in research_base,'PIT stat history loader does not prevent source snapshot/stat duplication')
     require('(ss.event_time_utc IS NULL OR ss.event_time_utc=pe.event_time_utc)' in research_base,'PIT stat snapshot is not event-time constrained')
