@@ -88,7 +88,7 @@ def main():
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
-    require('__games_last_7d' in research_base and '__short_rest_flag' in research_base,'research features lack schedule-density/short-rest signals')
+    require("games_last_{dn}d" in research_base and '__short_rest_flag' in research_base,'research features lack schedule-density/short-rest signals')
     require('LGBMClassifier' in research_base and 'lightgbm' in research_base,'LightGBM challenger is missing from the model pool')
     require("method':'isotonic" in strict_src or "method': 'isotonic" in strict_src or "method=='isotonic'" in strict_src,
             'calibration challenger does not include isotonic comparison')
