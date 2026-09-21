@@ -200,7 +200,8 @@ def evaluate_router(
         bp = np.column_stack(base_pred)
         static = bp.mean(axis=1)
         ctx = _context(X[:end], X[end:te])
-        features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
+        history_loss=_recent_model_loss(meta_losses,len(names))
+        features = np.column_stack([bp, ctx, np.std(bp, axis=1), np.repeat(history_loss[None,:], len(bp), axis=0)])
 
         selector = _fit_contextual_loss_selector(
             np.asarray(meta_X, dtype=float) if meta_X else np.empty((0, features.shape[1])),
@@ -274,7 +275,8 @@ def evaluate_frozen_holdout_router(
             bp.append(np.clip(model.predict_proba(X[end:te])[:, 1], 1e-6, 1 - 1e-6))
         bp = np.column_stack(bp)
         ctx = _context(X[:end], X[end:te])
-        features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
+        history_loss=_recent_model_loss(meta_losses,len(names))
+        features = np.column_stack([bp, ctx, np.std(bp, axis=1), np.repeat(history_loss[None,:], len(bp), axis=0)])
         yt = y[end:te].astype(float)
         fold_losses = -(
             yt[:, None] * np.log(bp)
@@ -333,7 +335,8 @@ def fit_final_router(X, y, names, sel, start, step, pool_factory):
             bp.append(np.clip(model.predict_proba(X[end:te])[:, 1], 1e-6, 1 - 1e-6))
         bp = np.column_stack(bp)
         ctx = _context(X[:end], X[end:te])
-        features = np.column_stack([bp, ctx, np.std(bp, axis=1)])
+        history_loss=_recent_model_loss(meta_losses,len(names))
+        features = np.column_stack([bp, ctx, np.std(bp, axis=1), np.repeat(history_loss[None,:], len(bp), axis=0)])
         yt = y[end:te].astype(float)
         fold_losses = -(
             yt[:, None] * np.log(bp)
