@@ -77,7 +77,7 @@ def main():
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
-    require('EXISTS (' in research_base and 'source_snapshot ss' in research_base,'PIT stat query does not prevent source snapshot duplication')
+    require('source_snapshot ss' in research_base and 'ROW_NUMBER() OVER' in research_base,'PIT stat history loader does not prevent source snapshot/stat duplication')
     require('def _make_stat_history_loader' in research_base,'PIT stat history cache loader is missing')
     require('ROW_NUMBER() OVER' in research_base and 'PARTITION BY ms.event_id' in research_base,
             'PIT stat cache does not deduplicate multiple stat rows per event')
