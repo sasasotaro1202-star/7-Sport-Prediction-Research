@@ -13,6 +13,11 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: production-invariants-validation
+  # These workflows are read-only validators. Only the newest commit needs validation.
+  cancel-in-progress: true
+
 jobs:
   invariants:
     runs-on: ubuntu-latest
