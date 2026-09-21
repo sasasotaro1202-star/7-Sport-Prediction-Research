@@ -4,12 +4,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '17 * * * *'
-  # Production runs continuously on the hourly schedule, after successful PIT
-  # expansion, or manually. Avoid push-triggered heavy runs so code commits do
-  # not create an unbounded queue behind long research executions.
-  workflow_run:
-    workflows: ['PIT History Expansion']
-    types: [completed]
+  # Production runs continuously on the hourly schedule or manually. PIT
+  # expansion is intentionally decoupled so a completed historical replay does
+  # not create a second heavy production run behind the next hourly slot.
 permissions:
   contents: write
 concurrency:
@@ -21,7 +18,6 @@ env:
   PYTHONUNBUFFERED: '1'
 jobs:
   collect:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     name: Collect ${{ matrix.sport }}
     strategy:
       fail-fast: false
