@@ -89,6 +89,18 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
 
 
 
+def _recent_model_loss(meta_losses: Sequence[Sequence[float]], n_models: int) -> np.ndarray:
+    """Recent OOF log-loss state using only rows observed before the current fold."""
+    if not meta_losses:
+        return np.full(n_models, np.log(2.0), dtype=float)
+    arr=np.asarray(meta_losses[-180:],dtype=float)
+    if arr.ndim!=2 or arr.shape[1]!=n_models:
+        return np.full(n_models, np.log(2.0), dtype=float)
+    w=np.exp(np.linspace(-1.0,0.0,len(arr)))
+    out=np.average(arr,axis=0,weights=w)
+    return np.where(np.isfinite(out),out,np.log(2.0))
+
+
 def _fit_contextual_loss_selector(meta_features: np.ndarray, meta_losses: np.ndarray):
     """Fit one PIT-safe loss forecaster per base model using only prior OOF rows."""
     X = np.asarray(meta_features, dtype=float)
