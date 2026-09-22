@@ -114,6 +114,7 @@ jobs:
           strict=Path('src/research_cycle_strict.py').read_text()
           accelerated=Path('src/research_accelerated.py').read_text()
           gate=Path('src/production_release_gate.py').read_text()
+          production=Path('.github/workflows/v4_5_15_production.yml').read_text()
           assert "production_fit_excludes_holdout" in strict
           assert "selection_oos" in strict and "holdout_metrics" in strict
           assert "m.fit(X[:sel]" in strict
@@ -127,5 +128,8 @@ jobs:
           assert "Evaluate three non-overlapping chronological OOS blocks" in strict
           assert "Rolling-origin calibration validation" in strict
           assert "COALESCE(leakage_status,'UNKNOWN') NOT IN ('PASS','CLEAN')" in gate
+          assert "'publishable_artifacts':[]" in gate
+          assert "RELEASE_GATED_ARTIFACT=" in production
+          assert "git add results models" not in production
           print("RESEARCH_ROBUSTNESS_RELEASE_SAFETY=PASS")
           PY
