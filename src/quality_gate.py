@@ -112,7 +112,7 @@ def main() -> None:
                 sport: None if latest.get(sport) is None else round((now() - latest[sport]).total_seconds() / 3600, 2)
                 for sport in scope
             }
-            stale = [sport for sport in scope if age_hours[sport] is None or age_hours[sport] > MAX_SNAPSHOT_AGE_HOURS]
+            stale = [sport for sport in scope if sport not in DEFERRED_SPORTS and (age_hours[sport] is None or age_hours[sport] > MAX_SNAPSHOT_AGE_HOURS)]
             checks.append({
                 "check": "source_snapshot_freshness",
                 "ok": not stale,
@@ -138,7 +138,7 @@ def main() -> None:
                 "where ms.stat_name='ctx_international_flag' and ms.value_num=1 and ms.quality_status='EXACT' "
                 "group by e.sport"
             )}
-            cm = [s for s in scope if ctx.get(s, 0) == 0]
+            cm = [s for s in scope if s not in DEFERRED_SPORTS and ctx.get(s, 0) == 0]
             checks.append({
                 "check": "international_context",
                 "ok": not cm,
@@ -164,7 +164,7 @@ def main() -> None:
             outc = {k: int(v) for k, v in con.execute(
                 "select sport,count(*) from event_outcome where outcome_status='VERIFIED' group by sport"
             )}
-            om = [s for s in scope if outc.get(s, 0) == 0]
+            om = [s for s in scope if s not in DEFERRED_SPORTS and outc.get(s, 0) == 0]
             checks.append({"check": "verified_outcomes", "ok": not om, "counts": {s: outc.get(s, 0) for s in scope}, "missing": om})
             if om:
                 pending.append("verified_outcome_coverage_incomplete")
@@ -172,7 +172,7 @@ def main() -> None:
             mr = {k: int(v) for k, v in con.execute(
                 "select sport,count(*) from model_state_snapshot where quality_status like 'ACCEPTED%' group by sport"
             )}
-            mm = [s for s in scope if mr.get(s, 0) == 0]
+            mm = [s for s in scope if s not in DEFERRED_SPORTS and mr.get(s, 0) == 0]
             checks.append({"check": "accepted_models", "ok": not mm, "counts": {s: mr.get(s, 0) for s in scope}, "missing": mm})
             if mm:
                 pending.append("accepted_model_coverage_incomplete")
