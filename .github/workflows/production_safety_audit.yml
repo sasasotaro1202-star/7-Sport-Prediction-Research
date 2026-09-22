@@ -51,6 +51,7 @@ jobs:
           test -f src/production_release_gate.py
           test -f src/partition_cache_guard.py
           test -f src/cache_health.py
+          test -f src/boxing_production.py
       - name: Upload audit manifest
         uses: actions/upload-artifact@v4
         with:
@@ -62,4 +63,5 @@ jobs:
             src/pit_replay_builder.py
             src/production_release_gate.py
             src/cache_health.py
+            src/boxing_production.py
           retention-days: 7
