@@ -316,17 +316,22 @@ def evaluate_frozen_holdout_router_from_folds(
     folds: Sequence[Dict],
     sel: int,
     holdout_pred: Dict[str, np.ndarray],
+    holdout_X: np.ndarray | None = None,
     holdout_y: np.ndarray | None = None,
     baseline_weights: Dict[str, float] | None = None,
 ) -> Dict:
     """Evaluate contextual router on frozen holdout using precomputed pre-holdout OOF base predictions."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
+    hX=None if holdout_X is None else np.asarray(holdout_X,dtype=float)
     hy=None if holdout_y is None else np.asarray(holdout_y)
     lengths={n:len(np.asarray(holdout_pred.get(n,[]))) for n in names}
     expected=max(lengths.values()) if lengths else 0
     if expected<1 or any(v!=expected for v in lengths.values()):
         return {'status':'INSUFFICIENT_OOS','reason':'holdout_prediction_shape_mismatch','expected_rows':expected,
                 'received_rows':lengths}
+    if hX is None or hX.ndim!=2 or len(hX)!=expected:
+        return {'status':'INSUFFICIENT_OOS','reason':'holdout_feature_shape_mismatch','expected_rows':expected,
+                'received_feature_rows':0 if hX is None else len(hX)}
     if hy is None or len(hy)!=expected:
         return {'status':'INSUFFICIENT_OOS','reason':'holdout_target_shape_mismatch','expected_rows':expected,
                 'received_target_rows':0 if hy is None else len(hy)}
@@ -353,7 +358,7 @@ def evaluate_frozen_holdout_router_from_folds(
             static=np.mean(bp,axis=1)
     else:
         static=np.mean(bp,axis=1)
-    ctx=_context(X[:sel],X[sel:])
+    ctx=_context(X,hX)
     routed=_route_with_contextual_loss_selector(selector,bp,ctx,_recent_model_loss(meta_losses,len(names)))
     if routed is None:
         return {'status':'INSUFFICIENT_OOS','reason':'contextual_router_fit_failed','oos_rows':len(meta_losses)}
