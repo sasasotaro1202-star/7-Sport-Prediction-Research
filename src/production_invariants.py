@@ -132,6 +132,8 @@ def main():
             'canonical Production lacks stale-workflow SHA fail-closed guard')
     require('Verify merge run SHA is current main before mutable work' in workflow,
             'canonical Production merge job lacks stale-workflow SHA fail-closed guard')
+    require("if: needs.collect.result == 'success'" in workflow and "if: always() && needs.collect.result != 'skipped'" not in workflow,
+            'production merge must not run after a cancelled or partial collector matrix')
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
     cache_health_workflow=(ROOT/'.github/workflows/cache_pit_health.yml').read_text(encoding='utf-8')
     require('nine-sport-target-db-v4-' in pit_workflow and 'eight-sport-db-v4-' not in pit_workflow,
@@ -150,8 +152,8 @@ def main():
     require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
     require('backfill_status=DEGRADED' in workflow,'backfill degradation is not explicitly recorded')
     require('collection_guard_status=FAILED' in workflow,'collection guard failure is not explicitly surfaced')
-    require('if: always() && needs.collect.result != \'skipped\'' in workflow,
-            'merge job is not configured to run after collector degradation while skipping intentionally skipped collection')
+    require("if: needs.collect.result == 'success'" in workflow,
+            'production merge must only run after the full collector matrix succeeds')
     require('  push:' not in workflow,
             'canonical production workflow should not create heavy push-triggered queue')
     db_src=(ROOT/'src/storage/db_v45.py').read_text(encoding='utf-8')
