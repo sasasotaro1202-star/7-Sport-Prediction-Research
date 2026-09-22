@@ -123,7 +123,7 @@ jobs:
           assert "weighted_pair_pool=list(dict.fromkeys(list(top_rank)+list(names)))" in strict
           assert "triple_pool=rank[:min(6,len(rank))]" in strict
           assert "paired.get('folds',0) >= 6" in strict
-          assert "bootstrap_prob_improvement",0.0) >= 0.90" in strict
+          assert "bootstrap_prob_improvement',0.0) >= 0.90" in strict
           assert "Evaluate three non-overlapping chronological OOS blocks" in strict
           assert "Rolling-origin calibration validation" in strict
           assert "COALESCE(leakage_status,'UNKNOWN') NOT IN ('PASS','CLEAN')" in gate
