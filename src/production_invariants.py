@@ -341,7 +341,7 @@ def main():
         require(False,f'dynamic router behavioral invariant failed: {exc}')
 
     cache_guard=(ROOT/'src/partition_cache_guard.py').read_text(encoding='utf-8')
-    require('restore-keys:' in workflow and 'eight-sport-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
+    require('restore-keys:' in workflow and 'nine-sport-target-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
     merge_section=workflow[workflow.index('  merge:'):] if '  merge:' in workflow else ''
     require('Verify merge workflow SHA is current main before any mutable work' in merge_section,
             'production merge lacks an independent current-main SHA guard')
