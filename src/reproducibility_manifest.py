@@ -50,7 +50,7 @@ def db_counts() -> dict:
             counts.update(dict(con.execute("SELECT sport, COUNT(*) FROM event GROUP BY sport").fetchall()))
         finally:
             con.close()
-    # Rugby and Boxing remain outside the canonical merged model DB until their production paths are proven. Rugby is intentionally isolated from the seven-sport merged DB. Count it
+    # Rugby and Boxing remain outside the canonical merged model DB until their production paths are proven. Count Rugby from its dedicated database
     # from its dedicated database so the manifest cannot silently report zero
     # simply because the storage topology differs.
     if RUGBY_DB.is_file() and RUGBY_DB.stat().st_size > 0:
