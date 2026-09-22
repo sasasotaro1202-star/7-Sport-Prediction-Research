@@ -101,7 +101,7 @@ jobs:
           fi
       - name: Build strict PIT replay history
         if: steps.cadence.outputs.run == 'true'
-        run: python -m src.pit_replay_builder --sport ${{ matrix.sport }}
+        run: python -m src.pit_replay_builder --force --sport ${{ matrix.sport }}
       - name: Measure PIT expansion
         if: steps.cadence.outputs.run == 'true'
         run: |
