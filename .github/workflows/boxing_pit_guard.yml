@@ -18,7 +18,7 @@ env:
 jobs:
   guard:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,10 +28,35 @@ jobs:
           python-version: '3.12'
       - name: Verify Python runtime
         run: python --version
+      - name: Restore Boxing history cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/boxing_v45.sqlite
+          key: boxing-v45-db-${{ github.run_id }}
+          restore-keys: |
+            boxing-v45-db-
       - name: Run Boxing PIT source guard
-        run: python -m src.boxing_production --probe-only
+        run: python -m src.boxing_production --ingest-history
       - name: Compile Boxing module
         run: python -m compileall -q src/boxing_production.py
+      - name: Validate isolated Boxing database
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          p=Path("data/db/boxing_v45.sqlite")
+          assert p.is_file() and p.stat().st_size>0
+          c=sqlite3.connect(p)
+          for t in ("source_snapshot","event","participant","event_participant","event_outcome"):
+              assert c.execute(f"select 1 from sqlite_master where type='table' and name='{t}'").fetchone()
+          print("BOXING_DEDICATED_DB=PASS")
+          PY
+      - name: Save Boxing history cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db/boxing_v45.sqlite
+          key: boxing-v45-db-${{ github.run_id }}
       - name: Verify fail-closed status
         run: |
           python - <<'PY'
