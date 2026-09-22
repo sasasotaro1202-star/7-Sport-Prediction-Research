@@ -84,7 +84,7 @@ def _carry_forward_previous(c, sport, previous, current_features):
     if not isinstance(previous, dict) or previous.get("status") != "TRAINED":
         return None
     feature_version=str(previous.get("feature_version") or "")
-    if not (feature_version.startswith("strict-pit-v13-") or feature_version.startswith("strict-pit-v14-") or feature_version.startswith("strict-pit-v15-") or feature_version.startswith("strict-pit-v16-")):
+    if not (feature_version.startswith("strict-pit-v13-") or feature_version.startswith("strict-pit-v14-") or feature_version.startswith("strict-pit-v15-") or feature_version.startswith("strict-pit-v16-") or feature_version.startswith("strict-pit-v17-")):
         return None
     artifact = _restore_historical_artifact(sport, previous)
     if artifact is None or not _artifact_features_compatible(artifact, current_features):
