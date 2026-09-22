@@ -51,6 +51,18 @@ def main() -> int:
         participants = int(con.execute("SELECT COUNT(*) FROM participant WHERE sport=?", (args.sport,)).fetchone()[0])
         snapshots = source_count_for_sport(con, args.sport)
         timed = int(con.execute("SELECT COUNT(*) FROM event WHERE sport=? AND event_time_utc IS NOT NULL", (args.sport,)).fetchone()[0])
+
+        # A partition with historical events but no source snapshots is usable
+        # only as a degraded/deferred cache. It must not block the whole
+        # production run, because downstream PIT gates will exclude it from
+        # learning/release until provenance evidence exists.
+        if events > 0 and snapshots == 0:
+            print(
+                f"CACHE_GUARD=DEFERRED sport={args.sport} reason=no_source_snapshots "
+                f"events={events} snapshots={snapshots} participants={participants} timed_events={timed}"
+            )
+            return 0
+
         if events <= 0 or snapshots <= 0:
             print(f"CACHE_GUARD=FAIL sport={args.sport} reason=empty_partition events={events} snapshots={snapshots} participants={participants} timed_events={timed}")
             return 2
