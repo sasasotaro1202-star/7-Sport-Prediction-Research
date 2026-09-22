@@ -5,13 +5,8 @@ on:
   schedule:
     # Lightweight 5-minute recovery polling; heavy work remains hourly/9-hourly.
     - cron: '*/5 * * * *'
-  # React immediately when either read-only validator completes. The job remains
-  # lightweight and dispatches Production only after both same-SHA validators pass.
-  workflow_run:
-    workflows:
-      - Production Invariants
-      - Production Safety Audit
-    types: [completed]
+  # A 5-minute poll is sufficient and avoids self-cancellation storms caused
+  # by validator-completion events while preserving 24-hour recovery coverage.
 
 permissions:
   actions: write
@@ -115,13 +110,13 @@ jobs:
           boundary_start=$((now-phase))
           pit=$(gh run list --workflow "pit_history_expansion.yml" --limit 100 --json databaseId,status,event,conclusion,createdAt,headSha)
           active=$(printf '%s' "$pit" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
-          scheduled_success=$(printf '%s' "$pit" | jq --arg sha "$main_sha" --argjson start "$boundary_start" '[.[] | select(.headSha==$sha and .event=="schedule" and .conclusion=="success") | (.createdAt | fromdateiso8601) | select(. >= $start)] | length')
-          manual_attempt=$(printf '%s' "$pit" | jq --arg sha "$main_sha" --argjson start "$boundary_start" '[.[] | select(.headSha==$sha and .event=="workflow_dispatch") | (.createdAt | fromdateiso8601) | select(. >= $start)] | length')
-          if [ "$phase" -le 1800 ] && [ "$active" -eq 0 ] && [ "$scheduled_success" -eq 0 ] && [ "$manual_attempt" -eq 0 ]; then
-            echo "DISPATCH_MISSED_PIT_BOUNDARY main=$main_sha phase=${phase}s boundary_start=$boundary_start"
+          attempt_in_boundary=$(printf '%s' "$pit" | jq --arg sha "$main_sha" --argjson start "$boundary_start" '[.[] | select(.headSha==$sha) | (.createdAt | fromdateiso8601) | select(. >= $start)] | length')
+          # Accept the boundary within the first 30 minutes to tolerate scheduler jitter.
+          if [ "$phase" -le 1800 ] && [ "$active" -eq 0 ] && [ "$attempt_in_boundary" -eq 0 ]; then
+            echo "DISPATCH_PIT_BOUNDARY main=$main_sha phase=${phase}s boundary_start=$boundary_start"
             gh workflow run pit_history_expansion.yml --ref main
           else
-            echo "PIT_BOUNDARY_GUARD phase=${phase}s active=$active scheduled_success=$scheduled_success manual_attempt=$manual_attempt"
+            echo "PIT_BOUNDARY_GUARD phase=${phase}s active=$active attempts=$attempt_in_boundary"
           fi
       - name: Cancel over-time production and PIT runs
         env:
