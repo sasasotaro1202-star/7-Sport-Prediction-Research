@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
 RUGBY_DB = ROOT / "data/db/rugby_v45.sqlite"
-SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1", "rugby")
+SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1", "rugby", "boxing")
 OUT = ROOT / "results/reproducibility_manifest.json"
 
 
@@ -49,7 +49,7 @@ def db_counts() -> dict:
             counts.update(dict(con.execute("SELECT sport, COUNT(*) FROM event GROUP BY sport").fetchall()))
         finally:
             con.close()
-    # Rugby is intentionally isolated from the seven-sport merged DB. Count it
+    # Rugby and Boxing remain outside the canonical merged model DB until their production paths are proven. Rugby is intentionally isolated from the seven-sport merged DB. Count it
     # from its dedicated database so the manifest cannot silently report zero
     # simply because the storage topology differs.
     if RUGBY_DB.is_file() and RUGBY_DB.stat().st_size > 0:
