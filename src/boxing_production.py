@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import csv
 import io
 import json
