@@ -204,8 +204,8 @@ The canonical production workflow currently runs **7 sports** in its main matrix
 ## Actions audit
 
 - Latest verified `Production Invariants` run: **#79**, run ID `35252678367`, head `1cff3ef44563f50cb4f94f3581a5299826b87fbe`, completed `success`; the invariants job and its steps succeeded.
-- Canonical production workflow has 7 sport collectors, parallelized with `fail-fast: false`, transient-network retry, persistent cache, collection guard, PIT replay, independent leakage audit, frozen-holdout research, quality gate, release gate and invariants.
-- Rugby has a separate hourly coverage workflow, but its expected `results/v45/rugby_coverage.json` was not present on `main` at audit time, despite the workflow requiring it. This is a concrete reproducibility/operability risk and must be repaired rather than treated as success.
+- Canonical production workflow has five active sport collectors, parallelized with `fail-fast: false`, transient-network retry, persistent cache, collection guard, PIT replay, independent leakage audit, frozen-holdout research, quality gate, release gate and invariants; four additional target sports are explicit DEFERRED lanes.
+- Rugby has a separate scheduled coverage workflow, while Boxing has a lightweight six-hour PIT source guard. The expected `results/v45/rugby_coverage.json` was not present on `main` at audit time, despite the workflow requiring it. This is a concrete reproducibility/operability risk and must be repaired rather than treated as success; the Boxing guard is intentionally non-publishing and uses the same fail-closed provenance rule.
 - `production_release_gate.py` currently writes `BLOCKED`/`publish=false` but returns exit code 0. This means a blocked release can appear green in Actions. This conflicts with the requirement that failures must not be treated as success. This should be changed so `BLOCKED` returns non-zero while still never publishing unsafe models.
 
 ## Final adoption policy
