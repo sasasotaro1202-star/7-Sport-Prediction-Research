@@ -8,7 +8,7 @@ from sklearn.isotonic import IsotonicRegression
 from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
-SPORTS=('valorant','basketball','volleyball','ufc','rizin')
+SPORTS=('valorant','basketball','volleyball','ufc','rizin','boxing')
 def utc():
  from datetime import datetime,timezone
  return datetime.now(timezone.utc).isoformat()
@@ -18,6 +18,9 @@ def f1():
  try:n=c.execute("select count(*) from event where sport='f1'").fetchone()[0];e=c.execute("select count(*) from source_snapshot where source='OpenF1' and availability_status='EXACT'").fetchone()[0]
  finally:c.close()
  return {'sport':'f1','status':'DEFERRED_PIT','events':int(n),'exact_pit_source_snapshots':int(e),'reason':'OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted'}
+def boxing():
+ return _write_result('boxing',{'sport':'boxing','status':'DEFERRED_PIT','reason':'No free historical boxing source currently proves source availability before the 60-minute prediction cutoff; public/current schedule data is not historical PIT evidence.','source_candidates':['Boxing Undefeated open-boxing-data','BoxingScene','BoxRec-compatible public tooling'],'feature_policy_candidates':['weight_class','fighter_age','height_reach','stance','recent_winrate','opponent_strength','inactivity_days','weight_class_elo','result_method_prior'],'promotion_policy':'chronological OOS + frozen holdout + calibration + release gate required'})
+
 def _temporal_calibration_candidate(p, y):
     """Choose none/sigmoid/beta/isotonic calibration using only pre-holdout OOS."""
     p=np.clip(np.asarray(p,dtype=float),1e-6,1-1e-6)
@@ -208,6 +211,8 @@ def _previous_model_from_db(c, sport):
 def train(s):
  if s=='f1':
   return _write_result(s,f1())
+ if s=='boxing':
+  return boxing()
  c=sqlite3.connect(DB)
  try:
   previous=_previous_result(s) or _previous_model_from_db(c,s)
