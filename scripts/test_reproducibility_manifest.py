@@ -30,13 +30,14 @@ def main() -> None:
         try:
             manifest.RUGBY_DB = root / "missing-rugby.sqlite"
             manifest.BOXING_DB = db
-            counts = manifest.db_counts()
+            counts, storage = manifest.db_counts()
         finally:
             manifest.RUGBY_DB = old_rugby
             manifest.BOXING_DB = old_boxing
 
         assert counts["boxing"] == 1, counts
         assert "bout" not in counts
+        assert storage["rugby"]["status"] == "MISSING", storage
         print("REPRODUCIBILITY_MANIFEST_BOXING_SCHEMA=PASS")
 
 

@@ -60,12 +60,20 @@ def _count_events(path: Path, sport: str | None = None) -> tuple[int, str]:
         con.close()
 
 
+def _path_label(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        # Tests may point the manifest at temporary databases outside the repo.
+        return str(path)
+
+
 def db_counts() -> tuple[dict, dict]:
     counts = {}
     storage = {}
 
     count, status = _count_events(DB)
-    storage["canonical"] = {"path": str(DB.relative_to(ROOT)), "status": status}
+    storage["canonical"] = {"path": _path_label(DB), "status": status}
     if status == "OK":
         import sqlite3
         con = sqlite3.connect(f"file:{DB.resolve()}?mode=ro", uri=True)
@@ -81,7 +89,7 @@ def db_counts() -> tuple[dict, dict]:
         ("boxing", BOXING_DB, "boxing"),
     ):
         count, status = _count_events(path, sport)
-        storage[label] = {"path": str(path.relative_to(ROOT)), "status": status}
+        storage[label] = {"path": _path_label(path), "status": status}
         if status == "OK":
             counts[sport] = count
 
