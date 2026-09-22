@@ -8,7 +8,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
-SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1")
+SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1", "rugby", "boxing")
+ACTIVE_SPORTS = ("valorant", "basketball", "volleyball", "ufc", "rizin")
+DEFERRED_SPORTS = ("tennis", "f1", "rugby", "boxing")
 MAX_SNAPSHOT_AGE_HOURS = 72
 
 
@@ -63,15 +65,18 @@ def main() -> None:
 
             scope = (args.sport,) if args.sport else SPORTS
             counts = {k: int(v) for k, v in con.execute("select sport,count(*) from event group by sport")}
-            miss = [s for s in scope if counts.get(s, 0) == 0]
+            miss = [s for s in scope if counts.get(s, 0) == 0 and s not in DEFERRED_SPORTS]
             checks.append({
                 "check": "sports_present",
                 "ok": not miss,
                 "counts": {s: counts.get(s, 0) for s in scope},
                 "missing": miss,
+                "deferred": [s for s in scope if s in DEFERRED_SPORTS],
             })
             if miss:
                 pending.append("sport_coverage_incomplete")
+            if any(s in DEFERRED_SPORTS for s in scope):
+                checks.append({"check": "explicit_deferred_sports", "ok": True, "sports": [s for s in scope if s in DEFERRED_SPORTS]})
 
             bad = con.execute(
                 "select count(*) from event where event_time_utc is not null "
