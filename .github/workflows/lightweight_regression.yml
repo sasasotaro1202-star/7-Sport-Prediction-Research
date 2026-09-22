@@ -42,6 +42,11 @@ jobs:
           assert "hist_gb_missing" in base.pool()
           assert "lightgbm_missing" in base.pool()
           assert "lightgbm_time_decay_300" in base.pool()
+          td=base.pool()["lightgbm_time_decay_300"]
+          X2=np.random.default_rng(7).normal(size=(40,6))
+          y2=np.array([0,1]*20)
+          td.fit(X2,y2)
+          assert td.predict_proba(X2[:4]).shape==(4,2)
           print("MISSINGNESS_AND_RECENCY_CHALLENGERS=PASS")
           print("SPORTS", base.SPORTS)
           PY
@@ -136,6 +141,10 @@ jobs:
           assert "router_eval.get('status') == 'EVALUATED'" in router_accept
           assert "router_eval.get('folds',0) >= 6" in router_accept
           assert "router_eval['logloss_improvement']" in router_accept
+          assert "len(router_block_deltas) >= 3" in strict
+          assert "router_block_improvements >= 2" in strict
+          assert "router_allowed_block_degradation" in strict
+          assert "bootstrap_prob_improvement',0.0) >= 0.90" in router_accept
           assert "router_holdout" not in router_accept
           assert "router_holdout" in strict  # score-only frozen-holdout reporting remains present
           assert "frozen holdout is strictly score-only" in strict.lower()
