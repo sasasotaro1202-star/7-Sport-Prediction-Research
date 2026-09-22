@@ -6,6 +6,7 @@ import io
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 from src.storage.db_v45 import connect, utcnow
 from src.seven_sport_production import HTTP, upsert_event, upsert_participant, upsert_ep, add_snapshot
