@@ -24,7 +24,12 @@ def epoch(v):
 
 
 def sport_fingerprint(c, sport):
-    """Cheap-but-sensitive invalidation key scoped to one sport."""
+    """Fingerprint mutable sport data, not retrieval-time provenance.
+
+    The hourly Production path can reuse PIT rows when the event/stat corpus is
+    unchanged. The dedicated PIT History Expansion job calls --force so newly
+    proven historical source availability is incorporated on the slower cadence.
+    """
     stat=c.execute(
         """SELECT COUNT(*),MAX(stat_id),MAX(effective_at_utc),
                   SUM(COALESCE(value_num,0.0)),SUM(length(COALESCE(source_url,'')))
@@ -40,21 +45,8 @@ def sport_fingerprint(c, sport):
         """SELECT COUNT(*),MAX(observed_at_utc),SUM(CASE WHEN outcome IS NULL THEN 0 ELSE 1 END)
              FROM event_outcome WHERE sport=?""",(sport,)
     ).fetchone()
-    snap=c.execute(
-        """SELECT COUNT(*),MAX(ss.source_available_at_utc),SUM(length(COALESCE(ss.content_hash,'')))
-             FROM source_snapshot ss
-            WHERE ss.availability_status='EXACT'
-              AND ss.source_available_at_utc IS NOT NULL
-              AND EXISTS (
-                  SELECT 1 FROM match_stats ms
-                   WHERE ms.sport=?
-                     AND ms.source=ss.source
-                     AND ms.source_url=ss.source_url
-              )""",(sport,)
-    ).fetchone()
-    payload=(stat,ep,out,snap,FEATURE_VERSION,MIN_PIT_GAP.total_seconds())
+    payload=(stat,ep,out,FEATURE_VERSION,MIN_PIT_GAP.total_seconds())
     return hashlib.sha256(repr(payload).encode()).hexdigest()
-
 
 def hid(*xs):
     return hashlib.sha256('|'.join('' if x is None else str(x) for x in xs).encode()).hexdigest()[:32]
@@ -177,6 +169,7 @@ def derived_features(vals):
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--sport',choices=tuple(POLICY))
+    ap.add_argument('--force',action='store_true',help='Rebuild selected sport even when corpus fingerprint is unchanged.')
     args=ap.parse_args()
     sports=[args.sport] if args.sport else list(POLICY)
     c=sqlite3.connect(DB);c.row_factory=sqlite3.Row
@@ -185,6 +178,7 @@ def main():
     for sport in sports:
         stat_names=tuple(POLICY.get(sport,()))
         fingerprint=sport_fingerprint(c,sport)
+        force=bool(args.force)
         events,outcomes,participants=load_event_state(c,sport)
         history=load_stat_history(c,sport,stat_names)
         replayable=deferred=features_written=skipped=0
@@ -205,7 +199,8 @@ def main():
                 "SELECT replay_status,feature_version,dataset_hash FROM pit_replay WHERE replay_id=?",
                 (replay_id,)
             ).fetchone()
-            if existing and existing['feature_version']==FEATURE_VERSION and existing['dataset_hash']==fingerprint:
+            feature_rows=(c.execute("SELECT COUNT(*) FROM pit_feature_snapshot WHERE replay_id=?",(replay_id,)).fetchone()[0] if existing and existing['replay_status']=='REPLAYABLE' else 0)
+            if (not force) and existing and existing['feature_version']==FEATURE_VERSION and existing['dataset_hash']==fingerprint and (existing['replay_status']!='REPLAYABLE' or feature_rows>0):
                 skipped+=1
                 continue
 
@@ -265,7 +260,7 @@ def main():
         totals[sport]={
             'events_seen':len(events),'replayable':replayable,
             'deferred':deferred,'skipped_incremental':skipped,
-            'feature_snapshots':features_written
+            'feature_snapshots':features_written,'forced_rebuild':force
         }
 
     c.close()
