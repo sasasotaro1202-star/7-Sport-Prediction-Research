@@ -316,7 +316,7 @@ def main():
     require("best_fixed_key=min(scores" in strict_src and "candidate_label='weighted_ensemble'" in strict_src,
             'strict ensemble selector lacks explicit pre-holdout candidate selection')
     best_sel_pos=strict_src.find('best_fixed_key=min(scores')
-    hold_calc_pos=strict_src.find("hold=base.metric(y[sel:],hold_p)")
+    hold_calc_pos=strict_src.find("hold=base.metric(y_holdout,hold_p)")
     require(best_sel_pos >= 0 and hold_calc_pos >= 0 and best_sel_pos < hold_calc_pos,
             'ensemble candidate selection is not executed before frozen holdout scoring')
     require("weighted_hold['logloss'] <= hold['logloss']" not in strict_src,
