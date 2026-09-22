@@ -450,10 +450,22 @@ def train(s):
     cand.append(base.metric(yy,cp)['logloss'])
     fixed.append(base.metric(yy,fp)['logloss'])
    if len(cand)<3:
-    return {'mean_delta':0.0,'std_delta':float('inf'),'se':float('inf'),'folds':len(cand)}
+    return {'mean_delta':0.0,'std_delta':float('inf'),'se':float('inf'),
+            'bootstrap_p05_improvement':float('-inf'),'bootstrap_prob_improvement':0.0,
+            'folds':len(cand)}
    delta=np.asarray(cand)-np.asarray(fixed)
+   # Block bootstrap at the walk-forward-fold level. This preserves temporal
+   # dependence better than row-wise resampling and estimates whether the
+   # candidate's improvement over the fixed ensemble survives period variation.
+   rng=np.random.default_rng(20260922)
+   idx=rng.integers(0,len(delta),size=(500,len(delta)))
+   boot_delta=delta[idx].mean(axis=1)
+   improvement=-boot_delta
    return {'mean_delta':float(delta.mean()),'std_delta':float(delta.std(ddof=1)),
-           'se':float(delta.std(ddof=1)/np.sqrt(len(delta))),'folds':len(delta)}
+           'se':float(delta.std(ddof=1)/np.sqrt(len(delta))),
+           'bootstrap_p05_improvement':float(np.quantile(improvement,0.05)),
+           'bootstrap_prob_improvement':float(np.mean(improvement>0.0)),
+           'folds':len(delta)}
 
   weighted_candidates=[]
   for a,b in combinations(top_rank,2):
@@ -464,6 +476,8 @@ def train(s):
     robust += 0.15*regime_excess
     paired=_paired_fold_delta_stats((a,b),weights,fixed_models)
     robust += max(0.0,paired['se'])
+    if np.isfinite(paired.get('bootstrap_p05_improvement',float('-inf'))) and paired.get('bootstrap_p05_improvement',float('-inf')) <= 0.0:
+     robust += 0.001 + abs(float(paired.get('bootstrap_p05_improvement',0.0)))
     weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],(a,b),weights,folds,paired))
   for spec in combinations(top_rank[:4],3):
    for wa in (0.20,0.30,0.40,0.50,0.60):
@@ -482,10 +496,10 @@ def train(s):
    wc=weighted_candidates[0]
    weighted_robust=wc[0]
    paired=wc[7] if len(wc)>7 else {'mean_delta':0.0,'se':float('inf'),'folds':0}
-   if weighted_robust + 0.0002 < fixed_oos_metric['robust_objective'] and paired['mean_delta'] < -max(0.0002, paired['se'] if np.isfinite(paired['se']) else 0.0):
+   if weighted_robust + 0.0002 < fixed_oos_metric['robust_objective'] and paired['mean_delta'] < -max(0.0002, paired['se'] if np.isfinite(paired['se']) else 0.0) and paired.get('bootstrap_p05_improvement',float('-inf')) > 0.0:
     spec=tuple(wc[4])
     cand_weights=dict(wc[5])
-    wa_metric={'logloss':wc[1],'brier':wc[2],'ece':wc[3],'robust_objective':weighted_robust,'fold_logloss_std':float(np.std(wc[6])) if wc[6] else float('inf'),'paired_oos_folds':int(paired['folds']),'paired_delta_mean':float(paired['mean_delta']),'paired_delta_se':float(paired['se'])}
+    wa_metric={'logloss':wc[1],'brier':wc[2],'ece':wc[3],'robust_objective':weighted_robust,'fold_logloss_std':float(np.std(wc[6])) if wc[6] else float('inf'),'paired_oos_folds':int(paired['folds']),'paired_delta_mean':float(paired['mean_delta']),'paired_delta_se':float(paired['se']), 'paired_bootstrap_p05_improvement':float(paired.get('bootstrap_p05_improvement',float('-inf'))), 'paired_bootstrap_prob_improvement':float(paired.get('bootstrap_prob_improvement',0.0))}
     wa_a=spec[0];wa_b=spec[1];wa_weight=float(cand_weights[wa_a])
     wa_win_rate=float(np.mean([1.0 if d <= fixed_oos_metric['logloss'] else 0.0 for d in wc[6]])) if wc[6] else 0.0
     wa_mean_delta=float(fixed_oos_metric['logloss']-wc[1])
