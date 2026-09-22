@@ -267,6 +267,8 @@ def main():
                 # availability timestamps can change without changing match_stats.
                 # Skipping such a row would silently discard newly proven historical
                 # observations and make the --force provenance refresh ineffective.
+                # This is a provenance-sensitive rebuild: source availability can
+                # change without changing match_stats or the mutable corpus fingerprint.
                 if (not force) and existing['dataset_hash']==fingerprint and (
                     existing['replay_status']!='REPLAYABLE' or existing_feature_rows>0
                 ):
