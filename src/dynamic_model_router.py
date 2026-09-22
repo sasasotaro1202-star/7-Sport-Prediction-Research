@@ -290,6 +290,7 @@ def evaluate_frozen_holdout_router_from_folds(
     folds: Sequence[Dict],
     sel: int,
     holdout_pred: Dict[str, np.ndarray],
+    baseline_weights: Dict[str, float] | None = None,
 ) -> Dict:
     """Evaluate contextual router on frozen holdout using precomputed pre-holdout OOF base predictions."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
