@@ -10,7 +10,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: eight-sport-canonical-production
+  group: nine-sport-target-canonical-production
   # Never cancel a production run after it has begun: cancellation can leave a
   # generated-output writer racing the next run and create non-replayable Git conflicts.
   cancel-in-progress: false
@@ -288,7 +288,7 @@ jobs:
           fi
           git diff --cached --check
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore: update eight-sport research results'
+          git commit -m 'chore: update nine-sport target research results'
           git fetch origin main
           rebase_with_generated_output_resolution() {
             if git rebase --autostash origin/main; then
