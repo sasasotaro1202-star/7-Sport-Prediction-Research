@@ -352,7 +352,8 @@ def main():
     refresh_guard=replay_builder[refresh_guard_start:refresh_guard_end] if refresh_guard_start>=0 and refresh_guard_end>refresh_guard_start else ''
     require("if (not force) and existing['dataset_hash']==fingerprint" in refresh_guard,
             'forced PIT history refresh must bypass the incremental skip guard')
-    require("forced history refresh must rebuild" in refresh_guard.lower() and "provenance" in refresh_guard.lower(),
+    require("forced history refresh" in refresh_guard.lower() and
+            "provenance-sensitive rebuild" in refresh_guard.lower(),
             'forced PIT history refresh does not document provenance-sensitive rebuild semantics')
 
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
