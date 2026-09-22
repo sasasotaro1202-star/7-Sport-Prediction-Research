@@ -79,30 +79,35 @@ def pairmap(c,s):
  return d
 def outcome_maps(c,s,pairs):
  labels={};hist=[]
- q="""SELECT e.event_id,e.event_time_utc,o.outcome,o.source,o.source_url,
-                 (SELECT MIN(ss.source_available_at_utc)
-                    FROM source_snapshot ss
-                   WHERE ss.source=o.source
-                     AND ss.source_url=o.source_url
-                     AND ss.availability_status='EXACT'
-                     AND ss.source_available_at_utc IS NOT NULL
-                     AND (ss.event_time_utc IS NULL OR ss.event_time_utc=e.event_time_utc)) AS source_available_at_utc
-          FROM event e
-          JOIN event_outcome o
-            ON o.event_id=e.event_id
-           AND o.outcome_status='VERIFIED'
-           AND o.outcome IN ('A','B')
-         WHERE e.sport=?
-         ORDER BY e.event_time_utc,e.event_id"""
- for eid,t,o,src,url,avail in c.execute(q,(s,)).fetchall():
+ # Outcomes are teacher labels, not prediction-time input features. For a prior
+ # event, the label becomes usable only after the event has been realized. We
+ # therefore use a conservative realized-label availability time:
+ # event_end_time_utc when present, otherwise event_time_utc + 24h. Exact source
+ # publication timestamps are still required for *feature observations* and are
+ # handled separately by the stat-history PIT loader.
+ q="""SELECT e.event_id,e.event_time_utc,e.event_end_time_utc,o.outcome
+         FROM event e
+         JOIN event_outcome o
+           ON o.event_id=e.event_id
+          AND o.outcome_status='VERIFIED'
+          AND o.outcome IN ('A','B')
+        WHERE e.sport=?
+        ORDER BY e.event_time_utc,e.event_id"""
+ for eid,t,end_t,o in c.execute(q,(s,)).fetchall():
   p=pairs.get(eid)
   if not p or 'A' not in p or 'B' not in p:continue
   labels[eid]=o
-  status='EXACT' if avail else None
-  if status=='EXACT' and avail:
-   try:
-    if datetime.fromisoformat(avail.replace('Z','+00:00'))<=datetime.fromisoformat(t.replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=60):hist.append((eid,t,p['A'],p['B'],o))
-   except Exception:pass
+  try:
+   et=datetime.fromisoformat(str(t).replace('Z','+00:00'))
+   if et.tzinfo is None: et=et.replace(tzinfo=timezone.utc)
+   if end_t:
+    realized=datetime.fromisoformat(str(end_t).replace('Z','+00:00'))
+    if realized.tzinfo is None: realized=realized.replace(tzinfo=timezone.utc)
+   else:
+    realized=et+timedelta(hours=24)
+   hist.append((eid,t,p['A'],p['B'],o,realized.isoformat()))
+  except Exception:
+   continue
  return labels,hist
 def outcome_margin_map(c,s):
  out={}
@@ -195,7 +200,13 @@ def build(c,s,include_unlabeled=False):
  pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
-   _,_,a,b,o=hist[j]
+   # Historical outcome labels are admitted only once their conservative realized
+   # availability time is before the current prediction cutoff. This separates
+   # label chronology from feature PIT and avoids discarding valid training data.
+   current_cutoff=datetime.fromisoformat(t.replace('Z','+00:00'))-timedelta(minutes=60)
+   if hist[j][5] > current_cutoff.isoformat():
+    break
+   _,_,a,b,o,_=hist[j]
    ra=ratings.get(a,1500.);rb=ratings.get(b,1500.)
    raf=ratings_fast.get(a,1500.);rbf=ratings_fast.get(b,1500.)
    ras=ratings_slow.get(a,1500.);rbs=ratings_slow.get(b,1500.)
