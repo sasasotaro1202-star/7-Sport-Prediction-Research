@@ -29,7 +29,7 @@ jobs:
       - name: Verify Python runtime
         run: python --version
       - name: Run Boxing PIT source guard
-        run: python -m src.boxing_production
+        run: python -m src.boxing_production --probe-only
       - name: Compile Boxing module
         run: python -m compileall -q src/boxing_production.py
       - name: Verify fail-closed status
