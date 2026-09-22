@@ -200,9 +200,16 @@ def main():
                 (replay_id,)
             ).fetchone()
             feature_rows=(c.execute("SELECT COUNT(*) FROM pit_feature_snapshot WHERE replay_id=?",(replay_id,)).fetchone()[0] if existing and existing['replay_status']=='REPLAYABLE' else 0)
-            if (not force) and existing and existing['feature_version']==FEATURE_VERSION and existing['dataset_hash']==fingerprint and (existing['replay_status']!='REPLAYABLE' or feature_rows>0):
-                skipped+=1
-                continue
+            if existing and existing['feature_version']==FEATURE_VERSION:
+                # Normal hourly runs require the same corpus fingerprint. Forced
+                # history refreshes only revisit DEFERRED rows so provenance work
+                # does not turn into a full replay of already-clean history.
+                if (force and existing['replay_status']=='REPLAYABLE' and feature_rows>0) or (
+                    (not force) and existing['dataset_hash']==fingerprint and
+                    (existing['replay_status']!='REPLAYABLE' or feature_rows>0)
+                ):
+                    skipped+=1
+                    continue
 
             c.execute("DELETE FROM pit_feature_snapshot WHERE replay_id=?",(replay_id,))
             feature_count=0;sides_ok=0
