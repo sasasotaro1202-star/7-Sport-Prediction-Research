@@ -1,5 +1,5 @@
 # Canonical production workflow. Source outages degrade coverage; unsafe models are never published.
-name: Eight Sport v4.5.15 Production
+name: Nine-Sport Target v4.5.15 Production
 on:
   workflow_dispatch:
   schedule:
@@ -222,7 +222,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Deferred scope note
-        run: echo 'F1 and Rugby are intentionally deferred by project scope; no collection partition is required.'
+        run: echo 'F1, Rugby and Boxing are intentionally deferred by project scope; no collection partition is required.'
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
