@@ -260,8 +260,10 @@ def main():
             if v['completed_events'] and v['resolved_outcomes']<v['completed_events']:
                 r.setdefault('coverage_warnings',[]).append(
                     f'{s}:completed_event_outcome_gap:{v["completed_events"]-v["resolved_outcomes"]}')
-        bad=c.execute("SELECT COUNT(*) FROM pit_replay WHERE leakage_status NOT IN ('PASS','UNKNOWN','CLEAN')").fetchone()[0]
-        if bad: r['fatal'].append('pit_leakage_detected')
+        # PIT uncertainty is never production-safe. Only explicit clean/pass
+        # states are admissible; NULL is treated as UNKNOWN and therefore blocked.
+        bad=c.execute("SELECT COUNT(*) FROM pit_replay WHERE COALESCE(leakage_status,'UNKNOWN') NOT IN ('PASS','CLEAN')").fetchone()[0]
+        if bad: r['fatal'].append('pit_leakage_or_unknown_status')
         exact_missing=c.execute("SELECT COUNT(*) FROM source_snapshot WHERE availability_status='EXACT' AND source_available_at_utc IS NULL").fetchone()[0]
         if exact_missing: r['fatal'].append('exact_source_missing_availability_time')
     finally:
