@@ -161,8 +161,8 @@ def main():
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
     require('def boxing()' in strict_src and "if s=='boxing'" in strict_src,
             'Boxing research lane is not wired to an explicit deferred handler')
-    require("DEFERRED_SPORTS=('f1','boxing')" in strict_src and "ALL_SPORTS=SPORTS+DEFERRED_SPORTS" in strict_src,
-            'Strict research does not explicitly separate active and deferred sport lanes')
+    require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src and "ALL_SPORTS=SPORTS+DEFERRED_SPORTS" in strict_src,
+            'Strict research does not explicitly separate the complete active/deferred sport lanes')
     research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
