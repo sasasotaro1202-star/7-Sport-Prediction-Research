@@ -10,9 +10,10 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: nine-sport-target-canonical-production
-  # Never cancel a production run after it has begun: cancellation can leave a
-  # generated-output writer racing the next run and create non-replayable Git conflicts.
+  # Isolate heavy runs by immutable commit SHA. A stale run from an older
+  # main must not hold the current validated SHA in the pending queue.
+  # Runs for the same SHA remain strictly serialized and are never cancelled.
+  group: nine-sport-target-canonical-production-${'{'}{ github.sha }}
   cancel-in-progress: false
 env:
   PYTHONUNBUFFERED: '1'
