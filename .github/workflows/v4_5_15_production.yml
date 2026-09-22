@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Full history is required for safe recovery of the last accepted
           # frozen-holdout model when the current run has a transient PIT outage.
@@ -41,7 +41,7 @@ jobs:
             echo "STALE_MERGE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
             exit 1
           fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -123,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Full history is required for safe recovery of the last accepted
           # frozen-holdout model when the current run has a transient PIT outage.
@@ -138,7 +138,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
