@@ -27,14 +27,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Re-run failed jobs once
+      - name: Recover once without replaying a stale SHA
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+          ORIGINAL_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
           REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
-          echo "Recovery target: ${REPOSITORY} run ${RUN_ID}"
-          gh run rerun "${RUN_ID}" --failed --repo "${REPOSITORY}"
-          echo "Requested one bounded retry of failed jobs."
+          current_sha="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          echo "Recovery target: ${REPOSITORY} run ${RUN_ID} original_sha=${ORIGINAL_SHA} current_main=${current_sha}"
+          if [ "${current_sha}" != "${ORIGINAL_SHA}" ]; then
+            echo "STALE_FAILED_RUN=TRUE; starting one fresh bounded run on current main."
+            gh workflow run "${WORKFLOW_ID}" --ref main --repo "${REPOSITORY}"
+            echo "Requested fresh run for the current main SHA."
+          else
+            echo "STALE_FAILED_RUN=FALSE; retrying failed jobs once."
+            gh run rerun "${RUN_ID}" --failed --repo "${REPOSITORY}"
+            echo "Requested one bounded retry of failed jobs."
+          fi
