@@ -75,7 +75,7 @@ def pairmap(c,s):
  d={}
  for eid,t,p,side,comp in c.execute("SELECT e.event_id,e.event_time_utc,ep.participant_id,ep.side,e.competition_id FROM event e JOIN event_participant ep ON ep.event_id=e.event_id WHERE e.sport=? AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL ORDER BY e.event_time_utc,e.event_id,ep.side",(s,)).fetchall():
   if not t or not target_event(s,'',comp): continue
-  d.setdefault(eid,{'time':t})[side]=p
+  d.setdefault(eid,{'time':t,'competition_id':comp})[side]=p
  return d
 def outcome_maps(c,s,pairs):
  labels={};hist=[]
@@ -199,7 +199,7 @@ def _make_stat_history_loader(c,s):
  return history,cache
 
 def build(c,s,include_unlabeled=False):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};ratings_comp={};ratings_comp_fast={};ratings_comp_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    # Historical outcome labels are admitted only once their conservative realized
@@ -210,11 +210,18 @@ def build(c,s,include_unlabeled=False):
     break
    _,_,a,b,o,_=hist[j]
    ra=ratings.get(a,1500.);rb=ratings.get(b,1500.)
+   comp_hist=str(pairs[hist[j][0]].get('competition_id') or '__GLOBAL__')
+   rca=ratings_comp.get((comp_hist,a),1500.);rcb=ratings_comp.get((comp_hist,b),1500.)
    raf=ratings_fast.get(a,1500.);rbf=ratings_fast.get(b,1500.)
+   rcaf=ratings_comp_fast.get((comp_hist,a),1500.);rcbf=ratings_comp_fast.get((comp_hist,b),1500.)
    ras=ratings_slow.get(a,1500.);rbs=ratings_slow.get(b,1500.)
+   rcas=ratings_comp_slow.get((comp_hist,a),1500.);rcbs=ratings_comp_slow.get((comp_hist,b),1500.)
    act=1 if o=='A' else 0
-   exp=1/(1+10**((rb-ra)/400));expf=1/(1+10**((rbf-raf)/400));exps=1/(1+10**((rbs-ras)/400))
+   exp=1/(1+10**((rb-ra)/400));expf=1/(1+10**((rbf-raf)/400));exps=1/(1+10**((rbs-ras)/400));expc=1/(1+10**((rcb-rca)/400));expcf=1/(1+10**((rcbf-rcaf)/400));expcs=1/(1+10**((rcbs-rcas)/400))
    ratings[a]=ra+24*(act-exp);ratings[b]=rb+24*((1-act)-(1-exp))
+   ratings_comp[(comp_hist,a)]=rca+24*(act-expc);ratings_comp[(comp_hist,b)]=rcb+24*((1-act)-(1-expc))
+   ratings_comp_fast[(comp_hist,a)]=rcaf+36*(act-expcf);ratings_comp_fast[(comp_hist,b)]=rcbf+36*((1-act)-(1-expcf))
+   ratings_comp_slow[(comp_hist,a)]=rcas+12*(act-expcs);ratings_comp_slow[(comp_hist,b)]=rcbs+12*((1-act)-(1-expcs))
    ratings_fast[a]=raf+36*(act-expf);ratings_fast[b]=rbf+36*((1-act)-(1-expf))
    ratings_slow[a]=ras+12*(act-exps);ratings_slow[b]=rbs+12*((1-act)-(1-exps))
    counts[a]=counts.get(a,0)+1;counts[b]=counts.get(b,0)+1
@@ -249,6 +256,11 @@ def build(c,s,include_unlabeled=False):
   # historical outcome used to construct the rolling state.
   for side,pid in (('A',p['A']),('B',p['B'])):
    f[f'{side}__elo']=ratings.get(pid,1500.)
+   comp_id=str(p.get('competition_id') or '__GLOBAL__')
+   f[f'{side}__elo_comp']=ratings_comp.get((comp_id,pid),1500.)
+   f[f'{side}__elo_comp_fast']=ratings_comp_fast.get((comp_id,pid),1500.)
+   f[f'{side}__elo_comp_slow']=ratings_comp_slow.get((comp_id,pid),1500.)
+   f[f'{side}__elo_comp_momentum']=f[f'{side}__elo_comp_fast']-f[f'{side}__elo_comp_slow']
    f[f'{side}__elo_fast']=ratings_fast.get(pid,1500.)
    f[f'{side}__elo_slow']=ratings_slow.get(pid,1500.)
    f[f'{side}__elo_momentum']=f[f'{side}__elo_fast']-f[f'{side}__elo_slow']
@@ -309,7 +321,7 @@ def build(c,s,include_unlabeled=False):
      stat_age_sum+=float(ages[0]) if len(ages) else 0.0
    f[f'{side}__stat_coverage']=float(stat_with_data/len(cols)) if cols else np.nan
    f[f'{side}__stat_freshness_mean_days']=float(stat_age_sum/stat_with_data) if stat_with_data else np.nan
-  for k in ('elo','elo_fast','elo_slow','history_n','rest_days','games_last_7d','games_last_14d','games_last_30d','short_rest_flag'):
+  for k in ('elo','elo_fast','elo_slow','elo_comp','elo_comp_fast','elo_comp_slow','elo_comp_momentum','history_n','rest_days','games_last_7d','games_last_14d','games_last_30d','short_rest_flag'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta','current_streak','streak_won','streak_lost'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
@@ -320,6 +332,7 @@ def build(c,s,include_unlabeled=False):
   for k in ('stat_coverage','stat_freshness_mean_days'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   f['D__elo_momentum']= (f['A__elo_momentum']-f['B__elo_momentum']) if np.isfinite(f['A__elo_momentum']) and np.isfinite(f['B__elo_momentum']) else np.nan
+  f['D__elo_comp_momentum']=(f['A__elo_comp_momentum']-f['B__elo_comp_momentum']) if np.isfinite(f['A__elo_comp_momentum']) and np.isfinite(f['B__elo_comp_momentum']) else np.nan
   key=tuple(sorted((p['A'],p['B'])))
   hh=h2h.get(key,[])
   a_first=(p['A']==key[0])
