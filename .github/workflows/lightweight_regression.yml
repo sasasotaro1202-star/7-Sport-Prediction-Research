@@ -156,6 +156,7 @@ jobs:
           assert "bootstrap_prob_improvement',0.0) >= 0.90" in router_accept
           assert "router_holdout" not in router_accept
           assert "router_holdout" in strict  # score-only frozen-holdout reporting remains present
+          assert 'evaluate_frozen_holdout_router_from_folds(X,y,router_names,oof_folds,sel,router_holdout_pred,y_holdout,candidate_weights)' in strict
           assert "frozen holdout is strictly score-only" in strict.lower()
           assert "COALESCE(leakage_status,'UNKNOWN') NOT IN ('PASS','CLEAN')" in gate
           assert "'publishable_artifacts':[]" in gate
