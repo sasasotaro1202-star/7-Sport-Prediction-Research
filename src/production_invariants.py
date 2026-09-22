@@ -158,12 +158,19 @@ def main():
             'strict model feature version was not bumped after the latest PIT-safe feature expansion')
     require('strict-pit-v17-' in strict_src and 'strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
             'carry-forward compatibility does not preserve prior accepted schemas while enabling current v17 schema')
-    require(all(token in strict_src for token in (
-        'feature_version.startswith("strict-pit-v14-")',
-        'feature_version.startswith("strict-pit-v15-")',
-        'feature_version.startswith("strict-pit-v16-")',
-        'feature_version.startswith("strict-pit-v17-")',
-    )), 'v14/v15/v16/v17 accepted artifacts are not explicitly eligible for safe carry-forward')
+    carry_start=strict_src.find('feature_version=str(previous.get("feature_version") or "")')
+    carry_end=strict_src.find("artifact = _restore_historical_artifact",carry_start)
+    carry_block=strict_src[carry_start:carry_end] if carry_start>=0 and carry_end>carry_start else ""
+    require('feature_version.startswith("strict-pit-v13-")' in carry_block,
+            'v13 accepted artifacts are not explicitly eligible for safe carry-forward')
+    require('feature_version.startswith("strict-pit-v14-")' in carry_block,
+            'v14 accepted artifacts are not explicitly eligible for safe carry-forward')
+    require('feature_version.startswith("strict-pit-v15-")' in carry_block,
+            'v15 accepted artifacts are not explicitly eligible for safe carry-forward')
+    require('feature_version.startswith("strict-pit-v16-")' in carry_block,
+            'v16 accepted artifacts are not explicitly eligible for safe carry-forward')
+    require('feature_version.startswith("strict-pit-v17-")' in carry_block,
+            'v17 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
             'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
