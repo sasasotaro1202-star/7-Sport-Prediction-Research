@@ -1,5 +1,5 @@
 from __future__ import annotations
-import argparse,json,math,sqlite3
+import argparse,hashlib,json,math,sqlite3
 from datetime import datetime,timezone
 from pathlib import Path
 import joblib,numpy as np
@@ -72,6 +72,26 @@ def _after_now(ts,now):
         return False
 
 
+def _prediction_id(event_id, model_version, cutoff):
+    return hashlib.sha256(f"future-v1|{event_id}|winner|{model_version}|{cutoff}".encode()).hexdigest()[:32]
+
+def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strategy, model_version, feature_version, features):
+    payload={k:features.get(k) for k in sorted(features)}
+    fh=hashlib.sha256(json.dumps(payload,sort_keys=True,default=str).encode()).hexdigest()
+    pid=_prediction_id(event_id,model_version,cutoff)
+    c.execute(
+        """INSERT OR IGNORE INTO forward_prediction
+        (prediction_id,event_id,sport,market,prediction_cutoff_at_utc,generated_at_utc,
+         probability_side_a,probability_side_b,strategy,model_version,feature_version,
+         features_json,feature_snapshot_hash,status,created_at_utc)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (pid,event_id,sport,'winner',cutoff,now.isoformat(),float(pa),float(pb),strategy,
+         str(model_version or ''),str(feature_version or ''),json.dumps(payload,ensure_ascii=False,sort_keys=True,default=str),
+         fh,'OPEN',now.isoformat())
+    )
+    return pid
+
+
 def predict_sport(c,s,now):
     artifact_path=MODELS/f'{s}_current.joblib'
     if not artifact_path.is_file() or artifact_path.stat().st_size<=0:
@@ -142,10 +162,16 @@ def predict_sport(c,s,now):
                  FROM event_participant ep
                  LEFT JOIN participant p ON p.participant_id=ep.participant_id
                 WHERE ep.event_id=?""",(eid,)).fetchone()
+        cutoff=(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        prediction_id=_persist_forward_prediction(
+            c,eid,s,cutoff,now,1.0-p,p,strategy,artifact.get('model_version'),
+            artifact.get('feature_version') or 'unknown',
+            {f:row_features.get(f) for f in features}
+        )
         outputs.append({
-            'event_id':eid,'event_time_utc':t,'prediction_cutoff_at_utc':(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat(),'side_a':a,'side_b':b,
+            'event_id':eid,'event_time_utc':t,'prediction_cutoff_at_utc':cutoff,'side_a':a,'side_b':b,
             'probability_side_b':p,'probability_side_a':1.0-p,
-            'strategy':strategy,'router_status':router_status,
+            'strategy':strategy,'router_status':router_status,'prediction_id':prediction_id,
             'models':list(names) if strategy!='contextual_router' else list(rnames),
             'ensemble_weights':dict(weights) if strategy!='contextual_router' else None,
             'model_version':artifact.get('model_version'),
@@ -163,6 +189,7 @@ def main():
     try:
         sports=[args.sport] if args.sport else list(SPORTS)
         results=[predict_sport(con,s,now) for s in sports]
+    con.commit()
     finally:
         con.close()
     report={'generated_at_utc':now.isoformat(),'policy':'accepted-artifact-only; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration','sports':results}
