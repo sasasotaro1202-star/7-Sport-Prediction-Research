@@ -316,14 +316,20 @@ def evaluate_frozen_holdout_router_from_folds(
     folds: Sequence[Dict],
     sel: int,
     holdout_pred: Dict[str, np.ndarray],
+    holdout_y: np.ndarray | None = None,
     baseline_weights: Dict[str, float] | None = None,
 ) -> Dict:
     """Evaluate contextual router on frozen holdout using precomputed pre-holdout OOF base predictions."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
-    expected=len(y)-int(sel)
-    if expected<1 or any(len(np.asarray(holdout_pred.get(n,[])))!=expected for n in names):
+    hy=None if holdout_y is None else np.asarray(holdout_y)
+    lengths={n:len(np.asarray(holdout_pred.get(n,[]))) for n in names}
+    expected=max(lengths.values()) if lengths else 0
+    if expected<1 or any(v!=expected for v in lengths.values()):
         return {'status':'INSUFFICIENT_OOS','reason':'holdout_prediction_shape_mismatch','expected_rows':expected,
-                'received_rows':{n:len(np.asarray(holdout_pred.get(n,[]))) for n in names}}
+                'received_rows':lengths}
+    if hy is None or len(hy)!=expected:
+        return {'status':'INSUFFICIENT_OOS','reason':'holdout_target_shape_mismatch','expected_rows':expected,
+                'received_target_rows':0 if hy is None else len(hy)}
     meta_X=[]; meta_losses=[]
     for fold in folds:
         end=int(fold['end']); te=int(fold['te'])
@@ -351,7 +357,7 @@ def evaluate_frozen_holdout_router_from_folds(
     routed=_route_with_contextual_loss_selector(selector,bp,ctx,_recent_model_loss(meta_losses,len(names)))
     if routed is None:
         return {'status':'INSUFFICIENT_OOS','reason':'contextual_router_fit_failed','oos_rows':len(meta_losses)}
-    target=y[sel:]
+    target=hy.astype(int)
     static_m=_metric(target,static);routed_m=_metric(target,routed)
     return {'status':'EVALUATED','oos_training_rows':len(meta_losses),'holdout_rows':len(target),'fixed_ensemble':static_m,'dynamic_router':routed_m,'logloss_improvement':static_m['logloss']-routed_m['logloss'],'brier_improvement':static_m['brier']-routed_m['brier'],'ece_change':routed_m['ece']-static_m['ece'],'policy':'router_fit_pre_holdout_only; reused chronological OOF base predictions; frozen_holdout_labels_used_only_for_scoring'}
 

@@ -371,6 +371,7 @@ def main():
             'forced PIT history refresh does not document provenance-sensitive rebuild semantics')
 
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
+    require('holdout_y' in router_src and 'holdout_target_shape_mismatch' in router_src,'frozen-holdout router scorer is not target-shape safe')
     require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
     require('UNSUPPORTED_MULTICLASS_RESEARCH_ONLY' in router_src,'dynamic router lacks multiclass research-only guard')
     require('router_unavailable' in router_src and 'multiclass_base_model_unsupported' in router_src,'dynamic router lacks safe prediction fallbacks')
