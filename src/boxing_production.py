@@ -4,9 +4,12 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "v45" / "boxing_coverage.json"
+
+OPEN_BOXING_TREE = "https://api.github.com/repos/boxingundefeated/open-boxing-data/git/trees/main?recursive=1"
 
 CANDIDATES = [
     {
@@ -40,11 +43,25 @@ def probe(url: str) -> dict:
         return {"reachable": False, "error": type(exc).__name__}
 
 
+def probe_machine_readable_tree() -> dict:
+    try:
+        req = Request(OPEN_BOXING_TREE, headers={"User-Agent": "boxing-research-guard", "Accept": "application/vnd.github+json"})
+        with urlopen(req, timeout=12) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+        files = [
+            str(x.get("path")) for x in (payload.get("tree") or [])
+            if x.get("type") == "blob" and str(x.get("path", "")).lower().endswith((".csv", ".json", ".jsonl", ".parquet", ".zip"))
+        ]
+        return {"reachable": True, "tree_sha": payload.get("sha"), "machine_readable_candidates": files[:100]}
+    except Exception as exc:
+        return {"reachable": False, "error": type(exc).__name__}
+
 def main() -> int:
     checks = []
     for c in CANDIDATES:
         checks.append({**c, "probe": probe(c["url"])})
 
+    checks.append({"name": "open-boxing-data machine-readable tree", "url": OPEN_BOXING_TREE, "role": "automatic discovery only; still requires historical PIT proof", "probe": probe_machine_readable_tree()})
     report = {
         "sport": "boxing",
         "status": "DEFERRED_PIT",
