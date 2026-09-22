@@ -15,7 +15,7 @@ on:
         type: boolean
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: seven-sport-bootstrap-full-history
@@ -178,79 +178,36 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p models results
-          find bootstrap-artifacts -type f -path '*/models/*' -exec cp -n {} models/ \; || true
-          find bootstrap-artifacts -type f -path '*/results/*' -exec cp -n {} results/ \; || true
+          if [ -d bootstrap-artifacts ]; then
+            found_models=0
+            found_results=0
+            while IFS= read -r -d '' f; do
+              found_models=1
+              cp -n "$f" models/
+            done < <(find bootstrap-artifacts -type f -path '*/models/*' -print0)
+            while IFS= read -r -d '' f; do
+              found_results=1
+              cp -n "$f" results/
+            done < <(find bootstrap-artifacts -type f -path '*/results/*' -print0)
+            echo "RESTORE_MODELS=$found_models RESTORE_RESULTS=$found_results"
+          else
+            echo "::error::bootstrap-artifacts directory is missing"
+            exit 1
+          fi
+
       - name: Global structural quality gate
         run: python -m src.quality_gate
       - name: Prediction eligibility inventory
         run: python -m src.prediction_policy
       - name: Final repository validation
         run: python -m compileall -q src
-      - name: Persist lightweight outputs only
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          persist_dir="$RUNNER_TEMP/seven-sport-persist"
-          rm -rf "$persist_dir" && mkdir -p "$persist_dir"
-          cp -a results "$persist_dir/results" 2>/dev/null || true
-          cp -a models "$persist_dir/models" 2>/dev/null || true
-          git fetch origin main
-          git reset --hard origin/main
-          git clean -ffdx || true
-          rm -rf results models
-          mkdir -p results models
-          cp -a "$persist_dir/results/." results/ 2>/dev/null || true
-          cp -a "$persist_dir/models/." models/ 2>/dev/null || true
-          unexpected="$(git status --porcelain --untracked-files=all | awk '$2 !~ /^(results\/|models\/)/ {print}')"
-          if [ -n "$unexpected" ]; then
-            echo '::error::Unexpected working-tree changes before publish:'
-            printf '%s\n' "$unexpected"
-            exit 1
-          fi
-          git add results models
-          if git diff --cached --name-only | grep -E '^(data\/|data/db/|data/raw/)'; then
-            echo '::error::Generated database/cache entered the staged set; refusing to push'
-            exit 1
-          fi
-          if git diff --cached --quiet; then
-            echo 'No lightweight output changes to publish.'
-            exit 0
-          fi
-          git diff --cached --check
-          git commit -m 'chore: update seven-sport bootstrap research outputs'
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            if git merge-base --is-ancestor origin/main HEAD && git push origin HEAD:main; then
-              echo 'push succeeded'
-              exit 0
-            fi
-            echo "remote advanced or push rejected on attempt ${attempt}; rebuilding output commit"
-            git reset --hard origin/main
-            git clean -ffdx || true
-            rm -rf results models
-            mkdir -p results models
-            cp -a "$persist_dir/results/." results/ 2>/dev/null || true
-            cp -a "$persist_dir/models/." models/ 2>/dev/null || true
-            git add results models
-            if git diff --cached --quiet; then
-              echo 'Remote already contains equivalent lightweight outputs.'
-              exit 0
-            fi
-            git diff --cached --check
-            git commit -m 'chore: update seven-sport bootstrap research outputs'
-            sleep $((attempt * 2))
-          done
-          echo '::error::final push failed after 5 deterministic retries'
-          exit 1
-      - name: Upload merged research outputs
-        if: always()
+      - name: Upload bootstrap outputs as an explicit artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bootstrap-merged-${{ github.run_id }}
+          name: seven-sport-bootstrap-outputs-${{ github.run_id }}
           path: |
             data/db/sports_v45.sqlite
-            results/**
-            models/**
-          if-no-files-found: warn
-          retention-days: 1
+            results
+            models
+          if-no-files-found: error
+          retention-days: 7
