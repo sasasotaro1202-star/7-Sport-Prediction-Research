@@ -16,7 +16,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-safety-validation
+  # Separate validation runs by ref so main pushes cannot cancel PR validation.
+  group: production-safety-validation-${{ github.ref }}
   # Read-only validation: only the newest commit needs validation.
   cancel-in-progress: true
 
