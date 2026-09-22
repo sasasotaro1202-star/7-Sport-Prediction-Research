@@ -184,6 +184,8 @@ def main():
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
+    require('__elo_comp' in research_base and '__elo_comp_fast' in research_base and '__elo_comp_slow' in research_base,'research features lack competition-specific PIT-safe Elo signals')
+    require('ratings_comp' in research_base and 'comp_hist=' in research_base,'competition-specific Elo state is not updated chronologically')
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
             'research features lack score-margin strength signals')
