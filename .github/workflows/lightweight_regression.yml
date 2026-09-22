@@ -32,6 +32,7 @@ jobs:
       - name: Import canonical modules
         run: |
           python - <<'PY'
+          import numpy as np
           import src.dynamic_model_router as router
           import src.future_predictor as future
           import src.research_cycle_strict as strict
