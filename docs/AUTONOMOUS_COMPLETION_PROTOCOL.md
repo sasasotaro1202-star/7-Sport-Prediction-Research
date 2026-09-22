@@ -44,6 +44,10 @@ For every improvement cycle:
 7. promote models only through the release gate;
 8. verify the resulting Git commit and subsequent Actions before claiming completion.
 
+## Boxing integration status
+
+Boxing is a formal target sport but remains `DEFERRED_PIT`. Its source candidates are monitored independently, and no Boxing observation is allowed into the production model until historical source availability is proven at the prediction cutoff. The dedicated guard may report source reachability, but reachability is not equivalent to PIT evidence.
+
 ## Rugby integration status
 
 Rugby has an independent official-source coverage workflow and database. It must **not** be described as fully integrated into the canonical seven-sport research/model pipeline until its feature policy, PIT-safe outcome history, model training path, merge path, and release-gate treatment have all been verified. Coverage existence alone is not sufficient for model-production eligibility.
