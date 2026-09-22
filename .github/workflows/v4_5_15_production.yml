@@ -18,7 +18,24 @@ concurrency:
 env:
   PYTHONUNBUFFERED: '1'
 jobs:
+  current_main_gate:
+    name: Current main preflight
+    runs-on: ubuntu-latest
+    outputs:
+      current: ${{ steps.gate.outputs.current }}
+    steps:
+      - name: Compare workflow SHA with current main
+        id: gate
+        run: |
+          set -euo pipefail
+          main_sha=$(git ls-remote https://github.com/sasasotaro1202-star/7-Sport-Prediction-Research.git refs/heads/main | awk '{print $1}')
+          current=false
+          if [ "$GITHUB_SHA" = "$main_sha" ]; then current=true; fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "CURRENT_MAIN_PREFLIGHT=$current run=$GITHUB_SHA main=$main_sha"
   collect:
+    needs: current_main_gate
+    if: needs.current_main_gate.outputs.current == 'true'
     name: Collect ${{ matrix.sport }}
     strategy:
       fail-fast: false
