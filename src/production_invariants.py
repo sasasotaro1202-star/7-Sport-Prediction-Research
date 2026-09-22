@@ -39,7 +39,7 @@ def main():
     require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
     require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
     require('9-sport' in readme.lower(),'README does not explicitly declare nine-sport target scope')
-    scope=(ROOT/'config/ACTIVE_SCOPE_8_SPORTS.json').read_text(encoding='utf-8')
+    scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
     require('"B.LEAGUE"' in scope and '"Asian Games Basketball"' in scope and '"Asian Games Volleyball"' in scope,'active scope target competitions missing')
     require("target_event(s,name,competition_id)" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'research engine lacks explicit target-competition filtering')
     require('Tennis, F1, Rugby and Boxing are currently deferred' in readme,'README does not declare all four deferred target sports')
