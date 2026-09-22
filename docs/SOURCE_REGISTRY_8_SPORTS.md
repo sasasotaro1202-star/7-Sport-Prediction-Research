@@ -108,7 +108,8 @@ This registry is deliberately sport-specific. A mirror, wrapper, republisher, or
 ## Boxing
 
 ### Current
-- **Boxing Undefeated / open-boxing-data** — free/open boxing-data candidate monitored by the repository's boxing_production.py guard. It does not currently prove historical source availability at the prediction cutoff, so it remains `PIT_UNPROVEN`/`DEFERRED` rather than a production feature source. https://github.com/boxingundefeated/open-boxing-data
+- **Boxing Undefeated / open-boxing-data**
+- **mavese/machineLearningBoxingMatches** — public historical Boxing CSV candidate; the dataset was added to that repository on 2018-06-21, but the CSV exposed there does not provide an event-date field, so commit timing alone cannot establish row-level PIT availability for a specific bout. It remains `PIT_UNPROVEN`. — free/open boxing-data candidate monitored by the repository's boxing_production.py guard. It does not currently prove historical source availability at the prediction cutoff, so it remains `PIT_UNPROVEN`/`DEFERRED` rather than a production feature source. https://github.com/boxingundefeated/open-boxing-data
 - **BoxingScene** — public schedule/results candidate. Retrieval time is not treated as historical publication availability; `PIT_UNPROVEN`.
 - **BoxRec** — broad boxing record/schedule surface and public tooling ecosystem. Access/terms and historical publication timing require separate verification; `PIT_UNPROVEN` and not production-adopted.
 
