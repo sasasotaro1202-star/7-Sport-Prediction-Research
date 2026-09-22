@@ -32,7 +32,7 @@ jobs:
       fail-fast: false
       max-parallel: 7
       matrix:
-        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1]
+        sport: [valorant, basketball, volleyball, ufc, rizin]
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -77,9 +77,7 @@ jobs:
           V45_REQUEST_DELAY: '0.02'
         run: |
           set -euo pipefail
-          if [ "${{ matrix.sport }}" = "tennis" ]; then
-            python -m src.tennis_bulk_backfill --start-year 1990 --end-year 2026 --timeout 45
-          elif [ "${{ matrix.sport }}" = "ufc" ]; then
+          if [ "${{ matrix.sport }}" = "ufc" ]; then
             python -m src.ufc_api_backfill --limit 10000
           elif [ "${{ matrix.sport }}" = "basketball" ]; then
             python -m src.basketball_cdn_backfill --both
