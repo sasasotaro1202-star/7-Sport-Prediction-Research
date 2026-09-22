@@ -93,13 +93,15 @@ jobs:
 
           inv=$(gh run list --workflow "production_invariants.yml" --limit 50 --json databaseId,status,conclusion,headSha)
           safety=$(gh run list --workflow "production_safety_audit.yml" --limit 50 --json databaseId,status,conclusion,headSha)
+          lightweight=$(gh run list --workflow "lightweight_regression.yml" --limit 50 --json databaseId,status,conclusion,headSha)
           inv_ok=$(printf '%s' "$inv" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
           safety_ok=$(printf '%s' "$safety" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
+          lightweight_ok=$(printf '%s' "$lightweight" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
 
-          # Dispatch only after both same-SHA validators pass. The first run for a
+          # Dispatch only after all three same-SHA validators pass. The first run for a
           # SHA is immediate; later retries are bounded to one per hourly window.
           dispatch=false
-          if [ "$active_any" -eq 0 ] && [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ]; then
+          if [ "$active_any" -eq 0 ] && [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ] && [ "$lightweight_ok" -ge 1 ]; then
             if [ "$seen_latest" -eq 0 ]; then
               dispatch=true
             elif [ -n "$latest_created" ]; then
@@ -110,10 +112,10 @@ jobs:
             fi
           fi
           if [ "$dispatch" = true ]; then
-            echo "DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION main=$main_sha inv_ok=$inv_ok safety_ok=$safety_ok"
+            echo "DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION main=$main_sha inv_ok=$inv_ok safety_ok=$safety_ok lightweight_ok=$lightweight_ok"
             gh workflow run v4_5_15_production.yml --ref main
           else
-            echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest active_any=$active_any seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok main=$main_sha"
+            echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest active_any=$active_any seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok lightweight_ok=$lightweight_ok main=$main_sha"
           fi
       - name: Backfill a missed 9-hour PIT boundary once per boundary window
         if: steps.rescue_guard.outputs.eligible == 'true'
