@@ -322,6 +322,7 @@ def main():
     require('STALE_MERGE_WORKFLOW_SHA' in merge_section,
             'production merge stale-SHA guard does not fail closed with explicit status')
     require((ROOT/'scripts/validate_model_pipeline.py').exists(),'model pipeline regression test script is missing')
+    require((ROOT/'scripts/test_feature_temporal_invariance.py').exists(),'temporal feature immutability regression test is missing')
     require('validate_model_pipeline.py' in (ROOT/'.github/workflows/production_invariants.yml').read_text(encoding='utf-8'),'production invariants workflow does not execute model pipeline regression checks')
     require('src.cache_health' in workflow and '--repair' in workflow,'production workflow does not validate/repair restored cache before collection')
     if FAILURES:
