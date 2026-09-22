@@ -30,7 +30,8 @@ def main() -> None:
         try:
             manifest.RUGBY_DB = root / "missing-rugby.sqlite"
             manifest.BOXING_DB = db
-            counts = manifest.db_counts()
+            counts, storage = manifest.db_counts()
+            assert storage['boxing']['status'] == 'OK'
         finally:
             manifest.RUGBY_DB = old_rugby
             manifest.BOXING_DB = old_boxing
