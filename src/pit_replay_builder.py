@@ -179,10 +179,72 @@ def main():
         stat_names=tuple(POLICY.get(sport,()))
         fingerprint=sport_fingerprint(c,sport)
         force=bool(args.force)
+
+        # Load the complete event/outcome/participant state once per sport.
         events,outcomes,participants=load_event_state(c,sport)
+
+        # Load existing replay state once instead of issuing a SELECT per event.
+        # The previous implementation performed O(events) database round-trips here,
+        # which became the dominant cost for large basketball/volleyball histories.
+        existing_rows={}
+        for row in c.execute(
+            """SELECT replay_id,replay_status,feature_version,dataset_hash
+                 FROM pit_replay
+                WHERE event_id IN (SELECT event_id FROM event WHERE sport=?)""",
+            (sport,)
+        ):
+            existing_rows[row['replay_id']]=row
+
+        feature_counts={}
+        for replay_id,count in c.execute(
+            """SELECT replay_id,COUNT(*)
+                 FROM pit_feature_snapshot
+                WHERE sport=?
+                GROUP BY replay_id""",
+            (sport,)
+        ):
+            feature_counts[replay_id]=int(count)
+
         history=load_stat_history(c,sport,stat_names)
         replayable=deferred=features_written=skipped=0
+
+        pending_replays=[]
+        pending_deletes=[]
         feature_buffer=[]
+
+        def flush_batch():
+            nonlocal pending_replays,pending_deletes,feature_buffer
+            if pending_deletes:
+                for i in range(0,len(pending_deletes),400):
+                    ids=pending_deletes[i:i+400]
+                    marks=','.join('?' for _ in ids)
+                    c.execute(
+                        f"DELETE FROM pit_feature_snapshot WHERE replay_id IN ({marks})",
+                        ids,
+                    )
+            if pending_replays:
+                c.executemany(
+                    """INSERT OR REPLACE INTO pit_replay
+                       (replay_id,event_id,prediction_cutoff_at_utc,cutoff_rule,
+                        replay_status,leakage_status,model_version,feature_version,
+                        research_cycle,git_commit_sha,data_snapshot_id,dataset_hash,
+                        created_at_utc,reason)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    pending_replays,
+                )
+            if feature_buffer:
+                c.executemany(
+                    """INSERT OR REPLACE INTO pit_feature_snapshot
+                       (snapshot_id,replay_id,event_id,sport,cutoff_at_utc,feature_name,
+                        value_num,value_text,source_observation_ids,leakage_status,created_at_utc)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                    feature_buffer,
+                )
+            if pending_replays or pending_deletes or feature_buffer:
+                c.commit()
+            pending_replays.clear()
+            pending_deletes.clear()
+            feature_buffer.clear()
 
         for e in events:
             eid,et=e['event_id'],e['event_time_utc']
@@ -195,26 +257,27 @@ def main():
             cutoff_sec=event_sec-MIN_PIT_GAP.total_seconds()
             cutoff=datetime.fromtimestamp(cutoff_sec,tz=timezone.utc).isoformat()
             replay_id=hid('pit-replay-v3',sport,eid,cutoff)
-            existing=c.execute(
-                "SELECT replay_status,feature_version,dataset_hash FROM pit_replay WHERE replay_id=?",
-                (replay_id,)
-            ).fetchone()
-            feature_rows=(c.execute("SELECT COUNT(*) FROM pit_feature_snapshot WHERE replay_id=?",(replay_id,)).fetchone()[0] if existing and existing['replay_status']=='REPLAYABLE' else 0)
+            existing=existing_rows.get(replay_id)
+            existing_feature_rows=feature_counts.get(replay_id,0)
+
             if existing and existing['feature_version']==FEATURE_VERSION:
                 # Normal hourly runs require the same corpus fingerprint. Forced
-                # history refreshes only revisit DEFERRED rows so provenance work
-                # does not turn into a full replay of already-clean history.
-                if (force and existing['replay_status']=='REPLAYABLE' and feature_rows>0) or (
+                # history refreshes revisit only rows that are not already cleanly
+                # materialized, so new provenance evidence does not trigger a full
+                # replay of established history.
+                if (force and existing['replay_status']=='REPLAYABLE' and existing_feature_rows>0) or (
                     (not force) and existing['dataset_hash']==fingerprint and
-                    (existing['replay_status']!='REPLAYABLE' or feature_rows>0)
+                    (existing['replay_status']!='REPLAYABLE' or existing_feature_rows>0)
                 ):
                     skipped+=1
                     continue
 
-            c.execute("DELETE FROM pit_feature_snapshot WHERE replay_id=?",(replay_id,))
-            feature_count=0;sides_ok=0
+            pending_deletes.append(replay_id)
+            feature_count=0
+            sides_ok=0
             for side in ('A','B'):
-                pid=ps[side];side_count=0
+                pid=ps[side]
+                side_count=0
                 for stat in stat_names:
                     vals=select_prior(history.get((pid,stat),[]),event_sec,cutoff_sec)
                     if not vals:
@@ -226,48 +289,40 @@ def main():
                             hid(replay_id,fname),replay_id,eid,sport,cutoff,fname,
                             value,None,source_ids,'CLEAN',utcnow()
                         ))
-                        feature_count+=1;side_count+=1
+                        feature_count+=1
+                        side_count+=1
                 if side_count:
                     sides_ok+=1
 
             if sides_ok==2:
-                status='REPLAYABLE';replayable+=1;reason=None
+                status='REPLAYABLE'
+                replayable+=1
+                reason=None
             else:
-                status='DEFERRED';deferred+=1;reason='Insufficient exact-timestamp features for both sides'
+                status='DEFERRED'
+                deferred+=1
+                reason='Insufficient exact-timestamp features for both sides'
 
-            c.execute(
-                """INSERT OR REPLACE INTO pit_replay
-                   (replay_id,event_id,prediction_cutoff_at_utc,cutoff_rule,
-                    replay_status,leakage_status,model_version,feature_version,
-                    research_cycle,git_commit_sha,data_snapshot_id,dataset_hash,
-                    created_at_utc,reason)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (replay_id,eid,cutoff,'event_time_minus_60m',status,'CLEAN',None,
-                 FEATURE_VERSION,'strict-pit',None,None,fingerprint,utcnow(),reason)
-            )
+            pending_replays.append((
+                replay_id,eid,cutoff,'event_time_minus_60m',status,'CLEAN',None,
+                FEATURE_VERSION,'strict-pit',None,None,fingerprint,utcnow(),reason
+            ))
             features_written+=feature_count
 
-            if len(feature_buffer)>=5000:
-                c.executemany(
-                    """INSERT OR REPLACE INTO pit_feature_snapshot
-                       (snapshot_id,replay_id,event_id,sport,cutoff_at_utc,feature_name,
-                        value_num,value_text,source_observation_ids,leakage_status,created_at_utc)
-                       VALUES(?,?,?,?,?,?,?,?,?,?,?)""",feature_buffer)
-                feature_buffer.clear()
-                c.commit()
+            # Keep memory and SQLite transactions bounded while removing the
+            # per-event SELECT/DELETE/INSERT/COMMIT pattern that caused the
+            # previous 45-minute PIT timeout.
+            if len(pending_replays)>=250 or len(feature_buffer)>=10000:
+                flush_batch()
 
-        if feature_buffer:
-            c.executemany(
-                """INSERT OR REPLACE INTO pit_feature_snapshot
-                   (snapshot_id,replay_id,event_id,sport,cutoff_at_utc,feature_name,
-                    value_num,value_text,source_observation_ids,leakage_status,created_at_utc)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?)""",feature_buffer)
-            feature_buffer.clear()
-        c.commit()
+        flush_batch()
         totals[sport]={
-            'events_seen':len(events),'replayable':replayable,
-            'deferred':deferred,'skipped_incremental':skipped,
-            'feature_snapshots':features_written,'forced_rebuild':force
+            'events_seen':len(events),
+            'replayable':replayable,
+            'deferred':deferred,
+            'skipped_incremental':skipped,
+            'feature_snapshots':features_written,
+            'forced_rebuild':force
         }
 
     c.close()
