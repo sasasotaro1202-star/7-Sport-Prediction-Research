@@ -8,11 +8,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from src.storage.db_v45 import connect, utcnow
+import sqlite3
+from src.storage.db_v45 import SCHEMA, utcnow
 from src.seven_sport_production import HTTP, upsert_event, upsert_participant, upsert_ep, add_snapshot
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "v45" / "boxing_coverage.json"
+BOXING_DB = ROOT / "data" / "db" / "boxing_v45.sqlite"
 
 OPEN_BOXING_BOUTS = "https://raw.githubusercontent.com/edhwright/open-boxing/main/src/db/data/bouts.csv"
 OPEN_BOXING_CHAMPIONS = "https://raw.githubusercontent.com/edhwright/open-boxing/main/src/db/data/champions.csv"
@@ -52,6 +54,12 @@ CANDIDATES = [
     },
 ]
 
+
+def connect_boxing():
+    BOXING_DB.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(BOXING_DB)
+    con.executescript(SCHEMA)
+    return con
 
 def upstream_revision() -> dict:
     url = "https://api.github.com/repos/edhwright/open-boxing/commits/main"
@@ -213,6 +221,7 @@ def main() -> int:
         "provenance_rule": "retrieval time is never treated as historical publication availability",
         "production_model_enabled": False,
         "history_ingestion": None,
+        "database": str(BOXING_DB.relative_to(ROOT)),
         "candidate_sources": [],
         "upstream_revision": upstream,
         "reason": "Boxing history may be used as realized teacher labels after the event, but no historical pre-fight feature source is admitted until source availability before the prediction cutoff is proven.",
@@ -222,7 +231,7 @@ def main() -> int:
         report["candidate_sources"].append({**candidate, "probe": probe(h, candidate["url"])})
 
     if a.ingest_history:
-        c = connect()
+        c = connect_boxing()
         try:
             report["history_ingestion"] = ingest_history(c, h)
         except Exception as exc:
