@@ -242,8 +242,8 @@ jobs:
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
       - name: Robust adapters
         run: python -m src.robust_sport_adapters_v4
-      - name: Boxing PIT source guard
-        run: python -m src.boxing_production
+      - name: Boxing history ingestion and PIT guard
+        run: python -m src.boxing_production --ingest-history
 
       - name: Outcomes
         run: python -m src.outcome_backfill
