@@ -64,6 +64,18 @@ def main():
     require('Tennis, F1, Rugby and Boxing are currently deferred' in readme,'README does not declare all four deferred target sports')
     require('Boxing (currently deferred)' in readme,'README does not list Boxing as a deferred target sport')
 
+    # Repository-wide temporal evaluation guard: prevent legacy random-split or
+    # hidden failure patterns from re-entering the codebase through an unrelated module.
+    all_py='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in (ROOT/'src').rglob('*.py'))
+    all_wf='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in (ROOT/'.github/workflows').glob('*.yml'))
+    require('train_test_split' not in all_py,'random train/test split API detected under src/')
+    require('StratifiedKFold' not in all_py,'stratified K-fold detected under src/')
+    require('KFold' not in all_py,'generic K-fold detected under src/')
+    require('shuffle=True' not in all_py,'shuffle=True detected under src/')
+    require('random_split' not in all_py,'random_split detected under src/')
+    require('continue-on-error: true' not in all_wf,'failure-hiding continue-on-error detected in workflow set')
+    require('|| true' not in all_wf,'failure-hiding shell fallback detected in workflow set')
+    require('git add results models' not in all_wf,'unrestricted generated-model publication detected in workflow set')
     compact=research.replace(' ','')
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
