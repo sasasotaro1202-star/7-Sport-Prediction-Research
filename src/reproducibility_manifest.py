@@ -32,7 +32,7 @@ def git_head() -> str:
 def display_path(path: Path) -> str:
     """Return a stable relative path for repo files and a safe absolute fallback for test fixtures."""
     try:
-        return display_path(path)
+        return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
 
@@ -41,7 +41,7 @@ def file_record(path: Path) -> dict:
     if not path.is_file():
         return {"path": display_path(path), "exists": False}
     return {
-        "path": str(path.relative_to(ROOT)),
+        "path": display_path(path),
         "exists": True,
         "bytes": path.stat().st_size,
         "sha256": sha256_file(path),
@@ -89,7 +89,7 @@ def db_counts() -> tuple[dict, dict]:
         ("boxing", BOXING_DB, "boxing"),
     ):
         count, status = _count_events(path, sport)
-        storage[label] = {"path": str(path.relative_to(ROOT)), "status": status}
+        storage[label] = {"path": display_path(path), "status": status}
         if status == "OK":
             counts[sport] = count
 
