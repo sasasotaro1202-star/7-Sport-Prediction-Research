@@ -38,6 +38,10 @@ jobs:
           import src.research_cycle_v4 as base
           print("IMPORTS=PASS")
           print("MODEL_POOL", sorted(base.pool().keys()))
+          assert "extra_trees_missing" in base.pool()
+          assert "hist_gb_missing" in base.pool()
+          assert "lightgbm_missing" in base.pool()
+          print("MISSINGNESS_CHALLENGERS=PASS")
           print("SPORTS", base.SPORTS)
           PY
       - name: Forward prediction registry smoke test
