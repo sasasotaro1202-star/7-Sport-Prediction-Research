@@ -35,6 +35,8 @@ def main():
             'release gate does not explicitly treat Boxing as deferred')
     require((ROOT/'src/boxing_production.py').exists() and (ROOT/'.github/workflows/boxing_pit_guard.yml').exists(),
             'Boxing PIT source guard implementation/workflow is missing')
+    require((ROOT/'scripts/test_boxing_ingest.py').exists() and 'test_boxing_ingest.py' in (ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8'),
+            'Boxing ingest unit test is missing from the regression path')
     require('seven canonical sports' not in workflow.lower(),'canonical workflow contains stale seven-sport wording')
     require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
     require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
