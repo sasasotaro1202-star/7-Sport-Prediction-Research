@@ -355,6 +355,16 @@ def build(c,s,include_unlabeled=False):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   f['D__elo_momentum']= (f['A__elo_momentum']-f['B__elo_momentum']) if np.isfinite(f['A__elo_momentum']) and np.isfinite(f['B__elo_momentum']) else np.nan
   f['D__elo_comp_momentum']=(f['A__elo_comp_momentum']-f['B__elo_comp_momentum']) if np.isfinite(f['A__elo_comp_momentum']) and np.isfinite(f['B__elo_comp_momentum']) else np.nan
+  # Low-dimensional PIT-safe interaction features. They are derived only from
+  # already-cutoff-safe state and are evaluated by the existing chronological OOS gates.
+  def _mul(a,b):
+   return float(a*b) if np.isfinite(a) and np.isfinite(b) else np.nan
+  f['D__elo_x_form']=_mul(f['D__elo'],f['D__recent_form_delta'])
+  f['D__elo_x_coverage']=_mul(f['D__elo'],np.nanmean([f['A__stat_coverage'],f['B__stat_coverage']]))
+  f['D__momentum_x_form']=_mul(f['D__elo_momentum'],f['D__recent_form_delta'])
+  f['D__momentum_x_freshness']=_mul(f['D__elo_momentum'],f['D__stat_freshness_mean_days'])
+  f['D__h2h_x_elo']=_mul(f.get('D__h2h_winrate_20',np.nan),f['D__elo'])
+  f['D__form_x_short_rest']=_mul(f['D__recent_form_delta'],f['D__short_rest_flag'])
   key=tuple(sorted((p['A'],p['B'])))
   hh=h2h.get(key,[])
   a_first=(p['A']==key[0])

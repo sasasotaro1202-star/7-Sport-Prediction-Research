@@ -300,6 +300,8 @@ def main():
     require('window_fracs=(0.55,0.60,0.65)' in strict_src and 'robust_window_objective' in strict_src,
             'multi-window walk-forward robustness selection is missing')
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
+    require('D__elo_x_form' in research_base and 'D__momentum_x_form' in research_base and 'D__h2h_x_elo' in research_base,
+            'PIT-safe interaction feature layer is missing')
     require('__stat_coverage' in research_base and '__current_streak' in research_base and '__recent_margin_std_20' in research_base,
             'research features lack PIT coverage/streak/volatility signals')
     require('source_snapshot ss' in research_base and 'ROW_NUMBER() OVER' in research_base,'PIT stat history loader does not prevent source snapshot/stat duplication')
