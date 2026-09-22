@@ -48,7 +48,7 @@ The system does not assume that one provider is complete. Cross-source reconcili
 - Source-backed HTTP cache to avoid repeatedly downloading unchanged pages.
 - Checkpoint/resume state for long collectors.
 - Parallel detail-page retrieval inside a sport while keeping deterministic database writes.
-- Explicit eight-sport scope; a sport can be PASS, DEFERRED, or blocked according to evidence, but no sport is silently omitted.
+- Explicit nine-sport target scope; a sport can be PASS, DEFERRED, or blocked according to evidence, but no sport is silently omitted.
 
 ### Outcome reconstruction
 `src/outcome_backfill.py` reconstructs outcomes only when source evidence is sufficient. Missing or unverifiable outcomes remain deferred.
