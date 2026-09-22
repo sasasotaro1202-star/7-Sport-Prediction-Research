@@ -438,6 +438,23 @@ def train(s):
    robust=float(np.average(wl,weights=np.array([0.20,0.30,0.50]))+0.10*np.std(wl)+0.05*np.std(fold_losses)) if len(window_scores)==3 else float(overall['logloss']+0.15*np.std(fold_losses))
    return overall,robust,fold_losses,window_scores
 
+  def _paired_fold_delta_stats(spec, weights, fixed_spec):
+   """Estimate paired fold uncertainty using only pre-holdout OOS folds."""
+   cand=[];fixed=[]
+   for fold in oof_folds:
+    yy=y[int(fold['end']):int(fold['te'])]
+    if len(yy)<20 or len(np.unique(yy))<2: continue
+    cp=np.sum(np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])*
+                              np.array([weights[n] for n in spec])[None,:],axis=1)
+    fp=np.mean(np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in fixed_spec]),axis=1)
+    cand.append(base.metric(yy,cp)['logloss'])
+    fixed.append(base.metric(yy,fp)['logloss'])
+   if len(cand)<3:
+    return {'mean_delta':0.0,'std_delta':float('inf'),'se':float('inf'),'folds':len(cand)}
+   delta=np.asarray(cand)-np.asarray(fixed)
+   return {'mean_delta':float(delta.mean()),'std_delta':float(delta.std(ddof=1)),
+           'se':float(delta.std(ddof=1)/np.sqrt(len(delta))),'folds':len(delta)}
+
   weighted_candidates=[]
   for a,b in combinations(top_rank,2):
    for wa in (0.20,0.30,0.40,0.50,0.60,0.70,0.80):
