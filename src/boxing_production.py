@@ -41,6 +41,20 @@ CANDIDATES = [
         "pit_status": "UNPROVEN",
     },
     {
+        "name": "scrasmussen/boxing",
+        "url": "https://github.com/scrasmussen/boxing",
+        "api": "https://api.github.com/repos/scrasmussen/boxing/git/trees/master?recursive=1",
+        "role": "free public boxing/mma historical reference corpus",
+        "pit_status": "UNPROVEN",
+    },
+    {
+        "name": "octonion/boxing",
+        "url": "https://github.com/octonion/boxing",
+        "api": "https://api.github.com/repos/octonion/boxing/git/trees/master?recursive=1",
+        "role": "free public boxing CSV historical reference candidate",
+        "pit_status": "UNPROVEN",
+    },
+    {
         "name": "BoxingScene",
         "url": "https://www.boxingscene.com/",
         "role": "public current schedule/results candidate",
