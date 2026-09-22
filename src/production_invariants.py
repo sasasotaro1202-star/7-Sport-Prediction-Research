@@ -75,6 +75,15 @@ def main():
             'merge job is not configured to run after collector degradation while skipping intentionally skipped collection')
     require('  push:' not in workflow,
             'canonical production workflow should not create heavy push-triggered queue')
+    db_src=(ROOT/'src/storage/db_v45.py').read_text(encoding='utf-8')
+    future_src_for_registry=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    outcome_src_for_registry=(ROOT/'src/outcome_backfill.py').read_text(encoding='utf-8')
+    require('forward_prediction' in db_src and 'UNIQUE(event_id,market,model_version,prediction_cutoff_at_utc)' in db_src,
+            'forward prediction registry table is missing or not immutable')
+    require('_persist_forward_prediction' in future_src_for_registry and 'INSERT OR IGNORE INTO forward_prediction' in future_src_for_registry,
+            'future predictor does not persist idempotent forward predictions')
+    require('settled_forward_predictions' in outcome_src_for_registry and "status='OPEN'" in outcome_src_for_registry,
+            'verified outcomes do not settle open forward predictions')
     accelerated=(ROOT/'src/research_accelerated.py').read_text(encoding='utf-8')
     require('final.fit(X[:holdout_start],y[:holdout_start])' in accelerated,
             'accelerated research final fit must exclude frozen holdout')
