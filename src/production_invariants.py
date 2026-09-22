@@ -44,6 +44,9 @@ def main():
             'release gate does not explicitly treat Boxing as deferred')
     require((ROOT/'src/boxing_production.py').exists() and (ROOT/'.github/workflows/boxing_pit_guard.yml').exists(),
             'Boxing PIT source guard implementation/workflow is missing')
+    boxing_wf_text=(ROOT/'.github/workflows/boxing_pit_guard.yml').read_text(encoding='utf-8')
+    require('pip install --retries 5 --timeout 60 -r requirements.txt' in boxing_wf_text,
+            'Boxing PIT source guard does not install required runtime dependencies')
     require((ROOT/'scripts/test_boxing_ingest.py').exists() and 'test_boxing_ingest.py' in (ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8'),
             'Boxing ingest unit test is missing from the regression path'),
     boxing_src=(ROOT/'src/boxing_production.py').read_text(encoding='utf-8')
