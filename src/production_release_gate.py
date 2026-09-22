@@ -53,7 +53,7 @@ ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
 OUT=ROOT/'results/release_gate.json'
 SPORTS=('valorant','basketball','volleyball','ufc','rizin')
-DEFERRED_SPORTS=('tennis','f1','rugby')
+DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
 COMPLETED_STATUSES=('COMPLETED','FINISHED','POST')
 
 
@@ -135,7 +135,7 @@ def _write(r):
 
 
 def main():
-    r={'status':'BLOCKED','publish':False,'fatal':[],'deferred_sports':{},'coverage':{},'coverage_warnings':[],'policy':'source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes','gate_version':'release-gate-v9-safe-partial-sport-degradation'}
+    r={'status':'BLOCKED','publish':False,'fatal':[],'deferred_sports':{},'coverage':{},'coverage_warnings':[],'policy':'source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes; Boxing remains deferred until free PIT-safe historical evidence exists','gate_version':'release-gate-v9-safe-partial-sport-degradation'}
     if not DB.exists():
         r['fatal'].append('database_missing')
         return _write(r)
