@@ -152,8 +152,8 @@ def main():
     require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
     require('backfill_status=DEGRADED' in workflow,'backfill degradation is not explicitly recorded')
     require('collection_guard_status=FAILED' in workflow,'collection guard failure is not explicitly surfaced')
-    require('if: always() && needs.collect.result != \'skipped\'' in workflow,
-            'merge job is not configured to run after collector degradation while skipping intentionally skipped collection')
+    require("if: needs.collect.result == 'success'" in workflow,
+            'production merge must only run after the full collector matrix succeeds')
     require('  push:' not in workflow,
             'canonical production workflow should not create heavy push-triggered queue')
     db_src=(ROOT/'src/storage/db_v45.py').read_text(encoding='utf-8')
