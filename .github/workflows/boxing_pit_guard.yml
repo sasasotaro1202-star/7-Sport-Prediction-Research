@@ -26,8 +26,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install minimal dependencies
-        run: python -m pip install --retries 5 --timeout 60 requests
+      - name: Verify Python runtime
+        run: python --version
       - name: Run Boxing PIT source guard
         run: python -m src.boxing_production
       - name: Compile Boxing module
