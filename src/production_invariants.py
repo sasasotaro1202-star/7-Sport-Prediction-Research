@@ -211,6 +211,8 @@ def main():
             'calibration challenger does not include isotonic/beta comparison')
     require('robust_objective' in strict_src and 'weighted_pair_win_rate' in strict_src,
             'ensemble stability gate is missing')
+    require('def _paired_fold_delta_stats' in strict_src,
+            'ensemble selection lacks paired OOS uncertainty gate')
     regime_pos=strict_src.find('def _regime_robust_objective')
     oos_pos=strict_src.find('oos={}',regime_pos if regime_pos>=0 else 0)
     require(regime_pos>=0 and oos_pos>=0 and regime_pos<oos_pos,
