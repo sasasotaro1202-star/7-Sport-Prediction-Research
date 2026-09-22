@@ -78,6 +78,18 @@ jobs:
           PY
       - name: PIT CLI smoke test
         run: python -m src.pit_replay_builder --help
+      - name: Boxing fail-closed guard smoke test
+        run: |
+          python -m src.boxing_production
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('results/v45/boxing_coverage.json').read_text())
+          assert r['sport']=='boxing'
+          assert r['status']=='DEFERRED_PIT'
+          assert r['production_model_enabled'] is False
+          print('BOXING_GUARD=PASS')
+          PY
       - name: Holdout safety assertions
         run: |
           python - <<'PY'
