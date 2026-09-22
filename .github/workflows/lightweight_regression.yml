@@ -86,7 +86,8 @@ jobs:
           accelerated=Path('src/research_accelerated.py').read_text()
           assert "Candidate selection is OOS-only" in strict
           assert "production_fit_excludes_holdout" in strict
-          assert "final.fit(X[:holdout_start],y[:holdout_start])" in accelerated
+          assert "m.fit(X[:sel],y[:sel])" in strict
+          assert "m.fit(X[sel:],y[sel:])" not in strict
           assert "final.fit(X,y)" not in accelerated
           print("HOLDOUT_SAFETY=PASS")
           PY
