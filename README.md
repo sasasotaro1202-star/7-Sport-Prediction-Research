@@ -1,6 +1,6 @@
-# 8-Sport-Prediction-Research
+# 9-Sport-Prediction-Research
 
-Eight sport-specific prediction/research engines with a provenance-first data foundation. The research and prediction policies remain isolated by sport. Current production scope is five sports: Basketball, Volleyball, UFC, RIZIN and VALORANT. Tennis is currently deferred; F1 and Rugby are currently deferred.
+Nine target-sport prediction/research lanes with a provenance-first data foundation. The research and prediction policies remain isolated by sport. Current production scope is five active sports: Basketball, Volleyball, UFC, RIZIN and VALORANT. Tennis, F1, Rugby and Boxing are currently deferred until their sport-specific PIT/OOS requirements are proven.
 
 ## Target sports
 - VALORANT
@@ -11,6 +11,7 @@ Eight sport-specific prediction/research engines with a provenance-first data fo
 - RIZIN
 - F1 (currently deferred)
 - Rugby (currently deferred)
+- Boxing (currently deferred)
 
 ## Non-negotiable rules
 1. Shared data foundation where appropriate; sport-specific research/prediction policies remain isolated.
@@ -26,7 +27,7 @@ Eight sport-specific prediction/research engines with a provenance-first data fo
 ## Data-source strategy
 The system is source-agnostic. It can combine official feeds, structured public APIs, reputable historical datasets, and high-quality public event pages when their provenance and schema can be recorded.
 
-The project maintains an explicit eight-sport source registry and independent audit record in `docs/SOURCE_REGISTRY_8_SPORTS.md` and `docs/COMPLETE_8_SPORT_AUDIT.md`.
+The project maintains an explicit nine-sport target source registry and independent audit record in `docs/SOURCE_REGISTRY_8_SPORTS.md` and `docs/COMPLETE_8_SPORT_AUDIT.md`.
 
 Current deep historical/enrichment sources include:
 - Tennis: Jeff Sackmann ATP/WTA historical match/stat archive mirror, with conservative PIT treatment.
@@ -65,13 +66,18 @@ X data is isolated from the production model: collection → PIT storage → ind
 
 ## GitHub Actions
 ### Canonical production
-`.github/workflows/v4_5_15_production.yml` runs the five active sports independently; Tennis, F1 and Rugby are deferred by project scope, restores/saves per-sport run-scoped caches, validates collection, reconstructs outcomes, builds strict PIT replay, runs an independent leakage audit, performs frozen-holdout research, applies quality/release gates, and persists safe outputs.
+`.github/workflows/v4_5_15_production.yml` runs the five active sports independently; Tennis, F1, Rugby and Boxing are deferred by project scope, restores/saves per-sport run-scoped caches, validates collection, reconstructs outcomes, builds strict PIT replay, runs an independent leakage audit, performs frozen-holdout research, applies quality/release gates, and persists safe outputs.
 
 ### Rugby coverage
 `.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby is included in the canonical eight-sport cycle, while its production model remains gated until the sport-specific PIT/OOS/release path is proven.
 
 ### Reliability
 Cache/PIT health and production invariant workflows provide independent safety checks. A release gate is fail-closed: unsafe models are never published, and a blocked gate must be visible as a non-zero Action rather than a false green success.
+
+## Boxing integration status
+- Boxing is a formal target sport, but it remains `DEFERRED_PIT` until a free historical source can prove source availability before the prediction cutoff.
+- Candidate public sources are tracked separately from production data. Public availability or a current schedule is not treated as historical PIT evidence.
+- No Boxing model, feature, or future prediction is promoted until chronological OOS and frozen-holdout gates pass.
 
 ## Definition of done
 An active sport is production-ready only when it has reliable intended historical/current coverage, explicit provenance and PIT availability metadata, leakage-safe chronological OOS, calibrated probability evaluation, frozen-holdout acceptance, incumbent/challenger protection, production invariants, reproducible artifacts, and recovery from transient source/network failures.
