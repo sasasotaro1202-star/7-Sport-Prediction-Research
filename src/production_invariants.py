@@ -76,7 +76,7 @@ def main():
     }
     wf_files=[(ROOT/'.github/workflows'/name) for name in sorted(operational_workflows)]
     all_wf='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in wf_files if p.exists())
-    bad_split_api='train_'+'test_split'
+    # Cache namespace must be canonical repository-wide across operational workflows.\n    # This prevents a future unrelated workflow edit from silently reintroducing\n    # the retired eight-sport cache namespace.\n    require('nine-sport-target-db-v4-' in all_wf,\n            'operational workflows do not reference the canonical nine-sport cache namespace')\n    require('eight-sport-db-v4-' not in all_wf,\n            'legacy eight-sport cache namespace reintroduced in an operational workflow')\n    bad_split_api='train_'+'test_split'
     bad_stratified='Stratified'+'KFold'
     bad_kfold='K'+'Fold'
     bad_shuffle='shuffle='+'True'
