@@ -40,3 +40,5 @@ jobs:
         run: python scripts/validate_dynamic_router.py
       - name: Validate model pipeline regression contracts
         run: python scripts/validate_model_pipeline.py
+      - name: Validate temporal feature immutability
+        run: PYTHONPATH=. python scripts/test_feature_temporal_invariance.py
