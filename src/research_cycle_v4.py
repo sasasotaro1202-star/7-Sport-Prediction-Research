@@ -363,7 +363,6 @@ def build(c,s,include_unlabeled=False):
   f['D__elo_x_coverage']=_mul(f['D__elo'],np.nanmean([f['A__stat_coverage'],f['B__stat_coverage']]))
   f['D__momentum_x_form']=_mul(f['D__elo_momentum'],f['D__recent_form_delta'])
   f['D__momentum_x_freshness']=_mul(f['D__elo_momentum'],f['D__stat_freshness_mean_days'])
-  f['D__h2h_x_elo']=_mul(f.get('D__h2h_winrate_20',np.nan),f['D__elo'])
   f['D__form_x_short_rest']=_mul(f['D__recent_form_delta'],f['D__short_rest_flag'])
   key=tuple(sorted((p['A'],p['B'])))
   hh=h2h.get(key,[])
@@ -377,6 +376,8 @@ def build(c,s,include_unlabeled=False):
    f['D__h2h_matches']=float(len(hh))
   else:
    f['D__h2h_winrate_5']=np.nan;f['D__h2h_winrate_20']=np.nan;f['D__h2h_matches']=0.0
+  # H2H state is materialized above; only now derive the H2H×Elo challenger interaction.
+  f['D__h2h_x_elo']=_mul(f.get('D__h2h_winrate_20',np.nan),f['D__elo'])
   for st in cols:
    for suf in ('mean','median','q25','q75','iqr','last','std','trend','ewma5','n','age_days'):
     a=f[f'A__{st}__{suf}'];b=f[f'B__{st}__{suf}'];f[f'D__{st}__{suf}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan

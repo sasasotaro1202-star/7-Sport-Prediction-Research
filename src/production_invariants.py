@@ -246,8 +246,13 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
             'research features lack score-margin strength signals')
-    require('strict-pit-v18-multiscale-form-h2h-freshness-router-competition-elo-features' in strict_src,
-            'strict model feature version was not bumped after the latest PIT-safe feature expansion')
+    require('strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features' in strict_src,
+            'strict model feature version was not bumped to v19 after PIT-safe H2H interaction semantics changed')
+    carry_fn_start=strict_src.find('def _carry_forward_previous')
+    carry_fn_end=strict_src.find('def ', carry_fn_start+5) if carry_fn_start>=0 else -1
+    carry_fn=strict_src[carry_fn_start:carry_fn_end] if carry_fn_start>=0 and carry_fn_end>carry_fn_start else ''
+    require('feature_version.startswith("strict-pit-v19-")' in carry_fn,
+            'v19 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('strict-pit-v18-' in strict_src and 'strict-pit-v17-' in strict_src and 'strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
             'carry-forward compatibility does not preserve prior accepted schemas while enabling current v17 schema')
     carry_start=strict_src.find('feature_version=str(previous.get("feature_version") or "")')
@@ -302,6 +307,10 @@ def main():
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
     require('D__elo_x_form' in research_base and 'D__momentum_x_form' in research_base and 'D__h2h_x_elo' in research_base,
             'PIT-safe interaction feature layer is missing')
+    h2h_state_pos=research_base.find('if hh:')
+    h2h_interaction_pos=research_base.find("f['D__h2h_x_elo']")
+    require(h2h_state_pos>=0 and h2h_interaction_pos>h2h_state_pos,
+            'H2H×Elo interaction is computed before PIT-safe H2H state materialization')
     require('__stat_coverage' in research_base and '__current_streak' in research_base and '__recent_margin_std_20' in research_base,
             'research features lack PIT coverage/streak/volatility signals')
     require('source_snapshot ss' in research_base and 'ROW_NUMBER() OVER' in research_base,'PIT stat history loader does not prevent source snapshot/stat duplication')
