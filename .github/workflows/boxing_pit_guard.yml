@@ -1,0 +1,53 @@
+name: Boxing PIT Source Guard
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boxing-pit-source-guard
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal dependencies
+        run: python -m pip install --retries 5 --timeout 60 requests
+      - name: Run Boxing PIT source guard
+        run: python -m src.boxing_production
+      - name: Compile Boxing module
+        run: python -m compileall -q src/boxing_production.py
+      - name: Verify fail-closed status
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('results/v45/boxing_coverage.json')
+          r=json.loads(p.read_text())
+          assert r['sport']=='boxing'
+          assert r['status']=='DEFERRED_PIT'
+          assert r['production_model_enabled'] is False
+          assert r['prediction_cutoff_rule']=='event_time_minus_60m'
+          print('BOXING_PIT_GUARD=PASS')
+          PY
+      - name: Upload Boxing guard report
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxing-pit-guard-${{ github.run_id }}
+          path: results/v45/boxing_coverage.json
+          retention-days: 7
