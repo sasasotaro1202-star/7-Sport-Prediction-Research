@@ -668,15 +668,13 @@ def train(s):
   else:
    router_eval={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; dynamic routing cannot add diversification'}
    router_holdout={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; frozen-holdout router comparison not applicable'}
+  # Promotion is decided from pre-holdout chronological OOS only.
+  # The frozen holdout is strictly score-only and must never affect routing adoption.
   router_accept = (router_eval.get('status') == 'EVALUATED'
-                   and router_holdout.get('status') == 'EVALUATED'
+                   and router_eval.get('folds',0) >= 6
                    and router_eval['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
                    and router_eval['brier_improvement'] >= -.002
-                   and router_eval['ece_change'] <= .02
-                   and router_holdout['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
-                   and router_holdout['brier_improvement'] >= -.002
-                   and router_holdout['ece_change'] <= .02
-                   and router_holdout['dynamic_router']['ece'] <= .20)
+                   and router_eval['ece_change'] <= .02)
   final_router=None
   router_models_artifact={}
   router_feature_reference=None
