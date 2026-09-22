@@ -85,7 +85,9 @@ def outcome_maps(c,s,pairs):
  # event_end_time_utc when present, otherwise event_time_utc + 24h. Exact source
  # publication timestamps are still required for *feature observations* and are
  # handled separately by the stat-history PIT loader.
- q="""SELECT e.event_id,e.event_time_utc,e.event_end_time_utc,o.outcome
+ cols={row[1] for row in c.execute("PRAGMA table_info(event)").fetchall()}
+ end_expr="e.event_end_time_utc" if "event_end_time_utc" in cols else "NULL"
+ q=f"""SELECT e.event_id,e.event_time_utc,{end_expr} AS event_end_time_utc,o.outcome
          FROM event e
          JOIN event_outcome o
            ON o.event_id=e.event_id
