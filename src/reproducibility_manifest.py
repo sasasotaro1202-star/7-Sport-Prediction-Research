@@ -13,6 +13,13 @@ BOXING_DB = ROOT / "data/db/boxing_v45.sqlite"
 SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1", "rugby", "boxing")
 OUT = ROOT / "results/reproducibility_manifest.json"
 
+def display_path(path: Path) -> str:
+    """Render repo-relative paths while tolerating isolated test/temp paths."""
+    try:
+        return display_path(path)
+    except ValueError:
+        return str(path)
+
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -31,7 +38,7 @@ def git_head() -> str:
 
 def file_record(path: Path) -> dict:
     if not path.is_file():
-        return {"path": str(path.relative_to(ROOT)), "exists": False}
+        return {"path": display_path(path), "exists": False}
     return {
         "path": str(path.relative_to(ROOT)),
         "exists": True,
@@ -65,7 +72,7 @@ def db_counts() -> tuple[dict, dict]:
     storage = {}
 
     count, status = _count_events(DB)
-    storage["canonical"] = {"path": str(DB.relative_to(ROOT)), "status": status}
+    storage["canonical"] = {"path": display_path(DB), "status": status}
     if status == "OK":
         import sqlite3
         con = sqlite3.connect(f"file:{DB.resolve()}?mode=ro", uri=True)
