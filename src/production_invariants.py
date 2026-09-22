@@ -66,16 +66,26 @@ def main():
 
     # Repository-wide temporal evaluation guard: prevent legacy random-split or
     # hidden failure patterns from re-entering the codebase through an unrelated module.
-    all_py='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in (ROOT/'src').rglob('*.py'))
-    all_wf='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in (ROOT/'.github/workflows').glob('*.yml'))
-    require('train_test_split' not in all_py,'random train/test split API detected under src/')
-    require('StratifiedKFold' not in all_py,'stratified K-fold detected under src/')
-    require('KFold' not in all_py,'generic K-fold detected under src/')
-    require('shuffle=True' not in all_py,'shuffle=True detected under src/')
-    require('random_split' not in all_py,'random_split detected under src/')
-    require('continue-on-error: true' not in all_wf,'failure-hiding continue-on-error detected in workflow set')
-    require('|| true' not in all_wf,'failure-hiding shell fallback detected in workflow set')
-    require('git add results models' not in all_wf,'unrestricted generated-model publication detected in workflow set')
+    py_files=[p for p in (ROOT/'src').rglob('*.py') if p.name!='production_invariants.py']
+    all_py='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in py_files)
+    wf_files=list((ROOT/'.github/workflows').glob('*.yml'))
+    all_wf='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in wf_files)
+    bad_split_api='train_'+'test_split'
+    bad_stratified='Stratified'+'KFold'
+    bad_kfold='K'+'Fold'
+    bad_shuffle='shuffle='+'True'
+    bad_random_split='random_'+'split'
+    bad_continue='continue-on-error: '+'true'
+    bad_shell='|| '+'true'
+    bad_publish='git add '+'results models'
+    require(bad_split_api not in all_py,'random train/test split API detected under src/')
+    require(bad_stratified not in all_py,'stratified K-fold detected under src/')
+    require(bad_kfold not in all_py,'generic K-fold detected under src/')
+    require(bad_shuffle not in all_py,'shuffle=True detected under src/')
+    require(bad_random_split not in all_py,'random_split detected under src/')
+    require(bad_continue not in all_wf,'failure-hiding continue-on-error detected in workflow set')
+    require(bad_shell not in all_wf,'failure-hiding shell fallback detected in workflow set')
+    require(bad_publish not in all_wf,'unrestricted generated-model publication detected in workflow set')
     compact=research.replace(' ','')
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
@@ -322,7 +332,11 @@ def main():
     require('router_unavailable' in router_src and 'multiclass_base_model_unsupported' in router_src,'dynamic router lacks safe prediction fallbacks')
     require('evaluate_frozen_holdout_router' in router_src,'dynamic router lacks frozen-holdout evaluation')
     require('router_holdout=router.evaluate_frozen_holdout_router_from_folds' in strict_src,'strict research cycle does not evaluate router on frozen holdout')
-    require('router_holdout.get(\'status\') == \'EVALUATED\'' in strict_src,'router promotion gate does not require frozen-holdout evaluation')
+    require('router_holdout=router.evaluate_frozen_holdout_router_from_folds' in strict_src,
+            'strict research cycle does not retain a frozen-holdout score-only router evaluation')
+    router_gate_text=strict_src[strict_src.find('router_accept ='):strict_src.find('final_router',strict_src.find('router_accept ='))]
+    require('router_holdout' not in router_gate_text,
+            'router promotion gate must not use frozen-holdout metrics for adoption')
     # Dynamic Router is a research challenger only. Guard the production path
     # against accidental promotion before a separately verified promotion gate.
     production_router_refs=(
