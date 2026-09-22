@@ -63,10 +63,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/db
-          key: eight-sport-db-v4-${{ matrix.sport }}-${{ github.sha }}
+          key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
           restore-keys: |
-            eight-sport-db-v4-${{ matrix.sport }}-pit-
-            eight-sport-db-v4-${{ matrix.sport }}-
+            nine-sport-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-target-db-v4-${{ matrix.sport }}-
       - name: Validate/repair restored database before collection
         run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
       - name: Initialize schema
@@ -113,7 +113,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: data/db
-          key: eight-sport-db-v4-${{ matrix.sport }}-${{ github.run_id }}
+          key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.run_id }}
   merge:
     name: Merge, research, and release gate
     needs: collect
@@ -152,7 +152,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/db
-          key: eight-sport-db-v4-valorant-${{ github.run_id }}
+          key: nine-sport-target-db-v4-valorant-${{ github.run_id }}
       - name: Materialize VALORANT partition when coverage exists
         run: |
           set -euo pipefail
@@ -165,7 +165,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/db
-          key: eight-sport-db-v4-basketball-${{ github.run_id }}
+          key: nine-sport-target-db-v4-basketball-${{ github.run_id }}
       - name: Materialize Basketball partition when coverage exists
         run: |
           set -euo pipefail
@@ -178,7 +178,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/db
-          key: eight-sport-db-v4-volleyball-${{ github.run_id }}
+          key: nine-sport-target-db-v4-volleyball-${{ github.run_id }}
       - name: Materialize Volleyball partition when coverage exists
         run: |
           set -euo pipefail
@@ -191,7 +191,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/db
-          key: eight-sport-db-v4-ufc-${{ github.run_id }}
+          key: nine-sport-target-db-v4-ufc-${{ github.run_id }}
       - name: Materialize UFC partition when coverage exists
         run: |
           set -euo pipefail
@@ -204,7 +204,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/db
-          key: eight-sport-db-v4-rizin-${{ github.run_id }}
+          key: nine-sport-target-db-v4-rizin-${{ github.run_id }}
       - name: Materialize RIZIN partition only when coverage is actually present
         run: |
           set -euo pipefail
