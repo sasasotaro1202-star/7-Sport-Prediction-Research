@@ -458,7 +458,9 @@ def train(s):
    # dependence better than row-wise resampling and estimates whether the
    # candidate's improvement over the fixed ensemble survives period variation.
    rng=np.random.default_rng(20260922)
-   idx=rng.integers(0,len(delta),size=(500,len(delta)))
+   # Use a larger fold-level bootstrap while keeping the resampling unit
+   # temporal (walk-forward folds), never individual rows.
+   idx=rng.integers(0,len(delta),size=(1000,len(delta)))
    boot_delta=delta[idx].mean(axis=1)
    improvement=-boot_delta
    return {'mean_delta':float(delta.mean()),'std_delta':float(delta.std(ddof=1)),
@@ -467,8 +469,13 @@ def train(s):
            'bootstrap_prob_improvement':float(np.mean(improvement>0.0)),
            'folds':len(delta)}
 
+  # Search weighted pairs across the full model pool rather than only the
+  # per-model top-4. A model can be mediocre alone yet add complementary signal
+  # to the incumbent ensemble. Predictions are already cached, so this expands
+  # ensemble coverage without adding model fits.
+  weighted_pair_pool=list(dict.fromkeys(list(top_rank)+list(names)))
   weighted_candidates=[]
-  for a,b in combinations(top_rank,2):
+  for a,b in combinations(weighted_pair_pool,2):
    for wa in (0.20,0.30,0.40,0.50,0.60,0.70,0.80):
     weights={a:wa,b:1.0-wa}
     overall,robust,folds,wins=_weighted_candidate_score((a,b),weights)
@@ -479,7 +486,10 @@ def train(s):
     if np.isfinite(paired.get('bootstrap_p05_improvement',float('-inf'))) and paired.get('bootstrap_p05_improvement',float('-inf')) <= 0.0:
      robust += 0.001 + abs(float(paired.get('bootstrap_p05_improvement',0.0)))
     weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],(a,b),weights,folds,paired))
-  for spec in combinations(top_rank[:4],3):
+  # Keep the 3-model search bounded: use the top-6 individual candidates,
+  # while allowing all weights on that diversity shortlist.
+  triple_pool=rank[:min(6,len(rank))]
+  for spec in combinations(triple_pool,3):
    for wa in (0.20,0.30,0.40,0.50,0.60):
     for wb in (0.20,0.30,0.40,0.50,0.60):
      wc=1.0-wa-wb
