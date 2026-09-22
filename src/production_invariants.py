@@ -81,8 +81,8 @@ def main():
     require('final.fit(X,y)' not in accelerated,
             'accelerated research must never fit final model on full dataset including holdout')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
-    require('workflow_run:' in watchdog and 'Production Invariants' in watchdog and 'Production Safety Audit' in watchdog,
-            'watchdog is not wired to validator completion events')
+    require("gh run list --workflow \"production_invariants.yml\"" in watchdog and "gh run list --workflow \"production_safety_audit.yml\"" in watchdog,
+            'watchdog does not verify same-SHA validator status before dispatch')
     require('\n  push:' not in watchdog,
             'production watchdog should not duplicate validator-completion monitoring with push triggers')
     require('cron: \'*/5 * * * *\'' in watchdog,
@@ -144,7 +144,7 @@ def main():
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('Backfill a missed 9-hour PIT boundary once per boundary window' in watchdog,
             'watchdog lacks missed 9-hour PIT recovery')
-    require('manual_attempt' in watchdog and 'scheduled_success' in watchdog,
+    require('attempt_in_boundary' in watchdog and '[ "$attempt_in_boundary" -eq 0 ]' in watchdog,
             'watchdog PIT recovery lacks one-attempt-per-boundary guard')
     require("remainder_minutes=$((minute_delta % 540))" in pit_workflow,
             'PIT cadence guard must preserve the exact 9-hour epoch phase')
