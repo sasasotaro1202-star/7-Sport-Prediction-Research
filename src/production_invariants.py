@@ -132,6 +132,8 @@ def main():
             'canonical Production lacks stale-workflow SHA fail-closed guard')
     require('Verify merge run SHA is current main before mutable work' in workflow,
             'canonical Production merge job lacks stale-workflow SHA fail-closed guard')
+    require("if: needs.collect.result == 'success'" in workflow and "if: always() && needs.collect.result != 'skipped'" not in workflow,
+            'production merge must not run after a cancelled or partial collector matrix')
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
     cache_health_workflow=(ROOT/'.github/workflows/cache_pit_health.yml').read_text(encoding='utf-8')
     require('nine-sport-target-db-v4-' in pit_workflow and 'eight-sport-db-v4-' not in pit_workflow,
