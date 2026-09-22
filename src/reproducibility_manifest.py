@@ -14,6 +14,14 @@ SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1"
 OUT = ROOT / "results/reproducibility_manifest.json"
 
 
+def display_path(path: Path) -> str:
+    """Return a stable relative path for repo files, absolute path otherwise."""
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
@@ -31,9 +39,9 @@ def git_head() -> str:
 
 def file_record(path: Path) -> dict:
     if not path.is_file():
-        return {"path": str(path.relative_to(ROOT)), "exists": False}
+        return {"path": display_path(path), "exists": False}
     return {
-        "path": str(path.relative_to(ROOT)),
+        "path": display_path(path),
         "exists": True,
         "bytes": path.stat().st_size,
         "sha256": sha256_file(path),
@@ -65,7 +73,7 @@ def db_counts() -> tuple[dict, dict]:
     storage = {}
 
     count, status = _count_events(DB)
-    storage["canonical"] = {"path": str(DB.relative_to(ROOT)), "status": status}
+    storage["canonical"] = {"path": display_path(DB), "status": status}
     if status == "OK":
         import sqlite3
         con = sqlite3.connect(f"file:{DB.resolve()}?mode=ro", uri=True)
@@ -81,7 +89,7 @@ def db_counts() -> tuple[dict, dict]:
         ("boxing", BOXING_DB, "boxing"),
     ):
         count, status = _count_events(path, sport)
-        storage[label] = {"path": str(path.relative_to(ROOT)), "status": status}
+        storage[label] = {"path": display_path(path), "status": status}
         if status == "OK":
             counts[sport] = count
 
