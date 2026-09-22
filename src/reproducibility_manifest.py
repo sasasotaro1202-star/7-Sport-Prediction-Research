@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
 RUGBY_DB = ROOT / "data/db/rugby_v45.sqlite"
+BOXING_DB = ROOT / "data/db/boxing_v45.sqlite"
 SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1", "rugby", "boxing")
 OUT = ROOT / "results/reproducibility_manifest.json"
 
@@ -59,6 +60,13 @@ def db_counts() -> dict:
             counts["rugby"] = int(row[0]) if row else 0
         finally:
             con.close()
+    if BOXING_DB.is_file() and BOXING_DB.stat().st_size > 0:
+        con = sqlite3.connect(f"file:{BOXING_DB.resolve()}?mode=ro", uri=True)
+        try:
+            row = con.execute("SELECT COUNT(*) FROM bout").fetchone()
+            counts["boxing"] = int(row[0]) if row else 0
+        finally:
+            con.close()
     return counts
 
 
@@ -67,6 +75,7 @@ def main() -> int:
     tracked = [
         DB,
         RUGBY_DB,
+        BOXING_DB,
         ROOT / "results/quality_gate.json",
         ROOT / "results/release_gate.json",
         ROOT / "results/pit_replay.json",
@@ -101,6 +110,7 @@ def main() -> int:
             "missing_files_are_explicit": True,
             "models_are_artifacts_only_after_release_gate": True,
             "rugby_uses_dedicated_database": True,
+            "boxing_uses_dedicated_database": True,
         },
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
