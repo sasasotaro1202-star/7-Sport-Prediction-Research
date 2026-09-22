@@ -1,0 +1,86 @@
+{
+  "version": 3,
+  "updated": "2026-09-22",
+  "active_scope": {
+    "volleyball": [
+      {
+        "name": "Asian Games Volleyball",
+        "gender": "Men",
+        "category": "Asian Games",
+        "region": "Asia",
+        "status": "TARGET"
+      },
+      {
+        "name": "Asian Games Volleyball",
+        "gender": "Women",
+        "category": "Asian Games",
+        "region": "Asia",
+        "status": "TARGET"
+      }
+    ],
+    "basketball": [
+      {
+        "name": "B.LEAGUE",
+        "gender": "Men",
+        "category": "Professional domestic league",
+        "region": "Japan",
+        "status": "TARGET"
+      },
+      {
+        "name": "Asian Games Basketball",
+        "gender": "Men",
+        "category": "Asian Games",
+        "region": "Asia",
+        "status": "TARGET"
+      },
+      {
+        "name": "Asian Games Basketball",
+        "gender": "Women",
+        "category": "Asian Games",
+        "region": "Asia",
+        "status": "TARGET"
+      }
+    ],
+    "ufc": [
+      {
+        "name": "UFC",
+        "gender": "Men/Women",
+        "category": "MMA",
+        "region": "International",
+        "status": "TARGET"
+      }
+    ],
+    "rizin": [
+      {
+        "name": "RIZIN",
+        "gender": "Men/Women",
+        "category": "MMA",
+        "region": "Japan/International",
+        "status": "TARGET"
+      }
+    ],
+    "valorant": [
+      {
+        "name": "VALORANT",
+        "gender": "Open / women-focused competitions kept separate",
+        "category": "Esports",
+        "region": "Global",
+        "status": "TARGET"
+      }
+    ]
+  },
+  "deferred_scope": {
+    "tennis": "DEFERRED_BY_PROJECT_SCOPE",
+    "f1": "DEFERRED_BY_PROJECT_SCOPE",
+    "rugby": "DEFERRED_BY_PROJECT_SCOPE",
+    "boxing": "DEFERRED_BY_PIT_SOURCE_EVIDENCE"
+  },
+  "rules": [
+    "Do not train or publish Tennis, F1, Rugby or Boxing models while deferred.",
+    "Do not silently substitute other basketball or volleyball competitions for the requested target scope.",
+    "B.LEAGUE and Asian Games coverage must be independently verified before being treated as collected.",
+    "Competition/gender/category must remain explicit; do not pool materially different competitions blindly.",
+    "Boxing source candidates must prove historical source availability before the 60-minute prediction cutoff; retrieval time alone is not sufficient.",
+    "PIT, leakage, chronological OOS, calibration and frozen-holdout gates remain mandatory."
+  ]
+}
