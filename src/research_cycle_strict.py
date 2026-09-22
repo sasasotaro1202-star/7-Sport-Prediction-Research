@@ -8,7 +8,9 @@ from sklearn.isotonic import IsotonicRegression
 from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
-SPORTS=('valorant','basketball','volleyball','ufc','rizin','boxing')
+SPORTS=('valorant','basketball','volleyball','ufc','rizin')
+DEFERRED_SPORTS=('f1','boxing')
+ALL_SPORTS=SPORTS+DEFERRED_SPORTS
 def utc():
  from datetime import datetime,timezone
  return datetime.now(timezone.utc).isoformat()
@@ -561,5 +563,5 @@ def train(s):
  finally:c.close()
 def main():
  import argparse
- a=argparse.ArgumentParser();a.add_argument('--sport',choices=SPORTS);x=a.parse_args();print(json.dumps([train(s) for s in ([x.sport] if x.sport else SPORTS)],ensure_ascii=False,indent=2));return 0
+ a=argparse.ArgumentParser();a.add_argument('--sport',choices=ALL_SPORTS);x=a.parse_args();print(json.dumps([train(s) for s in ([x.sport] if x.sport else ALL_SPORTS)],ensure_ascii=False,indent=2));return 0
 if __name__=='__main__':raise SystemExit(main())
