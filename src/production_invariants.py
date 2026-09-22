@@ -169,7 +169,7 @@ def main():
     require('final.fit(X,y)' not in accelerated,
             'accelerated research must never fit final model on full dataset including holdout')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
-    require("gh run list --workflow \"production_invariants.yml\"" in watchdog and "gh run list --workflow \"production_safety_audit.yml\"" in watchdog,
+    require("gh run list --workflow \"production_invariants.yml\"" in watchdog and "gh run list --workflow \"production_safety_audit.yml\"" in watchdog and "gh run list --workflow \"lightweight_regression.yml\"" in watchdog,
             'watchdog does not verify same-SHA validator status before dispatch')
     require('\n  push:' not in watchdog,
             'production watchdog should not duplicate validator-completion monitoring with push triggers')
@@ -189,6 +189,8 @@ def main():
             'production watchdog lacks first-run guard')
     require('DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION' in watchdog,
             'production watchdog validated dispatch path missing')
+    require('lightweight_ok' in watchdog and '[ "$lightweight_ok" -ge 1 ]' in watchdog,
+            'production watchdog must require lightweight regression success before dispatch')
     require('gh run cancel' in watchdog and 'actions: write' in watchdog,
             'production watchdog lacks automatic heavy-run recovery')
     require('limit=14400' in watchdog and 'limit=8100' not in watchdog,
