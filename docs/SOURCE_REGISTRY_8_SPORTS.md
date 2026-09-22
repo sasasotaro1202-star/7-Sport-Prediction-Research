@@ -1,4 +1,4 @@
-# 8-Sport Source Registry — independent audit baseline
+# 9-Sport Target Source Registry — independent audit baseline
 
 This registry is deliberately sport-specific. A mirror, wrapper, republisher, or alternate API over the same underlying dataset is **not** an independent source. `EXACT` PIT requires an auditable source-availability timestamp; retrieval time alone is not historical availability.
 
@@ -104,6 +104,20 @@ This registry is deliberately sport-specific. A mirror, wrapper, republisher, or
 - **nrlR** — R package scraping NRL/Super League/etc.; `NON_INDEPENDENT` if it only republishes upstream scraped pages, and not suitable as a diversification source without distinct lineage. https://cran.r-project.org/package=nrlR
 - **Rugby Database** — community-maintained broad historical rugby database; potentially independent, but provenance/coverage/PIT publication timing need verification. https://rugbydatabase.co.uk/
 - **Sportradar / Highlightly / other commercial feeds** — broad coverage and live statistics, but cost and upstream lineage need validation; no automatic adoption.
+
+## Boxing
+
+### Current
+- **Boxing Undefeated / open-boxing-data** — free/open boxing-data candidate monitored by the repository's boxing_production.py guard. It does not currently prove historical source availability at the prediction cutoff, so it remains `PIT_UNPROVEN`/`DEFERRED` rather than a production feature source. https://github.com/boxingundefeated/open-boxing-data
+- **BoxingScene** — public schedule/results candidate. Retrieval time is not treated as historical publication availability; `PIT_UNPROVEN`.
+- **BoxRec** — broad boxing record/schedule surface and public tooling ecosystem. Access/terms and historical publication timing require separate verification; `PIT_UNPROVEN` and not production-adopted.
+
+### Candidate feature families
+- Fighter age, height/reach, stance, weight class, recent win rate, opponent-strength history, inactivity/rest, weight-class-specific Elo, and prior result-method mix.
+- These are design candidates only. No Boxing feature is enabled until source observations and historical availability are proven.
+
+### Adoption status
+- **DEFERRED_PIT** — no Boxing model is trained or published. The dedicated guard checks public-source reachability but never converts retrieval time into PIT evidence.
 
 ## Adoption rule
 
