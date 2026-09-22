@@ -128,7 +128,10 @@ jobs:
           production=Path('.github/workflows/v4_5_15_production.yml').read_text()
           assert "production_fit_excludes_holdout" in strict
           assert "selection_oos" in strict and "holdout_metrics" in strict
-          assert "m.fit(X[:sel]" in strict
+          assert "m.fit(X,y)" in strict
+          assert "X_holdout" in strict and "y_holdout" in strict
+          assert "_load_or_create_frozen_holdout" in strict
+          assert "frozen_holdout_registry_hash" in strict
           assert "final.fit(X,y)" not in accelerated
           assert "final.fit(X, y)" not in accelerated
           assert "size=(1000,len(delta))" in strict
