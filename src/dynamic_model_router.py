@@ -246,8 +246,9 @@ def evaluate_router_from_folds(
     folds: Sequence[Dict],
     sel: int,
     metric=None,
+    baseline_weights: Dict[str, float] | None = None,
 ) -> Dict:
-    """Evaluate the contextual router using already-computed chronological OOF predictions."""
+    """Evaluate the contextual router against the exact selected baseline ensemble."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
     meta_X=[]; meta_losses=[]; static_pred=[]; router_pred=[]; targets=[]
     used_folds=0
@@ -262,8 +263,18 @@ def evaluate_router_from_folds(
             np.asarray(meta_losses,dtype=float) if meta_losses else np.empty((0,len(names)))
         )
         routed=_route_with_contextual_loss_selector(selector,bp,ctx,history_loss)
-        if routed is None:routed=np.mean(bp,axis=1)
-        static_pred.extend(np.mean(bp,axis=1).tolist());router_pred.extend(routed.tolist());targets.extend(y[end:te].tolist())
+        if routed is None:
+            routed=np.mean(bp,axis=1)
+        if baseline_weights:
+            w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float)
+            if np.isfinite(w).all() and w.sum()>0:
+                w=w/w.sum()
+                static=np.sum(bp*w[None,:],axis=1)
+            else:
+                static=np.mean(bp,axis=1)
+        else:
+            static=np.mean(bp,axis=1)
+        static_pred.extend(static.tolist());router_pred.extend(routed.tolist());targets.extend(y[end:te].tolist())
         yt=y[end:te].astype(float)
         losses=-(yt[:,None]*np.log(bp)+(1.0-yt[:,None])*np.log(1.0-bp))
         meta_X.extend(features.tolist());meta_losses.extend(losses.tolist());used_folds+=1
@@ -300,7 +311,16 @@ def evaluate_frozen_holdout_router_from_folds(
     if selector is None:
         return {'status':'INSUFFICIENT_OOS','reason':'insufficient_router_training_oof','oos_rows':len(meta_losses)}
     bp=np.column_stack([np.asarray(holdout_pred[n],dtype=float) for n in names])
-    static=np.mean(bp,axis=1);ctx=_context(X[:sel],X[sel:])
+    if baseline_weights:
+        w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float)
+        if np.isfinite(w).all() and w.sum()>0:
+            w=w/w.sum()
+            static=np.sum(bp*w[None,:],axis=1)
+        else:
+            static=np.mean(bp,axis=1)
+    else:
+        static=np.mean(bp,axis=1)
+    ctx=_context(X[:sel],X[sel:])
     routed=_route_with_contextual_loss_selector(selector,bp,ctx,_recent_model_loss(meta_losses,len(names)))
     if routed is None:
         return {'status':'INSUFFICIENT_OOS','reason':'contextual_router_fit_failed','oos_rows':len(meta_losses)}
