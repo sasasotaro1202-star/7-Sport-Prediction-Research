@@ -40,34 +40,52 @@ def file_record(path: Path) -> dict:
     }
 
 
-def db_counts() -> dict:
+def _count_events(path: Path, sport: str | None = None) -> tuple[int, str]:
     import sqlite3
 
+    if not path.is_file() or path.stat().st_size <= 0:
+        return 0, "MISSING"
+    con = sqlite3.connect(f"file:{path.resolve()}?mode=ro", uri=True)
+    try:
+        table = con.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='event'"
+        ).fetchone()
+        if not table:
+            return 0, "SCHEMA_MISSING"
+        if sport is None:
+            return int(con.execute("SELECT COUNT(*) FROM event").fetchone()[0]), "OK"
+        row = con.execute("SELECT COUNT(*) FROM event WHERE sport=?", (sport,)).fetchone()
+        return int(row[0]) if row else 0, "OK"
+    finally:
+        con.close()
+
+
+def db_counts() -> tuple[dict, dict]:
     counts = {}
-    if DB.is_file() and DB.stat().st_size > 0:
+    storage = {}
+
+    count, status = _count_events(DB)
+    storage["canonical"] = {"path": str(DB.relative_to(ROOT)), "status": status}
+    if status == "OK":
+        import sqlite3
         con = sqlite3.connect(f"file:{DB.resolve()}?mode=ro", uri=True)
         try:
-            counts.update(dict(con.execute("SELECT sport, COUNT(*) FROM event GROUP BY sport").fetchall()))
+            counts.update(
+                dict(con.execute("SELECT sport, COUNT(*) FROM event GROUP BY sport").fetchall())
+            )
         finally:
             con.close()
-    # Rugby and Boxing remain outside the canonical merged model DB until their production paths are proven. Count Rugby from its dedicated database
-    # from its dedicated database so the manifest cannot silently report zero
-    # simply because the storage topology differs.
-    if RUGBY_DB.is_file() and RUGBY_DB.stat().st_size > 0:
-        con = sqlite3.connect(f"file:{RUGBY_DB.resolve()}?mode=ro", uri=True)
-        try:
-            row = con.execute("SELECT COUNT(*) FROM event WHERE sport='rugby'").fetchone()
-            counts["rugby"] = int(row[0]) if row else 0
-        finally:
-            con.close()
-    if BOXING_DB.is_file() and BOXING_DB.stat().st_size > 0:
-        con = sqlite3.connect(f"file:{BOXING_DB.resolve()}?mode=ro", uri=True)
-        try:
-            row = con.execute("SELECT COUNT(*) FROM event WHERE sport='boxing'").fetchone()
-            counts["boxing"] = int(row[0]) if row else 0
-        finally:
-            con.close()
-    return counts
+
+    for label, path, sport in (
+        ("rugby", RUGBY_DB, "rugby"),
+        ("boxing", BOXING_DB, "boxing"),
+    ):
+        count, status = _count_events(path, sport)
+        storage[label] = {"path": str(path.relative_to(ROOT)), "status": status}
+        if status == "OK":
+            counts[sport] = count
+
+    return counts, storage
 
 
 def main() -> int:
@@ -96,13 +114,14 @@ def main() -> int:
             files.append(file_record(p))
     files.extend(file_record(p) for p in models)
 
-    manifest = {
+    event_counts, storage_status = db_counts()\n\n    manifest = {
         "manifest_version": "repro-v1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "source_git_commit_sha": git_head(),
         "requirements_sha256": sha256_file(requirements) if requirements.is_file() else None,
         "sports": list(SPORTS),
-        "event_counts": {s: int(db_counts().get(s, 0)) for s in SPORTS},
+        "event_counts": {s: int(event_counts.get(s, 0)) for s in SPORTS},
+        "storage_status": storage_status,
         "files": files,
         "policy": {
             "manifest_excludes_self": True,
