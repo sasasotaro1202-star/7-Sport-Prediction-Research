@@ -84,7 +84,7 @@ jobs:
           from pathlib import Path
           strict=Path('src/research_cycle_strict.py').read_text()
           accelerated=Path('src/research_accelerated.py').read_text()
-          assert "Candidate selection is OOS-only" in strict
+          assert "Candidate selection is strictly pre-holdout" in strict
           assert "production_fit_excludes_holdout" in strict
           assert "m.fit(X[:sel],y[:sel])" in strict
           assert "m.fit(X[sel:],y[sel:])" not in strict
