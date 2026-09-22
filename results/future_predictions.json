@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-09-22T18:53:39.131911+00:00",
+  "generated_at_utc": "2026-09-22T19:47:23.040413+00:00",
   "policy": "accepted-artifact-only; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration",
   "sports": [
     {
@@ -9,8 +9,9 @@
     },
     {
       "sport": "basketball",
-      "status": "DEFERRED_ARTIFACT_NOT_ACCEPTED",
-      "quality_status": null
+      "status": "NO_FUTURE_EVENTS",
+      "predictions": [],
+      "count": 0
     },
     {
       "sport": "volleyball",
