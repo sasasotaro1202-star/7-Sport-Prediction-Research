@@ -250,7 +250,7 @@ def evaluate_router_from_folds(
 ) -> Dict:
     """Evaluate the contextual router against the exact selected baseline ensemble."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
-    meta_X=[]; meta_losses=[]; static_pred=[]; router_pred=[]; targets=[]
+    meta_X=[]; meta_losses=[]; static_pred=[]; router_pred=[]; targets=[]; fold_deltas=[]
     used_folds=0
     for fold in folds:
         end=int(fold['end']); te=int(fold['te'])
@@ -274,6 +274,7 @@ def evaluate_router_from_folds(
                 static=np.mean(bp,axis=1)
         else:
             static=np.mean(bp,axis=1)
+        fold_deltas.append(float(_metric(y[end:te],routed)['logloss']-_metric(y[end:te],static)['logloss']))
         static_pred.extend(static.tolist());router_pred.extend(routed.tolist());targets.extend(y[end:te].tolist())
         yt=y[end:te].astype(float)
         losses=-(yt[:,None]*np.log(bp)+(1.0-yt[:,None])*np.log(1.0-bp))
@@ -281,7 +282,32 @@ def evaluate_router_from_folds(
     if len(meta_losses)<120:
         return {'status':'INSUFFICIENT_OOS','reason':'insufficient_router_training_oof','oos_rows':len(meta_losses)}
     static_m=_metric(np.asarray(targets),static_pred);router_m=_metric(np.asarray(targets),router_pred)
-    return {'status':'EVALUATED','folds':used_folds,'oos_rows':len(meta_losses),'fixed_ensemble':static_m,'dynamic_router':router_m,'logloss_improvement':static_m['logloss']-router_m['logloss'],'brier_improvement':static_m['brier']-router_m['brier'],'ece_change':router_m['ece']-static_m['ece'],'policy':'challenger_only; reused chronological OOF base predictions; frozen holdout untouched'}
+    fold_deltas_arr=np.asarray(fold_deltas,dtype=float)
+    block_deltas=[]
+    if len(fold_deltas_arr)>=3:
+        for ids in np.array_split(np.arange(len(fold_deltas_arr)),3):
+            vals=fold_deltas_arr[ids]
+            if len(vals): block_deltas.append(float(np.mean(vals)))
+    bootstrap_prob=0.0; bootstrap_p05=float('-inf')
+    if len(fold_deltas_arr)>=6 and np.isfinite(fold_deltas_arr).all():
+        rng=np.random.default_rng(20260923)
+        idx=rng.integers(0,len(fold_deltas_arr),size=(1000,len(fold_deltas_arr)))
+        boot=fold_deltas_arr[idx].mean(axis=1)
+        improvement=-boot
+        bootstrap_prob=float(np.mean(improvement>0.0))
+        bootstrap_p05=float(np.quantile(improvement,0.05))
+    return {
+        'status':'EVALUATED','folds':used_folds,'oos_rows':len(meta_losses),
+        'fixed_ensemble':static_m,'dynamic_router':router_m,
+        'logloss_improvement':static_m['logloss']-router_m['logloss'],
+        'brier_improvement':static_m['brier']-router_m['brier'],
+        'ece_change':router_m['ece']-static_m['ece'],
+        'fold_logloss_deltas':fold_deltas_arr.tolist(),
+        'nonoverlap_block_deltas':block_deltas,
+        'bootstrap_p05_improvement':bootstrap_p05,
+        'bootstrap_prob_improvement':bootstrap_prob,
+        'policy':'challenger_only; reused chronological OOF base predictions; frozen holdout untouched'
+    }
 
 def evaluate_frozen_holdout_router_from_folds(
     X: np.ndarray,
