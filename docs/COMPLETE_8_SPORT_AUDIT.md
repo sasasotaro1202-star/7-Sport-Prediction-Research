@@ -8,7 +8,7 @@ This audit treats each sport independently. A different URL/API over the same un
 
 The repository's storage layer already supports source URL, retrieval time, source-availability time, event time, parser version, content hash, provenance, effective time, PIT replay and audit records. The key weakness is that several collectors still write `UNVERIFIABLE` source availability, which means their detailed statistics cannot safely enter strict historical PIT features. The strict research engine therefore often falls back to generic strength/history/rest features. This is preferable to leakage, but it limits feature diversity.
 
-The canonical production workflow currently runs **7 sports** in its main matrix. Rugby has a separate coverage workflow/database and is not yet in the canonical model/release pipeline.
+The canonical production workflow currently runs **5 active sports** in its main matrix (VALORANT, Basketball, Volleyball, UFC and RIZIN). Tennis, F1, Rugby and Boxing are explicit deferred target lanes; Rugby has a separate coverage workflow/database and Boxing has a six-hour PIT source guard.
 
 ## 1. Basketball — independently audited
 
