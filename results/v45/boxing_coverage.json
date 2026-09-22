@@ -1,0 +1,109 @@
+{
+  "sport": "boxing",
+  "status": "DEFERRED_PIT",
+  "timestamp_utc": "2026-09-22T18:10:35.214096+00:00",
+  "prediction_cutoff_rule": "event_time_minus_60m",
+  "provenance_rule": "retrieval time is never treated as historical publication availability",
+  "production_model_enabled": false,
+  "history_ingestion": {
+    "rows": 6986,
+    "imported_events": 6986,
+    "verified_outcomes": 6980,
+    "skipped": 0,
+    "retrieved_at_utc": "2026-09-22T18:10:43.131489+00:00"
+  },
+  "database": "data/db/boxing_v45.sqlite",
+  "candidate_sources": [
+    {
+      "name": "Open Boxing / edhwright",
+      "url": "https://github.com/edhwright/open-boxing",
+      "role": "free/open historical boxing dataset",
+      "pit_status": "HISTORICAL_LABELS_AVAILABLE; PUBLICATION_TIME_UNPROVEN",
+      "probe": {
+        "reachable": true,
+        "retrieved_at_utc": "2026-09-22T18:10:35.642230+00:00",
+        "bytes": 264190,
+        "etag": "W/\"3409a0e90aafb631462e4d743fdc347e\""
+      }
+    },
+    {
+      "name": "Boxing Undefeated / open-boxing-data",
+      "url": "https://github.com/boxingundefeated/open-boxing-data",
+      "role": "free/open boxing-data project",
+      "pit_status": "UNPROVEN",
+      "probe": {
+        "reachable": true,
+        "retrieved_at_utc": "2026-09-22T18:10:36.114867+00:00",
+        "bytes": 262566,
+        "etag": "W/\"52a7983fd710f539656e6b94e0946e94\""
+      }
+    },
+    {
+      "name": "mavese/machineLearningBoxingMatches",
+      "url": "https://github.com/mavese/machineLearningBoxingMatches",
+      "api": "https://api.github.com/repos/mavese/machineLearningBoxingMatches/git/trees/master?recursive=1",
+      "role": "free historical boxing dataset candidate",
+      "pit_status": "UNPROVEN",
+      "probe": {
+        "reachable": true,
+        "retrieved_at_utc": "2026-09-22T18:10:36.511487+00:00",
+        "bytes": 236170,
+        "etag": "W/\"5e53a4b06ed4c0dab8fbef6ca8c63d28\""
+      }
+    },
+    {
+      "name": "scrasmussen/boxing",
+      "url": "https://github.com/scrasmussen/boxing",
+      "api": "https://api.github.com/repos/scrasmussen/boxing/git/trees/master?recursive=1",
+      "role": "free public boxing/mma historical reference corpus",
+      "pit_status": "UNPROVEN",
+      "probe": {
+        "reachable": true,
+        "retrieved_at_utc": "2026-09-22T18:10:37.056946+00:00",
+        "bytes": 1430389,
+        "etag": "W/\"f38d5c8a79e5dbb1f8e63dc467701d5d\""
+      }
+    },
+    {
+      "name": "octonion/boxing",
+      "url": "https://github.com/octonion/boxing",
+      "api": "https://api.github.com/repos/octonion/boxing/git/trees/master?recursive=1",
+      "role": "free public boxing CSV historical reference candidate",
+      "pit_status": "UNPROVEN",
+      "probe": {
+        "reachable": true,
+        "retrieved_at_utc": "2026-09-22T18:10:37.513362+00:00",
+        "bytes": 262812,
+        "etag": "W/\"9455117bd734cb1065beb029a6f1246f\""
+      }
+    },
+    {
+      "name": "BoxingScene",
+      "url": "https://www.boxingscene.com/",
+      "role": "public current schedule/results candidate",
+      "pit_status": "UNPROVEN",
+      "probe": {
+        "reachable": false,
+        "error": "HTTPError"
+      }
+    },
+    {
+      "name": "BoxRec-compatible tooling",
+      "url": "https://github.com/boxing/boxrec",
+      "role": "unofficial BoxRec access tooling",
+      "pit_status": "UNPROVEN_AND_TERMS_RISK",
+      "probe": {
+        "reachable": true,
+        "retrieved_at_utc": "2026-09-22T18:10:42.886406+00:00",
+        "bytes": 320083,
+        "etag": "W/\"79701f2ed3dabbbef1295bb42b19686e\""
+      }
+    }
+  ],
+  "upstream_revision": {
+    "sha": "b3e59c38b8402c06186d00d500dd98aff188965a",
+    "date": "2023-07-07T18:28:51Z",
+    "message": "Removes Stanionis v Ortiz Jr"
+  },
+  "reason": "Boxing history may be used as realized teacher labels after the event, but no historical pre-fight feature source is admitted until source availability before the prediction cutoff is proven."
+}

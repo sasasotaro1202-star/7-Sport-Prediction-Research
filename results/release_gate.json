@@ -3,10 +3,12 @@
   "publish": true,
   "fatal": [],
   "deferred_sports": {
-    "tennis": "Tennis is outside the current active five-sport production scope; no Tennis model is collected or published while deferred.",
+    "tennis": "DEFERRED_BY_PROJECT_SCOPE",
     "f1": "OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted",
-    "rugby": "No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated.",
+    "rugby": "DEFERRED:No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated.",
+    "boxing": "No free historical boxing source currently proves source availability before the 60-minute prediction cutoff; public/current schedule data is not historical PIT evidence.",
     "valorant": "insufficient_strict_PIT_rows",
+    "basketball": "insufficient_strict_PIT_rows",
     "volleyball": "insufficient_strict_PIT_rows",
     "rizin": "insufficient_strict_PIT_rows"
   },
@@ -21,20 +23,20 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 39126,
-      "timed_events": 39126,
-      "completed_events": 39126,
-      "resolved_outcomes": 39126,
-      "verified_model_outcomes": 39126,
-      "accepted_models": 1,
-      "model_safety": "OK"
+      "events": 0,
+      "timed_events": 0,
+      "completed_events": 0,
+      "resolved_outcomes": 0,
+      "verified_model_outcomes": 0,
+      "accepted_models": 0,
+      "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "volleyball": {
-      "events": 21112,
-      "timed_events": 21112,
-      "completed_events": 21112,
-      "resolved_outcomes": 19482,
-      "verified_model_outcomes": 19482,
+      "events": 21116,
+      "timed_events": 21116,
+      "completed_events": 21116,
+      "resolved_outcomes": 19497,
+      "verified_model_outcomes": 19497,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
@@ -48,11 +50,11 @@
       "model_safety": "OK"
     },
     "rizin": {
-      "events": 81,
-      "timed_events": 81,
-      "completed_events": 81,
-      "resolved_outcomes": 81,
-      "verified_model_outcomes": 81,
+      "events": 80,
+      "timed_events": 80,
+      "completed_events": 80,
+      "resolved_outcomes": 80,
+      "verified_model_outcomes": 80,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
@@ -64,13 +66,24 @@
       "model_safety": "DEFERRED:OpenF1 historical availability is not proven before the 60-minute cutoff; no leakage-prone proxy is permitted"
     },
     "tennis": {
-      "model_safety": "DEFERRED:Tennis is outside the current active five-sport production scope; no Tennis model is collected or published while deferred."
+      "model_safety": "DEFERRED:DEFERRED_BY_PROJECT_SCOPE"
     },
     "rugby": {
-      "model_safety": "DEFERRED:No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated."
+      "model_safety": "DEFERRED:DEFERRED:No machine-readable event objects were observed from the current public pages; coverage is explicitly deferred rather than fabricated.",
+      "events": 0,
+      "timed_events": 0,
+      "participants": 0,
+      "source_snapshots": 0,
+      "coverage_status": "DEFERRED"
+    },
+    "boxing": {
+      "model_safety": "DEFERRED:No free historical boxing source currently proves source availability before the 60-minute prediction cutoff; public/current schedule data is not historical PIT evidence."
     }
   },
   "coverage_warnings": [],
-  "policy": "source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes",
+  "publishable_artifacts": [
+    "models/research/ufc_current.joblib"
+  ],
+  "policy": "source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes; Boxing remains deferred until free PIT-safe historical evidence exists",
   "gate_version": "release-gate-v9-safe-partial-sport-degradation"
 }

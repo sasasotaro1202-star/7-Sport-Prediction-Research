@@ -1,0 +1,30 @@
+{
+  "generated_at_utc": "2026-09-22T18:22:22.833180+00:00",
+  "policy": "accepted-artifact-only; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration",
+  "sports": [
+    {
+      "sport": "valorant",
+      "status": "DEFERRED_ARTIFACT_NOT_ACCEPTED",
+      "quality_status": null
+    },
+    {
+      "sport": "basketball",
+      "status": "DEFERRED_ARTIFACT_NOT_ACCEPTED",
+      "quality_status": null
+    },
+    {
+      "sport": "volleyball",
+      "status": "DEFERRED_NO_ACCEPTED_ARTIFACT"
+    },
+    {
+      "sport": "ufc",
+      "status": "NO_FUTURE_EVENTS",
+      "predictions": [],
+      "count": 0
+    },
+    {
+      "sport": "rizin",
+      "status": "DEFERRED_NO_ACCEPTED_ARTIFACT"
+    }
+  ]
+}

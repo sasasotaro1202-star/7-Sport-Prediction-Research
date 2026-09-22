@@ -1,0 +1,6 @@
+{
+  "sport": "rugby",
+  "status": "DEFERRED",
+  "reason": "DEFERRED_BY_PROJECT_SCOPE",
+  "promotion_policy": "Do not train or publish until sport-specific PIT, chronological OOS and frozen-holdout requirements are enabled"
+}

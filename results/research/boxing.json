@@ -1,0 +1,22 @@
+{
+  "sport": "boxing",
+  "status": "DEFERRED_PIT",
+  "reason": "No free historical boxing source currently proves source availability before the 60-minute prediction cutoff; public/current schedule data is not historical PIT evidence.",
+  "source_candidates": [
+    "Boxing Undefeated open-boxing-data",
+    "BoxingScene",
+    "BoxRec-compatible public tooling"
+  ],
+  "feature_policy_candidates": [
+    "weight_class",
+    "fighter_age",
+    "height_reach",
+    "stance",
+    "recent_winrate",
+    "opponent_strength",
+    "inactivity_days",
+    "weight_class_elo",
+    "result_method_prior"
+  ],
+  "promotion_policy": "chronological OOS + frozen holdout + calibration + release gate required"
+}

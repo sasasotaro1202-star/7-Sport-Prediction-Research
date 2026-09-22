@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-09-21T19:05:50.749716+00:00",
+  "timestamp_utc": "2026-09-22T18:22:16.685452+00:00",
   "status": "PASS_WITH_PENDING",
   "fatal": [],
   "pending": [
@@ -26,16 +26,33 @@
       "ok": false,
       "counts": {
         "valorant": 9523,
-        "basketball": 39126,
-        "volleyball": 21112,
+        "basketball": 0,
+        "volleyball": 21116,
         "tennis": 0,
         "ufc": 9513,
-        "rizin": 81,
-        "f1": 0
+        "rizin": 80,
+        "f1": 0,
+        "rugby": 0,
+        "boxing": 0
       },
       "missing": [
+        "basketball"
+      ],
+      "deferred": [
         "tennis",
-        "f1"
+        "f1",
+        "rugby",
+        "boxing"
+      ]
+    },
+    {
+      "check": "explicit_deferred_sports",
+      "ok": true,
+      "sports": [
+        "tennis",
+        "f1",
+        "rugby",
+        "boxing"
       ]
     },
     {
@@ -47,7 +64,7 @@
       "check": "source_timing_transparency",
       "ok": true,
       "exact_missing_source_available_at": 0,
-      "unverifiable_source_timestamps": 808,
+      "unverifiable_source_timestamps": 218,
       "policy": "UNVERIFIABLE is excluded from strict PIT learning"
     },
     {
@@ -55,22 +72,18 @@
       "ok": false,
       "max_age_hours": 72,
       "age_hours": {
-        "valorant": null,
+        "valorant": 0.25,
         "basketball": null,
-        "volleyball": null,
+        "volleyball": 0.25,
         "tennis": null,
-        "ufc": null,
-        "rizin": null,
-        "f1": null
+        "ufc": 0.2,
+        "rizin": 0.22,
+        "f1": null,
+        "rugby": null,
+        "boxing": null
       },
       "stale_or_missing": [
-        "valorant",
-        "basketball",
-        "volleyball",
-        "tennis",
-        "ufc",
-        "rizin",
-        "f1"
+        "basketball"
       ],
       "policy": "stale data may support degraded research but must not silently count as fresh production coverage"
     },
@@ -89,16 +102,16 @@
         "tennis": 0,
         "ufc": 0,
         "rizin": 0,
-        "f1": 0
+        "f1": 0,
+        "rugby": 0,
+        "boxing": 0
       },
       "missing": [
         "valorant",
         "basketball",
         "volleyball",
-        "tennis",
         "ufc",
-        "rizin",
-        "f1"
+        "rizin"
       ],
       "policy": "context is learned only when source availability is proven by the 60-minute cutoff"
     },
@@ -113,16 +126,17 @@
       "ok": false,
       "counts": {
         "valorant": 9518,
-        "basketball": 39126,
-        "volleyball": 19482,
+        "basketball": 0,
+        "volleyball": 19497,
         "tennis": 0,
         "ufc": 9513,
-        "rizin": 81,
-        "f1": 0
+        "rizin": 80,
+        "f1": 0,
+        "rugby": 0,
+        "boxing": 0
       },
       "missing": [
-        "tennis",
-        "f1"
+        "basketball"
       ]
     },
     {
@@ -130,19 +144,20 @@
       "ok": false,
       "counts": {
         "valorant": 0,
-        "basketball": 1,
+        "basketball": 0,
         "volleyball": 0,
         "tennis": 0,
         "ufc": 1,
         "rizin": 0,
-        "f1": 0
+        "f1": 0,
+        "rugby": 0,
+        "boxing": 0
       },
       "missing": [
         "valorant",
+        "basketball",
         "volleyball",
-        "tennis",
-        "rizin",
-        "f1"
+        "rizin"
       ]
     },
     {
