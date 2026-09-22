@@ -118,9 +118,10 @@ jobs:
   merge:
     name: Merge, research, and release gate
     needs: collect
-    # Run after collector degradation/failure so partial coverage can still be
-    # evaluated, but never run when the collector matrix was intentionally skipped.
-    if: always() && needs.collect.result != 'skipped'
+    # Merge only after the full collector matrix completes successfully.
+    # Source outages are represented inside successful collector jobs as explicit
+    # DEGRADATION states; cancellation must never be treated as usable coverage.
+    if: needs.collect.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
