@@ -225,7 +225,10 @@ def main():
     require('def _make_stat_history_loader' in research_base,'PIT stat history cache loader is missing')
     require('from bisect import bisect_right' in research_base and 'idx=bisect_right(times,event_ts)-1' in research_base,
             'PIT stat history lookup is not using bounded indexed time search')
-    require('(ss.event_time_utc IS NULL OR ss.event_time_utc=e.event_time_utc)' in research_base,'PIT outcome snapshot is not event-time constrained')
+    require('def outcome_maps(c,s,pairs):' in research_base and 'Historical outcomes are teacher labels' in research_base,
+            'teacher-label chronology is not explicitly separated from input-feature PIT')
+    require('realized=et+timedelta(hours=24)' in research_base and 'hist.append((eid,t,p[\'A\'],p[\'B\'],o,realized.isoformat()))' in research_base,
+            'teacher-label chronology lacks a conservative realized-time fallback')
     require("best_fixed_key=min(scores" in strict_src and "candidate_label='weighted_ensemble'" in strict_src,
             'strict ensemble selector lacks explicit pre-holdout candidate selection')
     best_sel_pos=strict_src.find('best_fixed_key=min(scores')
