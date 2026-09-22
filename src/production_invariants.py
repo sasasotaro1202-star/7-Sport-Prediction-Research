@@ -158,8 +158,12 @@ def main():
             'strict model feature version was not bumped after the latest PIT-safe feature expansion')
     require('strict-pit-v17-' in strict_src and 'strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
             'carry-forward compatibility does not preserve prior accepted schemas while enabling current v17 schema')
-    require("feature_version.startswith('strict-pit-v15-')" in strict_src and "feature_version.startswith('strict-pit-v16-')" in strict_src and "feature_version.startswith('strict-pit-v17-')" in strict_src,
-            'v15/v16/v17 accepted artifacts are not explicitly eligible for safe carry-forward')
+    require(all(token in strict_src for token in (
+        'feature_version.startswith("strict-pit-v14-")',
+        'feature_version.startswith("strict-pit-v15-")',
+        'feature_version.startswith("strict-pit-v16-")',
+        'feature_version.startswith("strict-pit-v17-")',
+    )), 'v14/v15/v16/v17 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
             'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
