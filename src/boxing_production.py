@@ -31,6 +31,13 @@ CANDIDATES = [
         "pit_status": "UNPROVEN",
     },
     {
+        "name": "mavese/machineLearningBoxingMatches",
+        "url": "https://github.com/mavese/machineLearningBoxingMatches",
+        "api": "https://api.github.com/repos/mavese/machineLearningBoxingMatches/git/trees/master?recursive=1",
+        "role": "free historical boxing dataset candidate",
+        "pit_status": "UNPROVEN",
+    },
+    {
         "name": "BoxingScene",
         "url": "https://www.boxingscene.com/",
         "role": "public current schedule/results candidate",
@@ -153,6 +160,26 @@ def ingest_history(c, h: HTTP) -> dict:
     c.commit()
     return {"rows": len(rows), "imported_events": imported, "verified_outcomes": outcomes, "skipped": skipped, "retrieved_at_utc": retrieved}
 
+
+def github_tree_probe(api_url: str) -> dict:
+    try:
+        req = Request(api_url, headers={"User-Agent": "boxing-research-guard"})
+        with urlopen(req, timeout=15) as resp:
+            obj = json.loads(resp.read().decode("utf-8"))
+        tree = obj.get("tree") or []
+        files = [str(x.get("path")) for x in tree if x.get("type") == "blob"]
+        machine = [p for p in files if p.lower().endswith((".csv", ".json", ".jsonl", ".parquet"))]
+        date_fields = [p for p in files if any(k in p.lower() for k in ("date", "fight", "bout", "match"))]
+        return {
+            "reachable": True,
+            "tree_truncated": bool(obj.get("truncated")),
+            "file_count": len(files),
+            "machine_readable_files": machine[:50],
+            "date_or_bout_related_files": date_fields[:50],
+            "raw_content_pit": "UNPROVEN_UNLESS_ROW_LEVEL_EVENT_TIME_AND_VERSION_TIME_ARE_AVAILABLE",
+        }
+    except Exception as exc:
+        return {"reachable": False, "error": type(exc).__name__}
 
 def main() -> int:
     import argparse
