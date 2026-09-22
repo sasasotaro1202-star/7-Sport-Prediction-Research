@@ -238,7 +238,9 @@ def main():
     require('def _make_stat_history_loader' in research_base,'PIT stat history cache loader is missing')
     require('from bisect import bisect_right' in research_base and 'idx=bisect_right(times,event_ts)-1' in research_base,
             'PIT stat history lookup is not using bounded indexed time search')
-    require('def outcome_maps(c,s,pairs):' in research_base and 'Historical outcomes are teacher labels' in research_base,
+    require('def outcome_maps(c,s,pairs):' in research_base and
+            ('Outcomes are teacher labels, not prediction-time input features' in research_base
+             or 'Historical outcomes are teacher labels' in research_base),
             'teacher-label chronology is not explicitly separated from input-feature PIT')
     require('realized=et+timedelta(hours=24)' in research_base and 'hist.append((eid,t,p[\'A\'],p[\'B\'],o,realized.isoformat()))' in research_base,
             'teacher-label chronology lacks a conservative realized-time fallback')
