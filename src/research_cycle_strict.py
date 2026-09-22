@@ -524,18 +524,18 @@ def train(s):
    ece_guard=hold['ece'] <= max(.20,old_ece + .03)
    if ll_improvement < tol or not brier_guard or not ece_guard:
     return _write_result(s,{'sport':s,'status':'REJECTED_CHALLENGER','reason':f"new_ll={hold['logloss']:.6f};old_ll={old_ll:.6f};improvement={ll_improvement:.6f};required={tol:.6f};brier_guard={brier_guard};ece_guard={ece_guard}",'holdout_metrics':hold,'selection_oos':oos,'ensemble_selection':scores})
-  # Challenger-only dynamic routing. It is evaluated on chronological OOS before the frozen holdout.
-  # The router can never promote itself from OOS alone; the incumbent remains the safe fallback.
-  router_names=list(rank[:4])
-  router_eval=router.evaluate_router_from_folds(X,y,router_names,oof_folds,sel,base.metric)
-  router_holdout_models={name:model for name,model in zip(best,models)}
-  for name in router_names:
-   if name not in router_holdout_models:
-    m=base.pool()[name]
-    m.fit(X[:sel],y[:sel])
-    router_holdout_models[name]=m
-  router_holdout_pred={name:np.clip(router_holdout_models[name].predict_proba(X[sel:])[:,1],1e-6,1-1e-6) for name in router_names}
-  router_holdout=router.evaluate_frozen_holdout_router_from_folds(X,y,router_names,oof_folds,sel,router_holdout_pred)
+  # Challenger-only dynamic routing. It is evaluated against the exact selected
+  # incumbent ensemble, not a different equal-weight model pool.
+  # A single-model incumbent has no routing surface and therefore keeps the fixed model.
+  router_names=list(best) if len(best)>=2 else []
+  if router_names:
+   router_eval=router.evaluate_router_from_folds(X,y,router_names,oof_folds,sel,base.metric,candidate_weights)
+   router_holdout_models={name:model for name,model in zip(best,models)}
+   router_holdout_pred={name:np.clip(router_holdout_models[name].predict_proba(X[sel:])[:,1],1e-6,1-1e-6) for name in router_names}
+   router_holdout=router.evaluate_frozen_holdout_router_from_folds(X,y,router_names,oof_folds,sel,router_holdout_pred,candidate_weights)
+  else:
+   router_eval={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; dynamic routing cannot add diversification'}
+   router_holdout={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; frozen-holdout router comparison not applicable'}
   router_accept = (router_eval.get('status') == 'EVALUATED'
                    and router_holdout.get('status') == 'EVALUATED'
                    and router_eval['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
