@@ -696,7 +696,7 @@ def train(s):
     calibrated_hold_p=np.clip(probability_calibrator.predict_proba(bp_hold)[:,1],1e-6,1-1e-6)
    else:
     calibrated_hold_p=np.clip(probability_calibrator.predict(raw_hold_p),1e-6,1-1e-6)
-   hold_probability_calibrated=base.metric(y[sel:],calibrated_hold_p)
+   hold_probability_calibrated=base.metric(y_holdout,calibrated_hold_p)
    hold_probability_calibrated['models']=list(best)
    hold_probability_calibrated['candidate_strategy']=candidate_label
    hold_probability_calibrated['candidate_weights']=candidate_weights
@@ -725,7 +725,7 @@ def train(s):
   if router_names:
    router_eval=router.evaluate_router_from_folds(X,y,router_names,oof_folds,sel,base.metric,candidate_weights)
    router_holdout_models={name:model for name,model in zip(best,models)}
-   router_holdout_pred={name:np.clip(router_holdout_models[name].predict_proba(X[sel:])[:,1],1e-6,1-1e-6) for name in router_names}
+   router_holdout_pred={name:np.clip(router_holdout_models[name].predict_proba(X_holdout)[:,1],1e-6,1-1e-6) for name in router_names}
    router_holdout=router.evaluate_frozen_holdout_router_from_folds(X,y,router_names,oof_folds,sel,router_holdout_pred,candidate_weights)
   else:
    router_eval={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; dynamic routing cannot add diversification'}
