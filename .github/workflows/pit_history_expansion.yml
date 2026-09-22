@@ -80,8 +80,8 @@ jobs:
           path: data/db
           key: pit-history-seed-${{ matrix.sport }}-${{ github.run_id }}
           restore-keys: |
-            eight-sport-db-v4-${{ matrix.sport }}-pit-
-            eight-sport-db-v4-${{ matrix.sport }}-
+            nine-sport-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-target-db-v4-${{ matrix.sport }}-
       - name: Validate restored database
         if: steps.cadence.outputs.run == 'true'
         run: |
@@ -125,7 +125,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: data/db
-          key: eight-sport-db-v4-${{ matrix.sport }}-pit-${{ github.run_id }}
+          key: nine-sport-target-db-v4-${{ matrix.sport }}-pit-${{ github.run_id }}
       - name: Upload PIT expansion report
         if: steps.cadence.outputs.run == 'true'
         uses: actions/upload-artifact@v4
