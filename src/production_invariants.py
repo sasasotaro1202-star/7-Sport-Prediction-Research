@@ -154,12 +154,12 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
             'research features lack score-margin strength signals')
-    require('strict-pit-v16-coverage-streak-margin-regime-features' in strict_src,
-            'strict model feature version was not bumped after adding coverage/streak features')
-    require('strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
-            'carry-forward compatibility does not preserve v14/v15 while enabling current v16 schema')
-    require('feature_version.startswith("strict-pit-v15-")' in strict_src and 'feature_version.startswith("strict-pit-v16-")' in strict_src,
-            'v15/v16 accepted artifacts are not explicitly eligible for safe carry-forward')
+    require('strict-pit-v17-multiscale-form-h2h-freshness-router-features' in strict_src,
+            'strict model feature version was not bumped after the latest PIT-safe feature expansion')
+    require('strict-pit-v17-' in strict_src and 'strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
+            'carry-forward compatibility does not preserve prior accepted schemas while enabling current v17 schema')
+    require('feature_version.startswith("strict-pit-v15-")' in strict_src and 'feature_version.startswith("strict-pit-v16-")' in strict_src and 'feature_version.startswith("strict-pit-v17-")' in strict_src,
+            'v15/v16/v17 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
             'research features lack competition regime indicators')
     require("__games_last_" in research_base and "__short_rest_flag" in research_base,'research features lack schedule-density/short-rest signals')
