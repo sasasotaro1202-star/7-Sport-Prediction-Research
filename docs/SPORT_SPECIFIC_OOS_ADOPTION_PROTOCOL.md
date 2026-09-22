@@ -28,6 +28,10 @@ Feature definitions must include an explicit effective timestamp and source obse
 - Report sample size and coverage alongside every metric.
 - Do not accept one-off improvements that disappear on another period, tournament, or holdout.
 
+## Teacher labels versus input features
+
+Historical outcomes are labels for supervised learning. They become usable for later training state only after the source event has actually resolved under a conservative chronology rule. They are not treated as prediction-time feature observations. Any pre-event feature must independently satisfy available_at <= prediction_cutoff; retrieval time alone never proves historical availability.
+
 ## Calibration and robustness
 Track probability calibration in addition to discrimination. Use reliability/ECE/Brier/LogLoss and inspect confidence under distribution shift. Monitor feature drift and prediction drift over time. A model that becomes overconfident under drift is not considered robust merely because its point accuracy remains acceptable.
 
