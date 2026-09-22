@@ -28,6 +28,13 @@ def main():
     require('Nine-Sport Target v4.5.15 Production' in workflow,'canonical workflow name is not nine-sport target')
     require('F1, Rugby and Boxing are intentionally deferred by project scope' in workflow,
             'canonical production workflow does not explicitly defer Boxing')
+    require("DEFERRED_SPORTS=('f1','boxing')" in strict_src,
+            'strict research deferred-sport declaration does not include Boxing')
+    release_gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
+    require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in release_gate_src,
+            'release gate does not explicitly treat Boxing as deferred')
+    require((ROOT/'src/boxing_production.py').exists() and (ROOT/'.github/workflows/boxing_pit_guard.yml').exists(),
+            'Boxing PIT source guard implementation/workflow is missing')
     require('seven canonical sports' not in workflow.lower(),'canonical workflow contains stale seven-sport wording')
     require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
     require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
