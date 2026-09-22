@@ -114,7 +114,9 @@ def main() -> int:
             files.append(file_record(p))
     files.extend(file_record(p) for p in models)
 
-    event_counts, storage_status = db_counts()\n\n    manifest = {
+    event_counts, storage_status = db_counts()
+
+    manifest = {
         "manifest_version": "repro-v1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "source_git_commit_sha": git_head(),
