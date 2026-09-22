@@ -1,0 +1,92 @@
+name: Lightweight Regression and Safety Checks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lightweight-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Compile all source
+        run: python -m compileall -q src
+      - name: Import canonical modules
+        run: |
+          python - <<'PY'
+          import src.dynamic_model_router as router
+          import src.future_predictor as future
+          import src.research_cycle_strict as strict
+          import src.research_cycle_v4 as base
+          print("IMPORTS=PASS")
+          print("MODEL_POOL", sorted(base.pool().keys()))
+          print("SPORTS", base.SPORTS)
+          PY
+      - name: Router and calibration smoke tests
+        run: |
+          python - <<'PY'
+          import numpy as np
+          from sklearn.metrics import log_loss
+          import src.dynamic_model_router as dm
+          import src.research_cycle_strict as strict
+          rng=np.random.default_rng(42)
+          X=rng.normal(size=(240,12))
+          X[::17,2]=np.nan
+          ref=dm.context_reference(X[:180])
+          ctx=dm._context_from_reference(ref,X[180:185])
+          assert ctx.shape==(5,10), ctx.shape
+          recent=dm._recent_model_loss([[0.7,0.6],[0.5,0.8]],2)
+          assert recent.shape==(2,) and np.all(np.isfinite(recent))
+          y=(rng.random(180)>.47).astype(int)
+          p=np.clip(0.15+0.7*rng.random(180),1e-5,1-1e-5)
+          cal=strict._temporal_calibration_candidate(p,y)
+          assert isinstance(cal,dict) and 'accepted' in cal
+          print("ROUTER_CALIBRATION=PASS")
+          PY
+      - name: LightGBM smoke test
+        run: |
+          python - <<'PY'
+          import numpy as np
+          from lightgbm import LGBMClassifier
+          rng=np.random.default_rng(42)
+          X=rng.normal(size=(220,14))
+          y=(X[:,0]+0.4*X[:,1]+rng.normal(scale=.8,size=220)>0).astype(int)
+          m=LGBMClassifier(n_estimators=40,learning_rate=.04,num_leaves=7,min_child_samples=15,
+                           verbosity=-1,n_jobs=1,random_state=42,deterministic=True,force_col_wise=True)
+          m.fit(X,y)
+          p=m.predict_proba(X[:8])[:,1]
+          assert p.shape==(8,) and np.all(np.isfinite(p))
+          print("LIGHTGBM=PASS")
+          PY
+      - name: PIT CLI smoke test
+        run: python -m src.pit_replay_builder --help
+      - name: Holdout safety assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          strict=Path('src/research_cycle_strict.py').read_text()
+          accelerated=Path('src/research_accelerated.py').read_text()
+          assert "Candidate selection is OOS-only" in strict
+          assert "production_fit_excludes_holdout" in strict
+          assert "final.fit(X[:holdout_start],y[:holdout_start])" in accelerated
+          assert "final.fit(X,y)" not in accelerated
+          print("HOLDOUT_SAFETY=PASS")
+          PY
