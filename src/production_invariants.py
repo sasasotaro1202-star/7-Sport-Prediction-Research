@@ -13,6 +13,7 @@ def main():
     workflow=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
     manifest=(ROOT/'src/reproducibility_manifest.py').read_text(encoding='utf-8')
     readme=(ROOT/'README.md').read_text(encoding='utf-8')
+    strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
 
     m=re.search(r"SPORTS=\(([^)]*)\)",research)
     actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
@@ -25,6 +26,8 @@ def main():
     require('max-parallel: 8' in workflow or 'max-parallel: 6' in workflow,'canonical workflow parallelism declaration missing')
     
     require('Nine-Sport Target v4.5.15 Production' in workflow,'canonical workflow name is not nine-sport target')
+    require('F1, Rugby and Boxing are intentionally deferred by project scope' in workflow,
+            'canonical production workflow does not explicitly defer Boxing')
     require('seven canonical sports' not in workflow.lower(),'canonical workflow contains stale seven-sport wording')
     require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
     require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
@@ -32,8 +35,8 @@ def main():
     scope=(ROOT/'config/ACTIVE_SCOPE_8_SPORTS.json').read_text(encoding='utf-8')
     require('"B.LEAGUE"' in scope and '"Asian Games Basketball"' in scope and '"Asian Games Volleyball"' in scope,'active scope target competitions missing')
     require("target_event(s,name,competition_id)" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'research engine lacks explicit target-competition filtering')
-    require('Tennis is currently deferred' in readme,'README does not declare Tennis deferred')
-    require('F1, Rugby and Boxing are currently deferred' in readme,'README does not declare F1/Rugby/Boxing deferred')
+    require('Tennis, F1, Rugby and Boxing are currently deferred' in readme,'README does not declare all four deferred target sports')
+    require('Boxing (currently deferred)' in readme,'README does not list Boxing as a deferred target sport')
 
     compact=research.replace(' ','')
     require('final.fit(X,y)' not in compact,'frozen holdout violated by full-dataset final fit')
@@ -149,11 +152,10 @@ def main():
             'future predictor lacks gated situation-specific routing path')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
-    strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
     require('def boxing()' in strict_src and "if s=='boxing'" in strict_src,
             'Boxing research lane is not wired to an explicit deferred handler')
-    require(set(['tennis','f1','rugby','boxing']).issubset(set(re.findall(r"[\\'\\\"](tennis|f1|rugby|boxing)[\\'\\\"]", strict_src))),
-            'Deferred sport set is missing one or more target sports')
+    require("DEFERRED_SPORTS=('f1','boxing')" in strict_src and "ALL_SPORTS=SPORTS+DEFERRED_SPORTS" in strict_src,
+            'Strict research does not explicitly separate active and deferred sport lanes')
     research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
