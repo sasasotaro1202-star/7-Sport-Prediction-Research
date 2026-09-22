@@ -261,13 +261,14 @@ def main():
             existing_feature_rows=feature_counts.get(replay_id,0)
 
             if existing and existing['feature_version']==FEATURE_VERSION:
-                # Normal hourly runs require the same corpus fingerprint. Forced
-                # history refreshes revisit only rows that are not already cleanly
-                # materialized, so new provenance evidence does not trigger a full
-                # replay of established history.
-                if (force and existing['replay_status']=='REPLAYABLE' and existing_feature_rows>0) or (
-                    (not force) and existing['dataset_hash']==fingerprint and
-                    (existing['replay_status']!='REPLAYABLE' or existing_feature_rows>0)
+                # Normal hourly runs may reuse a replay only when the mutable
+                # corpus fingerprint is unchanged. A forced history refresh must
+                # rebuild even an already-REPLAYABLE row because source_snapshot
+                # availability timestamps can change without changing match_stats.
+                # Skipping such a row would silently discard newly proven historical
+                # observations and make the --force provenance refresh ineffective.
+                if (not force) and existing['dataset_hash']==fingerprint and (
+                    existing['replay_status']!='REPLAYABLE' or existing_feature_rows>0
                 ):
                     skipped+=1
                     continue
