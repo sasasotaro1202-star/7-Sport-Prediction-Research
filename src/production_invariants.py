@@ -106,7 +106,6 @@ def main():
     require('_load_or_create_frozen_holdout' in strict_src and 'holdout_event_ids' in strict_src,'immutable frozen holdout registry is missing')
     require('train_rows=[r for r in rows if str(r[0]) not in holdout_set]' in strict_src,'training partition is not explicitly separated from frozen holdout')
     require('X_holdout' in strict_src and 'y_holdout' in strict_src,'frozen holdout is not scored through a dedicated dataset')
-    require('holdout_y' in router_src and 'holdout_target_shape_mismatch' in router_src,'frozen-holdout router scorer is not target-shape safe')
     require('frozen_holdout_registry_hash' in strict_src,'artifact metadata does not bind to immutable frozen holdout registry')
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require("old_registry_hash==registry['registry_hash']" in strict_src,'holdout baseline comparison is not bound to the same frozen registry')
@@ -372,6 +371,7 @@ def main():
             'forced PIT history refresh does not document provenance-sensitive rebuild semantics')
 
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
+    require('holdout_y' in router_src and 'holdout_target_shape_mismatch' in router_src,'frozen-holdout router scorer is not target-shape safe')
     require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
     require('UNSUPPORTED_MULTICLASS_RESEARCH_ONLY' in router_src,'dynamic router lacks multiclass research-only guard')
     require('router_unavailable' in router_src and 'multiclass_base_model_unsupported' in router_src,'dynamic router lacks safe prediction fallbacks')
