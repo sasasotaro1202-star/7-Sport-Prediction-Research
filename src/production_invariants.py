@@ -42,7 +42,17 @@ def main():
     require((ROOT/'src/boxing_production.py').exists() and (ROOT/'.github/workflows/boxing_pit_guard.yml').exists(),
             'Boxing PIT source guard implementation/workflow is missing')
     require((ROOT/'scripts/test_boxing_ingest.py').exists() and 'test_boxing_ingest.py' in (ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8'),
-            'Boxing ingest unit test is missing from the regression path')
+            'Boxing ingest unit test is missing from the regression path'),
+    boxing_src=(ROOT/'src/boxing_production.py').read_text(encoding='utf-8')
+    boxing_wf=(ROOT/'.github/workflows/boxing_pit_guard.yml').read_text(encoding='utf-8')
+    require('BOXING_DB = ROOT / "data" / "db" / "boxing_v45.sqlite"' in boxing_src,
+            'Boxing collector uses no dedicated SQLite database')
+    require('def connect_boxing()' in boxing_src and 'c = connect_boxing()' in boxing_src,
+            'Boxing history ingestion is not wired to the dedicated database')
+    require('--ingest-history' in boxing_wf and 'boxing_v45.sqlite' in boxing_wf,
+            'Boxing guard does not continuously persist isolated free history')
+    require('boxing_uses_dedicated_database' in (ROOT/'src/reproducibility_manifest.py').read_text(encoding='utf-8'),
+            'Reproducibility manifest does not record dedicated Boxing storage')
     require('seven canonical sports' not in workflow.lower(),'canonical workflow contains stale seven-sport wording')
     require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
     require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
@@ -184,7 +194,6 @@ def main():
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
-    require('__elo_comp' in research_base and '__elo_comp_fast' in research_base and '__elo_comp_slow' in research_base,'research features lack competition-specific rating signals')
     require('__elo_comp' in research_base and '__elo_comp_fast' in research_base and '__elo_comp_slow' in research_base,'research features lack competition-specific PIT-safe Elo signals')
     require('ratings_comp' in research_base and 'comp_hist=' in research_base,'competition-specific Elo state is not updated chronologically')
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
@@ -206,7 +215,7 @@ def main():
     require('feature_version.startswith("strict-pit-v16-")' in carry_block,
             'v16 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('feature_version.startswith("strict-pit-v17-")' in carry_block,
-            'v17 accepted artifacts are not explicitly eligible for safe carry-forward')
+            'v18 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('feature_version.startswith("strict-pit-v18-")' in carry_block,
             'v17 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
