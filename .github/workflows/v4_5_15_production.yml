@@ -122,7 +122,7 @@ jobs:
     # evaluated, but never run when the collector matrix was intentionally skipped.
     if: always() && needs.collect.result != 'skipped'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v6
         with:
@@ -261,7 +261,7 @@ jobs:
       - name: Research with frozen holdout
         run: |
           set -euo pipefail
-          timeout --signal=TERM 2400s python -m src.research_cycle_strict
+          timeout --signal=TERM 3600s python -m src.research_cycle_strict
 
       - name: Quality report (non-failing coverage mode)
         run: python -m src.quality_gate
