@@ -184,14 +184,15 @@ def main():
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
+    require('__elo_comp' in research_base and '__elo_comp_fast' in research_base and '__elo_comp_slow' in research_base,'research features lack competition-specific rating signals')
     require('__elo_comp' in research_base and '__elo_comp_fast' in research_base and '__elo_comp_slow' in research_base,'research features lack competition-specific PIT-safe Elo signals')
     require('ratings_comp' in research_base and 'comp_hist=' in research_base,'competition-specific Elo state is not updated chronologically')
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
             'research features lack score-margin strength signals')
-    require('strict-pit-v17-multiscale-form-h2h-freshness-router-features' in strict_src,
+    require('strict-pit-v18-multiscale-form-h2h-freshness-router-competition-elo-features' in strict_src,
             'strict model feature version was not bumped after the latest PIT-safe feature expansion')
-    require('strict-pit-v17-' in strict_src and 'strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
+    require('strict-pit-v18-' in strict_src and 'strict-pit-v17-' in strict_src and 'strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
             'carry-forward compatibility does not preserve prior accepted schemas while enabling current v17 schema')
     carry_start=strict_src.find('feature_version=str(previous.get("feature_version") or "")')
     carry_end=strict_src.find("artifact = _restore_historical_artifact",carry_start)
@@ -205,6 +206,8 @@ def main():
     require('feature_version.startswith("strict-pit-v16-")' in carry_block,
             'v16 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('feature_version.startswith("strict-pit-v17-")' in carry_block,
+            'v17 accepted artifacts are not explicitly eligible for safe carry-forward')
+    require('feature_version.startswith("strict-pit-v18-")' in carry_block,
             'v17 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('competition_is_asian_games' in research_base and 'competition_is_bleague' in research_base,
             'research features lack competition regime indicators')
