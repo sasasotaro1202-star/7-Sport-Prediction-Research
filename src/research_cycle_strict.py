@@ -670,11 +670,19 @@ def train(s):
    router_holdout={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; frozen-holdout router comparison not applicable'}
   # Promotion is decided from pre-holdout chronological OOS only.
   # The frozen holdout is strictly score-only and must never affect routing adoption.
+  router_block_deltas=list(router_eval.get('nonoverlap_block_deltas') or [])
+  router_block_improvements=sum(1 for d in router_block_deltas if float(d) < 0.0)
+  router_allowed_block_degradation=max(.001,.005*float(selected_oos_metric['logloss']))
   router_accept = (router_eval.get('status') == 'EVALUATED'
                    and router_eval.get('folds',0) >= 6
+                   and len(router_block_deltas) >= 3
+                   and router_block_improvements >= 2
+                   and max(router_block_deltas) <= router_allowed_block_degradation
                    and router_eval['logloss_improvement'] >= max(.001,.005*selected_oos_metric['logloss'])
                    and router_eval['brier_improvement'] >= -.002
-                   and router_eval['ece_change'] <= .02)
+                   and router_eval['ece_change'] <= .02
+                   and router_eval.get('bootstrap_p05_improvement',float('-inf')) > 0.0
+                   and router_eval.get('bootstrap_prob_improvement',0.0) >= 0.90)
   final_router=None
   router_models_artifact={}
   router_feature_reference=None
