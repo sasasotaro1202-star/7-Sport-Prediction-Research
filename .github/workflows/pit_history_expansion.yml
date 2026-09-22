@@ -50,7 +50,7 @@ jobs:
           fi
           echo 'run=true' >> "$GITHUB_OUTPUT"
           echo '9-hour cadence guard: RUN'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.cadence.outputs.run == 'true'
         with:
           fetch-depth: 0
@@ -64,7 +64,7 @@ jobs:
             echo "STALE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
             exit 1
           fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.cadence.outputs.run == 'true'
         with:
           python-version: '3.12'
