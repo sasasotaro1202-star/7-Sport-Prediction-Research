@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
-SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
+SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
 
 def utc(): return datetime.now(timezone.utc).isoformat()
 
