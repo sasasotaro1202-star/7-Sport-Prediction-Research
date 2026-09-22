@@ -130,7 +130,6 @@ def predict_sport(c,s,now):
     rref=artifact.get('dynamic_router_feature_reference') if artifact.get('dynamic_router_feature_reference') is not None else None
     cal=artifact.get('probability_calibrator')
     cal_method=str((artifact.get('probability_calibration') or {}).get('method') or 'none')
-    model_map={n:m for n,m in zip(names,models)}
     for eid,t,label,row_features in rows:
         meta=future.get(eid)
         if meta is None:
@@ -189,7 +188,7 @@ def main():
     try:
         sports=[args.sport] if args.sport else list(SPORTS)
         results=[predict_sport(con,s,now) for s in sports]
-    con.commit()
+        con.commit()
     finally:
         con.close()
     report={'generated_at_utc':now.isoformat(),'policy':'accepted-artifact-only; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration','sports':results}
