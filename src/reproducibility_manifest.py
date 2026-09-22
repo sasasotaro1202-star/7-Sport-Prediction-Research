@@ -29,9 +29,17 @@ def git_head() -> str:
     return p.stdout.strip()
 
 
+def display_path(path: Path) -> str:
+    """Return a stable relative path for repo files and a safe absolute fallback for test fixtures."""
+    try:
+        return display_path(path)
+    except ValueError:
+        return str(path)
+
+
 def file_record(path: Path) -> dict:
     if not path.is_file():
-        return {"path": str(path.relative_to(ROOT)), "exists": False}
+        return {"path": display_path(path), "exists": False}
     return {
         "path": str(path.relative_to(ROOT)),
         "exists": True,
@@ -65,7 +73,7 @@ def db_counts() -> tuple[dict, dict]:
     storage = {}
 
     count, status = _count_events(DB)
-    storage["canonical"] = {"path": str(DB.relative_to(ROOT)), "status": status}
+    storage["canonical"] = {"path": display_path(DB), "status": status}
     if status == "OK":
         import sqlite3
         con = sqlite3.connect(f"file:{DB.resolve()}?mode=ro", uri=True)
