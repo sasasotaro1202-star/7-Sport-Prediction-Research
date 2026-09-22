@@ -418,16 +418,13 @@ def train(s):
     p=np.mean(np.column_stack([oof_probs[n] for n in spec]),axis=1)
    score=base.metric(oof_y,p)
    fold_ll=[];fold_brier=[]
-   window_scores=[]
-   for ws in window_starts:
-    yy=[];pp=[]
-    for fold in oof_folds:
-     if int(fold['end'])<ws:continue
-     yy.extend(y[int(fold['end']):int(fold['te'])].tolist())
-     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
-     pp.extend(np.mean(fp,axis=1).tolist())
-    if len(yy)>=20 and len(np.unique(yy))>1:
-     window_scores.append(base.metric(np.asarray(yy),np.asarray(pp)))
+   window_scores=_window_metric_for_preds({
+    int(fold['end']): np.mean(
+      np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec]),
+      axis=1
+    ).tolist()
+    for fold in oof_folds
+   })
    for fold in oof_folds:
     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
     pred=np.mean(fp,axis=1)
@@ -487,6 +484,31 @@ def train(s):
    robust=float(np.average(wl,weights=np.array([0.20,0.30,0.50]))+0.10*np.std(wl)+0.05*np.std(fold_losses)) if len(window_scores)==3 else float(overall['logloss']+0.15*np.std(fold_losses))
    return overall,robust,fold_losses,window_scores
 
+  def _nonoverlap_block_deltas(spec, weights, fixed_spec):
+   """Return candidate-minus-fixed LogLoss deltas for 3 disjoint OOS blocks."""
+   deltas=[]
+   if len(oof_folds)<3:
+    return deltas
+   for fold_ids in np.array_split(np.arange(len(oof_folds)),3):
+    cy=[];cp=[];fp=[]
+    for fi in fold_ids.tolist():
+     fold=oof_folds[int(fi)]
+     yy=y[int(fold['end']):int(fold['te'])]
+     cpred=np.sum(
+       np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])*
+                        np.array([weights[n] for n in spec])[None,:],
+       axis=1
+     )
+     fpred=np.mean(
+       np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in fixed_spec]),
+       axis=1
+     )
+     cy.extend(yy.tolist());cp.extend(cpred.tolist());fp.extend(fpred.tolist())
+    if len(cy)>=20 and len(np.unique(cy))>1:
+     deltas.append(float(base.metric(np.asarray(cy),np.asarray(cp))['logloss']
+                       -base.metric(np.asarray(cy),np.asarray(fp))['logloss']))
+   return deltas
+
   def _paired_fold_delta_stats(spec, weights, fixed_spec):
    """Estimate paired fold uncertainty using only pre-holdout OOS folds."""
    cand=[];fixed=[]
@@ -531,10 +553,11 @@ def train(s):
     _,regime_excess,_=_regime_robust_objective((a,b),weights)
     robust += 0.15*regime_excess
     paired=_paired_fold_delta_stats((a,b),weights,fixed_models)
+    block_deltas=_nonoverlap_block_deltas((a,b),weights,fixed_models)
     robust += max(0.0,paired['se'])
     if np.isfinite(paired.get('bootstrap_p05_improvement',float('-inf'))) and paired.get('bootstrap_p05_improvement',float('-inf')) <= 0.0:
      robust += 0.001 + abs(float(paired.get('bootstrap_p05_improvement',0.0)))
-    weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],(a,b),weights,folds,paired))
+    weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],(a,b),weights,folds,paired,block_deltas))
   # Keep the 3-model search bounded: use the top-6 individual candidates,
   # while allowing all weights on that diversity shortlist.
   triple_pool=rank[:min(6,len(rank))]
@@ -548,21 +571,31 @@ def train(s):
      _,regime_excess,_=_regime_robust_objective(spec,weights)
      robust += 0.15*regime_excess
      paired=_paired_fold_delta_stats(spec,weights,fixed_models)
+     block_deltas=_nonoverlap_block_deltas(spec,weights,fixed_models)
      robust += max(0.0,paired['se'])
-     weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],spec,weights,folds,paired))
+     weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],spec,weights,folds,paired,block_deltas))
   if weighted_candidates:
    weighted_candidates.sort(key=lambda z:(z[0],z[2],z[3]))
    wc=weighted_candidates[0]
    weighted_robust=wc[0]
    paired=wc[7] if len(wc)>7 else {'mean_delta':0.0,'se':float('inf'),'folds':0}
+   block_deltas=wc[8] if len(wc)>8 else []
+   block_improvement_count=sum(1 for d in block_deltas if d < 0.0)
+   allowed_block_degradation=max(0.001,0.005*float(fixed_oos_metric['logloss']))
    if (paired.get('folds',0) >= 6
+       and len(block_deltas) >= 3
+       and block_improvement_count >= 2
+       and max(block_deltas) <= allowed_block_degradation
        and weighted_robust + 0.0002 < fixed_oos_metric['robust_objective']
        and paired['mean_delta'] < -max(0.0002, paired['se'] if np.isfinite(paired['se']) else 0.0)
        and paired.get('bootstrap_p05_improvement',float('-inf')) > 0.0
        and paired.get('bootstrap_prob_improvement',0.0) >= 0.90):
     spec=tuple(wc[4])
     cand_weights=dict(wc[5])
-    wa_metric={'logloss':wc[1],'brier':wc[2],'ece':wc[3],'robust_objective':weighted_robust,'fold_logloss_std':float(np.std(wc[6])) if wc[6] else float('inf'),'paired_oos_folds':int(paired['folds']),'paired_delta_mean':float(paired['mean_delta']),'paired_delta_se':float(paired['se']), 'paired_bootstrap_p05_improvement':float(paired.get('bootstrap_p05_improvement',float('-inf'))), 'paired_bootstrap_prob_improvement':float(paired.get('bootstrap_prob_improvement',0.0))}
+    wa_metric={'logloss':wc[1],'brier':wc[2],'ece':wc[3],'robust_objective':weighted_robust,'fold_logloss_std':float(np.std(wc[6])) if wc[6] else float('inf'),'paired_oos_folds':int(paired['folds']),'paired_delta_mean':float(paired['mean_delta']),'paired_delta_se':float(paired['se']), 'paired_bootstrap_p05_improvement':float(paired.get('bootstrap_p05_improvement',float('-inf'))), 'paired_bootstrap_prob_improvement':float(paired.get('bootstrap_prob_improvement',0.0)),
+     'nonoverlap_block_deltas':list(map(float,block_deltas)),
+     'nonoverlap_block_improvement_count':int(block_improvement_count),
+     'allowed_block_degradation':float(allowed_block_degradation)}
     wa_a=spec[0];wa_b=spec[1];wa_weight=float(cand_weights[wa_a])
     wa_win_rate=float(np.mean([1.0 if d <= fixed_oos_metric['logloss'] else 0.0 for d in wc[6]])) if wc[6] else 0.0
     wa_mean_delta=float(fixed_oos_metric['logloss']-wc[1])
