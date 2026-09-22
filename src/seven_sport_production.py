@@ -142,7 +142,7 @@ def add_stat(c, eid, pid, team_id, sport, name, num, text, source, url, effectiv
 
 def add_snapshot(c, sport, source, url, retrieved, event_time, payload_hash, avail='UNVERIFIABLE', payload_path=None):
     c.execute('''INSERT OR REPLACE INTO source_snapshot(snapshot_id,sport,source,source_url,retrieved_at_utc,source_available_at_utc,event_time_utc,content_hash,payload_path,parser_version,availability_status,provenance_json)
-                 VALUES(?,?,?,?,?,?,?,?,?,?,?)''',
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
               (sid(sport,source,url,payload_hash),sport,source,url,retrieved,None,event_time,payload_hash,payload_path,PARSER,avail,json.dumps({'sport':sport,'parser':PARSER},ensure_ascii=False)))
 
 
