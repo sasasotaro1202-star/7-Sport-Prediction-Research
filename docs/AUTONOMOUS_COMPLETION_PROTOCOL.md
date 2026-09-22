@@ -48,6 +48,10 @@ For every improvement cycle:
 
 Boxing is a formal target sport but remains `DEFERRED_PIT`. Its source candidates are monitored independently, and no Boxing observation is allowed into the production model until historical source availability is proven at the prediction cutoff. The dedicated guard may report source reachability, but reachability is not equivalent to PIT evidence.
 
+## Teacher-label chronology
+
+A historical event outcome is a teacher label, not a prediction-time feature. Outcome-derived state may be used in a later prediction only after the prior event has been conservatively considered realized. In contrast, every input feature observation must still satisfy the explicit PIT rule available_at <= prediction_cutoff. When an event end time is unavailable, the implementation uses a conservative fallback realization time rather than treating retrieval time as historical availability.
+
 ## Rugby integration status
 
 Rugby has an independent official-source coverage workflow and database. It must **not** be described as fully integrated into the canonical seven-sport research/model pipeline until its feature policy, PIT-safe outcome history, model training path, merge path, and release-gate treatment have all been verified. Coverage existence alone is not sufficient for model-production eligibility.
