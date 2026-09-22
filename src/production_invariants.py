@@ -24,6 +24,8 @@ def main():
         require(re.search(rf'(?m)^\s*[-] {sport}$',workflow) is not None or sport in workflow,
                 f'canonical workflow missing sport token: {sport}')
     require('max-parallel: 8' in workflow or 'max-parallel: 6' in workflow,'canonical workflow parallelism declaration missing')
+    require('nine-sport-target-db-v4-' in workflow,'canonical production cache namespace is not nine-sport target scoped')
+    require('eight-sport-db-v4-' not in workflow,'canonical production still references legacy eight-sport cache namespace')
     
     require('Nine-Sport Target v4.5.15 Production' in workflow,'canonical workflow name is not nine-sport target')
     require('F1, Rugby and Boxing are intentionally deferred by project scope' in workflow,
