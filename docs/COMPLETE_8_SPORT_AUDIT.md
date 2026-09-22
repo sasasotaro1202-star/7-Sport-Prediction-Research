@@ -1,4 +1,4 @@
-# Complete 8-Sport Audit — 2026-09-18
+# Complete 9-Sport Target Audit — 2026-09-18
 
 Repository audited: `sasasotaro1202-star/7-Sport-Prediction-Research`.
 
