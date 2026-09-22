@@ -42,6 +42,22 @@ class RecentWindow:
  def predict_proba(self,X):
   return self.base.predict_proba(X)
 
+class TimeDecay:
+ def __init__(self,base,half_life):
+  self.base=base; self.half_life=float(half_life)
+ def fit(self,X,y):
+  X=np.asarray(X); y=np.asarray(y)
+  if len(y)==0:
+   self.base.fit(X,y); return self
+  age=np.arange(len(y)-1,-1,-1,dtype=float)
+  weights=np.power(0.5,age/max(self.half_life,1.0))
+  # The base pipelines use a final estimator step named "m"; passing
+  # sample_weight explicitly keeps the recency weighting inside training only.
+  self.base.fit(X,y,m__sample_weight=weights)
+  return self
+ def predict_proba(self,X):
+  return self.base.predict_proba(X)
+
 class TC:
  def __init__(self,b):self.b=b;self.c=None
  def fit(self,X,y):
@@ -74,7 +90,8 @@ def pool():
   **({'lightgbm':Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=360,learning_rate=.03,num_leaves=15,min_child_samples=35,subsample=.85,subsample_freq=1,colsample_bytree=.85,reg_alpha=.1,reg_lambda=2.0,verbosity=-1,n_jobs=-1,random_state=45,deterministic=True,force_col_wise=True))]),
       'lightgbm_wide':Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=420,learning_rate=.02,num_leaves=31,min_child_samples=25,subsample=.85,subsample_freq=1,colsample_bytree=.80,reg_alpha=.15,reg_lambda=2.5,verbosity=-1,n_jobs=-1,random_state=46,deterministic=True,force_col_wise=True))]),
       'lightgbm_missing':Pipeline([('i',SimpleImputer(strategy='median',add_indicator=True)),('m',LGBMClassifier(n_estimators=320,learning_rate=.03,num_leaves=15,min_child_samples=35,subsample=.85,subsample_freq=1,colsample_bytree=.85,reg_alpha=.1,reg_lambda=2.0,verbosity=-1,n_jobs=-1,random_state=54,deterministic=True,force_col_wise=True))]),
-      'lightgbm_recent_800':RecentWindow(Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=300,learning_rate=.035,num_leaves=15,min_child_samples=30,subsample=.9,subsample_freq=1,colsample_bytree=.85,reg_alpha=.15,reg_lambda=2.5,verbosity=-1,n_jobs=-1,random_state=48,deterministic=True,force_col_wise=True))]),800)} if LGBMClassifier is not None else {})
+      'lightgbm_recent_800':RecentWindow(Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=300,learning_rate=.035,num_leaves=15,min_child_samples=30,subsample=.9,subsample_freq=1,colsample_bytree=.85,reg_alpha=.15,reg_lambda=2.5,verbosity=-1,n_jobs=-1,random_state=48,deterministic=True,force_col_wise=True))]),800),
+      'lightgbm_time_decay_300':TimeDecay(Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=320,learning_rate=.03,num_leaves=15,min_child_samples=35,subsample=.9,subsample_freq=1,colsample_bytree=.85,reg_alpha=.15,reg_lambda=2.5,verbosity=-1,n_jobs=-1,random_state=55,deterministic=True,force_col_wise=True))]),300)} if LGBMClassifier is not None else {})
  }.items()}
 def pairmap(c,s):
  d={}
