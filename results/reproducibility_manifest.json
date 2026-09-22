@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-09-22T18:22:17.043572+00:00",
-  "source_git_commit_sha": "12e2d9e271a035a67a65afa3fd0e3d155a2ea648",
+  "generated_at_utc": "2026-09-22T18:53:34.676599+00:00",
+  "source_git_commit_sha": "7abe3d1455de38310132cffe1441c03bbd4711ec",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 297246720,
-      "sha256": "6ea141a2f8c4e16277bb726654807d8e7ea22051404565e108f9385f182f8ffc"
+      "bytes": 304832512,
+      "sha256": "d0b8ad389fbef039cf043eb9d114f812288da7dd7b54857bec91da2788adb8b0"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -54,19 +54,19 @@
       "path": "data/db/boxing_v45.sqlite",
       "exists": true,
       "bytes": 24027136,
-      "sha256": "6e56d16c8191494f4b1e33e767f670405dbc981d979a756ecbf7b60d167810d9"
+      "sha256": "386502e6aeec9c68238a295f9ca8d21f0874a0507f53417029da1f720c382296"
     },
     {
       "path": "results/quality_gate.json",
       "exists": true,
-      "bytes": 3886,
-      "sha256": "0a6fd1f74512f8bf42fb77472b86fb948edb0adedb9c5d1794014f092ca82e34"
+      "bytes": 3885,
+      "sha256": "96ca28c629660a435102357a894a3c3a0925d2514cda65fb55b0858afb2e92fa"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
-      "bytes": 3186,
-      "sha256": "053d149ab17aac1e9caca76ef8bc63397441889ccc7b0bf4e6bdb188963b9643"
+      "bytes": 3770,
+      "sha256": "2094db919f1117a83291f5975f51380872419c6bc279568de1d4cb5535270433"
     },
     {
       "path": "results/pit_replay.json",
@@ -115,8 +115,8 @@
     {
       "path": "results/research/ufc.json",
       "exists": true,
-      "bytes": 23208,
-      "sha256": "97ce12276e25045e94ef95f8071db0dd10f9576f51becd164e3f03c83942522b"
+      "bytes": 23216,
+      "sha256": "c7bfe2dfc4e00ec127195facdbf5da2d52acf59967fb5def7990ce199a95cf83"
     },
     {
       "path": "results/research/ufc_frozen_holdout.json",
@@ -145,8 +145,8 @@
     {
       "path": "models/research/ufc_current.joblib",
       "exists": true,
-      "bytes": 35665235,
-      "sha256": "9f6b7fbbfe3cf86ff7f0feca60193d3b5f5996b8aa1df837e06f7e37fd111c28"
+      "bytes": 35664963,
+      "sha256": "06da8ded685d656d2d0174b4034a6a73a0a774250c1ec18f538f79da7de221f7"
     },
     {
       "path": "models/research/valorant_current.joblib",
