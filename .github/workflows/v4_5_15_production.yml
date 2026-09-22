@@ -280,8 +280,33 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if python -c "import json; from pathlib import Path; p=Path('results/release_gate.json'); raise SystemExit(0 if p.exists() and json.loads(p.read_text()).get('publish') is True else 1)"; then
-            git add results models
-            echo 'release_gate=READY: models may be published'
+            git add results
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          gate=json.loads(Path('results/release_gate.json').read_text())
+          artifacts=gate.get('publishable_artifacts') or []
+          for rel in artifacts:
+              p=Path(rel)
+              if not rel.startswith('models/') or '..' in p.parts:
+                  raise SystemExit(f'UNSAFE_PUBLISH_PATH:{rel}')
+              if not p.is_file() or p.stat().st_size <= 0:
+                  raise SystemExit(f'PUBLISHABLE_ARTIFACT_MISSING:{rel}')
+              print(f'RELEASE_GATED_ARTIFACT={rel}')
+          print(f'RELEASE_GATED_ARTIFACT_COUNT={len(artifacts)}')
+          PY
+            git diff --cached --name-only | grep -E '^models/' >/dev/null 2>&1 || true
+            while IFS= read -r rel; do
+              [ -n "$rel" ] || continue
+              git add -- "$rel"
+            done < <(python - <<'PY'
+          import json
+          from pathlib import Path
+          for rel in json.loads(Path('results/release_gate.json').read_text()).get('publishable_artifacts') or []:
+              print(rel)
+          PY
+            )
+            echo 'release_gate=READY: only explicitly release-gated model artifacts may be published'
           else
             git add results
             echo 'release_gate!=READY: model artifacts remain uncommitted and are not published'
