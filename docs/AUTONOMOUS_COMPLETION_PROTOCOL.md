@@ -54,7 +54,7 @@ A historical event outcome is a teacher label, not a prediction-time feature. Ou
 
 ## Rugby integration status
 
-Rugby has an independent official-source coverage workflow and database. It must **not** be described as fully integrated into the canonical seven-sport research/model pipeline until its feature policy, PIT-safe outcome history, model training path, merge path, and release-gate treatment have all been verified. Coverage existence alone is not sufficient for model-production eligibility.
+Rugby has an independent official-source coverage workflow and database. It must **not** be described as fully integrated into the canonical active-sport research/model pipeline until its feature policy, PIT-safe outcome history, model training path, merge path, and release-gate treatment have all been verified. Coverage existence alone is not sufficient for model-production eligibility.
 
 ## Definition of done
 
