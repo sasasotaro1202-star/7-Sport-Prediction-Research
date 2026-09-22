@@ -107,16 +107,25 @@ jobs:
           PY
       - name: Boxing history ingest unit test
         run: PYTHONPATH=. python scripts/test_boxing_ingest.py
-      - name: Holdout safety assertions
+      - name: Research robustness and release safety contract
         run: |
           python - <<'PY'
           from pathlib import Path
           strict=Path('src/research_cycle_strict.py').read_text()
           accelerated=Path('src/research_accelerated.py').read_text()
+          gate=Path('src/production_release_gate.py').read_text()
           assert "production_fit_excludes_holdout" in strict
           assert "selection_oos" in strict and "holdout_metrics" in strict
           assert "m.fit(X[:sel]" in strict
           assert "final.fit(X,y)" not in accelerated
           assert "final.fit(X, y)" not in accelerated
-          print("HOLDOUT_SAFETY=PASS")
+          assert "size=(1000,len(delta))" in strict
+          assert "weighted_pair_pool=list(dict.fromkeys(list(top_rank)+list(names)))" in strict
+          assert "triple_pool=rank[:min(6,len(rank))]" in strict
+          assert "paired.get('folds',0) >= 6" in strict
+          assert "bootstrap_prob_improvement",0.0) >= 0.90" in strict
+          assert "Evaluate three non-overlapping chronological OOS blocks" in strict
+          assert "Rolling-origin calibration validation" in strict
+          assert "COALESCE(leakage_status,'UNKNOWN') NOT IN ('PASS','CLEAN')" in gate
+          print("RESEARCH_ROBUSTNESS_RELEASE_SAFETY=PASS")
           PY
