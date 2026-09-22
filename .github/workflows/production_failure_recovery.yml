@@ -8,7 +8,6 @@ on:
       - Rugby Coverage Production
       - Boxing Open Data Collection
       - Boxing PIT Source Guard
-      - Boxing PIT Source Guard
       - Cache and PIT Health
       - Production Safety Audit
     types: [completed]
