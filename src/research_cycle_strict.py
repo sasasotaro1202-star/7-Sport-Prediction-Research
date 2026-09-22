@@ -553,7 +553,11 @@ def train(s):
    wc=weighted_candidates[0]
    weighted_robust=wc[0]
    paired=wc[7] if len(wc)>7 else {'mean_delta':0.0,'se':float('inf'),'folds':0}
-   if weighted_robust + 0.0002 < fixed_oos_metric['robust_objective'] and paired['mean_delta'] < -max(0.0002, paired['se'] if np.isfinite(paired['se']) else 0.0) and paired.get('bootstrap_p05_improvement',float('-inf')) > 0.0:
+   if (paired.get('folds',0) >= 6
+       and weighted_robust + 0.0002 < fixed_oos_metric['robust_objective']
+       and paired['mean_delta'] < -max(0.0002, paired['se'] if np.isfinite(paired['se']) else 0.0)
+       and paired.get('bootstrap_p05_improvement',float('-inf')) > 0.0
+       and paired.get('bootstrap_prob_improvement',0.0) >= 0.90):
     spec=tuple(wc[4])
     cand_weights=dict(wc[5])
     wa_metric={'logloss':wc[1],'brier':wc[2],'ece':wc[3],'robust_objective':weighted_robust,'fold_logloss_std':float(np.std(wc[6])) if wc[6] else float('inf'),'paired_oos_folds':int(paired['folds']),'paired_delta_mean':float(paired['mean_delta']),'paired_delta_se':float(paired['se']), 'paired_bootstrap_p05_improvement':float(paired.get('bootstrap_p05_improvement',float('-inf'))), 'paired_bootstrap_prob_improvement':float(paired.get('bootstrap_prob_improvement',0.0))}
