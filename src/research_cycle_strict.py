@@ -24,45 +24,92 @@ def boxing():
  return _write_result('boxing',{'sport':'boxing','status':'DEFERRED_PIT','reason':'No free historical boxing source currently proves source availability before the 60-minute prediction cutoff; public/current schedule data is not historical PIT evidence.','source_candidates':['Boxing Undefeated open-boxing-data','BoxingScene','BoxRec-compatible public tooling'],'feature_policy_candidates':['weight_class','fighter_age','height_reach','stance','recent_winrate','opponent_strength','inactivity_days','weight_class_elo','result_method_prior'],'promotion_policy':'chronological OOS + frozen holdout + calibration + release gate required'})
 
 def _temporal_calibration_candidate(p, y):
-    """Choose none/sigmoid/beta/isotonic calibration using only pre-holdout OOS."""
+    """Choose calibration using multiple chronological pre-holdout windows only."""
     p=np.clip(np.asarray(p,dtype=float),1e-6,1-1e-6)
     y=np.asarray(y,int)
-    if len(p)<120 or len(np.unique(y))<2:
+    n=len(p)
+    if n<180 or len(np.unique(y))<2:
         return {'accepted':False,'method':'none','reason':'insufficient_preholdout_oos_for_calibration'}
-    cut=max(60,int(len(p)*0.70))
-    if len(np.unique(y[:cut]))<2 or len(np.unique(y[cut:]))<2:
-        return {'accepted':False,'method':'none','reason':'calibration_split_lacks_both_classes'}
-    z=np.log(p/(1.0-p)).reshape(-1,1)
-    raw=base.metric(y[cut:],p[cut:])
-    candidates=[('none',None,raw)]
-    sigmoid=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
-    sigmoid.fit(z[:cut],y[:cut])
-    sp=np.clip(sigmoid.predict_proba(z[cut:])[:,1],1e-6,1-1e-6)
-    candidates.append(('sigmoid',sigmoid,base.metric(y[cut:],sp)))
-    # Beta calibration: logistic regression on log(p) and log(1-p).
-    beta=np.column_stack([np.log(p),np.log(1.0-p)])
-    beta_model=LogisticRegression(C=0.25,max_iter=2000,random_state=43)
-    beta_model.fit(beta[:cut],y[:cut])
-    bp=np.clip(beta_model.predict_proba(beta[cut:])[:,1],1e-6,1-1e-6)
-    candidates.append(('beta',beta_model,base.metric(y[cut:],bp)))
-    if len(p)>=300 and len(np.unique(p[:cut]))>=25:
-        iso=IsotonicRegression(y_min=1e-6,y_max=1-1e-6,out_of_bounds='clip')
-        iso.fit(p[:cut],y[:cut])
-        ip=np.clip(iso.predict(p[cut:]),1e-6,1-1e-6)
-        candidates.append(('isotonic',iso,base.metric(y[cut:],ip)))
-    candidates.sort(key=lambda x:(x[2]['logloss'],x[2]['brier'],x[2]['ece']))
-    method,model,score=candidates[0]
+    # Rolling-origin calibration validation: every validation block is strictly
+    # after its fitting block. The blocks are disjoint, so a single lucky window
+    # cannot decide the calibrator.
+    train_ends=[max(60,int(n*0.50)),max(90,int(n*0.67)),max(120,int(n*0.80))]
+    train_ends=sorted(set(min(n-30,x) for x in train_ends if x<n-20))
+    folds=[]
+    prev=0
+    for i,te_start in enumerate(train_ends):
+        te_end=train_ends[i+1] if i+1<len(train_ends) else n
+        if te_end-te_start<25:
+            continue
+        if len(np.unique(y[:te_start]))<2 or len(np.unique(y[te_start:te_end]))<2:
+            continue
+        folds.append((te_start,te_end))
+    if len(folds)<2:
+        return {'accepted':False,'method':'none','reason':'insufficient_temporal_calibration_folds'}
+    def _fit_predict(method, train_p, train_y, test_p):
+        if method=='none':
+            return np.clip(test_p,1e-6,1-1e-6),None
+        if method=='sigmoid':
+            model=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
+            model.fit(np.log(train_p/(1.0-train_p)).reshape(-1,1),train_y)
+            z=np.log(test_p/(1.0-test_p)).reshape(-1,1)
+            return np.clip(model.predict_proba(z)[:,1],1e-6,1-1e-6),model
+        if method=='beta':
+            model=LogisticRegression(C=0.25,max_iter=2000,random_state=43)
+            model.fit(np.column_stack([np.log(train_p),np.log(1.0-train_p)]),train_y)
+            z=np.column_stack([np.log(test_p),np.log(1.0-test_p)])
+            return np.clip(model.predict_proba(z)[:,1],1e-6,1-1e-6),model
+        if method=='isotonic':
+            if len(train_p)<120 or len(np.unique(train_p))<25:
+                return None,None
+            model=IsotonicRegression(y_min=1e-6,y_max=1-1e-6,out_of_bounds='clip')
+            model.fit(train_p,train_y)
+            return np.clip(model.predict(test_p),1e-6,1-1e-6),model
+        raise ValueError(method)
+
+    methods=['none','sigmoid','beta','isotonic']
+    fold_results={m:[] for m in methods}
+    for method in methods:
+        for te_start,te_end in folds:
+            pred,_=_fit_predict(method,p[:te_start],y[:te_start],p[te_start:te_end])
+            if pred is None:
+                continue
+            fold_results[method].append(base.metric(y[te_start:te_end],pred))
+    raw_folds=fold_results['none']
+    if len(raw_folds)<2:
+        return {'accepted':False,'method':'none','reason':'raw_calibration_validation_unavailable'}
+
+    def _aggregate(ms):
+        keys=('logloss','brier','ece','accuracy','n')
+        out={}
+        for k in keys:
+            vals=[float(m[k]) for m in ms if k in m and np.isfinite(float(m[k]))]
+            out[k]=float(np.mean(vals)) if vals else float('inf')
+        out['folds']=int(len(ms))
+        out['logloss_std']=float(np.std([float(m['logloss']) for m in ms],ddof=1)) if len(ms)>1 else 0.0
+        out['brier_std']=float(np.std([float(m['brier']) for m in ms],ddof=1)) if len(ms)>1 else 0.0
+        out['ece_std']=float(np.std([float(m['ece']) for m in ms],ddof=1)) if len(ms)>1 else 0.0
+        out['objective']=float(out['logloss']+0.05*out['logloss_std'])
+        return out
+
+    aggregated={m:_aggregate(v) for m,v in fold_results.items() if v}
+    raw=aggregated['none']
+    valid={m:v for m,v in aggregated.items() if m=='none' or v['folds']>=2}
+    method=min(valid,key=lambda m:(valid[m]['objective'],valid[m]['brier'],valid[m]['ece']))
+    score=valid[method]
     required=max(0.001,0.003*raw['logloss'])
     accepted=(method!='none'
               and score['logloss']<=raw['logloss']-required
               and score['brier']<=raw['brier']+0.002
               and score['ece']<=raw['ece']+0.01)
     if not accepted:
-        return {'accepted':False,'method':'none','reason':'preholdout_validation_did_not_pass','raw_validation':raw,
-                'candidate_methods':{m:sc for m,_,sc in candidates},'required_logloss_improvement':required}
+        return {'accepted':False,'method':'none','reason':'temporal_preholdout_validation_did_not_pass',
+                'raw_validation':raw,'candidate_methods':valid,
+                'required_logloss_improvement':required,
+                'validation_folds':[(int(a),int(b)) for a,b in folds]}
     if method=='sigmoid':
         final=LogisticRegression(C=0.25,max_iter=2000,random_state=42)
-        final.fit(z,y)
+        final.fit(np.log(p/(1.0-p)).reshape(-1,1),y)
     elif method=='beta':
         final=LogisticRegression(C=0.25,max_iter=2000,random_state=43)
         final.fit(np.column_stack([np.log(p),np.log(1.0-p)]),y)
@@ -70,9 +117,9 @@ def _temporal_calibration_candidate(p, y):
         final=IsotonicRegression(y_min=1e-6,y_max=1-1e-6,out_of_bounds='clip')
         final.fit(p,y)
     return {'accepted':True,'method':method,'model':final,'raw_validation':raw,
-            'calibrated_validation':score,'candidate_methods':{m:sc for m,_,sc in candidates},
-            'required_logloss_improvement':required}
-
+            'calibrated_validation':score,'candidate_methods':valid,
+            'required_logloss_improvement':required,
+            'validation_folds':[(int(a),int(b)) for a,b in folds]}
 
 def _write_result(s, payload):
     """Persist every research outcome, including DEFERRED/REJECTED states."""
