@@ -181,8 +181,10 @@ def main():
             'production watchdog lacks active/seen/latest-created state guards')
     require('active_any' in watchdog and '[ "$active_any" -eq 0 ]' in watchdog,
             'production watchdog may dispatch a new heavy run before all prior runs have stopped')
-    require('inv_ok' in watchdog and 'safety_ok' in watchdog,
-            'production watchdog must verify both same-SHA validators before dispatch')
+    require('inv_ok' in watchdog and 'safety_ok' in watchdog and 'lightweight_ok' in watchdog,
+            'production watchdog must verify all same-SHA validators before dispatch')
+    require('lightweight_regression.yml' in watchdog and '[ "$lightweight_ok" -ge 1 ]' in watchdog,
+            'production watchdog must require same-SHA Lightweight Regression success before dispatch')
     require('[ \"$active_any\" -eq 0 ]' in watchdog and '[ \"$age\" -ge 3300 ]' in watchdog,
             'production watchdog lacks bounded hourly recovery guard')
     require('seen_latest' in watchdog and '[ \"$seen_latest\" -eq 0 ]' in watchdog,
