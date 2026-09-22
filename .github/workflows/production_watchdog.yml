@@ -84,7 +84,10 @@ jobs:
           main_sha=$(git rev-parse HEAD)
           state=$(gh run list --workflow "v4_5_15_production.yml" --limit 100 --json databaseId,status,event,createdAt,headSha)
           active_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
-          active_any=$(printf '%s' "$state" | jq '[.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")] | length')
+          # Old-SHA runs are being cancelled in the preceding step. They may
+          # remain briefly visible as active while GitHub processes cancellation;
+          # they must not delay a validated current-SHA production dispatch.
+          active_any=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
           seen_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha)] | length')
           latest_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')
 
