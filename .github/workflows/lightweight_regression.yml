@@ -41,7 +41,8 @@ jobs:
           assert "extra_trees_missing" in base.pool()
           assert "hist_gb_missing" in base.pool()
           assert "lightgbm_missing" in base.pool()
-          print("MISSINGNESS_CHALLENGERS=PASS")
+          assert "lightgbm_time_decay_300" in base.pool()
+          print("MISSINGNESS_AND_RECENCY_CHALLENGERS=PASS")
           print("SPORTS", base.SPORTS)
           PY
       - name: Forward prediction registry smoke test
