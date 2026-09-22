@@ -142,7 +142,7 @@ def main():
             'PIT History Expansion lacks stale-workflow SHA fail-closed guard')
     require('timeout --signal=TERM 2700s python -m src.pit_replay_builder' in workflow,
             'strict PIT replay lacks a bounded runtime budget')
-    require('timeout --signal=TERM 2400s python -m src.research_cycle_strict' in workflow,
+    require('timeout --signal=TERM 3600s python -m src.research_cycle_strict' in workflow,
             'strict research cycle lacks a bounded runtime budget')
     require('timeout --signal=TERM 900s python -m src.independent_leakage_audit' in workflow,
             'independent leakage audit lacks a bounded runtime budget')
