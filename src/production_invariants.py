@@ -69,6 +69,19 @@ def main():
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require('production_release_gate' in workflow,'production release gate missing')
     predictor=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    base_src=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
+    require('class TimeDecay:' in base_src and 'lightgbm_time_decay_300' in base_src,
+            'recency-decay challenger is missing from the canonical model pool')
+    require('router_block_deltas=list(router_eval.get(\'nonoverlap_block_deltas\') or [])' in strict_src,
+            'Router promotion does not expose non-overlapping temporal block evidence')
+    require('router_block_improvements >= 2' in strict_src and 'len(router_block_deltas) >= 3' in strict_src,
+            'Router promotion lacks cross-block stability gate')
+    require("router_eval.get('folds',0) >= 6" in strict_src,
+            'Router promotion lacks minimum chronological fold gate')
+    require("router_eval.get('bootstrap_prob_improvement',0.0) >= 0.90" in strict_src,
+            'Router promotion lacks bootstrap improvement-probability gate')
+    require('The frozen holdout is strictly score-only' in strict_src,
+            'Router promotion does not explicitly keep frozen holdout score-only')
     require("apply_cal = None if strategy=='contextual_router' else cal" in predictor,
             'future predictor may apply fixed-ensemble calibration to Router output')
     require("use_router=router_status=='PRODUCTION_ROUTABLE_AFTER_GATES'" in predictor,
