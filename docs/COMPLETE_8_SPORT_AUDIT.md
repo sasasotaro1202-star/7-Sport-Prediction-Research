@@ -187,6 +187,20 @@ The canonical production workflow currently runs **7 sports** in its main matrix
 
 **Risk**: current workflow validates coverage but not model/OOS/PIT readiness.
 
+## 9. Boxing — explicitly deferred
+
+**Current**
+- Boxing is now a formal target sport with a dedicated PIT-source guard workflow.
+- Free/open candidates include Boxing Undefeated's open-boxing-data, BoxingScene, and BoxRec-compatible public tooling.
+
+**PIT/model**
+- No candidate currently proves historical `source_available_at_utc <= prediction_cutoff` for the required 60-minute pre-event cutoff.
+- The repository therefore marks Boxing `DEFERRED_PIT`; no Boxing features, model artifact, or future prediction is promoted.
+- Candidate feature families are limited to documented pre-fight attributes such as fighter history, strength, rest/inactivity and weight-class context until provenance is proven.
+
+**Operational guard**
+- `.github/workflows/boxing_pit_guard.yml` runs every six hours and on demand. It records source reachability without treating retrieval time as historical availability.
+
 ## Actions audit
 
 - Latest verified `Production Invariants` run: **#79**, run ID `35252678367`, head `1cff3ef44563f50cb4f94f3581a5299826b87fbe`, completed `success`; the invariants job and its steps succeeded.
