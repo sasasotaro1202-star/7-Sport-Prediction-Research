@@ -9,7 +9,7 @@ from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','ufc','rizin')
-DEFERRED_SPORTS=('f1','boxing')
+DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
 ALL_SPORTS=SPORTS+DEFERRED_SPORTS
 def utc():
  from datetime import datetime,timezone
@@ -215,6 +215,8 @@ def train(s):
   return _write_result(s,f1())
  if s=='boxing':
   return boxing()
+ if s in ('tennis','rugby'):
+  return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'DEFERRED_BY_PROJECT_SCOPE','promotion_policy':'Do not train or publish until sport-specific PIT, chronological OOS and frozen-holdout requirements are enabled'})
  c=sqlite3.connect(DB)
  try:
   previous=_previous_result(s) or _previous_model_from_db(c,s)
