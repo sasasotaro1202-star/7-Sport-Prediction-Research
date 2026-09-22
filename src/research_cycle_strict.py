@@ -462,7 +462,9 @@ def train(s):
     overall,robust,folds,wins=_weighted_candidate_score((a,b),weights)
     _,regime_excess,_=_regime_robust_objective((a,b),weights)
     robust += 0.15*regime_excess
-    weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],(a,b),weights,folds))
+    paired=_paired_fold_delta_stats((a,b),weights,fixed_models)
+    robust += max(0.0,paired['se'])
+    weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],(a,b),weights,folds,paired))
   for spec in combinations(top_rank[:4],3):
    for wa in (0.20,0.30,0.40,0.50,0.60):
     for wb in (0.20,0.30,0.40,0.50,0.60):
@@ -472,15 +474,18 @@ def train(s):
      overall,robust,folds,wins=_weighted_candidate_score(spec,weights)
      _,regime_excess,_=_regime_robust_objective(spec,weights)
      robust += 0.15*regime_excess
-     weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],spec,weights,folds))
+     paired=_paired_fold_delta_stats(spec,weights,fixed_models)
+     robust += max(0.0,paired['se'])
+     weighted_candidates.append((robust,overall['logloss'],overall['brier'],overall['ece'],spec,weights,folds,paired))
   if weighted_candidates:
    weighted_candidates.sort(key=lambda z:(z[0],z[2],z[3]))
    wc=weighted_candidates[0]
    weighted_robust=wc[0]
-   if weighted_robust + 0.0002 < fixed_oos_metric['robust_objective']:
+   paired=wc[7] if len(wc)>7 else {'mean_delta':0.0,'se':float('inf'),'folds':0}
+   if weighted_robust + 0.0002 < fixed_oos_metric['robust_objective'] and paired['mean_delta'] < -max(0.0002, paired['se'] if np.isfinite(paired['se']) else 0.0):
     spec=tuple(wc[4])
     cand_weights=dict(wc[5])
-    wa_metric={'logloss':wc[1],'brier':wc[2],'ece':wc[3],'robust_objective':weighted_robust,'fold_logloss_std':float(np.std(wc[6])) if wc[6] else float('inf')}
+    wa_metric={'logloss':wc[1],'brier':wc[2],'ece':wc[3],'robust_objective':weighted_robust,'fold_logloss_std':float(np.std(wc[6])) if wc[6] else float('inf'),'paired_oos_folds':int(paired['folds']),'paired_delta_mean':float(paired['mean_delta']),'paired_delta_se':float(paired['se'])}
     wa_a=spec[0];wa_b=spec[1];wa_weight=float(cand_weights[wa_a])
     wa_win_rate=float(np.mean([1.0 if d <= fixed_oos_metric['logloss'] else 0.0 for d in wc[6]])) if wc[6] else 0.0
     wa_mean_delta=float(fixed_oos_metric['logloss']-wc[1])
