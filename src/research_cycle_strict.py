@@ -339,13 +339,20 @@ def train(s):
    return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_observed_feature_values','rows':len(train_rows),'features':0})
   fs=[f for f,k in zip(fs,keep) if k];X=X[:,keep];X_holdout=X_holdout[:,keep]
   sel=len(train_rows);hn=len(holdout_rows)
-  names=list(base.pool())
+  # Construct the pool once per sport. Recreating every estimator wrapper for
+  # every fold adds avoidable overhead without changing the fitted models.
+  fold_pool=base.pool()
+  names=list(fold_pool)
   # Multi-window walk-forward OOS: reuse one common fold set to evaluate
   # several historical windows, reducing sensitivity to one arbitrary start.
+  # Bound fold density for large datasets: the promotion gates still require
+  # at least six chronological folds, while excessive fold counts multiply
+  # expensive tree/LightGBM fits with little additional temporal coverage.
   window_fracs=(0.55,0.60,0.65)
   window_starts=[max(60,int(sel*f)) for f in window_fracs]
   start=min(window_starts)
-  step=max(10,min(30,int(sel*.06)))
+  target_oos_folds=min(12,max(6,sel//500))
+  step=max(10,int(np.ceil(max(1,sel-start)/target_oos_folds)))
   oof_probs={name:[] for name in names}
   oof_y=[]
   oof_folds=[]
@@ -354,7 +361,7 @@ def train(s):
    if len(np.unique(y[:end]))<2:continue
    fold_pred={}
    for name in names:
-    m=base.pool()[name]
+    m=fold_pool[name]
     m.fit(X[:end],y[:end])
     fold_pred[name]=np.clip(m.predict_proba(X[end:te])[:,1],1e-6,1-1e-6)
     oof_probs[name].extend(fold_pred[name].tolist())
@@ -658,9 +665,10 @@ def train(s):
     candidate_label='weighted_ensemble'
     candidate_weights=cand_weights
 
+  final_pool=base.pool()
   models=[]
   for name in best:
-   m=base.pool()[name]
+   m=final_pool[name]
    m.fit(X,y)
    models.append(m)
   hold_p=np.sum(np.column_stack([models[i].predict_proba(X_holdout)[:,1]*candidate_weights[name] for i,name in enumerate(best)]),axis=1)
