@@ -63,7 +63,7 @@ def db_counts() -> dict:
     if BOXING_DB.is_file() and BOXING_DB.stat().st_size > 0:
         con = sqlite3.connect(f"file:{BOXING_DB.resolve()}?mode=ro", uri=True)
         try:
-            row = con.execute("SELECT COUNT(*) FROM bout").fetchone()
+            row = con.execute("SELECT COUNT(*) FROM event WHERE sport='boxing'").fetchone()
             counts["boxing"] = int(row[0]) if row else 0
         finally:
             con.close()

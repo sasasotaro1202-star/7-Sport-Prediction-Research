@@ -12,6 +12,8 @@ def main():
     research=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
     workflow=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
     manifest=(ROOT/'src/reproducibility_manifest.py').read_text(encoding='utf-8')
+    require("SELECT COUNT(*) FROM event WHERE sport='boxing'" in manifest,
+            'Reproducibility manifest must count Boxing from the canonical event table')
     readme=(ROOT/'README.md').read_text(encoding='utf-8')
     strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
 

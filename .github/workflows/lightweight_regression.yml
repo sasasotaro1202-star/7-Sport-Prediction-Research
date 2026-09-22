@@ -118,6 +118,8 @@ jobs:
           PY
       - name: Boxing history ingest unit test
         run: PYTHONPATH=. python scripts/test_boxing_ingest.py
+      - name: Reproducibility manifest schema regression
+        run: PYTHONPATH=. python scripts/test_reproducibility_manifest.py
       - name: Research robustness and release safety contract
         run: |
           python - <<'PY'
