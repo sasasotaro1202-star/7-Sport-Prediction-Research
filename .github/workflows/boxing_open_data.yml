@@ -1,0 +1,82 @@
+name: Boxing Open Data Collection
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '07 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boxing-open-data-collection
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify workflow SHA is current main before mutable work
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          if [ "$GITHUB_SHA" != "$main_sha" ]; then
+            echo "STALE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
+            exit 1
+          fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore Boxing database cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/boxing_v45.sqlite
+          key: boxing-v45-db-\${{ github.run_id }}
+          restore-keys: |
+            boxing-v45-db-
+      - name: Collect free Open Boxing data
+        run: python -m src.boxing_openboxing_backfill
+      - name: Compile and validate Boxing collector
+        run: |
+          set -euo pipefail
+          python -m compileall -q src/boxing_openboxing_backfill.py
+          python - <<'PY'
+          import json, sqlite3
+          from pathlib import Path
+          r=json.loads(Path("results/v45/boxing_coverage.json").read_text())
+          assert r["sport"] == "boxing"
+          assert r["status"] == "DEFERRED_PIT"
+          assert r["production_model_enabled"] is False
+          db=sqlite3.connect("data/db/boxing_v45.sqlite")
+          for t in ("source_snapshot","bout","boxer","bout_boxer"):
+              assert db.execute(f"select 1 from sqlite_master where type='table' and name='{t}'").fetchone()
+          print("BOXING_OPEN_DATA_COLLECTION=PASS")
+          PY
+      - name: Save Boxing database cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db/boxing_v45.sqlite
+          key: boxing-v45-db-\${{ github.run_id }}
+      - name: Persist transparent Boxing coverage report
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/v45/boxing_coverage.json
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'chore: update boxing open-data coverage'
+          git fetch origin main
+          git rebase --autostash origin/main
+          git push origin HEAD:main
