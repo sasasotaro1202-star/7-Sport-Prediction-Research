@@ -726,7 +726,7 @@ def train(s):
    router_eval=router.evaluate_router_from_folds(X,y,router_names,oof_folds,sel,base.metric,candidate_weights)
    router_holdout_models={name:model for name,model in zip(best,models)}
    router_holdout_pred={name:np.clip(router_holdout_models[name].predict_proba(X_holdout)[:,1],1e-6,1-1e-6) for name in router_names}
-   router_holdout=router.evaluate_frozen_holdout_router_from_folds(X,y,router_names,oof_folds,sel,router_holdout_pred,y_holdout,candidate_weights)
+   router_holdout=router.evaluate_frozen_holdout_router_from_folds(X,y,router_names,oof_folds,sel,router_holdout_pred,X_holdout,y_holdout,candidate_weights)
   else:
    router_eval={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; dynamic routing cannot add diversification'}
    router_holdout={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; frozen-holdout router comparison not applicable'}
