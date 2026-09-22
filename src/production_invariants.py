@@ -24,6 +24,7 @@ def main():
     prod_src=(ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8')
     require('source_snapshot(snapshot_id TEXT PRIMARY KEY,sport TEXT' in db_src,'source_snapshot sport column is not in canonical schema')
     require('source_snapshot(snapshot_id,sport,source,source_url' in prod_src,'source snapshot writer does not persist sport identity')
+    require('VALUES(?,?,?,?,?,?,?,?,?,?,?,?)' in prod_src[prod_src.find('def add_snapshot'):prod_src.find('def parse_jsonld')], 'source snapshot insert placeholder count is inconsistent with schema')
     for sport in sorted(EXPECTED_CORE):
         require(re.search(rf'(?m)^\s*[-] {sport}$',workflow) is not None or sport in workflow,
                 f'canonical workflow missing sport token: {sport}')
