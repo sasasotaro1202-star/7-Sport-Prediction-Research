@@ -104,6 +104,7 @@ jobs:
         run: python -m src.pit_replay_builder --help
       - name: Temporal feature immutability regression
         run: PYTHONPATH=. python scripts/test_feature_temporal_invariance.py
+      - name: Frozen holdout partition regression
         run: PYTHONPATH=. python scripts/test_research_cycle_strict_holdout.py
       - name: Boxing fail-closed guard smoke test
         run: |
