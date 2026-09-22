@@ -75,6 +75,20 @@ def main():
             verified+=1
         else:
             deferred+=1
-    c.commit(); print(json.dumps({'verified':verified,'deferred':deferred,'total_completed_events':len(rows)},ensure_ascii=False))
+    # Settle forward predictions only after a verified canonical outcome exists.
+    settled_now=utc()
+    c.execute(
+        """UPDATE forward_prediction
+            SET settled_outcome=(SELECT outcome FROM event_outcome eo WHERE eo.event_id=forward_prediction.event_id AND eo.outcome_status='VERIFIED'),
+                settled_at_utc=?,
+                settlement_source=(SELECT source FROM event_outcome eo WHERE eo.event_id=forward_prediction.event_id AND eo.outcome_status='VERIFIED'),
+                settlement_source_url=(SELECT source_url FROM event_outcome eo WHERE eo.event_id=forward_prediction.event_id AND eo.outcome_status='VERIFIED'),
+                status=CASE WHEN (SELECT outcome FROM event_outcome eo WHERE eo.event_id=forward_prediction.event_id AND eo.outcome_status='VERIFIED') IN ('A','B','DRAW','VOID') THEN 'SETTLED' ELSE status END
+          WHERE status='OPEN'
+            AND event_id IN (SELECT event_id FROM event_outcome WHERE outcome_status='VERIFIED')""",
+        (settled_now,)
+    )
+    settled=c.execute("SELECT changes()").fetchone()[0]
+    c.commit(); print(json.dumps({'verified':verified,'deferred':deferred,'settled_forward_predictions':settled,'total_completed_events':len(rows)},ensure_ascii=False))
     c.close()
 if __name__=='__main__': main()
