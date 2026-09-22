@@ -40,6 +40,19 @@ jobs:
           print("MODEL_POOL", sorted(base.pool().keys()))
           print("SPORTS", base.SPORTS)
           PY
+      - name: Forward prediction registry smoke test
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from src.storage.db_v45 import SCHEMA, _migrate
+          c=sqlite3.connect(":memory:")
+          c.executescript(SCHEMA)
+          _migrate(c)
+          cols={r[1] for r in c.execute("PRAGMA table_info(forward_prediction)")}
+          assert {"prediction_id","event_id","prediction_cutoff_at_utc","feature_snapshot_hash","status"} <= cols
+          print("FORWARD_REGISTRY=PASS")
+          PY
+
       - name: Router and calibration smoke tests
         run: |
           python - <<'PY'
