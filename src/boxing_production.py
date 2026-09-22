@@ -53,6 +53,17 @@ CANDIDATES = [
 ]
 
 
+def upstream_revision() -> dict:
+    url = "https://api.github.com/repos/edhwright/open-boxing/commits/main"
+    try:
+        req = Request(url, headers={"User-Agent": "boxing-research-guard", "Accept": "application/vnd.github+json"})
+        with urlopen(req, timeout=15) as resp:
+            obj = json.loads(resp.read().decode("utf-8"))
+        commit = obj.get("commit") or {}
+        return {"sha": obj.get("sha"), "date": (commit.get("committer") or {}).get("date"), "message": commit.get("message")}
+    except Exception as exc:
+        return {"status": "UNAVAILABLE", "error": type(exc).__name__}
+
 def parse_date(value: str | None) -> str | None:
     if not value:
         return None
@@ -82,6 +93,8 @@ def ingest_history(c, h: HTTP) -> dict:
     raw, retrieved, _ = h.get(OPEN_BOXING_BOUTS)
     ph = hashlib.sha256(raw.encode()).hexdigest()
     add_snapshot(c, "boxing", "openboxing", OPEN_BOXING_BOUTS, retrieved, None, ph, "UNVERIFIABLE")
+    revision = upstream_revision()
+    c.execute("UPDATE source_snapshot SET provenance_json=? WHERE source='openboxing' AND source_url=?", (json.dumps({"sport":"boxing","parser":"boxing-production-v2","upstream_revision":revision}, ensure_ascii=False), OPEN_BOXING_BOUTS))
     rows = list(csv.DictReader(io.StringIO(raw)))
     imported = 0
     outcomes = 0
@@ -191,6 +204,7 @@ def main() -> int:
     a = ap.parse_args()
 
     h = HTTP()
+    upstream = upstream_revision()
     report = {
         "sport": "boxing",
         "status": "DEFERRED_PIT",
@@ -200,6 +214,7 @@ def main() -> int:
         "production_model_enabled": False,
         "history_ingestion": None,
         "candidate_sources": [],
+        "upstream_revision": upstream,
         "reason": "Boxing history may be used as realized teacher labels after the event, but no historical pre-fight feature source is admitted until source availability before the prediction cutoff is proven.",
     }
 
