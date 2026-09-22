@@ -72,7 +72,6 @@ X data is isolated from the production model: collection → PIT storage → ind
 ### Rugby / Boxing coverage guards
 `.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby remains coverage-only until its sport-specific PIT/OOS/release path is proven.
 `.github/workflows/boxing_pit_guard.yml` checks free/public Boxing source candidates every 6 hours and records an explicit `DEFERRED_PIT` state until historical source availability is proven.
-`.github/workflows/boxing_open_data.yml` collects the free Open Boxing API every hour into a dedicated SQLite history cache, but keeps its observations out of the production model until PIT evidence is proven.
 
 ### Reliability
 Cache/PIT health and production invariant workflows provide independent safety checks. A release gate is fail-closed: unsafe models are never published, and a blocked gate must be visible as a non-zero Action rather than a false green success.
