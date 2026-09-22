@@ -27,7 +27,7 @@ Nine target-sport prediction/research lanes with a provenance-first data foundat
 ## Data-source strategy
 The system is source-agnostic. It can combine official feeds, structured public APIs, reputable historical datasets, and high-quality public event pages when their provenance and schema can be recorded.
 
-The project maintains an explicit nine-sport target source registry and independent audit record in `docs/SOURCE_REGISTRY_8_SPORTS.md` and `docs/COMPLETE_8_SPORT_AUDIT.md`.
+The project maintains an explicit nine-sport target source registry and independent audit baseline in `docs/SOURCE_REGISTRY_8_SPORTS.md` and `docs/COMPLETE_8_SPORT_AUDIT.md`.
 
 Current deep historical/enrichment sources include:
 - Tennis: Jeff Sackmann ATP/WTA historical match/stat archive mirror, with conservative PIT treatment.
@@ -38,6 +38,7 @@ Current deep historical/enrichment sources include:
 - UFC: Aristotle API plus TidyTuesday/UFCStats-derived historical fallback with same-fight statistics excluded from pre-fight features.
 - RIZIN: official RIZIN result pages with hardened parsing and PIT deferral until historical availability is proven.
 - Rugby: World Rugby official coverage in a dedicated database/workflow; model/PIT/release promotion remains gated until the sport-specific evidence requirements are satisfied.
+- Boxing: free/public candidate-source monitoring with a fail-closed PIT guard; no production feature/model promotion before historical availability is proven.
 
 The system does not assume that one provider is complete. Cross-source reconciliation and gap recovery are preferred over trusting a single feed.
 
@@ -68,8 +69,9 @@ X data is isolated from the production model: collection → PIT storage → ind
 ### Canonical production
 `.github/workflows/v4_5_15_production.yml` runs the five active sports independently; Tennis, F1, Rugby and Boxing are deferred by project scope, restores/saves per-sport run-scoped caches, validates collection, reconstructs outcomes, builds strict PIT replay, runs an independent leakage audit, performs frozen-holdout research, applies quality/release gates, and persists safe outputs.
 
-### Rugby coverage
-`.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby is included in the canonical eight-sport cycle, while its production model remains gated until the sport-specific PIT/OOS/release path is proven.
+### Rugby / Boxing coverage guards
+`.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby remains coverage-only until its sport-specific PIT/OOS/release path is proven.
+`.github/workflows/boxing_pit_guard.yml` checks free/public Boxing source candidates every 6 hours and records an explicit `DEFERRED_PIT` state until historical source availability is proven.
 
 ### Reliability
 Cache/PIT health and production invariant workflows provide independent safety checks. A release gate is fail-closed: unsafe models are never published, and a blocked gate must be visible as a non-zero Action rather than a false green success.
