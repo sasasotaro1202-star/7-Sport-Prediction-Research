@@ -318,7 +318,10 @@ jobs:
             if git rebase --autostash origin/main; then
               return 0
             fi
-            conflicts=$(git diff --name-only --diff-filter=U || true)
+            if ! conflicts=$(git diff --name-only --diff-filter=U); then
+              echo 'ERROR: unable to inspect rebase conflicts.' >&2
+              return 1
+            fi
             if [ -n "$conflicts" ] && ! printf '%s\n' "$conflicts" | grep -Ev '^(results/|models/)' | grep -q .; then
               echo 'INFO: resolving generated-output-only rebase conflict in favor of this completed run.'
               printf '%s\n' "$conflicts" | while IFS= read -r f; do
@@ -329,7 +332,10 @@ jobs:
               GIT_EDITOR=true git -c core.editor=true rebase --continue
               return $?
             fi
-            git rebase --abort || true
+            if ! git rebase --abort; then
+              echo 'ERROR: failed to abort conflicting rebase.' >&2
+              return 1
+            fi
             echo 'ERROR: main advanced with a non-generated-file conflict.' >&2
             return 1
           }
