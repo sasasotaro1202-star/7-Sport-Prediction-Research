@@ -4,7 +4,10 @@ from pathlib import Path
 
 
 def _artifact_valid(meta):
-    p = ROOT / str(meta.get('artifact_path',''))
+    p = (ROOT / str(meta.get('artifact_path',''))).resolve()
+    root = ROOT.resolve()
+    if root not in p.parents or not str(p.relative_to(root)).startswith('models/'):
+        return False
     if not p.is_file() or p.stat().st_size <= 0:
         return False
     try:
@@ -135,7 +138,7 @@ def _write(r):
 
 
 def main():
-    r={'status':'BLOCKED','publish':False,'fatal':[],'deferred_sports':{},'coverage':{},'coverage_warnings':[],'policy':'source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes; Boxing remains deferred until free PIT-safe historical evidence exists','gate_version':'release-gate-v9-safe-partial-sport-degradation'}
+    r={'status':'BLOCKED','publish':False,'fatal':[],'deferred_sports':{},'coverage':{},'coverage_warnings':[],'publishable_artifacts':[],'policy':'source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes; Boxing remains deferred until free PIT-safe historical evidence exists','gate_version':'release-gate-v9-safe-partial-sport-degradation'}
     if not DB.exists():
         r['fatal'].append('database_missing')
         return _write(r)
@@ -221,7 +224,12 @@ def main():
                 continue
             if s in latest:
                 good,reason=_validate_model(latest[s]); r['coverage'][s]['model_safety']=reason
-                if not good: r['fatal'].append(f'{s}:{reason}')
+                if good:
+                    ap=str(latest[s].get('artifact_path') or '')
+                    if ap.startswith('models/') and '..' not in Path(ap).parts:
+                        r['publishable_artifacts'].append(ap)
+                else:
+                    r['fatal'].append(f'{s}:{reason}')
             else:
                 # A sport with a concrete DEFERRED research result is unavailable
                 # for production but must not block safe publication of other sports.
@@ -268,6 +276,7 @@ def main():
         if exact_missing: r['fatal'].append('exact_source_missing_availability_time')
     finally:
         c.close()
+    r['publishable_artifacts']=list(dict.fromkeys(r.get('publishable_artifacts') or []))
     return _write(r)
 
 
