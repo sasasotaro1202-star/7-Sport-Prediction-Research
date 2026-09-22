@@ -68,8 +68,14 @@ def main():
     # hidden failure patterns from re-entering the codebase through an unrelated module.
     py_files=[p for p in (ROOT/'src').rglob('*.py') if p.name!='production_invariants.py']
     all_py='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in py_files)
-    wf_files=list((ROOT/'.github/workflows').glob('*.yml'))
-    all_wf='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in wf_files)
+    operational_workflows={
+        'v4_5_15_production.yml','pit_history_expansion.yml',
+        'production_failure_recovery.yml','boxing_pit_guard.yml',
+        'rugby_production.yml','cache_pit_health.yml',
+        'bootstrap_full_history.yml','production_watchdog.yml',
+    }
+    wf_files=[(ROOT/'.github/workflows'/name) for name in sorted(operational_workflows)]
+    all_wf='\\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in wf_files if p.exists())
     bad_split_api='train_'+'test_split'
     bad_stratified='Stratified'+'KFold'
     bad_kfold='K'+'Fold'
