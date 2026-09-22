@@ -347,6 +347,14 @@ def main():
             'strict PIT replay builder lacks bulk history loading/indexed in-memory PIT selection')
     require('executemany' in replay_builder,
             'strict PIT replay builder does not batch feature writes')
+    refresh_guard_start=replay_builder.find("if existing and existing['feature_version']==FEATURE_VERSION:")
+    refresh_guard_end=replay_builder.find("pending_deletes.append(replay_id)",refresh_guard_start)
+    refresh_guard=replay_builder[refresh_guard_start:refresh_guard_end] if refresh_guard_start>=0 and refresh_guard_end>refresh_guard_start else ''
+    require("if (not force) and existing['dataset_hash']==fingerprint" in refresh_guard,
+            'forced PIT history refresh must bypass the incremental skip guard')
+    require("forced history refresh" in refresh_guard.lower() and
+            "provenance-sensitive rebuild" in refresh_guard.lower(),
+            'forced PIT history refresh does not document provenance-sensitive rebuild semantics')
 
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
     require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
