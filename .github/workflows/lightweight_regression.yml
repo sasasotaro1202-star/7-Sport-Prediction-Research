@@ -131,6 +131,13 @@ jobs:
           assert "bootstrap_prob_improvement',0.0) >= 0.90" in strict
           assert "Evaluate three non-overlapping chronological OOS blocks" in strict
           assert "Rolling-origin calibration validation" in strict
+          router_accept= strict.split("router_accept =",1)[1].split("final_router",1)[0]
+          assert "router_eval.get('status') == 'EVALUATED'" in router_accept
+          assert "router_eval.get('folds',0) >= 6" in router_accept
+          assert "router_eval['logloss_improvement']" in router_accept
+          assert "router_holdout" not in router_accept
+          assert "router_holdout" in strict  # score-only frozen-holdout reporting remains present
+          assert "frozen holdout is strictly score-only" in strict.lower()
           assert "COALESCE(leakage_status,'UNKNOWN') NOT IN ('PASS','CLEAN')" in gate
           assert "'publishable_artifacts':[]" in gate
           assert "RELEASE_GATED_ARTIFACT=" in production
