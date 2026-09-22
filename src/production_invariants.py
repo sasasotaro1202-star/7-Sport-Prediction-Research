@@ -124,6 +124,11 @@ def main():
     require('Verify merge run SHA is current main before mutable work' in workflow,
             'canonical Production merge job lacks stale-workflow SHA fail-closed guard')
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
+    cache_health_workflow=(ROOT/'.github/workflows/cache_pit_health.yml').read_text(encoding='utf-8')
+    require('nine-sport-target-db-v4-' in pit_workflow and 'eight-sport-db-v4-' not in pit_workflow,
+            'PIT History Expansion still references the legacy eight-sport cache namespace')
+    require('nine-sport-target-db-v4-' in cache_health_workflow and 'eight-sport-db-v4-' not in cache_health_workflow,
+            'Cache and PIT Health still references the legacy eight-sport cache namespace')
     require('Verify workflow SHA is current main before any mutable work' in pit_workflow,
             'PIT History Expansion lacks stale-workflow SHA fail-closed guard')
     require('timeout --signal=TERM 2700s python -m src.pit_replay_builder' in workflow,
