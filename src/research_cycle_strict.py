@@ -311,11 +311,14 @@ def train(s):
   if len(oof_y)<30 or len(np.unique(oof_y))<2:
    return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
   def _window_metric_for_preds(pred_by_fold):
+   """Evaluate three non-overlapping chronological OOS blocks."""
    out=[]
-   for ws in window_starts:
+   if len(oof_folds)<3:
+    return out
+   for fold_ids in np.array_split(np.arange(len(oof_folds)),3):
     yy=[];pp=[]
-    for fold in oof_folds:
-     if int(fold['end'])<ws:continue
+    for fi in fold_ids.tolist():
+     fold=oof_folds[int(fi)]
      yy.extend(y[int(fold['end']):int(fold['te'])].tolist())
      pp.extend(pred_by_fold[int(fold['end'])])
     if len(yy)>=20 and len(np.unique(yy))>1:
@@ -465,16 +468,15 @@ def train(s):
   def _weighted_candidate_score(spec, weights):
    p_all=np.sum(np.column_stack([weights.get(n,0.0)*np.asarray(oof_probs[n],float) for n in spec]),axis=1)
    overall=base.metric(oof_y,p_all)
-   fold_losses=[];window_scores=[]
-   for ws in window_starts:
-    yy=[];pp=[]
-    for fold in oof_folds:
-     if int(fold['end'])<ws:continue
-     yy.extend(y[int(fold['end']):int(fold['te'])].tolist())
-     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
-     pp.extend(np.sum(fp*np.array([weights[n] for n in spec])[None,:],axis=1).tolist())
-    if len(yy)>=20 and len(np.unique(yy))>1:
-     window_scores.append(base.metric(np.asarray(yy),np.asarray(pp)))
+   fold_losses=[]
+   window_scores=_window_metric_for_preds({
+    int(fold['end']): np.sum(
+      np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])*
+                       np.array([weights[n] for n in spec])[None,:],
+      axis=1
+    ).tolist()
+    for fold in oof_folds
+   })
    for fold in oof_folds:
     yy=y[int(fold['end']):int(fold['te'])]
     fp=np.column_stack([np.asarray(fold['preds'][n],dtype=float) for n in spec])
