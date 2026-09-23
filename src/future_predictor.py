@@ -39,9 +39,10 @@ def _future_events(c,s,now,until=None):
                  'participant_count':int(row[3] or 0)}
         for row in c.execute(
             """SELECT e.event_id,e.event_time_utc,e.status,
-                      (SELECT COUNT(DISTINCT ep.participant_id)
+                      (SELECT COUNT(DISTINCT ep.side)
                          FROM event_participant ep
                         WHERE ep.event_id=e.event_id
+                          AND ep.side IN ('A','B')
                           AND ep.participant_id IS NOT NULL)
                  FROM event e
                 WHERE e.sport=?
