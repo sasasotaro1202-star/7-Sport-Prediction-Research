@@ -430,10 +430,14 @@ def main():
         require(recent.shape==(2,) and np.all(np.isfinite(recent)),'dynamic router recent loss state is invalid')
         require('HistGradientBoostingRegressor' in router_src,'dynamic router contextual loss forecaster is missing')
         require('fit_final_router_from_folds' in router_src,'dynamic router lacks OOS-fold reuse for final fit')
+        require('baseline_weights' in router_src,'dynamic router is missing incumbent-weight alignment')
+        require('loss_spread_scale' in router_src,'dynamic router is missing uncertainty-aware shrinkage')
         require(
-            'router.fit_final_router_from_folds(X,y,router_names,oof_folds,sel' in strict_src,
-            'strict research cycle must fit final router from computed chronological OOS folds'
+            'router.fit_final_router_from_folds(X,y,router_names,oof_folds,sel,candidate_weights)' in strict_src,
+            'strict research cycle must persist incumbent weights into final OOS-fold router'
         )
+        future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+        require('baseline_weights=weights' in future_src,'future inference does not pass incumbent weights to router fallback')
         base_src=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
         require('self.b.fit(X,y)' in base_src and 'preserves chronological OOS safety' in base_src,
                 'calibrated base wrapper does not refit on all pre-cutoff training data')
