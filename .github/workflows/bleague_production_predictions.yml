@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: bleague-production-predictions
+  group: bleague-production-predictions-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
