@@ -1,0 +1,45 @@
+name: B.LEAGUE Production Predictions
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - results/bleague_production_predictions.json
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bleague-production-predictions
+  cancel-in-progress: false
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Generate B.LEAGUE predictions
+        run: python -m src.bleague_production_predictions
+      - name: Persist prediction report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/bleague_production_predictions.json
+          if git diff --cached --quiet; then
+            echo "B_LEAGUE_PREDICTIONS=UNCHANGED"
+          else
+            git commit -m "chore: update B.LEAGUE production predictions"
+            git push
+          fi
