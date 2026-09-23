@@ -42,6 +42,7 @@ def parse_detail(html: str, url: str):
     compm = re.search(r'B\.LEAGUE\s+(PREMIER|ONE|NEXT)\b', title, re.I)
     home = re.sub(r'^.*?リーグ戦\s*', '', vm.group(1)).strip()
     away = vm.group(2).strip()
+    away = re.split(r'\s*\|\s*B\.LEAGUE', away, maxsplit=1, flags=re.I)[0].strip()
     home = re.sub(r'\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*$', '', home).strip()
     away = re.sub(r'\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*
     if not home or not away or home == away:
