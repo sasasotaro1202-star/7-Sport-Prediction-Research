@@ -182,7 +182,15 @@ def _fit_contextual_loss_selector(meta_features: np.ndarray, meta_losses: np.nda
         )
         model.fit(X, L[:, j])
         selectors.append(model)
-    return {"kind": "contextual_loss_v1", "selectors": selectors}
+    loss_spread = np.std(L, axis=1)
+    finite_spread = loss_spread[np.isfinite(loss_spread) & (loss_spread > 1e-9)]
+    spread_scale = float(np.quantile(finite_spread, 0.75)) if len(finite_spread) else 0.05
+    spread_scale = max(spread_scale, 1e-3)
+    return {
+        "kind": "contextual_loss_v1",
+        "selectors": selectors,
+        "loss_spread_scale": spread_scale,
+    }
 
 
 def _route_with_contextual_loss_selector(
@@ -226,7 +234,20 @@ def _route_with_contextual_loss_selector(
     # Conservative shrinkage toward equal weighting reduces regime overreaction.
     weights = 0.75 * weights + 0.25 / bp.shape[1]
     routed = np.sum(bp * weights, axis=1)
-    return np.clip(0.75 * routed + 0.25 * baseline, 1e-6, 1 - 1e-6)
+
+    # Do not route aggressively when the selector itself sees little separation
+    # between model losses. The scale is learned only from pre-holdout OOF loss
+    # history, so this remains PIT-safe and automatically becomes stronger when
+    # the models are meaningfully differentiated.
+    spread_scale = float(selector.get("loss_spread_scale", 0.0) or 0.0)
+    if np.isfinite(spread_scale) and spread_scale > 1e-9:
+        pred_spread = np.max(predicted, axis=1) - np.min(predicted, axis=1)
+        confidence = pred_spread / np.maximum(pred_spread + spread_scale, 1e-9)
+        route_strength = 0.75 * np.clip(confidence, 0.0, 1.0)
+        routed = baseline + route_strength * (routed - baseline)
+    else:
+        routed = 0.75 * routed + 0.25 * baseline
+    return np.clip(routed, 1e-6, 1 - 1e-6)
 
 
 
