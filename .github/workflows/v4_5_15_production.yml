@@ -13,7 +13,7 @@ concurrency:
   # Isolate heavy runs by immutable commit SHA. A stale run from an older
   # main must not hold the current validated SHA in the pending queue.
   # Runs for the same SHA remain strictly serialized and are never cancelled.
-  group: nine-sport-target-canonical-production-${{ github.sha }}
+  group: nine-sport-target-canonical-production
   cancel-in-progress: false
 env:
   PYTHONUNBUFFERED: '1'
