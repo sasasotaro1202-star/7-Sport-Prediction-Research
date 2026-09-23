@@ -141,6 +141,16 @@ def main():
                         source_available_at_utc=retrieved,
                     )
 
+        # The schedule index is paginated. Add the contiguous official
+        # ScheduleKey ranges covering this request window, but accept a game
+        # only after its detail page independently validates date/division.
+        for key in (
+            list(range(506390, 506436))
+            + list(range(507150, 507221))
+            + list(range(507900, 507951))
+        ):
+            links.add(f"{BASE}/game_detail/?ScheduleKey={key}")
+
         for url in sorted(links):
             try:
                 html, _ = get(url)
