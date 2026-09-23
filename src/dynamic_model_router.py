@@ -185,8 +185,17 @@ def _fit_contextual_loss_selector(meta_features: np.ndarray, meta_losses: np.nda
     return {"kind": "contextual_loss_v1", "selectors": selectors}
 
 
-def _route_with_contextual_loss_selector(selector, bp: np.ndarray, ctx: np.ndarray, history_loss=None):
-    """Convert predicted per-model loss into conservative situation-specific weights."""
+def _route_with_contextual_loss_selector(
+    selector,
+    bp: np.ndarray,
+    ctx: np.ndarray,
+    history_loss=None,
+    baseline_weights: Dict[str, float] | None = None,
+):
+    """Route conservatively toward the exact incumbent ensemble used by production/evaluation.
+
+    Legacy router artifacts without persisted weights fall back to equal weighting.
+    """
     if not isinstance(selector, dict) or selector.get("kind") != "contextual_loss_v1":
         return None
     selectors = selector.get("selectors") or []
@@ -198,7 +207,18 @@ def _route_with_contextual_loss_selector(selector, bp: np.ndarray, ctx: np.ndarr
     features = np.column_stack([bp, ctx, np.std(bp, axis=1), np.repeat(hl[None, :], len(bp), axis=0)])
     predicted = np.column_stack([m.predict(features) for m in selectors])
     predicted = np.where(np.isfinite(predicted), predicted, np.nanmedian(predicted, axis=0))
+    ref_weights = baseline_weights if baseline_weights is not None else selector.get("baseline_weights")
     baseline = np.mean(bp, axis=1)
+    if isinstance(ref_weights, dict):
+        try:
+            model_names = list(selector.get("model_names") or [])
+            w = np.asarray([float(ref_weights.get(name, 0.0)) for name in model_names], dtype=float)
+            if len(w) != bp.shape[1] or not np.isfinite(w).all() or w.sum() <= 0:
+                raise ValueError("invalid persisted router baseline weights")
+            w = w / w.sum()
+            baseline = np.sum(bp * w[None, :], axis=1)
+        except Exception:
+            baseline = np.mean(bp, axis=1)
     # Lower predicted log-loss => larger weight. Temperature prevents brittle winner-take-all routing.
     centered = predicted - np.min(predicted, axis=1, keepdims=True)
     weights = np.exp(-centered / 0.15)
@@ -262,7 +282,7 @@ def evaluate_router_from_folds(
             np.asarray(meta_X,dtype=float) if meta_X else np.empty((0,features.shape[1])),
             np.asarray(meta_losses,dtype=float) if meta_losses else np.empty((0,len(names)))
         )
-        routed=_route_with_contextual_loss_selector(selector,bp,ctx,history_loss)
+        routed=_route_with_contextual_loss_selector(selector,bp,ctx,history_loss,baseline_weights)
         if routed is None:
             routed=np.mean(bp,axis=1)
         if baseline_weights:
@@ -359,7 +379,9 @@ def evaluate_frozen_holdout_router_from_folds(
     else:
         static=np.mean(bp,axis=1)
     ctx=_context(X,hX)
-    routed=_route_with_contextual_loss_selector(selector,bp,ctx,_recent_model_loss(meta_losses,len(names)))
+    routed=_route_with_contextual_loss_selector(
+        selector,bp,ctx,_recent_model_loss(meta_losses,len(names)),baseline_weights
+    )
     if routed is None:
         return {'status':'INSUFFICIENT_OOS','reason':'contextual_router_fit_failed','oos_rows':len(meta_losses)}
     target=hy.astype(int)
@@ -560,6 +582,7 @@ def fit_final_router_from_folds(
     names: Sequence[str],
     folds: Sequence[Dict],
     sel: int,
+    baseline_weights: Dict[str, float] | None = None,
 ) -> Dict | None:
     """Fit the final contextual loss router from already-computed chronological OOF folds."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
@@ -576,6 +599,9 @@ def fit_final_router_from_folds(
     selector=_fit_contextual_loss_selector(np.asarray(meta_X,dtype=float),np.asarray(meta_losses,dtype=float))
     if selector is not None:
         selector['history_loss']=_recent_model_loss(meta_losses,len(names))
+        selector['model_names']=list(names)
+        if isinstance(baseline_weights, dict):
+            selector['baseline_weights']={str(k):float(v) for k,v in baseline_weights.items()}
     return selector
 
 def predict_with_router(router, base_models, names, train_x, current_x):
