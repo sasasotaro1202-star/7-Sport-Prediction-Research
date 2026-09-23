@@ -95,7 +95,7 @@ def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strateg
         (prediction_id,event_id,sport,market,prediction_cutoff_at_utc,generated_at_utc,
          probability_side_a,probability_side_b,strategy,model_version,feature_version,
          features_json,feature_snapshot_hash,status,created_at_utc)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (pid,event_id,sport,'winner',cutoff,now.isoformat(),float(pa),float(pb),strategy,
          str(model_version or ''),str(feature_version or ''),json.dumps(payload,ensure_ascii=False,sort_keys=True,default=str),
          fh,'OPEN',now.isoformat())
