@@ -11,6 +11,7 @@ DB=ROOT/'data/db/sports_v45.sqlite'
 MODELS=ROOT/'models/research'
 OUT=ROOT/'results/future_predictions.json'
 SPORTS=tuple(base.SPORTS)
+ALL_SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
 PIT_LEAD_MINUTES=60
 
 
@@ -188,11 +189,13 @@ def predict_sport(c,s,now):
 
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--sport',choices=SPORTS);args=ap.parse_args()
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--sport',choices=ALL_SPORTS+('all',))
+    args=ap.parse_args()
     now=utc_now()
     con=sqlite3.connect(DB)
     try:
-        sports=[args.sport] if args.sport else list(SPORTS)
+        sports=ALL_SPORTS if args.sport=='all' else ([args.sport] if args.sport else list(SPORTS))
         results=[predict_sport(con,s,now) for s in sports]
         con.commit()
     finally:
