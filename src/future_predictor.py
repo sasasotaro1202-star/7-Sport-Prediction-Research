@@ -139,7 +139,9 @@ def predict_sport(c,s,now):
         x=np.asarray([[row_features.get(f,np.nan) for f in features]],dtype=float)
         if use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
-            raw,_=router.predict_with_router(artifact['dynamic_router'],rbase,rnames,rref,x)
+            raw,_=router.predict_with_router(
+                artifact['dynamic_router'],rbase,rnames,rref,x,baseline_weights=weights
+            )
             strategy='contextual_router'
         else:
             preds=[]
