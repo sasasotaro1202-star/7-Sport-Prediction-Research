@@ -32,7 +32,10 @@ def main():
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         safe_ctx=router._context(pathological,current)
+        all_nan_ctx=router._context(np.full((8,12),np.nan),current)
     assert safe_ctx.shape==(len(current),10)
+    assert all_nan_ctx.shape==(len(current),10)
+    assert np.isfinite(safe_ctx).all() and np.isfinite(all_nan_ctx).all()
     assert not any(issubclass(w.category, RuntimeWarning) for w in caught)
     ref=router.context_reference(train)
     ctx_ref=router._context_from_reference(ref,current)
