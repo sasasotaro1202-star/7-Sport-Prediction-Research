@@ -38,16 +38,16 @@ def parse_detail(html: str, url: str):
     page_text = soup.get_text(" ", strip=True)
     blob = f"{title} {page_text}"
 
-    dm = re.search(r"(2026[./-]d{1,2}[./-]d{1,2})", blob)
-    tm = re.search(r"(d{1,2}:d{2})s*(?:TIP OFF|TIPOFF|ティップオフ)", blob, re.I)
+    dm = re.search(r"(2026[./-]\d{1,2}[./-]\d{1,2})", blob)
+    tm = re.search(r"(\d{1,2}:\d{2})\s*(?:TIP OFF|TIPOFF|ティップオフ)", blob, re.I)
     vm = re.search(
-        r"(?:2026[./-]d{1,2}[./-]d{1,2})s+(.+?)s+VSs+(.+?)(?:s+チケット|s+Buy|s*$)",
+        r"(?:2026[./-]\d{1,2}[./-]\d{1,2})\s+(.+?)\s+VS\s+(.+?)(?:\s+チケット|\s+Buy|\s*$)",
         title,
         re.I,
     )
     if not vm:
         vm = re.search(
-            r"(?:2026[./-]d{1,2}[./-]d{1,2})s+(.+?)s+VSs+(.+?)(?:s+|s+|s+チケット|$)",
+            r"(?:2026[./-]\d{1,2}[./-]\d{1,2})\s+(.+?)\s+VS\s+(.+?)(?:\s+\|\s+|\s+チケット|$)",
             blob,
             re.I,
         )
@@ -58,11 +58,11 @@ def parse_detail(html: str, url: str):
 
     home = vm.group(1).strip()
     away = vm.group(2).strip()
-    home = re.sub(r"^.*?リーグ戦s*", "", home).strip()
-    home = re.split(r"s*|s*B.LEAGUE", home, maxsplit=1, flags=re.I)[0].strip()
-    away = re.split(r"s*|s*B.LEAGUE", away, maxsplit=1, flags=re.I)[0].strip()
-    home = re.sub(r"s+(B.PREMIER|B.ONE|B.NEXT)s*$", "", home, flags=re.I).strip()
-    away = re.sub(r"s+(B.PREMIER|B.ONE|B.NEXT)s*$", "", away, flags=re.I).strip()
+    home = re.sub(r"^.*?リーグ戦\s*", "", home).strip()
+    home = re.split(r"\s*\|\s*B\.LEAGUE", home, maxsplit=1, flags=re.I)[0].strip()
+    away = re.split(r"\s*\|\s*B\.LEAGUE", away, maxsplit=1, flags=re.I)[0].strip()
+    home = re.sub(r"\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*$", "", home, flags=re.I).strip()
+    away = re.sub(r"\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*$", "", away, flags=re.I).strip()
 
     if not home or not away or home == away:
         return None
@@ -79,7 +79,7 @@ def parse_detail(html: str, url: str):
 
 
 def to_utc(date_s: str, time_s: str | None):
-    m = re.search(r"2026[./-](d{1,2})[./-](d{1,2})", date_s)
+    m = re.search(r"2026[./-](\d{1,2})[./-](\d{1,2})", date_s)
     if not m:
         return None
 
@@ -135,7 +135,6 @@ def main():
                     source_available_at_utc=retrieved,
                 )
 
-        # Supplement the schedule index with nearby official detail-key pages.
         for key in (
             list(range(506406, 506430))
             + list(range(507183, 507207))
