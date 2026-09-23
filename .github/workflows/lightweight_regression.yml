@@ -97,6 +97,8 @@ jobs:
           assert isinstance(cal,dict) and 'accepted' in cal
           print("ROUTER_CALIBRATION=PASS")
           PY
+      - name: Router incumbent baseline alignment regression
+        run: PYTHONPATH=. python scripts/test_router_baseline_alignment.py
       - name: LightGBM smoke test
         run: |
           python - <<'PY'
