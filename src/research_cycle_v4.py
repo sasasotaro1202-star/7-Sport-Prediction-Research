@@ -23,7 +23,10 @@ def target_event(s,name,competition_id):
  if s=='basketball':
   return any(k in n or k in c for k in ('b.league','b league','bリーグ','asian games','アジア大会'))
  if s=='volleyball':
-  return any(k in n or k in c for k in ('asian games','アジア大会'))
+  # Train on all volleyball competitions chronologically. Competition identity,
+  # including Asian Games, remains an explicit PIT-safe feature for target filtering
+  # and robustness evaluation rather than a hard training-data restriction.
+  return True
  return True
 def ece(y,p,b=10):
  y=np.asarray(y);p=np.asarray(p);z=0
