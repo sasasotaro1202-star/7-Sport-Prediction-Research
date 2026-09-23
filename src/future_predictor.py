@@ -133,6 +133,9 @@ def predict_sport(c,s,now,until=None):
                 'artifact_feature_version':artifact.get('feature_version'),
                 'current_feature_count':len(available_features)}
     future=_future_events(c,s,now,until)
+    future_ids=set(future)
+    row_ids=set(r[0] for r in rows)
+    print(f'FUTURE_DEBUG future={len(future_ids)} build_rows={len(rows)} matched={len(future_ids & row_ids)}')
     outputs=[]
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     use_router=router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and artifact.get('dynamic_router') is not None
