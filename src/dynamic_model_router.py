@@ -656,7 +656,11 @@ def predict_with_router(
     routed = _route_with_contextual_loss_selector(router, bp, ctx)
     if routed is None:
         return static, {"fallback": True, "reason": "contextual_router_unavailable"}
-    return routed, {"fallback": False, "router_kind": "contextual_loss_v1", "shrinkage": 0.25}
+    return routed, {
+        "fallback": False,
+        "router_kind": "contextual_loss_v1",
+        "shrinkage": "uncertainty_aware_pre_holdout_oof",
+    }
 
 
 __all__ = ["DynamicModelRouter", "context_reference", "evaluate_router", "evaluate_router_from_folds", "evaluate_frozen_holdout_router_from_folds", "fit_final_router", "predict_with_router"]
