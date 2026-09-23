@@ -33,7 +33,7 @@ def _apply_calibration(p, calibrator, method):
     return p
 
 
-def _future_events(c,s,now):
+def _future_events(c,s,now,until=None):
     return {
         row[0]: {'event_id':row[0],'event_time_utc':row[1],'status':row[2],
                  'participant_count':int(row[3] or 0)}
@@ -51,6 +51,16 @@ def _future_events(c,s,now):
         if row[1] and _after_cutoff(row[1],now,PIT_LEAD_MINUTES)
         and str(row[2] or '').upper() not in {'COMPLETED','FINISHED','POST','FINAL','CANCELLED','VOID'}
     }
+
+
+def _before_until(ts,until):
+    try:
+        dt=datetime.fromisoformat(str(ts).replace('Z','+00:00'))
+        if dt.tzinfo is None:
+            dt=dt.replace(tzinfo=timezone.utc)
+        return dt <= until
+    except Exception:
+        return False
 
 
 def _after_cutoff(ts,now,lead_minutes):
@@ -92,7 +102,7 @@ def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strateg
     return pid
 
 
-def predict_sport(c,s,now):
+def predict_sport(c,s,now,until=None):
     artifact_path=MODELS/f'{s}_current.joblib'
     if not artifact_path.is_file() or artifact_path.stat().st_size<=0:
         return {'sport':s,'status':'DEFERRED_NO_ACCEPTED_ARTIFACT'}
@@ -121,7 +131,7 @@ def predict_sport(c,s,now):
         return {'sport':s,'status':'BLOCKED_ARTIFACT_FEATURE_SCHEMA','missing_features':missing_schema,
                 'artifact_feature_version':artifact.get('feature_version'),
                 'current_feature_count':len(available_features)}
-    future=_future_events(c,s,now)
+    future=_future_events(c,s,now,until)
     outputs=[]
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     use_router=router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and artifact.get('dynamic_router') is not None
@@ -188,12 +198,20 @@ def predict_sport(c,s,now):
 
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--sport',choices=SPORTS);args=ap.parse_args()
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--sport',choices=SPORTS)
+    ap.add_argument('--until-utc')
+    args=ap.parse_args()
     now=utc_now()
+    until=None
+    if args.until_utc:
+        until=datetime.fromisoformat(args.until_utc.replace('Z','+00:00'))
+        if until.tzinfo is None:
+            until=until.replace(tzinfo=timezone.utc)
     con=sqlite3.connect(DB)
     try:
         sports=[args.sport] if args.sport else list(SPORTS)
-        results=[predict_sport(con,s,now) for s in sports]
+        results=[predict_sport(con,s,now,until) for s in sports]
         con.commit()
     finally:
         con.close()
