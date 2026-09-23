@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: bleague-current-production-predictions-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: bleague-current-production-predictions
+  cancel-in-progress: true
 
 jobs:
   predict:
