@@ -30,7 +30,7 @@ def main() -> None:
     legacy_result = _route_with_contextual_loss_selector(legacy, bp, ctx, np.zeros(2))
     assert np.isclose(legacy_result[0], 0.50), legacy_result
 
-    print("ROUTER_INCURMBENT_BASELINE_ALIGNMENT=PASS")
+    print("ROUTER_INCUMBENT_BASELINE_ALIGNMENT=PASS")
 
 
 if __name__ == "__main__":
