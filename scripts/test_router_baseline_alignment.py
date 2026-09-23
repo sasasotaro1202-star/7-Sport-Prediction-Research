@@ -18,12 +18,14 @@ def main() -> None:
         "selectors": [_ConstantPredictor(), _ConstantPredictor()],
         "model_names": ["a", "b"],
         "baseline_weights": {"a": 0.10, "b": 0.90},
+        "loss_spread_scale": 0.05,
     }
 
     routed = _route_with_contextual_loss_selector(selector, bp, ctx, np.zeros(2))
     expected_weighted_baseline = 0.20 * 0.10 + 0.80 * 0.90
-    expected = 0.75 * 0.50 + 0.25 * expected_weighted_baseline
-    assert np.isclose(routed[0], expected), (routed[0], expected)
+    # Zero predicted loss separation should suppress routing and return the
+    # exact incumbent baseline, avoiding arbitrary regime switching.
+    assert np.isclose(routed[0], expected_weighted_baseline), (routed[0], expected_weighted_baseline)
 
     legacy = dict(selector)
     legacy.pop("baseline_weights")
