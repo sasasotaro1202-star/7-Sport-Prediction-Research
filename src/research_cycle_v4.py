@@ -21,7 +21,7 @@ def h(x):return hashlib.sha256(json.dumps(x,sort_keys=True,default=str).encode()
 def target_event(s,name,competition_id):
  n=(name or '').lower(); c=(competition_id or '').lower()
  if s=='basketball':
-  return any(k in n or k in c for k in ('b.league','b league','bリーグ','asian games','アジア大会'))
+  return any(k in n or k in c for k in ('b.league','b league','bリーグ','b.premier','b.one','b.next','asian games','アジア大会'))
  if s=='volleyball':
   return any(k in n or k in c for k in ('asian games','アジア大会'))
  return True
@@ -426,7 +426,7 @@ def build(c,s,include_unlabeled=False):
   # counts is already updated only with outcomes strictly before the current event.
   # Reuse it instead of scanning the entire historical outcome list per event.
   prior_hist=(counts.get(p['A'],0)>0 or counts.get(p['B'],0)>0)
-  if strict_evidence == 0 and not prior_hist:
+  if strict_evidence == 0 and not prior_hist and not include_unlabeled:
    continue
   rows.append((eid,t,(0 if labels[eid]=='A' else 1) if eid in labels else None,f))
  return rows,sorted({k for _,_,_,f in rows for k in f})

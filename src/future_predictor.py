@@ -33,15 +33,16 @@ def _apply_calibration(p, calibrator, method):
     return p
 
 
-def _future_events(c,s,now):
+def _future_events(c,s,now,until=None):
     return {
         row[0]: {'event_id':row[0],'event_time_utc':row[1],'status':row[2],
                  'participant_count':int(row[3] or 0)}
         for row in c.execute(
             """SELECT e.event_id,e.event_time_utc,e.status,
-                      (SELECT COUNT(DISTINCT ep.participant_id)
+                      (SELECT COUNT(DISTINCT ep.side)
                          FROM event_participant ep
                         WHERE ep.event_id=e.event_id
+                          AND ep.side IN ('A','B')
                           AND ep.participant_id IS NOT NULL)
                  FROM event e
                 WHERE e.sport=?
@@ -51,6 +52,16 @@ def _future_events(c,s,now):
         if row[1] and _after_cutoff(row[1],now,PIT_LEAD_MINUTES)
         and str(row[2] or '').upper() not in {'COMPLETED','FINISHED','POST','FINAL','CANCELLED','VOID'}
     }
+
+
+def _before_until(ts,until):
+    try:
+        dt=datetime.fromisoformat(str(ts).replace('Z','+00:00'))
+        if dt.tzinfo is None:
+            dt=dt.replace(tzinfo=timezone.utc)
+        return dt <= until
+    except Exception:
+        return False
 
 
 def _after_cutoff(ts,now,lead_minutes):
@@ -84,7 +95,7 @@ def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strateg
         (prediction_id,event_id,sport,market,prediction_cutoff_at_utc,generated_at_utc,
          probability_side_a,probability_side_b,strategy,model_version,feature_version,
          features_json,feature_snapshot_hash,status,created_at_utc)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (pid,event_id,sport,'winner',cutoff,now.isoformat(),float(pa),float(pb),strategy,
          str(model_version or ''),str(feature_version or ''),json.dumps(payload,ensure_ascii=False,sort_keys=True,default=str),
          fh,'OPEN',now.isoformat())
@@ -92,7 +103,33 @@ def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strateg
     return pid
 
 
-def predict_sport(c,s,now):
+def _cold_start_features(features, competition_id=None):
+    """PIT-safe fallback features for future events without a historical row."""
+    comp=str(competition_id or '').lower()
+    out={}
+    for name in features:
+        if name == 'competition_is_bleague':
+            out[name]=1.0 if any(k in comp for k in ('b.league','b league','bリーグ','b.premier','b.one','b.next')) else 0.0
+        elif name == 'competition_is_asian_games':
+            out[name]=1.0 if ('asian games' in comp or 'アジア大会' in comp) else 0.0
+        elif name.startswith('D__'):
+            if '__elo' in name or any(k in name for k in ('history_n','games_last_','short_rest_flag','streak_','stat_coverage')) or name.endswith('__n'):
+                out[name]=0.0
+            else:
+                out[name]=np.nan
+        elif name.startswith(('A__','B__')):
+            if '__elo' in name:
+                out[name]=1500.0
+            elif any(k in name for k in ('history_n','games_last_','short_rest_flag','streak_','stat_coverage')) or name.endswith('__n'):
+                out[name]=0.0
+            else:
+                out[name]=np.nan
+        else:
+            out[name]=np.nan
+    return out
+
+
+def predict_sport(c,s,now,until=None):
     artifact_path=MODELS/f'{s}_current.joblib'
     if not artifact_path.is_file() or artifact_path.stat().st_size<=0:
         return {'sport':s,'status':'DEFERRED_NO_ACCEPTED_ARTIFACT'}
@@ -121,7 +158,11 @@ def predict_sport(c,s,now):
         return {'sport':s,'status':'BLOCKED_ARTIFACT_FEATURE_SCHEMA','missing_features':missing_schema,
                 'artifact_feature_version':artifact.get('feature_version'),
                 'current_feature_count':len(available_features)}
-    future=_future_events(c,s,now)
+    future=_future_events(c,s,now,until)
+    future_ids=set(future)
+    row_ids=set(r[0] for r in rows)
+    print(f'FUTURE_DEBUG future={len(future_ids)} build_rows={len(rows)} matched={len(future_ids & row_ids)}')
+    row_by_event={r[0]:r[3] for r in rows}
     outputs=[]
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     use_router=router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and artifact.get('dynamic_router') is not None
@@ -130,12 +171,14 @@ def predict_sport(c,s,now):
     rref=artifact.get('dynamic_router_feature_reference') if artifact.get('dynamic_router_feature_reference') is not None else None
     cal=artifact.get('probability_calibrator')
     cal_method=str((artifact.get('probability_calibration') or {}).get('method') or 'none')
-    for eid,t,label,row_features in rows:
-        meta=future.get(eid)
-        if meta is None:
-            continue
+    for eid,meta in future.items():
+        t=meta['event_time_utc']
         if meta['participant_count']!=2:
             continue
+        row_features=row_by_event.get(eid)
+        if row_features is None:
+            comp_row=c.execute('SELECT competition_id FROM event WHERE event_id=?',(eid,)).fetchone()
+            row_features=_cold_start_features(features,comp_row[0] if comp_row else None)
         x=np.asarray([[row_features.get(f,np.nan) for f in features]],dtype=float)
         if use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
@@ -188,12 +231,20 @@ def predict_sport(c,s,now):
 
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--sport',choices=SPORTS);args=ap.parse_args()
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--sport',choices=SPORTS)
+    ap.add_argument('--until-utc')
+    args=ap.parse_args()
     now=utc_now()
+    until=None
+    if args.until_utc:
+        until=datetime.fromisoformat(args.until_utc.replace('Z','+00:00'))
+        if until.tzinfo is None:
+            until=until.replace(tzinfo=timezone.utc)
     con=sqlite3.connect(DB)
     try:
         sports=[args.sport] if args.sport else list(SPORTS)
-        results=[predict_sport(con,s,now) for s in sports]
+        results=[predict_sport(con,s,now,until) for s in sports]
         con.commit()
     finally:
         con.close()
