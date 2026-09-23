@@ -45,6 +45,12 @@ jobs:
           assert "lightgbm_missing" in base.pool()
           assert "lightgbm_time_decay_300" in base.pool()
           assert "SymmetricAugment" in base.__dict__
+          combat_pool = base.pool(["A__x","B__x","D__x","context"], symmetric=True)
+          for required in (
+              "extra_trees_missing_symmetric",
+              "hist_gb_missing_symmetric",
+          ):
+              assert required in combat_pool
           fsym=["A__x","B__x","D__x","context"]
           sm=base.SymmetricAugment(base.pool()["logistic"].b,fsym)
           Xsym=np.array([[0.,1.,2.,3.],[1.,0.,-2.,3.]])
