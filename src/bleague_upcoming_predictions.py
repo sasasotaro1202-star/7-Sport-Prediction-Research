@@ -89,53 +89,41 @@ def to_utc(date_s: str, time_s: str | None):
         return None
 
     try:
-        dt = datetime(2026, month, day, hh, mm, tzinfo=JST)
-    except ValueError:
-        return None
-    return dt.astimezone(timezone.utc).isoformat()
-
-
-def main():
-    now = datetime.now(timezone.utc)
-    until = datetime(2026, 10, 7, 23, 59, 59, tzinfo=JST).astimezone(timezone.utc)
-
-    c = connect()
-    links: set[str] = set()
-    schedule_snapshots = []
-    try:
-        # B.LEAGUE request is for the top division only: B.PREMIER (tab=1).
-        # The official monthly pages already contain all dated games; do not
-        # supplement with guessed ScheduleKey ranges or pagination variants.
+        # B.LEAGUE overall: B.PREMIER, B.ONE, and B.NEXT (tabs 1-3).
+        # The official pages paginate the visible game list, so inspect both
+        # ends and deduplicate by date/time/home/away before export.
         for month in (9, 10):
-            url = SCHEDULE.format(month=month, tab=1, pos="all")
-            try:
-                html, retrieved = get(url)
-            except Exception as exc:
-                schedule_snapshots.append({"url": url, "error": type(exc).__name__})
-                continue
+            for tab in (1, 2, 3):
+                for pos in ("first", "last"):
+                    url = SCHEDULE.format(month=month, tab=tab, pos=pos)
+                    try:
+                        html, retrieved = get(url)
+                    except Exception as exc:
+                        schedule_snapshots.append({"url": url, "error": type(exc).__name__})
+                        continue
 
-            schedule_snapshots.append(
-                {"url": url, "retrieved_at_utc": retrieved}
-            )
-            soup = BeautifulSoup(html, "lxml")
-            for a in soup.find_all("a", href=re.compile(r"game_detail")):
-                href = a.get("href", "")
-                if href.startswith("/"):
-                    href = BASE + href
-                if "game_detail" in href:
-                    links.add(href.split("#", 1)[0])
+                    schedule_snapshots.append(
+                        {"url": url, "retrieved_at_utc": retrieved}
+                    )
+                    soup = BeautifulSoup(html, "lxml")
+                    for a in soup.find_all("a", href=re.compile(r"game_detail")):
+                        href = a.get("href", "")
+                        if href.startswith("/"):
+                            href = BASE + href
+                        if "game_detail" in href:
+                            links.add(href.split("#", 1)[0])
 
-            add_snapshot(
-                c,
-                "basketball",
-                "bleague-official",
-                url,
-                retrieved,
-                None,
-                hashlib.sha256(html.encode("utf-8", "ignore")).hexdigest(),
-                "EXACT",
-                source_available_at_utc=retrieved,
-            )
+                    add_snapshot(
+                        c,
+                        "basketball",
+                        "bleague-official",
+                        url,
+                        retrieved,
+                        None,
+                        hashlib.sha256(html.encode("utf-8", "ignore")).hexdigest(),
+                        "EXACT",
+                        source_available_at_utc=retrieved,
+                    )
 
         games = []
         for url in sorted(links):
