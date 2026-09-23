@@ -282,9 +282,6 @@ def evaluate_router_from_folds(
             np.asarray(meta_X,dtype=float) if meta_X else np.empty((0,features.shape[1])),
             np.asarray(meta_losses,dtype=float) if meta_losses else np.empty((0,len(names)))
         )
-        routed=_route_with_contextual_loss_selector(selector,bp,ctx,history_loss,baseline_weights)
-        if routed is None:
-            routed=np.mean(bp,axis=1)
         if baseline_weights:
             w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float)
             if np.isfinite(w).all() and w.sum()>0:
@@ -294,6 +291,9 @@ def evaluate_router_from_folds(
                 static=np.mean(bp,axis=1)
         else:
             static=np.mean(bp,axis=1)
+        routed=_route_with_contextual_loss_selector(selector,bp,ctx,history_loss,baseline_weights)
+        if routed is None:
+            routed=static.copy()
         fold_deltas.append(float(_metric(y[end:te],routed)['logloss']-_metric(y[end:te],static)['logloss']))
         static_pred.extend(static.tolist());router_pred.extend(routed.tolist());targets.extend(y[end:te].tolist())
         yt=y[end:te].astype(float)
