@@ -51,6 +51,19 @@ def main() -> None:
     assert meta["fallback"] is True
     assert np.isclose(fallback[0], expected_weighted_baseline), fallback
 
+    active, active_meta = predict_with_router(
+        selector,
+        [_Base(0.20), _Base(0.80)],
+        ["a", "b"],
+        np.zeros((2, 1)),
+        np.zeros((1, 1)),
+        baseline_weights={"a": 0.10, "b": 0.90},
+    )
+    assert active_meta["fallback"] is False
+    # Identical predicted losses must collapse to the exact incumbent weighted
+    # baseline rather than silently reverting to equal-weight routing.
+    assert np.isclose(active[0], expected_weighted_baseline), active
+
     print("ROUTER_INCUMBENT_BASELINE_ALIGNMENT=PASS")
 
 
