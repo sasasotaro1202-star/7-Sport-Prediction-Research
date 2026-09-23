@@ -44,7 +44,8 @@ def parse_detail(html: str, url: str):
     away = vm.group(2).strip()
     away = re.split(r'\s*\|\s*B\.LEAGUE', away, maxsplit=1, flags=re.I)[0].strip()
     home = re.sub(r'\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*$', '', home).strip()
-    away = re.sub(r'\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*
+    away = re.sub(r'\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*$', '', away, flags=re.I).strip()
+    if not home or not away or home == away:
         return None
     return {'date': dm.group(1), 'time': tm.group(1) if tm else None, 'home': home, 'away': away,
             'competition': ('B.' + compm.group(1).upper()) if compm else 'B.LEAGUE', 'url': url}
