@@ -185,6 +185,9 @@ def main():
             )
             if event_dt <= now or event_dt > until:
                 continue
+            # Production output is strictly B.PREMIER; never mix B.ONE/B.NEXT.
+            if item["competition"] != "B.PREMIER":
+                continue
 
             event_id = upsert_event(
                 c,
@@ -219,6 +222,22 @@ def main():
             }.values()
         )
         games.sort(key=lambda g: (g["event_time_utc"], g["home"], g["away"]))
+        expected_counts = {
+            "2026-09-24": 1,
+            "2026-09-25": 5,
+            "2026-09-26": 9,
+            "2026-09-27": 9,
+            "2026-10-02": 2,
+            "2026-10-03": 9,
+            "2026-10-04": 10,
+            "2026-10-07": 4,
+        }
+        actual_counts = {}
+        for g in games:
+            d = datetime.fromisoformat(g["event_time_utc"].replace("Z", "+00:00")).astimezone(JST).date().isoformat()
+            actual_counts[d] = actual_counts.get(d, 0) + 1
+        if actual_counts != expected_counts:
+            raise RuntimeError(f"B.PREMIER schedule count mismatch: expected={expected_counts} actual={actual_counts}")
         c.commit()
     finally:
         c.close()
