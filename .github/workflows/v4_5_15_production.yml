@@ -224,7 +224,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Deferred scope note
-        run: echo 'F1, Rugby and Boxing are intentionally deferred by project scope; no collection partition is required.'
+        run: echo 'Tennis, F1, Rugby and Boxing are intentionally deferred by project scope; no canonical model partition is required until sport-specific PIT/OOS gates pass.'
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
