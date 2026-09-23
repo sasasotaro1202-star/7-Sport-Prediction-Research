@@ -438,6 +438,9 @@ def main():
         )
         future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
         require('baseline_weights=weights' in future_src,'future inference does not pass incumbent weights to router fallback')
+        require('router_meta.get(\'fallback\')' in future_src,'future inference does not distinguish router fallback from active router')
+        require("apply_cal = None if strategy=='contextual_router' else cal" in future_src,
+                'future inference calibration path is not tied to actual router usage')
         base_src=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
         require('self.b.fit(X,y)' in base_src and 'preserves chronological OOS safety' in base_src,
                 'calibrated base wrapper does not refit on all pre-cutoff training data')
