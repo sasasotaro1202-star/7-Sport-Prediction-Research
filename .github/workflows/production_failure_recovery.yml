@@ -9,6 +9,8 @@ on:
       - Boxing PIT Source Guard
       - Cache and PIT Health
       - Production Safety Audit
+      - Production Invariants
+      - Lightweight Regression and Safety Checks
     types: [completed]
 
 permissions:
