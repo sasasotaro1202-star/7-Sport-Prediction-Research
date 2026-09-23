@@ -140,10 +140,11 @@ def add_stat(c, eid, pid, team_id, sport, name, num, text, source, url, effectiv
               (sid(eid,pid,sport,name,num,text,source),eid,pid,team_id,sport,utcnow(),effective_at_utc,name,num,text,None,source,url,'UNVERIFIABLE',None))
 
 
-def add_snapshot(c, sport, source, url, retrieved, event_time, payload_hash, avail='UNVERIFIABLE', payload_path=None):
+def add_snapshot(c, sport, source, url, retrieved, event_time, payload_hash, avail='UNVERIFIABLE', payload_path=None, source_available_at_utc=None, provenance=None):
     c.execute('''INSERT OR REPLACE INTO source_snapshot(snapshot_id,sport,source,source_url,retrieved_at_utc,source_available_at_utc,event_time_utc,content_hash,payload_path,parser_version,availability_status,provenance_json)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
-              (sid(sport,source,url,payload_hash),sport,source,url,retrieved,None,event_time,payload_hash,payload_path,PARSER,avail,json.dumps({'sport':sport,'parser':PARSER},ensure_ascii=False)))
+              (sid(sport,source,url,payload_hash),sport,source,url,retrieved,source_available_at_utc,event_time,payload_hash,payload_path,PARSER,avail,
+               json.dumps(provenance or {'sport':sport,'parser':PARSER},ensure_ascii=False)))
 
 
 def parse_jsonld(html):
@@ -153,6 +154,44 @@ def parse_jsonld(html):
             x=json.loads(t.string or t.get_text()); out.extend(x if isinstance(x,list) else [x])
         except Exception: pass
     return [x for x in out if isinstance(x,dict)]
+
+
+def explicit_publication_time(html):
+    """Return an explicitly declared publication timestamp only.
+
+    Retrieval time, event time, and generic modification timestamps are never
+    treated as historical source availability evidence.
+    """
+    for ld in parse_jsonld(html):
+        value = ld.get('datePublished')
+        if value:
+            parsed = iso(value)
+            if parsed:
+                return parsed
+    patterns = (
+        r"<meta[^>]+property=[\"']article:published_time[\"'][^>]+content=[\"']([^\"']+)[\"']",
+        r"<meta[^>]+name=[\"']datePublished[\"'][^>]+content=[\"']([^\"']+)[\"']",
+    )
+    for pattern in patterns:
+        m = re.search(pattern, html or '', re.I)
+        if m:
+            parsed = iso(m.group(1))
+            if parsed:
+                return parsed
+    return None
+
+
+def pit_exact_publication_time(publication_time, event_time):
+    """Accept explicit publication evidence only when it predates the 60m PIT cutoff."""
+    if not publication_time or not event_time:
+        return None
+    try:
+        published = datetime.fromisoformat(publication_time.replace('Z', '+00:00')).astimezone(timezone.utc)
+        event_dt = datetime.fromisoformat(event_time.replace('Z', '+00:00')).astimezone(timezone.utc)
+    except Exception:
+        return None
+    cutoff = event_dt - timedelta(minutes=60)
+    return publication_time if published <= cutoff else None
 
 
 def fetch_many(h, urls):
@@ -238,7 +277,23 @@ def collect_vlr(c,h,pages):
             names=[clean(z.get_text(' ')) for z in s.select('.match-header-link-name') if clean(z.get_text(' '))][:2]
             for i,n in enumerate(names):
                 pid=upsert_participant(c,'valorant',n,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
-            add_snapshot(c,'valorant','vlr.gg',u,det_retrieved,et,hashlib.sha256(x.encode()).hexdigest(),'UNVERIFIABLE')
+            ph=hashlib.sha256(x.encode()).hexdigest()
+            pub=explicit_publication_time(x)
+            exact_pub=pit_exact_publication_time(pub,et)
+            if exact_pub:
+                add_snapshot(
+                    c,'valorant','vlr.gg',u,det_retrieved,et,ph,'EXACT',
+                    source_available_at_utc=exact_pub,
+                    provenance={
+                        'sport':'valorant',
+                        'parser':PARSER,
+                        'evidence':'explicit_publication_time',
+                        'publication_time_utc':exact_pub,
+                        'pit_rule':'publication_at_or_before_event_minus_60m'
+                    }
+                )
+            else:
+                add_snapshot(c,'valorant','vlr.gg',u,det_retrieved,et,ph,'UNVERIFIABLE')
         save_state(c,'valorant',scope,str(p+1),p>=pages); c.commit()
 
 
@@ -267,7 +322,23 @@ def collect_generic(c,h,sport,seeds,max_pages):
                 nm=clean(t.get('name') if isinstance(t,dict) else t)
                 if nm:
                     pid=upsert_participant(c,sport,nm,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,urlparse(url).netloc,url)
-            add_snapshot(c,sport,urlparse(url).netloc,url,retrieved,et,hashlib.sha256(html.encode()).hexdigest(),'UNVERIFIABLE')
+            ph=hashlib.sha256(html.encode()).hexdigest()
+            pub=explicit_publication_time(html)
+            exact_pub=pit_exact_publication_time(pub,et)
+            if exact_pub:
+                add_snapshot(
+                    c,sport,urlparse(url).netloc,url,retrieved,et,ph,'EXACT',
+                    source_available_at_utc=exact_pub,
+                    provenance={
+                        'sport':sport,
+                        'parser':PARSER,
+                        'evidence':'explicit_publication_time',
+                        'publication_time_utc':exact_pub,
+                        'pit_rule':'publication_at_or_before_event_minus_60m'
+                    }
+                )
+            else:
+                add_snapshot(c,sport,urlparse(url).netloc,url,retrieved,et,ph,'UNVERIFIABLE')
         for a in soup.find_all('a',href=True):
             u=urljoin(url,a['href'])
             if urlparse(u).netloc==urlparse(url).netloc and u not in seen and re.search(r'(match|game|event|competition|fight|bout|大会|試合)',u,re.I): queue.append(u)

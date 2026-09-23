@@ -78,6 +78,14 @@ def main():
         out=future_predictor._apply_calibration(p,cal,method)
         assert out.shape==p.shape and np.all(np.isfinite(out)) and np.all((out>=1e-6)&(out<=1-1e-6))
 
+    from src.seven_sport_production import explicit_publication_time, pit_exact_publication_time
+    published_html='<script type="application/ld+json">{"@type":"Article","datePublished":"2024-01-01T10:00:00Z","dateModified":"2024-01-01T12:00:00Z"}</script>'
+    assert explicit_publication_time(published_html) == '2024-01-01T10:00:00+00:00'
+    assert pit_exact_publication_time('2024-01-01T10:00:00+00:00','2024-01-01T12:00:00+00:00') == '2024-01-01T10:00:00+00:00'
+    assert pit_exact_publication_time('2024-01-01T11:01:00+00:00','2024-01-01T12:00:00+00:00') is None
+    assert explicit_publication_time('<meta property="article:published_time" content="2024-01-01T10:00:00Z">') == '2024-01-01T10:00:00+00:00'
+    assert explicit_publication_time('<meta property="article:modified_time" content="2024-01-01T10:00:00Z">') is None
+
     weights={'logistic':0.2,'hist_gb':0.3,'extra_trees':0.2,'lightgbm':0.3}
     assert abs(sum(weights.values())-1.0)<1e-12
 
