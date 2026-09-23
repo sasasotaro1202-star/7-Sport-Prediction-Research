@@ -382,6 +382,9 @@ def main():
             "conclusion == 'startup_failure'" in recovery_src,
             'production failure recovery lacks main-only timeout/startup-failure handling')
     watchdog_src=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
+    require('latest_status' in watchdog_src and 'QUEUE_RESCUE_CURRENT_MAIN_PRODUCTION' in watchdog_src and
+            'recent_current_runs' in watchdog_src and 'age -ge 900' in watchdog_src,
+            'production watchdog lacks bounded queued-current-main rescue')
     require('lightweight_regression.yml' in watchdog_src and 'lightweight_ok' in watchdog_src and 'lightweight_ok" -ge 1' in watchdog_src,
             'production watchdog dispatch does not require same-SHA Lightweight Regression success')
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')

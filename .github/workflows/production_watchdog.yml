@@ -93,6 +93,9 @@ jobs:
           active_any=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
           seen_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha)] | length')
           latest_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')
+          latest_id=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha)] | sort_by(.createdAt) | last | .databaseId // ""')
+          latest_status=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha)] | sort_by(.createdAt) | last | .status // ""')
+          recent_current_runs=$(printf '%s' "$state" | jq --arg sha "$main_sha" --argjson cutoff "$(( $(date -u +%s) - 3600 ))" '[.[] | select(.headSha==$sha) | (.createdAt | fromdateiso8601) | select(. >= $cutoff)] | length')
 
           inv=$(gh run list --workflow "production_invariants.yml" --limit 50 --json databaseId,status,conclusion,headSha)
           safety=$(gh run list --workflow "production_safety_audit.yml" --limit 50 --json databaseId,status,conclusion,headSha)
@@ -124,6 +127,7 @@ jobs:
           # generated-output inheritance rule above. The first run for a SHA is
           # immediate; later retries remain bounded to one per hourly window.
           dispatch=false
+          queue_rescue=false
           if [ "$active_any" -eq 0 ] && {               [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ] && [ "$lightweight_ok" -ge 1 ] ||               [ "$inherited_validation" = "true" ];              }; then
             if [ "$seen_latest" -eq 0 ]; then
               dispatch=true
@@ -134,7 +138,20 @@ jobs:
               if [ "$age" -ge 3300 ]; then dispatch=true; fi
             fi
           fi
-          if [ "$dispatch" = true ]; then
+          if [ "$active_any" -gt 0 ] && [ "$latest_status" = "queued" ] && [ -n "$latest_created" ] && [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ] && [ "$lightweight_ok" -ge 1 ] && [ "$recent_current_runs" -lt 2 ]; then
+            created_ts=$(date -u -d "$latest_created" +%s)
+            now=$(date -u +%s)
+            age=$((now-created_ts))
+            if [ "$age" -ge 900 ]; then
+              queue_rescue=true
+            fi
+          fi
+          if [ "$queue_rescue" = true ]; then
+            echo "QUEUE_RESCUE_CURRENT_MAIN_PRODUCTION run_id=$latest_id age=${age}s recent_current_runs=$recent_current_runs main=$main_sha"
+            gh run cancel "$latest_id"
+            sleep 2
+            gh workflow run v4_5_15_production.yml --ref main
+          elif [ "$dispatch" = true ]; then
             echo "DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION main=$main_sha inv_ok=$inv_ok safety_ok=$safety_ok lightweight_ok=$lightweight_ok"
             gh workflow run v4_5_15_production.yml --ref main
           else
