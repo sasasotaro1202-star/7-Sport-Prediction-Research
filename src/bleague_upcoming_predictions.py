@@ -187,6 +187,13 @@ def main():
                 }
             )
 
+        games = list(
+            {
+                (g["event_time_utc"], g["home"], g["away"]): g
+                for g in games
+            }.values()
+        )
+
         c.commit()
     finally:
         c.close()
@@ -210,6 +217,14 @@ def main():
     pred = next(
         (x for x in report["sports"] if x.get("sport") == "basketball"), {}
     )
+    allowed = {(g["event_time_utc"], g["home"], g["away"]) for g in games}
+    predictions = []
+    seen = set()
+    for item in pred.get("predictions", []):
+        key = (item.get("event_time_utc"), item.get("side_a"), item.get("side_b"))
+        if key in allowed and key not in seen:
+            seen.add(key)
+            predictions.append(item)
     out = {
         "generated_at_utc": report["generated_at_utc"],
         "window_end_utc": until.isoformat(),
@@ -218,11 +233,14 @@ def main():
         "schedule_page_snapshots": schedule_snapshots,
         "schedule_games": games,
         "prediction_status": pred.get("status"),
-        "predictions": pred.get("predictions", []),
-        "count": pred.get("count", 0),
+        "predictions": predictions,
+        "count": len(predictions),
+        "schedule_prediction_match": len(predictions) == len(games),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    if not out["schedule_prediction_match"]:
+        raise RuntimeError(f"schedule/prediction mismatch: games={len(games)} predictions={len(predictions)}")
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
