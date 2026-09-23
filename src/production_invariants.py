@@ -374,6 +374,9 @@ def main():
             "provenance-sensitive rebuild" in refresh_guard.lower(),
             'forced PIT history refresh does not document provenance-sensitive rebuild semantics')
 
+    recovery_src=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
+    require('Production Invariants' in recovery_src and 'Lightweight Regression and Safety Checks' in recovery_src,
+            'production failure recovery does not automatically retry critical validator workflows')
     watchdog_src=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('lightweight_regression.yml' in watchdog_src and 'lightweight_ok' in watchdog_src and 'lightweight_ok" -ge 1' in watchdog_src,
             'production watchdog dispatch does not require same-SHA Lightweight Regression success')
