@@ -604,7 +604,14 @@ def fit_final_router_from_folds(
             selector['baseline_weights']={str(k):float(v) for k,v in baseline_weights.items()}
     return selector
 
-def predict_with_router(router, base_models, names, train_x, current_x):
+def predict_with_router(
+    router,
+    base_models,
+    names,
+    train_x,
+    current_x,
+    baseline_weights: Dict[str, float] | None = None,
+):
     bp = []
     for name, model in zip(names, base_models):
         proba = np.asarray(model.predict_proba(current_x))
@@ -614,6 +621,14 @@ def predict_with_router(router, base_models, names, train_x, current_x):
         bp.append(np.clip(proba[:, 1], 1e-6, 1 - 1e-6))
     bp = np.column_stack(bp)
     static = bp.mean(axis=1)
+    if isinstance(baseline_weights, dict):
+        try:
+            w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float)
+            if len(w)==bp.shape[1] and np.isfinite(w).all() and w.sum()>0:
+                w=w/w.sum()
+                static=np.sum(bp*w[None,:],axis=1)
+        except Exception:
+            pass
     if router is None:
         return static, {"fallback": True, "reason": "router_unavailable"}
     ctx = _context_from_reference(train_x, current_x) if isinstance(train_x,dict) else _context(train_x, current_x)
