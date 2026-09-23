@@ -23,13 +23,22 @@ JST = ZoneInfo("Asia/Tokyo")
 
 
 def get(url: str):
-    r = requests.get(
-        url,
-        headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"},
-        timeout=30,
-    )
-    r.raise_for_status()
-    return r.text, utcnow()
+    last_exc = None
+    for attempt in range(1, 4):
+        try:
+            r = requests.get(
+                url,
+                headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"},
+                timeout=20,
+            )
+            r.raise_for_status()
+            return r.text, utcnow()
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 3:
+                import time
+                time.sleep(attempt * 1.5)
+    raise RuntimeError(f"official B.LEAGUE fetch failed after 3 attempts: {url}") from last_exc
 
 
 def parse_detail(html: str, url: str):
