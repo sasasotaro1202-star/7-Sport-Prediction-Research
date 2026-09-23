@@ -182,11 +182,28 @@ def _fit_contextual_loss_selector(meta_features: np.ndarray, meta_losses: np.nda
         )
         model.fit(X, L[:, j])
         selectors.append(model)
-    return {"kind": "contextual_loss_v1", "selectors": selectors}
+    loss_spread = np.std(L, axis=1)
+    finite_spread = loss_spread[np.isfinite(loss_spread) & (loss_spread > 1e-9)]
+    spread_scale = float(np.quantile(finite_spread, 0.75)) if len(finite_spread) else 0.05
+    spread_scale = max(spread_scale, 1e-3)
+    return {
+        "kind": "contextual_loss_v1",
+        "selectors": selectors,
+        "loss_spread_scale": spread_scale,
+    }
 
 
-def _route_with_contextual_loss_selector(selector, bp: np.ndarray, ctx: np.ndarray, history_loss=None):
-    """Convert predicted per-model loss into conservative situation-specific weights."""
+def _route_with_contextual_loss_selector(
+    selector,
+    bp: np.ndarray,
+    ctx: np.ndarray,
+    history_loss=None,
+    baseline_weights: Dict[str, float] | None = None,
+):
+    """Route conservatively toward the exact incumbent ensemble used by production/evaluation.
+
+    Legacy router artifacts without persisted weights fall back to equal weighting.
+    """
     if not isinstance(selector, dict) or selector.get("kind") != "contextual_loss_v1":
         return None
     selectors = selector.get("selectors") or []
@@ -198,7 +215,18 @@ def _route_with_contextual_loss_selector(selector, bp: np.ndarray, ctx: np.ndarr
     features = np.column_stack([bp, ctx, np.std(bp, axis=1), np.repeat(hl[None, :], len(bp), axis=0)])
     predicted = np.column_stack([m.predict(features) for m in selectors])
     predicted = np.where(np.isfinite(predicted), predicted, np.nanmedian(predicted, axis=0))
+    ref_weights = baseline_weights if baseline_weights is not None else selector.get("baseline_weights")
     baseline = np.mean(bp, axis=1)
+    if isinstance(ref_weights, dict):
+        try:
+            model_names = list(selector.get("model_names") or [])
+            w = np.asarray([float(ref_weights.get(name, 0.0)) for name in model_names], dtype=float)
+            if len(w) != bp.shape[1] or not np.isfinite(w).all() or w.sum() <= 0:
+                raise ValueError("invalid persisted router baseline weights")
+            w = w / w.sum()
+            baseline = np.sum(bp * w[None, :], axis=1)
+        except Exception:
+            baseline = np.mean(bp, axis=1)
     # Lower predicted log-loss => larger weight. Temperature prevents brittle winner-take-all routing.
     centered = predicted - np.min(predicted, axis=1, keepdims=True)
     weights = np.exp(-centered / 0.15)
@@ -206,7 +234,20 @@ def _route_with_contextual_loss_selector(selector, bp: np.ndarray, ctx: np.ndarr
     # Conservative shrinkage toward equal weighting reduces regime overreaction.
     weights = 0.75 * weights + 0.25 / bp.shape[1]
     routed = np.sum(bp * weights, axis=1)
-    return np.clip(0.75 * routed + 0.25 * baseline, 1e-6, 1 - 1e-6)
+
+    # Do not route aggressively when the selector itself sees little separation
+    # between model losses. The scale is learned only from pre-holdout OOF loss
+    # history, so this remains PIT-safe and automatically becomes stronger when
+    # the models are meaningfully differentiated.
+    spread_scale = float(selector.get("loss_spread_scale", 0.0) or 0.0)
+    if np.isfinite(spread_scale) and spread_scale > 1e-9:
+        pred_spread = np.max(predicted, axis=1) - np.min(predicted, axis=1)
+        confidence = pred_spread / np.maximum(pred_spread + spread_scale, 1e-9)
+        route_strength = 0.75 * np.clip(confidence, 0.0, 1.0)
+        routed = baseline + route_strength * (routed - baseline)
+    else:
+        routed = 0.75 * routed + 0.25 * baseline
+    return np.clip(routed, 1e-6, 1 - 1e-6)
 
 
 
@@ -262,9 +303,6 @@ def evaluate_router_from_folds(
             np.asarray(meta_X,dtype=float) if meta_X else np.empty((0,features.shape[1])),
             np.asarray(meta_losses,dtype=float) if meta_losses else np.empty((0,len(names)))
         )
-        routed=_route_with_contextual_loss_selector(selector,bp,ctx,history_loss)
-        if routed is None:
-            routed=np.mean(bp,axis=1)
         if baseline_weights:
             w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float)
             if np.isfinite(w).all() and w.sum()>0:
@@ -274,6 +312,9 @@ def evaluate_router_from_folds(
                 static=np.mean(bp,axis=1)
         else:
             static=np.mean(bp,axis=1)
+        routed=_route_with_contextual_loss_selector(selector,bp,ctx,history_loss,baseline_weights)
+        if routed is None:
+            routed=static.copy()
         fold_deltas.append(float(_metric(y[end:te],routed)['logloss']-_metric(y[end:te],static)['logloss']))
         static_pred.extend(static.tolist());router_pred.extend(routed.tolist());targets.extend(y[end:te].tolist())
         yt=y[end:te].astype(float)
@@ -359,7 +400,9 @@ def evaluate_frozen_holdout_router_from_folds(
     else:
         static=np.mean(bp,axis=1)
     ctx=_context(X,hX)
-    routed=_route_with_contextual_loss_selector(selector,bp,ctx,_recent_model_loss(meta_losses,len(names)))
+    routed=_route_with_contextual_loss_selector(
+        selector,bp,ctx,_recent_model_loss(meta_losses,len(names)),baseline_weights
+    )
     if routed is None:
         return {'status':'INSUFFICIENT_OOS','reason':'contextual_router_fit_failed','oos_rows':len(meta_losses)}
     target=hy.astype(int)
@@ -560,6 +603,7 @@ def fit_final_router_from_folds(
     names: Sequence[str],
     folds: Sequence[Dict],
     sel: int,
+    baseline_weights: Dict[str, float] | None = None,
 ) -> Dict | None:
     """Fit the final contextual loss router from already-computed chronological OOF folds."""
     X=np.asarray(X,dtype=float); y=np.asarray(y)
@@ -576,9 +620,19 @@ def fit_final_router_from_folds(
     selector=_fit_contextual_loss_selector(np.asarray(meta_X,dtype=float),np.asarray(meta_losses,dtype=float))
     if selector is not None:
         selector['history_loss']=_recent_model_loss(meta_losses,len(names))
+        selector['model_names']=list(names)
+        if isinstance(baseline_weights, dict):
+            selector['baseline_weights']={str(k):float(v) for k,v in baseline_weights.items()}
     return selector
 
-def predict_with_router(router, base_models, names, train_x, current_x):
+def predict_with_router(
+    router,
+    base_models,
+    names,
+    train_x,
+    current_x,
+    baseline_weights: Dict[str, float] | None = None,
+):
     bp = []
     for name, model in zip(names, base_models):
         proba = np.asarray(model.predict_proba(current_x))
@@ -588,13 +642,25 @@ def predict_with_router(router, base_models, names, train_x, current_x):
         bp.append(np.clip(proba[:, 1], 1e-6, 1 - 1e-6))
     bp = np.column_stack(bp)
     static = bp.mean(axis=1)
+    if isinstance(baseline_weights, dict):
+        try:
+            w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float)
+            if len(w)==bp.shape[1] and np.isfinite(w).all() and w.sum()>0:
+                w=w/w.sum()
+                static=np.sum(bp*w[None,:],axis=1)
+        except Exception:
+            pass
     if router is None:
         return static, {"fallback": True, "reason": "router_unavailable"}
     ctx = _context_from_reference(train_x, current_x) if isinstance(train_x,dict) else _context(train_x, current_x)
     routed = _route_with_contextual_loss_selector(router, bp, ctx)
     if routed is None:
         return static, {"fallback": True, "reason": "contextual_router_unavailable"}
-    return routed, {"fallback": False, "router_kind": "contextual_loss_v1", "shrinkage": 0.25}
+    return routed, {
+        "fallback": False,
+        "router_kind": "contextual_loss_v1",
+        "shrinkage": "uncertainty_aware_pre_holdout_oof",
+    }
 
 
 __all__ = ["DynamicModelRouter", "context_reference", "evaluate_router", "evaluate_router_from_folds", "evaluate_frozen_holdout_router_from_folds", "fit_final_router", "predict_with_router"]
