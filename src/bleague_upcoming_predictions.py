@@ -56,14 +56,12 @@ def parse_detail(html: str, url: str):
 
     compm = re.search(r"B\.LEAGUE\s+(PREMIER|ONE|NEXT)\b", title, re.I)
 
-    home = vm.group(1).strip()
+    home = re.sub(r"^.*?リーグ戦\s*", "", vm.group(1)).strip()
     away = vm.group(2).strip()
-    home = re.sub(r"^.*?リーグ戦\s*", "", home).strip()
     home = re.split(r"\s*\|\s*B\.LEAGUE", home, maxsplit=1, flags=re.I)[0].strip()
     away = re.split(r"\s*\|\s*B\.LEAGUE", away, maxsplit=1, flags=re.I)[0].strip()
     home = re.sub(r"\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*$", "", home, flags=re.I).strip()
     away = re.sub(r"\s+(B\.PREMIER|B\.ONE|B\.NEXT)\s*$", "", away, flags=re.I).strip()
-
     if not home or not away or home == away:
         return None
 
@@ -82,16 +80,28 @@ def to_utc(date_s: str, time_s: str | None):
     m = re.search(r"2026[./-](\d{1,2})[./-](\d{1,2})", date_s)
     if not m:
         return None
-
     hh, mm = (int(x) for x in (time_s or "00:00").split(":", 1))
     month, day = int(m.group(1)), int(m.group(2))
     if not (1 <= month <= 12 and 1 <= day <= 31):
         return None
-
     try:
-        # B.LEAGUE overall: B.PREMIER, B.ONE, and B.NEXT (tabs 1-3).
-        # The official pages paginate the visible game list, so inspect both
-        # ends and deduplicate by date/time/home/away before export.
+        dt = datetime(2026, month, day, hh, mm, tzinfo=JST)
+    except ValueError:
+        return None
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def main():
+    now = datetime.now(timezone.utc)
+    until = datetime(2026, 10, 7, 23, 59, 59, tzinfo=JST).astimezone(timezone.utc)
+
+    c = connect()
+    links: set[str] = set()
+    schedule_snapshots = []
+    games = []
+    try:
+        # Official B.LEAGUE overall schedule: B.PREMIER / B.ONE / B.NEXT.
+        # Both pagination positions are collected and canonicalized later.
         for month in (9, 10):
             for tab in (1, 2, 3):
                 for pos in ("first", "last"):
@@ -99,14 +109,18 @@ def to_utc(date_s: str, time_s: str | None):
                     try:
                         html, retrieved = get(url)
                     except Exception as exc:
-                        schedule_snapshots.append({"url": url, "error": type(exc).__name__})
+                        schedule_snapshots.append(
+                            {"url": url, "error": type(exc).__name__}
+                        )
                         continue
 
                     schedule_snapshots.append(
                         {"url": url, "retrieved_at_utc": retrieved}
                     )
                     soup = BeautifulSoup(html, "lxml")
-                    for a in soup.find_all("a", href=re.compile(r"game_detail")):
+                    for a in soup.find_all(
+                        "a", href=re.compile(r"game_detail")
+                    ):
                         href = a.get("href", "")
                         if href.startswith("/"):
                             href = BASE + href
@@ -120,15 +134,16 @@ def to_utc(date_s: str, time_s: str | None):
                         url,
                         retrieved,
                         None,
-                        hashlib.sha256(html.encode("utf-8", "ignore")).hexdigest(),
+                        hashlib.sha256(
+                            html.encode("utf-8", "ignore")
+                        ).hexdigest(),
                         "EXACT",
                         source_available_at_utc=retrieved,
                     )
 
-        games = []
         for url in sorted(links):
             try:
-                html, retrieved = get(url)
+                html, _ = get(url)
                 item = parse_detail(html, url)
             except Exception:
                 continue
@@ -139,7 +154,9 @@ def to_utc(date_s: str, time_s: str | None):
             if not event_time:
                 continue
 
-            event_dt = datetime.fromisoformat(event_time.replace("Z", "+00:00"))
+            event_dt = datetime.fromisoformat(
+                event_time.replace("Z", "+00:00")
+            )
             if event_dt <= now or event_dt > until:
                 continue
 
@@ -158,7 +175,6 @@ def to_utc(date_s: str, time_s: str | None):
             p2 = upsert_participant(c, "basketball", item["away"], "team")
             upsert_ep(c, event_id, p1, p1, "A", "match", "bleague-official", url)
             upsert_ep(c, event_id, p2, p2, "B", "match", "bleague-official", url)
-
             games.append(
                 {
                     "event_id": event_id,
@@ -176,10 +192,13 @@ def to_utc(date_s: str, time_s: str | None):
                 for g in games
             }.values()
         )
-
+        games.sort(key=lambda g: (g["event_time_utc"], g["home"], g["away"]))
         c.commit()
     finally:
         c.close()
+
+    if not games:
+        raise RuntimeError("No official B.LEAGUE games found in requested window")
 
     subprocess.run(
         [
@@ -195,19 +214,38 @@ def to_utc(date_s: str, time_s: str | None):
     )
 
     report = json.loads(
-        (ROOT / "results" / "future_predictions.json").read_text(encoding="utf-8")
+        (ROOT / "results" / "future_predictions.json").read_text(
+            encoding="utf-8"
+        )
     )
     pred = next(
-        (x for x in report["sports"] if x.get("sport") == "basketball"), {}
+        (x for x in report["sports"] if x.get("sport") == "basketball"),
+        {},
     )
-    allowed = {(g["event_time_utc"], g["home"], g["away"]) for g in games}
+
+    allowed = {
+        (g["event_time_utc"], g["home"], g["away"])
+        for g in games
+    }
     predictions = []
     seen = set()
     for item in pred.get("predictions", []):
-        key = (item.get("event_time_utc"), item.get("side_a"), item.get("side_b"))
+        key = (
+            item.get("event_time_utc"),
+            item.get("side_a"),
+            item.get("side_b"),
+        )
         if key in allowed and key not in seen:
             seen.add(key)
             predictions.append(item)
+    predictions.sort(
+        key=lambda p: (
+            p.get("event_time_utc", ""),
+            p.get("side_a", ""),
+            p.get("side_b", ""),
+        )
+    )
+
     out = {
         "generated_at_utc": report["generated_at_utc"],
         "window_end_utc": until.isoformat(),
@@ -221,9 +259,14 @@ def to_utc(date_s: str, time_s: str | None):
         "schedule_prediction_match": len(predictions) == len(games),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    OUT.write_text(
+        json.dumps(out, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     if not out["schedule_prediction_match"]:
-        raise RuntimeError(f"schedule/prediction mismatch: games={len(games)} predictions={len(predictions)}")
+        raise RuntimeError(
+            f"schedule/prediction mismatch: games={len(games)} predictions={len(predictions)}"
+        )
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
