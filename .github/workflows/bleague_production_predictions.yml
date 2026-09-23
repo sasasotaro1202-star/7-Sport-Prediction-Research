@@ -3,7 +3,7 @@ name: B.LEAGUE Production Predictions
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, bleague-production-predictions-v1]
     paths-ignore:
       - results/bleague_production_predictions.json
   schedule:
