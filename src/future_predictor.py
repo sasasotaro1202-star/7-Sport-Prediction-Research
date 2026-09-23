@@ -10,7 +10,9 @@ ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
 MODELS=ROOT/'models/research'
 OUT=ROOT/'results/future_predictions.json'
-SPORTS=tuple(base.SPORTS)
+SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby","boxing")
+HEAD_TO_HEAD_SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","rugby","boxing")
+MULTICLASS_SPORTS=("f1",)
 PIT_LEAD_MINUTES=60
 
 
@@ -134,8 +136,19 @@ def predict_sport(c,s,now):
         meta=future.get(eid)
         if meta is None:
             continue
-        if meta['participant_count']!=2:
+        if s in HEAD_TO_HEAD_SPORTS and meta['participant_count']!=2:
             continue
+        if s in MULTICLASS_SPORTS and meta['participant_count'] < 2:
+            continue
+        # F1 is a true multi-entrant market. Do not silently force a binary
+        # A/B artifact into production. Until a gated multiclass artifact schema
+        # exists, fail closed for F1 rather than emitting an invalid winner model.
+        if s in MULTICLASS_SPORTS:
+            return {
+                'sport': s,
+                'status': 'DEFERRED_MULTICLASS_ARTIFACT_SCHEMA',
+                'reason': 'F1 requires a gated per-driver multiclass winner artifact; binary A/B artifacts are never accepted'
+            }
         x=np.asarray([[row_features.get(f,np.nan) for f in features]],dtype=float)
         if use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
@@ -197,7 +210,7 @@ def main():
         con.commit()
     finally:
         con.close()
-    report={'generated_at_utc':now.isoformat(),'policy':'accepted-artifact-only; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration','sports':results}
+    report={'generated_at_utc':now.isoformat(),'policy':'accepted-artifact-only; nine-sport scope; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration; F1 binary-artifact fail-closed','sports':results}
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False,indent=2))
