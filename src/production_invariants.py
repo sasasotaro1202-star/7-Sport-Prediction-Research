@@ -438,6 +438,7 @@ def main():
         )
         future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
         require('baseline_weights=weights' in future_src,'future inference does not pass incumbent weights to router fallback')
+        require('baseline_weights=baseline_weights' in router_src,'router runtime does not propagate incumbent weights into contextual routing')
         require('router_meta.get(\'fallback\')' in future_src,'future inference does not distinguish router fallback from active router')
         require("apply_cal = None if strategy=='contextual_router' else cal" in future_src,
                 'future inference calibration path is not tied to actual router usage')
