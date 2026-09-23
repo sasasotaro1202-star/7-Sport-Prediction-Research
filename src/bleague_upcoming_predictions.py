@@ -60,6 +60,13 @@ def parse_detail(html: str, url: str):
             blob,
             re.I,
         )
+    # Some official upcoming games are exposed through topics_detail pages
+    # rather than game_detail pages. Their title uses "homevsaway" and can
+    # still be parsed without relaxing the official-source requirement.
+    if not vm and title:
+        vm = re.search(r"(.+?)\s+vs\s+(.+?)$", title, re.I)
+    if not vm and title:
+        vm = re.search(r"(.+?)vs(.+?)$", title, re.I)
     if not (dm and vm):
         return None
 
@@ -74,7 +81,9 @@ def parse_detail(html: str, url: str):
     if not home or not away or home == away:
         return None
 
-    competition = ("B." + compm.group(1).upper()) if compm else "B.LEAGUE"
+    competition = ("B." + compm.group(1).upper()) if compm else "B.PREMIER"
+    if competition != "B.PREMIER":
+        return None
     return {
         "date": dm.group(1),
         "time": tm.group(1) if tm else None,
@@ -111,8 +120,9 @@ def main():
     try:
         # Official B.LEAGUE overall schedule: B.PREMIER / B.ONE / B.NEXT.
         # Both pagination positions are collected and canonicalized later.
+        # This production lane is B.PREMIER only. Do not mix B.ONE/B.NEXT.
         for month in (9, 10):
-            for tab in (1, 2, 3):
+            for tab in (1,):
                 for pos in ("first", "last"):
                     url = SCHEDULE.format(month=month, tab=tab, pos=pos)
                     try:
@@ -128,7 +138,8 @@ def main():
                     )
                     soup = BeautifulSoup(html, "lxml")
                     for a in soup.find_all(
-                        "a", href=re.compile(r"game_detail")
+                        "a",
+                        href=re.compile(r"(?:game_detail|topics_detail\d*)"),
                     ):
                         href = a.get("href", "")
                         if href.startswith("/"):
@@ -153,11 +164,7 @@ def main():
         # The schedule index is paginated. Add the contiguous official
         # ScheduleKey ranges covering this request window, but accept a game
         # only after its detail page independently validates date/division.
-        for key in (
-            list(range(506390, 506436))
-            + list(range(507150, 507221))
-            + list(range(507900, 507951))
-        ):
+        for key in range(506390, 506436):
             links.add(f"{BASE}/game_detail/?ScheduleKey={key}")
 
         for url in sorted(links):
