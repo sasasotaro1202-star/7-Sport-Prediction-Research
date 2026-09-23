@@ -26,6 +26,14 @@ def main():
 
     ctx=router._context(train,current)
     assert ctx.shape==(len(current),10)
+    import warnings
+    pathological=np.full((40,12),np.nan)
+    pathological[:,-1]=np.arange(40,dtype=float)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        safe_ctx=router._context(pathological,current)
+    assert safe_ctx.shape==(len(current),10)
+    assert not any(issubclass(w.category, RuntimeWarning) for w in caught)
     ref=router.context_reference(train)
     ctx_ref=router._context_from_reference(ref,current)
     assert np.allclose(ctx,ctx_ref,equal_nan=True,atol=1e-10)

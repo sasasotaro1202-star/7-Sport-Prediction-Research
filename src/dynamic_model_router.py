@@ -15,6 +15,20 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
+def _safe_nanmedian(values, axis=0):
+    arr=np.asarray(values,dtype=float)
+    masked=np.ma.masked_invalid(arr)
+    out=np.ma.median(masked,axis=axis)
+    return np.asarray(out.filled(np.nan) if np.ma.isMaskedArray(out) else out,dtype=float)
+
+
+def _safe_nanstd(values, axis=0):
+    arr=np.asarray(values,dtype=float)
+    masked=np.ma.masked_invalid(arr)
+    out=np.ma.std(masked,axis=axis)
+    return np.asarray(out.filled(np.nan) if np.ma.isMaskedArray(out) else out,dtype=float)
+
+
 def _metric(y, p):
     y = np.asarray(y)
     p = np.clip(np.asarray(p), 1e-6, 1 - 1e-6)
@@ -40,9 +54,9 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
     cu = np.asarray(current_x, dtype=float)
     if cu.ndim == 1:
         cu = cu.reshape(1, -1)
-    tr_med = np.nanmedian(tr, axis=0) if tr.size else np.zeros(cu.shape[1])
+    tr_med = _safe_nanmedian(tr, axis=0) if tr.size else np.zeros(cu.shape[1])
     tr_med = np.where(np.isfinite(tr_med), tr_med, 0.0)
-    tr_scale = np.nanmedian(np.abs(tr - tr_med), axis=0) if tr.size else np.ones(cu.shape[1])
+    tr_scale = _safe_nanmedian(np.abs(tr - tr_med), axis=0) if tr.size else np.ones(cu.shape[1])
     tr_scale = np.where(np.isfinite(tr_scale) & (tr_scale > 1e-9), tr_scale, 1.0)
     row_miss = np.isnan(cu).mean(axis=1) if cu.size else np.ones(len(cu))
     train_miss = float(np.isnan(tr).mean()) if tr.size else 1.0
@@ -57,17 +71,17 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
     row_abs_z = np.where(np.isfinite(row_abs_z), row_abs_z, 0.0)
     row_dispersion = np.nanstd(np.nan_to_num(cu, nan=tr_med), axis=1) if cu.size else np.zeros(len(cu))
     row_dispersion = np.where(np.isfinite(row_dispersion), row_dispersion, 0.0)
-    train_feature_std = np.nanmedian(np.nanstd(tr, axis=0)) if tr.size else 0.0
+    train_feature_std = _safe_nanmedian(_safe_nanstd(tr, axis=0)) if tr.size else 0.0
     train_feature_std = float(train_feature_std) if np.isfinite(train_feature_std) else 0.0
     # Recent-vs-long-history regime signals: all are computed from data available
     # before the current fold/row and therefore remain PIT-safe.
     recent_n = min(120, len(tr))
     recent = tr[-recent_n:] if recent_n else tr
-    recent_med = np.nanmedian(recent, axis=0) if recent.size else tr_med
+    recent_med = _safe_nanmedian(recent, axis=0) if recent.size else tr_med
     recent_med = np.where(np.isfinite(recent_med), recent_med, tr_med)
     regime_z = np.abs(recent_med - tr_med) / tr_scale
     regime_shift = float(np.nanmedian(regime_z)) if regime_z.size else 0.0
-    recent_std = np.nanmedian(np.nanstd(recent, axis=0)) if recent.size else train_feature_std
+    recent_std = _safe_nanmedian(_safe_nanstd(recent, axis=0)) if recent.size else train_feature_std
     recent_std = float(recent_std) if np.isfinite(recent_std) else train_feature_std
     recent_z = np.abs(np.nan_to_num(cu, nan=recent_med) - recent_med) / tr_scale
     recent_z = np.where(np.isfinite(recent_z), recent_z, 0.0)
@@ -92,19 +106,19 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
 def context_reference(train_x: np.ndarray) -> Dict:
     """Compact PIT-safe reference sufficient to reproduce _context exactly."""
     tr=np.asarray(train_x,dtype=float)
-    tr_med=np.nanmedian(tr,axis=0) if tr.size else np.zeros(tr.shape[1])
+    tr_med=_safe_nanmedian(tr,axis=0) if tr.size else np.zeros(tr.shape[1])
     tr_med=np.where(np.isfinite(tr_med),tr_med,0.0)
-    tr_scale=np.nanmedian(np.abs(tr-tr_med),axis=0) if tr.size else np.ones(tr.shape[1])
+    tr_scale=_safe_nanmedian(np.abs(tr-tr_med),axis=0) if tr.size else np.ones(tr.shape[1])
     tr_scale=np.where(np.isfinite(tr_scale)&(tr_scale>1e-9),tr_scale,1.0)
     recent_n=min(120,len(tr))
     recent=tr[-recent_n:] if recent_n else tr
-    recent_med=np.nanmedian(recent,axis=0) if recent.size else tr_med
+    recent_med=_safe_nanmedian(recent,axis=0) if recent.size else tr_med
     recent_med=np.where(np.isfinite(recent_med),recent_med,tr_med)
     regime_z=np.abs(recent_med-tr_med)/tr_scale
     regime_shift=float(np.nanmedian(regime_z)) if regime_z.size else 0.0
-    recent_std=float(np.nanmedian(np.nanstd(recent,axis=0))) if recent.size else float(np.nanmedian(np.nanstd(tr,axis=0))) if tr.size else 0.0
+    recent_std=float(_safe_nanmedian(_safe_nanstd(recent,axis=0))) if recent.size else float(_safe_nanmedian(_safe_nanstd(tr,axis=0))) if tr.size else 0.0
     if not np.isfinite(recent_std): recent_std=0.0
-    train_feature_std=float(np.nanmedian(np.nanstd(tr,axis=0))) if tr.size else 0.0
+    train_feature_std=float(_safe_nanmedian(_safe_nanstd(tr,axis=0))) if tr.size else 0.0
     if not np.isfinite(train_feature_std): train_feature_std=0.0
     return {
         'n':int(len(tr)),
