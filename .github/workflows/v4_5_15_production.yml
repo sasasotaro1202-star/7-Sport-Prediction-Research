@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           # Full history is required for safe recovery of the last accepted
           # frozen-holdout model when the current run has a transient PIT outage.
@@ -42,7 +42,7 @@ jobs:
             echo "STALE_MERGE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
             exit 1
           fi
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
           cache: pip
@@ -61,7 +61,7 @@ jobs:
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - run: mkdir -p data/raw/http_cache data/db results models
       - name: Restore latest safe database cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
         with:
           path: data/db
           key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
@@ -111,7 +111,7 @@ jobs:
           exit 0
       - name: Save database
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57
         with:
           path: data/db
           key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.run_id }}
@@ -125,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           # Full history is required for safe recovery of the last accepted
           # frozen-holdout model when the current run has a transient PIT outage.
@@ -140,7 +140,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
           cache: pip
@@ -151,7 +151,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore VALORANT
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
         with:
           path: data/db
           key: nine-sport-target-db-v4-valorant-${{ github.run_id }}
@@ -164,7 +164,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore Basketball
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
         with:
           path: data/db
           key: nine-sport-target-db-v4-basketball-${{ github.run_id }}
@@ -177,7 +177,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore Volleyball
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
         with:
           path: data/db
           key: nine-sport-target-db-v4-volleyball-${{ github.run_id }}
@@ -190,7 +190,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore UFC
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
         with:
           path: data/db
           key: nine-sport-target-db-v4-ufc-${{ github.run_id }}
@@ -203,7 +203,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore RIZIN
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
         with:
           path: data/db
           key: nine-sport-target-db-v4-rizin-${{ github.run_id }}
