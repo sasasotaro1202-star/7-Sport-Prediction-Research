@@ -118,7 +118,7 @@ def pool(feature_names=None, symmetric=False):
       'lightgbm_missing':Pipeline([('i',SimpleImputer(strategy='median',add_indicator=True)),('m',LGBMClassifier(n_estimators=320,learning_rate=.03,num_leaves=15,min_child_samples=35,subsample=.85,subsample_freq=1,colsample_bytree=.85,reg_alpha=.1,reg_lambda=2.0,verbosity=-1,n_jobs=-1,random_state=54,deterministic=True,force_col_wise=True))]),
       'lightgbm_recent_800':RecentWindow(Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=300,learning_rate=.035,num_leaves=15,min_child_samples=30,subsample=.9,subsample_freq=1,colsample_bytree=.85,reg_alpha=.15,reg_lambda=2.5,verbosity=-1,n_jobs=-1,random_state=48,deterministic=True,force_col_wise=True))]),800),
       'lightgbm_time_decay_300':TimeDecay(Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=320,learning_rate=.03,num_leaves=15,min_child_samples=35,subsample=.9,subsample_freq=1,colsample_bytree=.85,reg_alpha=.15,reg_lambda=2.5,verbosity=-1,n_jobs=-1,random_state=55,deterministic=True,force_col_wise=True))]),300)} if LGBMClassifier is not None else {})
- }.items()}
+ }
  models={k:TC(v) for k,v in base_models.items()}
  if symmetric and feature_names:
   import copy
