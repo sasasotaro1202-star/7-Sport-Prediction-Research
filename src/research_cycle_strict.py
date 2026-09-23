@@ -341,7 +341,8 @@ def train(s):
   sel=len(train_rows);hn=len(holdout_rows)
   # Construct the pool once per sport. Recreating every estimator wrapper for
   # every fold adds avoidable overhead without changing the fitted models.
-  fold_pool=base.pool()
+  symmetric_mode=s in ('ufc','rizin')
+  fold_pool=base.pool(fs, symmetric=symmetric_mode)
   names=list(fold_pool)
   # Multi-window walk-forward OOS: reuse one common fold set to evaluate
   # several historical windows, reducing sensitivity to one arbitrary start.
@@ -665,7 +666,7 @@ def train(s):
     candidate_label='weighted_ensemble'
     candidate_weights=cand_weights
 
-  final_pool=base.pool()
+  final_pool=base.pool(fs, symmetric=symmetric_mode)
   models=[]
   for name in best:
    m=final_pool[name]
@@ -754,7 +755,7 @@ def train(s):
     router_accept=False
    else:
     for name in router_names:
-     m=base.pool()[name]
+     m=final_pool[name]
      m.fit(X[:sel],y[:sel])
      router_models_artifact[name]=m
     router_feature_reference=router.context_reference(X[:sel])

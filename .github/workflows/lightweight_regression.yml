@@ -44,6 +44,17 @@ jobs:
           assert "hist_gb_missing" in base.pool()
           assert "lightgbm_missing" in base.pool()
           assert "lightgbm_time_decay_300" in base.pool()
+          assert "SymmetricAugment" in base.__dict__
+          fsym=["A__x","B__x","D__x","context"]
+          sm=base.SymmetricAugment(base.pool()["logistic"].b,fsym)
+          Xsym=np.array([[0.,1.,2.,3.],[1.,0.,-2.,3.]])
+          ysym=np.array([1,0])
+          mirror=sm._mirror(Xsym)
+          assert np.allclose(mirror[0],[1.,0.,-2.,3.])
+          sm.fit(Xsym,ysym)
+          p_sym=sm.predict_proba(Xsym[:1])
+          assert p_sym.shape==(1,2) and np.isfinite(p_sym).all()
+          print("SYMMETRIC_AUGMENT_SMOKE=PASS")
           td=base.pool()["lightgbm_time_decay_300"]
           X2=np.random.default_rng(7).normal(size=(40,6))
           y2=np.array([0,1]*20)
