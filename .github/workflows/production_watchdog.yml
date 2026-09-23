@@ -2,12 +2,6 @@ name: Production Run Watchdog
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - Production Invariants
-      - Production Safety Audit
-      - Lightweight Regression and Safety Checks
-    types: [completed]
   schedule:
     # Lightweight 5-minute recovery polling; heavy work remains hourly/9-hourly.
     - cron: '*/5 * * * *'

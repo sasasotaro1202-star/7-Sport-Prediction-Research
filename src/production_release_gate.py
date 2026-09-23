@@ -48,6 +48,17 @@ def _artifact_valid(meta):
                 return False
             if obj.get('dynamic_router_feature_reference') is None:
                 return False
+            router_obj=obj.get('dynamic_router') or {}
+            rbw=router_obj.get('baseline_weights')
+            if not isinstance(rbw,dict) or any(not _finite(rbw.get(n,0.0)) for n in rnames):
+                return False
+            if any(float(rbw.get(n,0.0)) < 0.0 for n in rnames):
+                return False
+            if abs(sum(float(rbw.get(n,0.0)) for n in rnames)-1.0) > 1e-6:
+                return False
+            spread_scale=router_obj.get('loss_spread_scale')
+            if not _finite(spread_scale) or float(spread_scale) <= 0.0:
+                return False
         return True
     except Exception:
         return False
