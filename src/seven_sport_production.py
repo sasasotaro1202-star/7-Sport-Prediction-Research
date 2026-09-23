@@ -169,8 +169,8 @@ def explicit_publication_time(html):
             if parsed:
                 return parsed
     patterns = (
-        r'<meta[^>]+property=["\\']article:published_time["\\'][^>]+content=["\\']([^"\\']+)["\\']',
-        r'<meta[^>]+name=["\\']datePublished["\\'][^>]+content=["\\']([^"\\']+)["\\']',
+        r"<meta[^>]+property=[\"']article:published_time[\"'][^>]+content=[\"']([^\"']+)[\"']",
+        r"<meta[^>]+name=[\"']datePublished[\"'][^>]+content=[\"']([^\"']+)[\"']",
     )
     for pattern in patterns:
         m = re.search(pattern, html or '', re.I)
