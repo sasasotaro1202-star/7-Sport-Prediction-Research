@@ -58,6 +58,32 @@ class TimeDecay:
  def predict_proba(self,X):
   return self.base.predict_proba(X)
 
+class SymmetricAugment:
+ """Train on both A/B orientations while preserving context features."""
+ def __init__(self,base,feature_names):
+  self.base=base; self.feature_names=list(feature_names)
+ def _mirror(self,X):
+  X=np.asarray(X,dtype=float)
+  M=X.copy()
+  index={name:i for i,name in enumerate(self.feature_names)}
+  for name,i in index.items():
+   if name.startswith('A__'):
+    peer='B__'+name[3:]
+    if peer in index: M[:,i]=X[:,index[peer]]
+   elif name.startswith('B__'):
+    peer='A__'+name[3:]
+    if peer in index: M[:,i]=X[:,index[peer]]
+   elif name.startswith('D__'):
+    M[:,i]=-X[:,i]
+  return M
+ def fit(self,X,y):
+  X=np.asarray(X,dtype=float); y=np.asarray(y,int)
+  Xm=self._mirror(X)
+  self.base.fit(np.vstack([X,Xm]),np.concatenate([y,1-y]))
+  return self
+ def predict_proba(self,X):
+  return self.base.predict_proba(X)
+
 class TC:
  def __init__(self,b):self.b=b;self.c=None
  def fit(self,X,y):
@@ -74,8 +100,8 @@ class TC:
   return self
  def predict_proba(self,X):
   r=np.clip(self.b.predict_proba(X)[:,1],1e-6,1-1e-6);p=r if self.c is None else self.c.predict_proba(np.log(r/(1-r)).reshape(-1,1))[:,1];return np.c_[1-p,p]
-def pool():
- return {k:TC(v) for k,v in {
+def pool(feature_names=None, symmetric=False):
+ base_models={
   'logistic':Pipeline([('i',SimpleImputer(strategy='median')),('s',StandardScaler()),('m',LogisticRegression(max_iter=3000))]),
   'extra_trees':Pipeline([('i',SimpleImputer(strategy='median')),('m',ExtraTreesClassifier(n_estimators=350,min_samples_leaf=4,max_features='sqrt',n_jobs=-1,class_weight='balanced',random_state=42))]),
   'random_forest':Pipeline([('i',SimpleImputer(strategy='median')),('m',RandomForestClassifier(n_estimators=350,min_samples_leaf=4,max_features='sqrt',n_jobs=-1,class_weight='balanced',random_state=42))]),
@@ -93,6 +119,13 @@ def pool():
       'lightgbm_recent_800':RecentWindow(Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=300,learning_rate=.035,num_leaves=15,min_child_samples=30,subsample=.9,subsample_freq=1,colsample_bytree=.85,reg_alpha=.15,reg_lambda=2.5,verbosity=-1,n_jobs=-1,random_state=48,deterministic=True,force_col_wise=True))]),800),
       'lightgbm_time_decay_300':TimeDecay(Pipeline([('i',SimpleImputer(strategy='median')),('m',LGBMClassifier(n_estimators=320,learning_rate=.03,num_leaves=15,min_child_samples=35,subsample=.9,subsample_freq=1,colsample_bytree=.85,reg_alpha=.15,reg_lambda=2.5,verbosity=-1,n_jobs=-1,random_state=55,deterministic=True,force_col_wise=True))]),300)} if LGBMClassifier is not None else {})
  }.items()}
+ models={k:TC(v) for k,v in base_models.items()}
+ if symmetric and feature_names:
+  import copy
+  for name in ('logistic','extra_trees','random_forest','hist_gb_shallow','lightgbm','lightgbm_missing'):
+   if name in base_models:
+    models[name+'_symmetric']=TC(SymmetricAugment(copy.deepcopy(base_models[name]),feature_names))
+ return models
 def pairmap(c,s):
  d={}
  for eid,t,p,side,comp in c.execute("SELECT e.event_id,e.event_time_utc,ep.participant_id,ep.side,e.competition_id FROM event e JOIN event_participant ep ON ep.event_id=e.event_id WHERE e.sport=? AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL ORDER BY e.event_time_utc,e.event_id,ep.side",(s,)).fetchall():
