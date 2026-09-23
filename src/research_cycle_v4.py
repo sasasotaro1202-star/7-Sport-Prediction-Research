@@ -122,7 +122,10 @@ def pool(feature_names=None, symmetric=False):
  models={k:TC(v) for k,v in base_models.items()}
  if symmetric and feature_names:
   import copy
-  for name in ('logistic','extra_trees','random_forest','hist_gb_shallow','lightgbm','lightgbm_missing'):
+  for name in (
+   'logistic','extra_trees','random_forest','hist_gb_shallow',
+   'extra_trees_missing','hist_gb_missing','lightgbm','lightgbm_missing'
+  ):
    if name in base_models:
     models[name+'_symmetric']=TC(SymmetricAugment(copy.deepcopy(base_models[name]),feature_names))
  return models
