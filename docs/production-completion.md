@@ -1,6 +1,6 @@
 # Production completion standard
 
-This document defines the release-completion standard for the seven-sport prediction system.
+This document defines the release-completion standard for the nine-sport prediction system.
 
 ## Completion is evidence-based
 
@@ -24,13 +24,13 @@ If evidence is insufficient, the system must emit `INELIGIBLE` rather than fabri
 
 `prediction` and `decision` remain separate. A model can identify the most probable outcome while the decision layer assigns `PASS` when confidence, calibration, robustness, or data quality is insufficient.
 
-## Seven-sport semantics
+## Nine-sport semantics
 
 Basketball, Volleyball, UFC, RIZIN, Tennis, and Valorant use appropriate event-outcome probability semantics for their competition format. F1 is multi-entrant: race-winner probabilities are represented per driver and must not be reduced to a binary A/B outcome merely to satisfy a generic schema.
 
 ## Competition universe and league-first priority
 
-The system must not be limited to Asian Games or any fixed list of famous tournaments. It should systematically discover and classify materially available competitions across all seven sports.
+The system must not be limited to Asian Games or any fixed list of famous tournaments. It should systematically discover and classify materially available competitions across all nine sports.
 
 **League and regular-season competitions are the highest production priority.** League coverage should receive the strongest attention to schedule completeness, historical depth, participant continuity, event timing, source freshness, PIT-safe information, outcome completeness, OOS continuity, and prediction freshness. Non-league coverage must not degrade league reliability or freshness.
 
