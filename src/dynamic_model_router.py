@@ -29,6 +29,13 @@ def _safe_nanstd(values, axis=0):
     return np.asarray(out.filled(np.nan) if np.ma.isMaskedArray(out) else out,dtype=float)
 
 
+def _safe_nanmean(values, axis=0):
+    arr=np.asarray(values,dtype=float)
+    masked=np.ma.masked_invalid(arr)
+    out=np.ma.mean(masked,axis=axis)
+    return np.asarray(out.filled(np.nan) if np.ma.isMaskedArray(out) else out,dtype=float)
+
+
 def _metric(y, p):
     y = np.asarray(y)
     p = np.clip(np.asarray(p), 1e-6, 1 - 1e-6)
@@ -67,7 +74,7 @@ def _context(train_x: np.ndarray, current_x: np.ndarray) -> np.ndarray:
     # Additional regime/context signals are row-local and PIT-safe. They let the
     # router react to unusual feature magnitude, cross-feature disagreement, and
     # the stability of the historical training window without using any target.
-    row_abs_z = np.nanmean(z, axis=1) if z.size else np.zeros(len(cu))
+    row_abs_z = _safe_nanmean(z, axis=1) if z.size else np.zeros(len(cu))
     row_abs_z = np.where(np.isfinite(row_abs_z), row_abs_z, 0.0)
     row_dispersion = np.nanstd(np.nan_to_num(cu, nan=tr_med), axis=1) if cu.size else np.zeros(len(cu))
     row_dispersion = np.where(np.isfinite(row_dispersion), row_dispersion, 0.0)
@@ -146,7 +153,7 @@ def _context_from_reference(reference: Dict, current_x: np.ndarray) -> np.ndarra
     z=np.where(np.isfinite(z),z,0.0)
     row_shift=np.nanmedian(z,axis=1) if z.size else np.zeros(len(cu))
     row_shift=np.where(np.isfinite(row_shift),row_shift,0.0)
-    row_abs_z=np.nanmean(z,axis=1) if z.size else np.zeros(len(cu))
+    row_abs_z=_safe_nanmean(z,axis=1) if z.size else np.zeros(len(cu))
     row_abs_z=np.where(np.isfinite(row_abs_z),row_abs_z,0.0)
     row_dispersion=np.nanstd(np.nan_to_num(cu,nan=tr_med),axis=1) if cu.size else np.zeros(len(cu))
     row_dispersion=np.where(np.isfinite(row_dispersion),row_dispersion,0.0)
@@ -228,7 +235,9 @@ def _route_with_contextual_loss_selector(
         hl = np.full(bp.shape[1], np.log(2.0), dtype=float)
     features = np.column_stack([bp, ctx, np.std(bp, axis=1), np.repeat(hl[None, :], len(bp), axis=0)])
     predicted = np.column_stack([m.predict(features) for m in selectors])
-    predicted = np.where(np.isfinite(predicted), predicted, np.nanmedian(predicted, axis=0))
+    pred_fallback = _safe_nanmedian(predicted, axis=0) if predicted.size else np.zeros(bp.shape[1])
+    pred_fallback = np.where(np.isfinite(pred_fallback), pred_fallback, np.log(2.0))
+    predicted = np.where(np.isfinite(predicted), predicted, pred_fallback)
     ref_weights = baseline_weights if baseline_weights is not None else selector.get("baseline_weights")
     baseline = np.mean(bp, axis=1)
     if isinstance(ref_weights, dict):
