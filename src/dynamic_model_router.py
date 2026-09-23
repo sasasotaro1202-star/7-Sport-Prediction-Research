@@ -253,9 +253,10 @@ def _route_with_contextual_loss_selector(
 
 class DynamicModelRouter:
     """Stateful wrapper for the leakage-safe challenger router."""
-    def __init__(self, names: Sequence[str], pool_factory):
+    def __init__(self, names: Sequence[str], pool_factory, baseline_weights: Dict[str, float] | None = None):
         self.names = tuple(names)
         self.pool_factory = pool_factory
+        self.baseline_weights = dict(baseline_weights or {})
         self.router = None
         self.status = "UNFIT"
 
@@ -273,7 +274,8 @@ class DynamicModelRouter:
 
     def predict(self, base_models, train_x, current_x):
         return predict_with_router(
-            self.router, base_models, self.names, train_x, current_x
+            self.router, base_models, self.names, train_x, current_x,
+            baseline_weights=self.baseline_weights,
         )
 
 def _require_binary_target(y):
@@ -653,7 +655,7 @@ def predict_with_router(
     if router is None:
         return static, {"fallback": True, "reason": "router_unavailable"}
     ctx = _context_from_reference(train_x, current_x) if isinstance(train_x,dict) else _context(train_x, current_x)
-    routed = _route_with_contextual_loss_selector(router, bp, ctx)
+    routed = _route_with_contextual_loss_selector(router, bp, ctx, baseline_weights=baseline_weights)
     if routed is None:
         return static, {"fallback": True, "reason": "contextual_router_unavailable"}
     return routed, {
