@@ -66,7 +66,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          main_sha=$(git rev-parse HEAD)
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
             gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha --jq '.[] | select(.headSha != "'"$main_sha"'" and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")) | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
             while IFS=$'	' read -r run_id status event created_at head_sha; do
@@ -82,7 +83,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          main_sha=$(git rev-parse HEAD)
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
           state=$(gh run list --workflow "v4_5_15_production.yml" --limit 100 --json databaseId,status,event,createdAt,headSha)
           active_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
           # Old-SHA runs are being cancelled in the preceding step. They may
@@ -144,7 +146,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          main_sha=$(git rev-parse HEAD)
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
           anchor=$(date -u -d '2026-09-22 00:47:00' +%s)
           now=$(date -u +%s)
           delta=$((now-anchor))
@@ -169,7 +172,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          main_sha=$(git rev-parse HEAD)
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
             gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha --jq '.[] | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
             while IFS=$'\t' read -r run_id status event created_at head_sha; do
