@@ -374,6 +374,9 @@ def main():
             "provenance-sensitive rebuild" in refresh_guard.lower(),
             'forced PIT history refresh does not document provenance-sensitive rebuild semantics')
 
+    watchdog_src=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
+    require('lightweight_regression.yml' in watchdog_src and 'lightweight_ok' in watchdog_src and 'lightweight_ok" -ge 1' in watchdog_src,
+            'production watchdog dispatch does not require same-SHA Lightweight Regression success')
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
     require('holdout_y' in router_src and 'holdout_target_shape_mismatch' in router_src,'frozen-holdout router scorer is not target-shape safe')
     require('holdout_X' in router_src and 'holdout_feature_shape_mismatch' in router_src,'frozen-holdout router scorer lacks explicit holdout feature matrix safety')
