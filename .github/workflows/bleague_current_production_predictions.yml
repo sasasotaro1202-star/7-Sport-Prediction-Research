@@ -3,6 +3,8 @@ name: B.LEAGUE Current Production Predictions
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: '10 * * * *'
 
@@ -52,6 +54,7 @@ jobs:
       - name: Ingest official upcoming B.LEAGUE and run production artifact
         run: python -m src.bleague_upcoming_predictions
       - name: Persist current predictions
+        if: github.event_name == 'push'
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
