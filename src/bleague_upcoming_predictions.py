@@ -50,11 +50,14 @@ def parse_detail(html: str, url: str):
             'competition': compm.group(1) if compm else 'B.LEAGUE', 'url': url}
 
 def to_utc(date_s: str, time_s: str | None):
-    m = re.search(r'(\d{1,2})[./-](\d{1,2})', date_s)
+    m = re.search(r'2026[./-](\d{1,2})[./-](\d{1,2})', date_s)
     if not m:
         return None
     hh, mm = (int(x) for x in (time_s or '00:00').split(':', 1))
-    dt = datetime(2026, int(m.group(1)), int(m.group(2)), hh, mm, tzinfo=JST)
+    month, day = int(m.group(1)), int(m.group(2))
+    if not (1 <= month <= 12 and 1 <= day <= 31):
+        return None
+    dt = datetime(2026, month, day, hh, mm, tzinfo=JST)
     return dt.astimezone(timezone.utc).isoformat()
 
 def main():
