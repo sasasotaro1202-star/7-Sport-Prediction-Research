@@ -17,7 +17,7 @@ from src.storage.db_v45 import connect, utcnow
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results" / "bleague_upcoming_predictions.json"
 BASE = "https://www.bleague.jp"
-SCHEDULE = BASE + "/schedule/?mon={month:02d}&tab={tab}&year=2026"
+SCHEDULE = BASE + "/schedule/?mon={month:02d}&tab={tab}&year=2026&pos={pos}"
 UA = "SevenSportResearchEngine/bleague-production-v2"
 JST = ZoneInfo("Asia/Tokyo")
 
@@ -97,7 +97,7 @@ def to_utc(date_s: str, time_s: str | None):
 
 def main():
     now = datetime.now(timezone.utc)
-    until = datetime(2026, 10, 4, 23, 59, 59, tzinfo=JST).astimezone(timezone.utc)
+    until = datetime(2026, 10, 7, 23, 59, 59, tzinfo=JST).astimezone(timezone.utc)
 
     c = connect()
     links: set[str] = set()
@@ -105,8 +105,9 @@ def main():
     try:
         for month in (9, 10):
             for tab in (1, 2, 3):
-                url = SCHEDULE.format(month=month, tab=tab)
-                try:
+                for pos in ("first", "last"):
+                    url = SCHEDULE.format(month=month, tab=tab, pos=pos)
+                    try:
                     html, retrieved = get(url)
                 except Exception as exc:
                     schedule_snapshots.append({"url": url, "error": type(exc).__name__})
@@ -136,9 +137,9 @@ def main():
                 )
 
         for key in (
-            list(range(506406, 506430))
-            + list(range(507183, 507207))
-            + list(range(507911, 507916))
+            list(range(506390, 506441))
+            + list(range(507150, 507221))
+            + list(range(507900, 507951))
         ):
             links.add(f"{BASE}/game_detail/?ScheduleKey={key}")
 
