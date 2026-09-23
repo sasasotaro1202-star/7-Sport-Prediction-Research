@@ -377,8 +377,10 @@ def main():
     recovery_src=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
     require('Production Invariants' in recovery_src and 'Lightweight Regression and Safety Checks' in recovery_src and 'Production Run Watchdog' in recovery_src,
             'production failure recovery does not automatically retry critical validator/watchdog workflows')
-    require("github.event.workflow_run.head_branch == 'main'" in recovery_src,
-            'production failure recovery is not restricted to main-branch failures')
+    require("github.event.workflow_run.head_branch == 'main'" in recovery_src and
+            "conclusion == 'timed_out'" in recovery_src and
+            "conclusion == 'startup_failure'" in recovery_src,
+            'production failure recovery lacks main-only timeout/startup-failure coverage')
     watchdog_src=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('lightweight_regression.yml' in watchdog_src and 'lightweight_ok' in watchdog_src and 'lightweight_ok" -ge 1' in watchdog_src,
             'production watchdog dispatch does not require same-SHA Lightweight Regression success')
