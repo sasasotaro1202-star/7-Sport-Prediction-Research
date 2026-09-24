@@ -49,23 +49,41 @@ def _status_bucket(status):
     return "UNKNOWN"
 
 
-def _exact_snapshot_exists(con, source, source_url, cutoff):
-    return con.execute(
-        """
-        SELECT 1
-          FROM source_snapshot ss
-         WHERE ss.source=?
-           AND COALESCE(ss.source_url,'')=COALESCE(?, '')
-           AND ss.availability_status='EXACT'
-           AND ss.source_available_at_utc IS NOT NULL
-           AND datetime(ss.source_available_at_utc) <= datetime(?)
-         LIMIT 1
-        """,
-        (source, source_url, cutoff),
-    ).fetchone() is not None
+def _snapshot_available(con, source, source_url, cutoff, mode):
+    if mode == "historical_exact":
+        return con.execute(
+            """
+            SELECT 1
+              FROM source_snapshot ss
+             WHERE ss.source=?
+               AND COALESCE(ss.source_url,'')=COALESCE(?, '')
+               AND ss.availability_status='EXACT'
+               AND ss.source_available_at_utc IS NOT NULL
+               AND datetime(ss.source_available_at_utc) <= datetime(?)
+             LIMIT 1
+            """,
+            (source, source_url, cutoff),
+        ).fetchone() is not None
+    if mode == "prospective_observed":
+        # This is valid only for a live/prospective prediction because the
+        # system itself demonstrably observed the source response by cutoff.
+        # It is deliberately NOT accepted by historical OOS replay.
+        return con.execute(
+            """
+            SELECT 1
+              FROM source_snapshot ss
+             WHERE ss.source=?
+               AND COALESCE(ss.source_url,'')=COALESCE(?, '')
+               AND ss.retrieved_at_utc IS NOT NULL
+               AND datetime(ss.retrieved_at_utc) <= datetime(?)
+             LIMIT 1
+            """,
+            (source, source_url, cutoff),
+        ).fetchone() is not None
+    raise ValueError("unknown matchday PIT mode")
 
 
-def _latest_availability(con, event_id, cutoff):
+def _latest_availability(con, event_id, cutoff, mode):
     rows = con.execute(
         """
         SELECT participant_id,team_id,status,reason,source,source_url,
@@ -84,12 +102,12 @@ def _latest_availability(con, event_id, cutoff):
         key = (row[0], row[1])
         if key in latest:
             continue
-        if _exact_snapshot_exists(con, row[4], row[5], cutoff):
+        if _snapshot_available(con, row[4], row[5], cutoff, mode):
             latest[key] = row
     return list(latest.values()), rows
 
 
-def _latest_lineup(con, event_id, cutoff):
+def _latest_lineup(con, event_id, cutoff, mode):
     rows = con.execute(
         """
         SELECT ep.side,ep.participant_id,ep.team_id,ep.role,ep.lineup_status,
@@ -109,7 +127,7 @@ def _latest_lineup(con, event_id, cutoff):
         key = (row[0], row[1], row[2])
         if key in latest:
             continue
-        if _exact_snapshot_exists(con, row[5], row[6], cutoff):
+        if _snapshot_available(con, row[5], row[6], cutoff, mode):
             latest[key] = row
     return list(latest.values())
 
@@ -165,7 +183,7 @@ def _team_schedule_context(con, event_id, cutoff):
     return out
 
 
-def _typed_context(con, event_id, cutoff):
+def _typed_context(con, event_id, cutoff, mode):
     rows = con.execute(
         """
         SELECT stat_name,value_num,value_text,unit,observed_at_utc,
@@ -184,7 +202,7 @@ def _typed_context(con, event_id, cutoff):
     for row in rows:
         name = str(row[0] or "").strip().lower()
         prefix = name.split(".", 1)[0] if "." in name else name.split("_", 1)[0]
-        if prefix not in buckets or not _exact_snapshot_exists(con, row[6], row[7], cutoff):
+        if prefix not in buckets or not _snapshot_available(con, row[6], row[7], cutoff, mode):
             continue
         key = name
         if key in buckets[prefix]:
@@ -203,10 +221,12 @@ def _typed_context(con, event_id, cutoff):
     return buckets
 
 
-def _build_with_connection(con, event_id, cutoff_utc):
+def _build_with_connection(con, event_id, cutoff_utc, mode='historical_exact'):
     cutoff = _dt(cutoff_utc)
     if cutoff is None:
         raise ValueError("invalid cutoff_utc")
+    if mode not in {'historical_exact','prospective_observed'}:
+        raise ValueError('invalid matchday PIT mode')
 
     event = con.execute(
         "SELECT event_id,sport,event_time_utc,status FROM event WHERE event_id=?",
@@ -220,10 +240,10 @@ def _build_with_connection(con, event_id, cutoff_utc):
     if cutoff > event_time:
         raise ValueError("prediction cutoff must not be after event_time_utc")
 
-    availability, raw_availability = _latest_availability(con, event_id, cutoff_utc)
-    lineup = _latest_lineup(con, event_id, cutoff_utc)
+    availability, raw_availability = _latest_availability(con, event_id, cutoff_utc, mode)
+    lineup = _latest_lineup(con, event_id, cutoff_utc, mode)
     schedule = _team_schedule_context(con, event_id, cutoff_utc)
-    typed = _typed_context(con, event_id, cutoff_utc)
+    typed = _typed_context(con, event_id, cutoff_utc, mode)
 
     per_side = {}
     for side, participant_id, team_id, role, lineup_status, source, source_url, effective_at, name in lineup:
@@ -335,10 +355,13 @@ def _build_with_connection(con, event_id, cutoff_utc):
             "market": len(typed["market"]),
             "news": len(typed["news"]),
         },
+        "mode": mode,
+        "historical_oos_eligible": mode == "historical_exact",
         "policy": (
             "research_only; cutoff_strict; observed_at_and_effective_at_must_not_exceed_cutoff; "
-            "exact_source_snapshot_required; missing_signals_are_unknown_not_zero; "
-            "no direct probability override"
+            "historical_exact_requires_source_publication_availability; "
+            "prospective_observed_uses_system_observation_time_only; "
+            "missing_signals_are_unknown_not_zero; no direct probability override"
         ),
     }
     payload["feature_snapshot_hash"] = hashlib.sha256(
@@ -347,10 +370,10 @@ def _build_with_connection(con, event_id, cutoff_utc):
     return payload
 
 
-def build_matchday_intelligence(event_id: str, cutoff_utc: str, db_path: Path = DB) -> dict:
+def build_matchday_intelligence(event_id: str, cutoff_utc: str, db_path: Path = DB, mode: str = 'historical_exact') -> dict:
     con = sqlite3.connect(db_path)
     try:
-        return _build_with_connection(con, event_id, cutoff_utc)
+        return _build_with_connection(con, event_id, cutoff_utc, mode)
     finally:
         con.close()
 
@@ -368,7 +391,7 @@ def build_matchday_context_rows(rows, db_path: Path = DB):
                 continue
             cutoff = (dt - timedelta(minutes=60)).isoformat()
             try:
-                payload = _build_with_connection(con, event_id, cutoff)
+                payload = _build_with_connection(con, event_id, cutoff, 'historical_exact')
                 out.append(router_context_vector(payload))
             except Exception:
                 out.append([float("nan")] * 10)
@@ -433,4 +456,5 @@ __all__ = [
     "build_matchday_intelligence",
     "build_matchday_context_rows",
     "router_context_vector",
+    "_snapshot_available",
 ]
