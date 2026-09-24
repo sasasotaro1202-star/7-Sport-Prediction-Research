@@ -419,10 +419,20 @@ def main():
     matchday_src=(ROOT/'src/matchday_intelligence_oos.py').read_text(encoding='utf-8')
     require('research_only' in matchday_src.lower() and 'cutoff_strict' in matchday_src,'matchday intelligence layer is missing explicit research/PIT policy')
     require('observed_at_utc' in matchday_src and 'effective_at_utc' in matchday_src,'matchday intelligence layer lacks dual timestamp gating')
+    require('historical_exact' in matchday_src and 'prospective_observed' in matchday_src,'matchday layer does not distinguish historical exact PIT from prospective system-observed mode')
+    require('retrieved_at_utc' in matchday_src and 'historical_oos_eligible' in matchday_src,'prospective observation timestamp is not explicitly separated from historical OOS eligibility')
+    require('except Exception:' not in matchday_src[matchday_src.find('def build_matchday_context_rows'):matchday_src.find('def router_context_vector')],
+            'matchday OOS batch context masks internal exceptions instead of failing closed')
     require('missing_signals_are_unknown_not_zero' in matchday_src,'matchday intelligence must not coerce missing context into zero')
     require('direct probability override' in matchday_src,'matchday intelligence layer must not directly override probabilities')
     require((ROOT/'scripts/test_matchday_intelligence_oos.py').exists(),'matchday intelligence PIT regression test is missing')
     require('test_matchday_intelligence_oos.py' in lightweight_src,'matchday intelligence regression is not wired into lightweight CI')
+    postmatch_src=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
+    require('Verified post-match feedback review' in postmatch_src and 'src.postmatch_review' in postmatch_src,
+            'production loop does not settle verified forward predictions for post-match feedback')
+    require((ROOT/'src/postmatch_review.py').exists() and (ROOT/'scripts/test_postmatch_review.py').exists(),
+            'post-match feedback review implementation/test is missing')
+
     require('matchday_intelligence_oos as matchday_intelligence' in strict_src,'strict research cycle does not import the PIT-safe matchday layer')
     require('build_matchday_context_rows(train_rows)' in strict_src and 'matchday_train_ctx' in strict_src,'strict research cycle does not build matchday context from OOS rows')
     require("'context':fold_router_ctx" in strict_src,'strict OOS folds do not persist matchday-augmented router context')

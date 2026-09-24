@@ -88,6 +88,9 @@ def main() -> None:
         assert len(vec) == 10 and all(v == v or v != v for v in vec)
         assert all("99.0" not in str(v) for v in r["typed_context"]["weather"].values())
         assert r["policy"].startswith("research_only;")
+        prospective = build_matchday_intelligence("e1","2026-09-24T11:00:00+00:00",db,mode="prospective_observed")
+        assert prospective["mode"] == "prospective_observed"
+        assert prospective["historical_oos_eligible"] is False
         print("MATCHDAY_INTELLIGENCE_OOS=PASS")
 
 

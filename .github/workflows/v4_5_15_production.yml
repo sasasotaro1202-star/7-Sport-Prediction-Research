@@ -272,6 +272,8 @@ jobs:
         run: python -m src.production_release_gate
       - name: Future prediction inference
         run: python -m src.future_predictor
+      - name: Verified post-match feedback review
+        run: python -m src.postmatch_review
       - name: Production invariants
         run: python -m src.production_invariants
       - name: Compile check
