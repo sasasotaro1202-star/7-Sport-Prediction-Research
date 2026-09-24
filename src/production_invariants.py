@@ -375,8 +375,16 @@ def main():
             'forced PIT history refresh does not document provenance-sensitive rebuild semantics')
 
     recovery_src=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
-    require('Production Invariants' in recovery_src and 'Lightweight Regression and Safety Checks' in recovery_src and 'Production Run Watchdog' in recovery_src,
-            'production failure recovery does not cover critical validator/watchdog workflows')
+    require('Nine-Sport Target v4.5.15 Production' in recovery_src and
+            'PIT History Expansion' in recovery_src and
+            'Rugby Coverage Production' in recovery_src and
+            'Boxing PIT Source Guard' in recovery_src,
+            'production failure recovery does not cover all heavy production/data workflows')
+    require('Production Invariants' not in recovery_src and
+            'Production Safety Audit' not in recovery_src and
+            'Lightweight Regression and Safety Checks' not in recovery_src and
+            'Production Run Watchdog' not in recovery_src,
+            'production failure recovery must not recursively monitor validator/watchdog completions')
     require("github.event.workflow_run.head_branch == 'main'" in recovery_src and
             "conclusion == 'timed_out'" in recovery_src and
             "conclusion == 'startup_failure'" in recovery_src,

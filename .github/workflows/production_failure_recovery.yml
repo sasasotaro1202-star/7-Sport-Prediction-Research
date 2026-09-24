@@ -2,16 +2,14 @@ name: Production Failure Recovery
 
 on:
   workflow_run:
+    # Recover only production/data workflows. Validator and watchdog
+    # completions are intentionally excluded to prevent recursive skipped-run
+    # storms and needless scheduler churn.
     workflows:
       - Nine-Sport Target v4.5.15 Production
       - PIT History Expansion
       - Rugby Coverage Production
       - Boxing PIT Source Guard
-      - Cache and PIT Health
-      - Production Safety Audit
-      - Production Invariants
-      - Lightweight Regression and Safety Checks
-      - Production Run Watchdog
     types: [completed]
 
 permissions:
