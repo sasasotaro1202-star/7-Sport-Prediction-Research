@@ -69,6 +69,9 @@ jobs:
           print("MISSINGNESS_AND_RECENCY_CHALLENGERS=PASS")
           print("SPORTS", base.SPORTS)
           PY
+      - name: Shock-adaptive dynamic Bradley-Terry PIT-safe regression
+        run: PYTHONPATH=. python scripts/test_dynamic_bt_oos.py
+
       - name: Forward prediction registry smoke test
         run: |
           python - <<'PY'
