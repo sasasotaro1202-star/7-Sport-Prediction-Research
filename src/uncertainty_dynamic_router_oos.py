@@ -352,7 +352,10 @@ def fit_uncertainty_loss_selector(
             l2_regularization=2.0,
             random_state=1042 + j,
         )
-        m.fit(X_fit, L[:, j])
+        try:
+            m.fit(X_fit, L[:, j])
+        except (ValueError, FloatingPointError):
+            return None
         selectors.append(m)
 
     voi_selectors = None
@@ -370,7 +373,10 @@ def fit_uncertainty_loss_selector(
                 l2_regularization=2.5,
                 random_state=2042 + j,
             )
-            m.fit(X_fit, V[:, j])
+            try:
+                m.fit(X_fit, V[:, j])
+            except (ValueError, FloatingPointError):
+                return None
             voi_selectors.append(m)
 
     return {
