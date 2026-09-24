@@ -5,6 +5,8 @@ import numpy as np
 from src.uncertainty_dynamic_router_oos import (
     expert_voi_targets,
     predictive_entropy,
+    population_drift_features,
+    bootstrap_clustered_improvement,
     route_uncertainty_score,
     temporal_recalibration,
     uncertainty_features,
@@ -21,6 +23,21 @@ def main() -> None:
     assert u.shape == (2, 10)
     assert np.all(np.isfinite(u))
     assert predictive_entropy(np.asarray([0.5]))[0] > predictive_entropy(np.asarray([0.9]))[0]
+
+    ref = np.asarray([[0.0, 1.0, 0.5], [0.1, 0.9, 0.4], [0.0, 1.0, np.nan]])
+    cur = np.asarray([[2.0, 1.0, 0.5], [2.1, 0.9, 0.4], [2.0, 1.0, np.nan]])
+    drift = population_drift_features(ref, cur)
+    assert drift.shape == (3,)
+    assert np.all(np.isfinite(drift)) and np.all((drift >= 0.0) & (drift <= 1.0))
+    assert drift[0] > 0.0 and drift[2] > 0.0
+
+    repeated = bootstrap_clustered_improvement(
+        [np.asarray([-.02, -.02, .10, .10]), np.asarray([-.03, -.03, .08, .08])],
+        [np.asarray(["g1", "g1", "g2", "g2"], dtype=object), np.asarray(["g3", "g3", "g4", "g4"], dtype=object)],
+        draws=400,
+    )
+    assert repeated["clusters"] == 4
+    assert 0.0 <= repeated["probability_improvement"] <= 1.0
 
     loss_equal = np.zeros_like(bp)
     p = route_uncertainty_score(loss_equal, bp, ctx)
@@ -58,7 +75,8 @@ def main() -> None:
     rng = np.random.default_rng(42)
     y = (rng.random(360) > 0.5).astype(int)
     raw = np.clip(0.15 + 0.70 * rng.random(360), 1e-5, 1-1e-5)
-    cal = temporal_recalibration(raw, y)
+    groups = np.repeat(np.arange(120), 3)
+    cal = temporal_recalibration(raw, y, groups)
     assert isinstance(cal, dict)
     assert "accepted" in cal
     if cal["accepted"]:
