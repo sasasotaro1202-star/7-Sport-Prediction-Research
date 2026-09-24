@@ -8,6 +8,7 @@ from sklearn.isotonic import IsotonicRegression
 from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 from src import uncertainty_dynamic_router_oos as uncertainty_router
+from src import matchday_intelligence_oos as matchday_intelligence
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','ufc','rizin')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
@@ -340,6 +341,17 @@ def train(s):
    return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_observed_feature_values','rows':len(train_rows),'features':0})
   fs=[f for f,k in zip(fs,keep) if k];X=X[:,keep];X_holdout=X_holdout[:,keep]
   sel=len(train_rows);hn=len(holdout_rows)
+  # Matchday intelligence is challenger-only context. It is generated per event
+  # at event_time - 60m from exact source snapshots; missing signals remain NaN.
+  matchday_train_ctx=np.asarray(
+   matchday_intelligence.build_matchday_context_rows(train_rows),dtype=float
+  )
+  matchday_holdout_ctx=np.asarray(
+   matchday_intelligence.build_matchday_context_rows(holdout_rows),dtype=float
+  )
+  if matchday_train_ctx.shape!=(sel,10) or matchday_holdout_ctx.shape!=(hn,10):
+   return _write_result(s,{'sport':s,'status':'DEFERRED_MATCHDAY_CONTEXT','reason':'matchday_context_shape_mismatch',
+                           'training_shape':list(matchday_train_ctx.shape),'holdout_shape':list(matchday_holdout_ctx.shape)})
   # Construct the pool once per sport. Recreating every estimator wrapper for
   # every fold adds avoidable overhead without changing the fitted models.
   symmetric_mode=s in ('ufc','rizin')
@@ -368,7 +380,9 @@ def train(s):
     fold_pred[name]=np.clip(m.predict_proba(X[end:te])[:,1],1e-6,1-1e-6)
     oof_probs[name].extend(fold_pred[name].tolist())
    oof_y.extend(y[end:te].tolist())
-   oof_folds.append({'end':end,'te':te,'preds':fold_pred})
+   base_router_ctx=router._context(X[:end],X[end:te])
+   fold_router_ctx=np.column_stack([base_router_ctx,matchday_train_ctx[end:te]])
+   oof_folds.append({'end':end,'te':te,'preds':fold_pred,'context':fold_router_ctx})
   oof_y=np.asarray(oof_y,int)
   if len(oof_y)<30 or len(np.unique(oof_y))<2:
    return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
@@ -761,7 +775,10 @@ def train(s):
      hold_bp*np.asarray([candidate_weights[name] for name in router_names])[None,:],
      axis=1
     )
-    hold_ctx=router._context(X,X_holdout)
+    hold_ctx=np.column_stack([
+     router._context(X,X_holdout),
+     matchday_holdout_ctx
+    ])
     raw_hold_unc=uncertainty_router.route_with_selector(
      u_selector,u_history,hold_bp,hold_ctx,hold_baseline
     )
