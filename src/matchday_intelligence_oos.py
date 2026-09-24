@@ -11,6 +11,7 @@ availability by the prediction cutoff.
 
 import hashlib
 import json
+import math
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -203,6 +204,99 @@ def _typed_context(con, event_id, cutoff):
     return buckets
 
 
+def _matchday_evidence_quality(con, event_id, cutoff, availability_rows, lineup_rows, typed):
+    """Summarize evidence reliability for routing; never changes probabilities."""
+    sources = set()
+    confidences = []
+    freshness = []
+    conflict_keys = 0
+    evidence_keys = 0
+
+    def add_evidence(source, confidence, observed):
+        if source:
+            sources.add(str(source))
+        try:
+            c = float(confidence)
+            if math.isfinite(c):
+                confidences.append(min(max(c, 0.0), 1.0))
+        except (TypeError, ValueError):
+            pass
+        age = _age_hours(observed, cutoff)
+        if age is not None and math.isfinite(age):
+            freshness.append(math.exp(-min(max(age, 0.0), 168.0) / 24.0))
+
+    for row in availability_rows:
+        add_evidence(row[4], row[8], row[6])
+
+    for row in lineup_rows:
+        add_evidence(row[5], None, row[7])
+
+    for bucket in typed.values():
+        for item in bucket.values():
+            add_evidence(item.get("source"), item.get("confidence"), item.get("observed_at_utc"))
+
+    raw = con.execute(
+        """
+        SELECT participant_id,team_id,status,source,source_url,observed_at_utc,effective_at_utc
+          FROM availability
+         WHERE event_id=?
+           AND datetime(observed_at_utc) <= datetime(?)
+           AND effective_at_utc IS NOT NULL
+           AND datetime(effective_at_utc) <= datetime(?)
+        """,
+        (event_id, cutoff, cutoff),
+    ).fetchall()
+    states = {}
+    for row in raw:
+        if not _exact_snapshot_exists(con, row[3], row[4], cutoff):
+            continue
+        key = (row[0], row[1])
+        states.setdefault(key, set()).add(_status_bucket(row[2]))
+    for values in states.values():
+        if len(values) > 1 and any(v not in {"UNKNOWN", "UNKNOWN_STATUS"} for v in values):
+            conflict_keys += 1
+        evidence_keys += 1
+
+    typed_rows = con.execute(
+        """
+        SELECT stat_name,value_num,value_text,source,source_url
+          FROM match_stats
+         WHERE event_id=?
+           AND datetime(observed_at_utc) <= datetime(?)
+           AND effective_at_utc IS NOT NULL
+           AND datetime(effective_at_utc) <= datetime(?)
+        """,
+        (event_id, cutoff, cutoff),
+    ).fetchall()
+    typed_values = {}
+    for row in typed_rows:
+        name = str(row[0] or "").strip().lower()
+        prefix = name.split(".", 1)[0] if "." in name else name.split("_", 1)[0]
+        if prefix not in {"weather", "market", "news"}:
+            continue
+        if not _exact_snapshot_exists(con, row[3], row[4], cutoff):
+            continue
+        value = row[1] if row[1] is not None else row[2]
+        typed_values.setdefault(name, set()).add(str(value))
+    for values in typed_values.values():
+        evidence_keys += 1
+        if len(values) > 1:
+            conflict_keys += 1
+
+    source_diversity = min(len(sources) / 4.0, 1.0) if sources else float("nan")
+    conflict_rate = conflict_keys / evidence_keys if evidence_keys else float("nan")
+    confidence_mean = sum(confidences) / len(confidences) if confidences else float("nan")
+    freshness_score = sum(freshness) / len(freshness) if freshness else float("nan")
+    return {
+        "source_diversity": source_diversity,
+        "conflict_rate": min(max(conflict_rate, 0.0), 1.0) if math.isfinite(conflict_rate) else float("nan"),
+        "confidence_mean": confidence_mean,
+        "freshness_score": freshness_score,
+        "evidence_sources": sorted(sources),
+        "conflict_keys": int(conflict_keys),
+    }
+
+
 def _build_with_connection(con, event_id, cutoff_utc):
     cutoff = _dt(cutoff_utc)
     if cutoff is None:
@@ -224,6 +318,7 @@ def _build_with_connection(con, event_id, cutoff_utc):
     lineup = _latest_lineup(con, event_id, cutoff_utc)
     schedule = _team_schedule_context(con, event_id, cutoff_utc)
     typed = _typed_context(con, event_id, cutoff_utc)
+    quality = _matchday_evidence_quality(con, event_id, cutoff_utc, availability, lineup, typed)
 
     per_side = {}
     for side, participant_id, team_id, role, lineup_status, source, source_url, effective_at, name in lineup:
@@ -300,6 +395,10 @@ def _build_with_connection(con, event_id, cutoff_utc):
         "weather_signal_count": len(typed["weather"]),
         "market_signal_count": len(typed["market"]),
         "news_signal_count": len(typed["news"]),
+        "matchday_source_diversity": quality["source_diversity"],
+        "matchday_conflict_rate": quality["conflict_rate"],
+        "matchday_confidence_mean": quality["confidence_mean"],
+        "matchday_freshness_score": quality["freshness_score"],
     }
 
     payload = {
@@ -334,6 +433,7 @@ def _build_with_connection(con, event_id, cutoff_utc):
             "weather": len(typed["weather"]),
             "market": len(typed["market"]),
             "news": len(typed["news"]),
+            "matchday_quality": quality,
         },
         "policy": (
             "research_only; cutoff_strict; observed_at_and_effective_at_must_not_exceed_cutoff; "
@@ -426,6 +526,10 @@ def router_context_vector(payload: dict) -> list[float]:
         evidence_density,
         diff("lineup_known"),
         confirmed_any,
+        float(f["matchday_source_diversity"]) if f.get("matchday_source_diversity") is not None else float("nan"),
+        float(f["matchday_conflict_rate"]) if f.get("matchday_conflict_rate") is not None else float("nan"),
+        float(f["matchday_confidence_mean"]) if f.get("matchday_confidence_mean") is not None else float("nan"),
+        float(f["matchday_freshness_score"]) if f.get("matchday_freshness_score") is not None else float("nan"),
     ]
 
 
