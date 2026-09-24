@@ -12,6 +12,7 @@ availability by the prediction cutoff.
 import hashlib
 import json
 import math
+import numpy as np
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
