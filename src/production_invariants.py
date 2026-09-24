@@ -396,6 +396,12 @@ def main():
     watchdog_src=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('lightweight_regression.yml' in watchdog_src and 'lightweight_ok' in watchdog_src and 'lightweight_ok" -ge 1' in watchdog_src,
             'production watchdog dispatch does not require same-SHA Lightweight Regression success')
+    require('Lightweight Regression and Safety Checks' in watchdog_src,
+            'production watchdog does not observe lightweight validator completions')
+    require('Retry failed validators once, then fail closed' in watchdog_src,
+            'production watchdog lacks bounded validator recovery')
+    require('run_attempt' in watchdog_src and 'gh run rerun' in watchdog_src,
+            'validator recovery lacks one-attempt rerun protection')
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
     uncertainty_src=(ROOT/'src/uncertainty_dynamic_router_oos.py').read_text(encoding='utf-8')
     lightweight_src=(ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8')
