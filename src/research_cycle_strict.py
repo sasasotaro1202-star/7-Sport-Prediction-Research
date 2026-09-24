@@ -503,6 +503,7 @@ def evaluate_fixed_share_hedge_from_folds(y, names, folds, baseline_weights=None
         boot_prob=float(np.mean(imp>0.0))
     return {
         "status":"EVALUATED","folds":fold_used,"oos_rows":len(all_y),
+        "terminal_weights":hedge.state(),
         "fixed_ensemble":sm,"fixed_share_hedge":om,
         "logloss_improvement":float(sm["logloss"]-om["logloss"]),
         "brier_improvement":float(sm["brier"]-om["brier"]),
