@@ -43,11 +43,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          current_run_number='${{ github.run_number }}'
+          current_run_id='${{ github.run_id }}'
           watchdog_state=$(gh run list --workflow "production_watchdog.yml" --limit 50 \
-            --json databaseId,status,runNumber)
-          latest_active=$(printf '%s' "$watchdog_state" | jq --argjson current "$current_run_number" \
-            '[.[] | select(.runNumber > $current and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
+            --json databaseId,status)
+          latest_active=$(printf '%s' "$watchdog_state" | jq --argjson current "$current_run_id" \
+            '[.[] | select(.databaseId > $current and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
           if [ "$latest_active" -gt 0 ]; then
             echo "WATCHDOG_SUPERSEDED_BY_NEWER_ACTIVE_RUN current=$current_run_number newer_active=$latest_active"
             exit 0
