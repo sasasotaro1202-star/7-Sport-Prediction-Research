@@ -419,6 +419,10 @@ def main():
     matchday_src=(ROOT/'src/matchday_intelligence_oos.py').read_text(encoding='utf-8')
     require('research_only' in matchday_src.lower() and 'cutoff_strict' in matchday_src,'matchday intelligence layer is missing explicit research/PIT policy')
     require('observed_at_utc' in matchday_src and 'effective_at_utc' in matchday_src,'matchday intelligence layer lacks dual timestamp gating')
+    require('historical_exact' in matchday_src and 'prospective_observed' in matchday_src,'matchday layer does not distinguish historical exact PIT from prospective system-observed mode')
+    require('retrieved_at_utc' in matchday_src and 'historical_oos_eligible' in matchday_src,'prospective observation timestamp is not explicitly separated from historical OOS eligibility')
+    require('except Exception:' not in matchday_src[matchday_src.find('def build_matchday_context_rows'):matchday_src.find('def router_context_vector')],
+            'matchday OOS batch context masks internal exceptions instead of failing closed')
     require('missing_signals_are_unknown_not_zero' in matchday_src,'matchday intelligence must not coerce missing context into zero')
     require('direct probability override' in matchday_src,'matchday intelligence layer must not directly override probabilities')
     require((ROOT/'scripts/test_matchday_intelligence_oos.py').exists(),'matchday intelligence PIT regression test is missing')
