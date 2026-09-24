@@ -25,6 +25,64 @@ def predictive_entropy(p):
     return -(p * np.log(p) + (1.0 - p) * np.log(1.0 - p))
 
 
+def population_drift_features(reference: np.ndarray, current: np.ndarray) -> np.ndarray:
+    """Compute bounded population drift state from prediction-time covariates.
+
+    The state is outcome-free. It combines robust location shift, missingness
+    shift, and a bounded RBF-MMD estimate. The deterministic row cap keeps the
+    research path inexpensive and reproducible.
+    """
+    ref = np.asarray(reference, dtype=float)
+    cur = np.asarray(current, dtype=float)
+    if ref.ndim != 2 or cur.ndim != 2 or ref.shape[1] != cur.shape[1]:
+        raise ValueError("reference/current feature shape mismatch")
+    if len(ref) == 0 or len(cur) == 0 or ref.shape[1] == 0:
+        return np.zeros(3, dtype=float)
+
+    ref_med = np.nanmedian(ref, axis=0)
+    q75 = np.nanpercentile(ref, 75.0, axis=0)
+    q25 = np.nanpercentile(ref, 25.0, axis=0)
+    scale = np.maximum(q75 - q25, 1e-6)
+    cur_med = np.nanmedian(cur, axis=0)
+    robust_shift = np.nanmean(np.minimum(np.abs(cur_med - ref_med) / scale, 5.0) / 5.0)
+    missing_shift = np.nanmean(
+        np.abs(np.mean(np.isfinite(cur), axis=0) - np.mean(np.isfinite(ref), axis=0))
+    )
+    if not np.isfinite(robust_shift):
+        robust_shift = 0.0
+    if not np.isfinite(missing_shift):
+        missing_shift = 0.0
+
+    def _matrix(x, limit=96):
+        if len(x) > limit:
+            idx = np.linspace(0, len(x) - 1, limit, dtype=int)
+            x = x[idx]
+        z = np.where(np.isfinite(x), x, ref_med[None, :])
+        z = (z - ref_med[None, :]) / scale[None, :]
+        z = np.clip(z, -8.0, 8.0)
+        return z
+
+    r = _matrix(ref)
+    c = _matrix(cur)
+    rr = np.sum((r[:, None, :] - r[None, :, :]) ** 2, axis=2)
+    cc = np.sum((c[:, None, :] - c[None, :, :]) ** 2, axis=2)
+    rc = np.sum((r[:, None, :] - c[None, :, :]) ** 2, axis=2)
+    cross = rc[np.isfinite(rc)]
+    bandwidth = float(np.sqrt(np.median(cross[cross > 0.0]))) if np.any(cross > 0.0) else 1.0
+    bandwidth = max(bandwidth, 0.25)
+    denom = 2.0 * bandwidth * bandwidth
+    krr = np.exp(-rr / denom)
+    kcc = np.exp(-cc / denom)
+    krc = np.exp(-rc / denom)
+    mmd2 = float(np.mean(krr) + np.mean(kcc) - 2.0 * np.mean(krc))
+    mmd_score = float(np.clip(max(mmd2, 0.0) / (max(mmd2, 0.0) + 0.05), 0.0, 1.0))
+    return np.asarray([
+        float(np.clip(robust_shift, 0.0, 1.0)),
+        float(np.clip(missing_shift, 0.0, 1.0)),
+        mmd_score,
+    ], dtype=float)
+
+
 def uncertainty_features(base_probs: np.ndarray, context: np.ndarray) -> np.ndarray:
     """
     Row-local uncertainty/drift features.
@@ -59,9 +117,10 @@ def uncertainty_features(base_probs: np.ndarray, context: np.ndarray) -> np.ndar
     row_shift = ctx[:, 3] if ctx.shape[1] > 3 else np.zeros(len(bp))
     recent_shift = ctx[:, 8] if ctx.shape[1] > 8 else row_shift
     row_missing = ctx[:, 2] if ctx.shape[1] > 2 else np.zeros(len(bp))
-    # Matchday context may be appended after the canonical 10 router columns.
-    # Treat missing matchday evidence as unknown, not as an affirmative signal.
-    matchday = ctx[:, 10:] if ctx.shape[1] > 10 else np.empty((len(bp), 0))
+    # Context layout: canonical 10 router columns, 4 matchday-quality columns,
+    # then 3 population-drift columns. Missing context remains unknown.
+    matchday = ctx[:, 10:14] if ctx.shape[1] > 10 else np.empty((len(bp), 0))
+    global_drift = ctx[:, 14:17] if ctx.shape[1] > 14 else np.empty((len(bp), 0))
     if matchday.shape[1]:
         finite_md = np.isfinite(matchday)
         md_missing = 1.0 - np.mean(finite_md, axis=1)
@@ -72,22 +131,42 @@ def uncertainty_features(base_probs: np.ndarray, context: np.ndarray) -> np.ndar
                 np.clip(np.abs(bounded[:, 1]), 0.0, 5.0) / 5.0,
                 np.clip(np.abs(bounded[:, 2]), 0.0, 5.0) / 5.0,
                 np.clip(np.abs(bounded[:, 3]), 0.0, 7.0) / 7.0,
-                np.clip(np.abs(bounded[:, 4]), 0.0, 4.0) / 4.0,
-                np.clip(np.abs(bounded[:, 5]), 0.0, 4.0) / 4.0,
-                np.clip(np.abs(bounded[:, 6]), 0.0, 4.0) / 4.0,
             ]),
             axis=1,
         )
-        # High missingness lowers the trust in any matchday regime signal.
-        matchday_shock = np.clip(0.80 * md_mag + 0.20 * (1.0 - md_missing), 0.0, 1.0)
+        # Confidence/freshness/diversity raise trust; conflicts lower it.
+        md_quality = np.clip(
+            0.30 * np.nan_to_num(bounded[:, 0], nan=0.0)
+            + 0.30 * np.nan_to_num(bounded[:, 2], nan=0.0)
+            + 0.20 * np.nan_to_num(bounded[:, 3], nan=0.0)
+            + 0.20 * (1.0 - np.nan_to_num(bounded[:, 1], nan=1.0)),
+            0.0,
+            1.0,
+        )
+        matchday_shock = np.clip(
+            0.60 * md_mag + 0.20 * (1.0 - md_missing) + 0.20 * md_quality,
+            0.0,
+            1.0,
+        )
     else:
         matchday_shock = np.zeros(len(bp))
 
+    if global_drift.shape[1] == 3:
+        gd = np.nan_to_num(global_drift, nan=0.0, posinf=0.0, neginf=0.0)
+        population_shock = np.clip(
+            0.55 * gd[:, 0] + 0.20 * gd[:, 1] + 0.25 * gd[:, 2],
+            0.0,
+            1.0,
+        )
+    else:
+        population_shock = np.zeros(len(bp))
+
     drift = np.clip(
-        0.40 * np.clip(row_shift, 0.0, 8.0) / 8.0
-        + 0.28 * np.clip(recent_shift, 0.0, 8.0) / 8.0
-        + 0.12 * np.clip(row_missing, 0.0, 1.0)
-        + 0.20 * matchday_shock,
+        0.30 * np.clip(row_shift, 0.0, 8.0) / 8.0
+        + 0.20 * np.clip(recent_shift, 0.0, 8.0) / 8.0
+        + 0.10 * np.clip(row_missing, 0.0, 1.0)
+        + 0.20 * matchday_shock
+        + 0.20 * population_shock,
         0.0,
         1.0,
     )
@@ -691,6 +770,7 @@ def temporal_recalibration(p, y):
 __all__ = [
     "predictive_entropy",
     "uncertainty_features",
+    "population_drift_features",
     "route_uncertainty_score",
     "expert_voi_targets",
     "fit_uncertainty_loss_selector",
