@@ -109,6 +109,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
       - name: Matchday intelligence PIT regression
         run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
+      - name: Matchday horizon research contract regression
+        run: PYTHONPATH=. python scripts/test_matchday_horizon_eval.py
       - name: LightGBM smoke test
         run: |
           python - <<'PY'
@@ -184,6 +186,12 @@ jobs:
           assert "COALESCE(leakage_status,'UNKNOWN') NOT IN ('PASS','CLEAN')" in gate
           assert "'publishable_artifacts':[]" in gate
           assert "RELEASE_GATED_ARTIFACT=" in production
+          assert Path('src/matchday_horizon_eval.py').is_file()
+          assert Path('.github/workflows/matchday_horizon_research.yml').is_file()
+          future=Path('src/future_predictor.py').read_text()
+          assert 'matchday_situation' in future
+          assert "'confidence':confidence" in future
+          assert "'action_state':action_state" in future
           assert "git add results models" not in production
           print("RESEARCH_ROBUSTNESS_RELEASE_SAFETY=PASS")
           PY
