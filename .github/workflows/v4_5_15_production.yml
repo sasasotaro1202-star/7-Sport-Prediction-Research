@@ -10,11 +10,11 @@ on:
 permissions:
   contents: write
 concurrency:
-  # Isolate heavy runs by immutable commit SHA. A stale run from an older
-  # main must not hold the current validated SHA in the pending queue.
-  # Runs for the same SHA remain strictly serialized and are never cancelled.
-  group: nine-sport-target-canonical-production-${{ github.sha }}
-  cancel-in-progress: false
+  # Only one canonical production execution may exist at a time. When main
+  # advances, the older execution is cancelled rather than reaching the
+  # stale-SHA fail-fast guard and producing a red Action.
+  group: nine-sport-target-canonical-production
+  cancel-in-progress: true
 env:
   PYTHONUNBUFFERED: '1'
 jobs:
