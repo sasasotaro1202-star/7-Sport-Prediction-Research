@@ -135,25 +135,6 @@ jobs:
             esac
           }
 
-          cancel_run() {
-            local id="$1"
-            if gh run cancel "$id"; then
-              return 0
-            fi
-            local state
-            state=$(gh run view "$id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
-            case "$state" in
-              completed|cancelled|failure|success|neutral|skipped|timed_out)
-                echo "CANCEL_RACE_ALREADY_TERMINAL run_id=$id status=$state"
-                return 0
-                ;;
-              *)
-                echo "CANCEL_FAILED_NONTERMINAL run_id=$id status=$state"
-                return 1
-                ;;
-            esac
-          }
-
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
