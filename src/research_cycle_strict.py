@@ -357,7 +357,7 @@ def evaluate_recent_weighted_router_from_folds(
             routed=_recent_weighted_route(bp,hl,baseline_weights)
             if routed is None: routed=static.copy()
             ym=y[end:te]
-            sm=_metric(ym,static); rm=_metric(ym,routed)
+            sm=base.metric(ym,static); rm=base.metric(ym,routed)
             deltas.append(float(rm["logloss"]-sm["logloss"]))
             preds.extend(routed.tolist()); targets.extend(ym.tolist()); used+=1
             yt=ym.astype(float)
@@ -376,8 +376,8 @@ def evaluate_recent_weighted_router_from_folds(
             p=np.sum(bp*w[None,:],axis=1)
         else: p=np.mean(bp,axis=1)
         static_pred.extend(p.tolist()); static_y.extend(y[end:te].tolist())
-    sm=_metric(np.asarray(static_y),np.asarray(static_pred))
-    rm=_metric(np.asarray(targets),np.asarray(preds))
+    sm=base.metric(np.asarray(static_y),np.asarray(static_pred))
+    rm=base.metric(np.asarray(targets),np.asarray(preds))
     d=np.asarray(deltas,dtype=float)
     blocks=[]
     if len(d)>=3:
@@ -433,7 +433,7 @@ def evaluate_recent_weighted_router_holdout_from_folds(
         _recent_weighted_route._names=prev_names
     if routed is None:
         return {"status":"INSUFFICIENT_OOS","reason":"recent_weighted_router_fit_failed","oos_rows":len(meta_losses)}
-    sm=_metric(hy.astype(int),static); rm=_metric(hy.astype(int),routed)
+    sm=base.metric(hy.astype(int),static); rm=base.metric(hy.astype(int),routed)
     return {
         "status":"EVALUATED","oos_training_rows":len(meta_losses),"holdout_rows":len(hy),
         "fixed_ensemble":sm,"recent_weighted_router":rm,
