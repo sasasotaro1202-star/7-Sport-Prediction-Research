@@ -152,6 +152,8 @@ def main():
             'independent leakage audit lacks a bounded runtime budget')
     require('source failures degrade explicitly' in workflow,'resilient source-failure policy missing')
     require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
+    require('--days-forward 7' in workflow and "ap.add_argument('--days-forward'" in (ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8'),
+            'production collection must retain a forward schedule window for future prediction')
     require('backfill_status=DEGRADED' in workflow,'backfill degradation is not explicitly recorded')
     require('collection_guard_status=FAILED' in workflow,'collection guard failure is not explicitly surfaced')
     require("if: needs.collect.result == 'success'" in workflow,
