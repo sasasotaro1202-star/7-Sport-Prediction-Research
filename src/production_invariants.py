@@ -226,8 +226,8 @@ def main():
     )
     require('Production Run Watchdog' in watchdog and watchdog_cancel_path_ok,
             'production watchdog is missing automatic heavy-run recovery')
-    require('actions: write' in watchdog and 'cancel-in-progress: true' in watchdog,
-            'production watchdog lacks required action permission or newest-run concurrency')
+    require('actions: write' in watchdog and 'cancel-in-progress: false' in watchdog,
+            'production watchdog lacks required action permission or non-cancelling concurrency guard')
     require('v4_5_15_production.yml' in watchdog and 'pit_history_expansion.yml' in watchdog,
             'production watchdog does not monitor both heavy workflows')
     require('select(.event=="push" and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))' in watchdog,
