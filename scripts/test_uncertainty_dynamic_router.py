@@ -32,11 +32,17 @@ def main() -> None:
     assert drift[0] > 0.0 and drift[2] > 0.0
 
     repeated = bootstrap_clustered_improvement(
-        [np.asarray([-.02, -.02, .10, .10]), np.asarray([-.03, -.03, .08, .08])],
-        [np.asarray(["g1", "g1", "g2", "g2"], dtype=object), np.asarray(["g3", "g3", "g4", "g4"], dtype=object)],
+        [
+            np.asarray([-.02, -.02, -.01, .10, .10, .08, .05, .05, .02, .02]),
+            np.asarray([-.03, -.03, -.02, .08, .08, .06, .04, .04, .01, .01]),
+        ],
+        [
+            np.asarray(["g1", "g1", "g2", "g2", "g3", "g3", "g4", "g4", "g5", "g5"], dtype=object),
+            np.asarray(["g6", "g6", "g7", "g7", "g8", "g8", "g9", "g9", "g10", "g10"], dtype=object),
+        ],
         draws=400,
     )
-    assert repeated["clusters"] == 4
+    assert repeated["clusters"] == 10
     assert 0.0 <= repeated["probability_improvement"] <= 1.0
 
     loss_equal = np.zeros_like(bp)
