@@ -124,7 +124,7 @@ def uncertainty_features(base_probs: np.ndarray, context: np.ndarray) -> np.ndar
     # Context layout: canonical 10 router columns, then 14 matchday
     # columns (10 state + 4 quality), then 3 population-drift columns.
     matchday = ctx[:, 10:24] if ctx.shape[1] > 10 else np.empty((len(bp), 0))
-    global_drift = ctx[:, 24:27] if ctx.shape[1] > 24 else np.empty((len(bp), 0))
+    global_drift = ctx[:, -3:] if ctx.shape[1] >= 13 else np.empty((len(bp), 0))
     if matchday.shape[1] >= 10:
         finite_md = np.isfinite(matchday)
         md_missing = 1.0 - np.mean(finite_md, axis=1)
