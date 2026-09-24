@@ -42,8 +42,12 @@ def population_drift_features(reference: np.ndarray, current: np.ndarray) -> np.
     ref_med = np.nanmedian(ref, axis=0)
     q75 = np.nanpercentile(ref, 75.0, axis=0)
     q25 = np.nanpercentile(ref, 25.0, axis=0)
+    ref_med = np.where(np.isfinite(ref_med), ref_med, 0.0)
+    q75 = np.where(np.isfinite(q75), q75, ref_med + 0.5)
+    q25 = np.where(np.isfinite(q25), q25, ref_med - 0.5)
     scale = np.maximum(q75 - q25, 1e-6)
     cur_med = np.nanmedian(cur, axis=0)
+    cur_med = np.where(np.isfinite(cur_med), cur_med, ref_med)
     robust_shift = np.nanmean(np.minimum(np.abs(cur_med - ref_med) / scale, 5.0) / 5.0)
     missing_shift = np.nanmean(
         np.abs(np.mean(np.isfinite(cur), axis=0) - np.mean(np.isfinite(ref), axis=0))
@@ -731,16 +735,19 @@ def temporal_recalibration(p, y, groups=None):
     from src.research_cycle_v4 import metric
     methods = ["none", "sigmoid", "beta", "isotonic"]
     scores = {m: [] for m in methods}
-    predictions = {m: [] for m in methods}
+    predictions = {m: {} for m in methods}
+    fold_scores = {m: {} for m in methods}
     bounds = list(folds)
 
-    for method in methods:
-        for a, b in bounds:
+    for fold_index, (a, b) in enumerate(bounds):
+        for method in methods:
             pp, _ = fit_predict(method, p[:a], y[:a], p[a:b])
             if pp is None:
                 continue
-            scores[method].append(metric(y[a:b], pp))
-            predictions[method].append(np.asarray(pp, dtype=float))
+            score = metric(y[a:b], pp)
+            scores[method].append(score)
+            fold_scores[method][fold_index] = score
+            predictions[method][fold_index] = np.asarray(pp, dtype=float)
 
     raw = scores["none"]
     if len(raw) < 5:
@@ -773,19 +780,19 @@ def temporal_recalibration(p, y, groups=None):
     bootstrap = {"probability_improvement": 0.0, "p05_improvement": float("-inf")}
     cluster_bootstrap = {"probability_improvement": 0.0, "p05_improvement": float("-inf"), "clusters": 0}
     if method != "none":
-        aligned = min(len(candidates["none"]), len(candidates[method]))
+        common_folds = sorted(set(fold_scores["none"]).intersection(fold_scores[method]))
         fold_deltas = [
-            float(candidates[method][i]["logloss"] - candidates["none"][i]["logloss"])
-            for i in range(aligned)
+            float(fold_scores[method][i]["logloss"] - fold_scores["none"][i]["logloss"])
+            for i in common_folds
         ]
         bootstrap = bootstrap_fold_improvement(
             fold_deltas, seed=20260924, draws=2000
         )
-        candidate_preds = predictions.get(method, [])
-        raw_preds = predictions.get("none", [])
+        candidate_preds = predictions.get(method, {})
+        raw_preds = predictions.get("none", {})
         cluster_deltas = []
         cluster_groups = []
-        for i in range(min(len(candidate_preds), len(raw_preds), len(bounds))):
+        for i in sorted(set(candidate_preds).intersection(raw_preds)):
             a, b = bounds[i]
             cp = np.asarray(candidate_preds[i], dtype=float)
             rp = np.asarray(raw_preds[i], dtype=float)
