@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from src.matchday_intelligence_oos import build_matchday_intelligence
+from src.matchday_intelligence_oos import build_matchday_context_rows, build_matchday_intelligence
 from src.storage.db_v45 import SCHEMA, _migrate
 
 
@@ -76,6 +76,8 @@ def main() -> None:
         c.close()
 
         r = build_matchday_intelligence("e1","2026-09-24T11:00:00+00:00",db)
+        horizon = build_matchday_context_rows([("e1","2026-09-24T12:00:00+00:00")], db, lead_minutes=90)
+        assert len(horizon) == 1 and len(horizon[0]) == 14
         assert r["event_id"] == "e1"
         assert r["features"]["availability_out_side_a"] == 0
         assert r["features"]["availability_out_side_b"] == 0
@@ -85,7 +87,11 @@ def main() -> None:
         assert r["features"]["news_signal_count"] == 1
         assert r["rest_schedule"]["t1"]["rest_days"] == 2.0
         vec = __import__("src.matchday_intelligence_oos", fromlist=["router_context_vector"]).router_context_vector(r)
-        assert len(vec) == 10 and all(v == v or v != v for v in vec)
+        assert len(vec) == 14 and all(v == v or v != v for v in vec)
+        assert r['features']['matchday_source_diversity'] == 1.0
+        assert r['features']['matchday_conflict_rate'] == 0.0
+        assert r['features']['matchday_confidence_mean'] == 0.99
+        assert 0.0 < r['features']['matchday_freshness_score'] <= 1.0
         assert all("99.0" not in str(v) for v in r["typed_context"]["weather"].values())
         assert r["policy"].startswith("research_only;")
         print("MATCHDAY_INTELLIGENCE_OOS=PASS")

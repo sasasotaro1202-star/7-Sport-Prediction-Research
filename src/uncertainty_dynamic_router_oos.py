@@ -25,6 +25,68 @@ def predictive_entropy(p):
     return -(p * np.log(p) + (1.0 - p) * np.log(1.0 - p))
 
 
+def population_drift_features(reference: np.ndarray, current: np.ndarray) -> np.ndarray:
+    """Compute bounded population drift state from prediction-time covariates.
+
+    The state is outcome-free. It combines robust location shift, missingness
+    shift, and a bounded RBF-MMD estimate. The deterministic row cap keeps the
+    research path inexpensive and reproducible.
+    """
+    ref = np.asarray(reference, dtype=float)
+    cur = np.asarray(current, dtype=float)
+    if ref.ndim != 2 or cur.ndim != 2 or ref.shape[1] != cur.shape[1]:
+        raise ValueError("reference/current feature shape mismatch")
+    if len(ref) == 0 or len(cur) == 0 or ref.shape[1] == 0:
+        return np.zeros(3, dtype=float)
+
+    ref_med = np.nanmedian(ref, axis=0)
+    q75 = np.nanpercentile(ref, 75.0, axis=0)
+    q25 = np.nanpercentile(ref, 25.0, axis=0)
+    ref_med = np.where(np.isfinite(ref_med), ref_med, 0.0)
+    q75 = np.where(np.isfinite(q75), q75, ref_med + 0.5)
+    q25 = np.where(np.isfinite(q25), q25, ref_med - 0.5)
+    scale = np.maximum(q75 - q25, 1e-6)
+    cur_med = np.nanmedian(cur, axis=0)
+    cur_med = np.where(np.isfinite(cur_med), cur_med, ref_med)
+    robust_shift = np.nanmean(np.minimum(np.abs(cur_med - ref_med) / scale, 5.0) / 5.0)
+    missing_shift = np.nanmean(
+        np.abs(np.mean(np.isfinite(cur), axis=0) - np.mean(np.isfinite(ref), axis=0))
+    )
+    if not np.isfinite(robust_shift):
+        robust_shift = 0.0
+    if not np.isfinite(missing_shift):
+        missing_shift = 0.0
+
+    def _matrix(x, limit=96):
+        if len(x) > limit:
+            idx = np.linspace(0, len(x) - 1, limit, dtype=int)
+            x = x[idx]
+        z = np.where(np.isfinite(x), x, ref_med[None, :])
+        z = (z - ref_med[None, :]) / scale[None, :]
+        z = np.clip(z, -8.0, 8.0)
+        return z
+
+    r = _matrix(ref)
+    c = _matrix(cur)
+    rr = np.sum((r[:, None, :] - r[None, :, :]) ** 2, axis=2)
+    cc = np.sum((c[:, None, :] - c[None, :, :]) ** 2, axis=2)
+    rc = np.sum((r[:, None, :] - c[None, :, :]) ** 2, axis=2)
+    cross = rc[np.isfinite(rc)]
+    bandwidth = float(np.sqrt(np.median(cross[cross > 0.0]))) if np.any(cross > 0.0) else 1.0
+    bandwidth = max(bandwidth, 0.25)
+    denom = 2.0 * bandwidth * bandwidth
+    krr = np.exp(-rr / denom)
+    kcc = np.exp(-cc / denom)
+    krc = np.exp(-rc / denom)
+    mmd2 = float(np.mean(krr) + np.mean(kcc) - 2.0 * np.mean(krc))
+    mmd_score = float(np.clip(max(mmd2, 0.0) / (max(mmd2, 0.0) + 0.05), 0.0, 1.0))
+    return np.asarray([
+        float(np.clip(robust_shift, 0.0, 1.0)),
+        float(np.clip(missing_shift, 0.0, 1.0)),
+        mmd_score,
+    ], dtype=float)
+
+
 def uncertainty_features(base_probs: np.ndarray, context: np.ndarray) -> np.ndarray:
     """
     Row-local uncertainty/drift features.
@@ -59,35 +121,71 @@ def uncertainty_features(base_probs: np.ndarray, context: np.ndarray) -> np.ndar
     row_shift = ctx[:, 3] if ctx.shape[1] > 3 else np.zeros(len(bp))
     recent_shift = ctx[:, 8] if ctx.shape[1] > 8 else row_shift
     row_missing = ctx[:, 2] if ctx.shape[1] > 2 else np.zeros(len(bp))
-    # Matchday context may be appended after the canonical 10 router columns.
-    # Treat missing matchday evidence as unknown, not as an affirmative signal.
-    matchday = ctx[:, 10:] if ctx.shape[1] > 10 else np.empty((len(bp), 0))
-    if matchday.shape[1]:
+    # Context layout: canonical 10 router columns, then 14 matchday
+    # columns (10 state + 4 quality), then 3 population-drift columns.
+    matchday = ctx[:, 10:24] if ctx.shape[1] > 10 else np.empty((len(bp), 0))
+    global_drift = ctx[:, 24:27] if ctx.shape[1] > 24 else np.empty((len(bp), 0))
+    if matchday.shape[1] >= 10:
         finite_md = np.isfinite(matchday)
         md_missing = 1.0 - np.mean(finite_md, axis=1)
-        bounded = np.nan_to_num(matchday, nan=0.0, posinf=0.0, neginf=0.0)
+        bounded_state = np.nan_to_num(matchday[:, :10], nan=0.0, posinf=0.0, neginf=0.0)
+        # The first seven fields carry actual late-state movement; counts are
+        # normalized and quality metadata is handled separately below.
         md_mag = np.mean(
             np.column_stack([
-                np.clip(np.abs(bounded[:, 0]), 0.0, 5.0) / 5.0,
-                np.clip(np.abs(bounded[:, 1]), 0.0, 5.0) / 5.0,
-                np.clip(np.abs(bounded[:, 2]), 0.0, 5.0) / 5.0,
-                np.clip(np.abs(bounded[:, 3]), 0.0, 7.0) / 7.0,
-                np.clip(np.abs(bounded[:, 4]), 0.0, 4.0) / 4.0,
-                np.clip(np.abs(bounded[:, 5]), 0.0, 4.0) / 4.0,
-                np.clip(np.abs(bounded[:, 6]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded_state[:, 0]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded_state[:, 1]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded_state[:, 2]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded_state[:, 3]), 0.0, 7.0) / 7.0,
+                np.clip(np.abs(bounded_state[:, 4]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded_state[:, 5]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded_state[:, 6]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded_state[:, 7]), 0.0, 1.0),
+                np.clip(np.abs(bounded_state[:, 8]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded_state[:, 9]), 0.0, 1.0),
             ]),
             axis=1,
         )
-        # High missingness lowers the trust in any matchday regime signal.
-        matchday_shock = np.clip(0.80 * md_mag + 0.20 * (1.0 - md_missing), 0.0, 1.0)
+        quality = np.nan_to_num(matchday[:, 10:14], nan=np.nan)
+        md_quality_missing = np.mean(~np.isfinite(quality), axis=1) if quality.shape[1] else np.ones(len(bp))
+        quality = np.nan_to_num(quality, nan=0.0, posinf=0.0, neginf=0.0)
+        # Confidence/freshness/diversity raise trust; conflicts lower it.
+        md_quality_score = np.clip(
+            0.30 * quality[:, 0]
+            + 0.30 * quality[:, 2]
+            + 0.20 * quality[:, 3]
+            + 0.20 * (1.0 - quality[:, 1]),
+            0.0,
+            1.0,
+        )
+        matchday_shock = np.clip(
+            0.65 * md_mag
+            + 0.15 * (1.0 - md_missing)
+            + 0.20 * md_quality_score,
+            0.0,
+            1.0,
+        )
+    elif matchday.shape[1]:
+        matchday_shock = np.zeros(len(bp))
     else:
         matchday_shock = np.zeros(len(bp))
 
+    if global_drift.shape[1] == 3:
+        gd = np.nan_to_num(global_drift, nan=0.0, posinf=0.0, neginf=0.0)
+        population_shock = np.clip(
+            0.55 * gd[:, 0] + 0.20 * gd[:, 1] + 0.25 * gd[:, 2],
+            0.0,
+            1.0,
+        )
+    else:
+        population_shock = np.zeros(len(bp))
+
     drift = np.clip(
-        0.40 * np.clip(row_shift, 0.0, 8.0) / 8.0
-        + 0.28 * np.clip(recent_shift, 0.0, 8.0) / 8.0
-        + 0.12 * np.clip(row_missing, 0.0, 1.0)
-        + 0.20 * matchday_shock,
+        0.30 * np.clip(row_shift, 0.0, 8.0) / 8.0
+        + 0.20 * np.clip(recent_shift, 0.0, 8.0) / 8.0
+        + 0.10 * np.clip(row_missing, 0.0, 1.0)
+        + 0.20 * matchday_shock
+        + 0.20 * population_shock,
         0.0,
         1.0,
     )
@@ -528,7 +626,51 @@ def bootstrap_fold_improvement(fold_deltas, seed=20260924, draws=1000):
     }
 
 
-def temporal_recalibration(p, y):
+def bootstrap_clustered_improvement(fold_deltas, fold_groups, seed=20260924, draws=2000):
+    """Cluster-bootstrap row-level calibration deltas by physical event."""
+    if not fold_deltas or not fold_groups or len(fold_deltas) != len(fold_groups):
+        return {
+            "probability_improvement": 0.0,
+            "p05_improvement": float("-inf"),
+            "clusters": 0,
+        }
+    rng = np.random.default_rng(seed)
+    fold_means = []
+    cluster_count = 0
+    for delta, groups in zip(fold_deltas, fold_groups):
+        d = np.asarray(delta, dtype=float)
+        g = np.asarray(groups, dtype=object)
+        if len(d) == 0 or len(d) != len(g) or not np.isfinite(d).all():
+            continue
+        unique = np.unique(g)
+        if len(unique) < 5:
+            return {
+                "probability_improvement": 0.0,
+                "p05_improvement": float("-inf"),
+                "clusters": int(len(unique)),
+            }
+        cluster_values = np.asarray([
+            float(np.mean(d[g == key])) for key in unique
+        ], dtype=float)
+        cluster_count += len(cluster_values)
+        idx = rng.integers(0, len(cluster_values), size=(draws, len(cluster_values)))
+        boot_fold = cluster_values[idx].mean(axis=1)
+        fold_means.append(boot_fold)
+    if not fold_means:
+        return {
+            "probability_improvement": 0.0,
+            "p05_improvement": float("-inf"),
+            "clusters": int(cluster_count),
+        }
+    improvement = -np.mean(np.column_stack(fold_means), axis=1)
+    return {
+        "probability_improvement": float(np.mean(improvement > 0.0)),
+        "p05_improvement": float(np.quantile(improvement, 0.05)),
+        "clusters": int(cluster_count),
+    }
+
+
+def temporal_recalibration(p, y, groups=None):
     """
     Fit a low-capacity calibrator only on pre-holdout sequential data.
 
@@ -539,6 +681,16 @@ def temporal_recalibration(p, y):
     """
     p = _clip_prob(p)
     y = np.asarray(y, dtype=int)
+    if groups is None:
+        groups = np.arange(len(p), dtype=object)
+    else:
+        groups = np.asarray(groups, dtype=object)
+        if len(groups) != len(p):
+            return {
+                "accepted": False,
+                "method": "none",
+                "reason": "calibration_group_shape_mismatch",
+            }
     n = len(p)
     if n < 300 or len(np.unique(y)) < 2:
         return {
@@ -598,14 +750,19 @@ def temporal_recalibration(p, y):
     from src.research_cycle_v4 import metric
     methods = ["none", "sigmoid", "beta", "isotonic"]
     scores = {m: [] for m in methods}
+    predictions = {m: {} for m in methods}
+    fold_scores = {m: {} for m in methods}
     bounds = list(folds)
 
-    for method in methods:
-        for a, b in bounds:
+    for fold_index, (a, b) in enumerate(bounds):
+        for method in methods:
             pp, _ = fit_predict(method, p[:a], y[:a], p[a:b])
             if pp is None:
                 continue
-            scores[method].append(metric(y[a:b], pp))
+            score = metric(y[a:b], pp)
+            scores[method].append(score)
+            fold_scores[method][fold_index] = score
+            predictions[method][fold_index] = np.asarray(pp, dtype=float)
 
     raw = scores["none"]
     if len(raw) < 5:
@@ -636,14 +793,31 @@ def temporal_recalibration(p, y):
     cand_brier = float(np.mean([z["brier"] for z in candidates[method]]))
 
     bootstrap = {"probability_improvement": 0.0, "p05_improvement": float("-inf")}
+    cluster_bootstrap = {"probability_improvement": 0.0, "p05_improvement": float("-inf"), "clusters": 0}
     if method != "none":
-        aligned = min(len(candidates["none"]), len(candidates[method]))
+        common_folds = sorted(set(fold_scores["none"]).intersection(fold_scores[method]))
         fold_deltas = [
-            float(candidates[method][i]["logloss"] - candidates["none"][i]["logloss"])
-            for i in range(aligned)
+            float(fold_scores[method][i]["logloss"] - fold_scores["none"][i]["logloss"])
+            for i in common_folds
         ]
         bootstrap = bootstrap_fold_improvement(
             fold_deltas, seed=20260924, draws=2000
+        )
+        candidate_preds = predictions.get(method, {})
+        raw_preds = predictions.get("none", {})
+        cluster_deltas = []
+        cluster_groups = []
+        for i in sorted(set(candidate_preds).intersection(raw_preds)):
+            a, b = bounds[i]
+            cp = np.asarray(candidate_preds[i], dtype=float)
+            rp = np.asarray(raw_preds[i], dtype=float)
+            if len(cp) != (b - a) or len(rp) != (b - a):
+                continue
+            delta = _bce_loss(cp, y[a:b]) - _bce_loss(rp, y[a:b])
+            cluster_deltas.append(delta)
+            cluster_groups.append(groups[a:b])
+        cluster_bootstrap = bootstrap_clustered_improvement(
+            cluster_deltas, cluster_groups, seed=20260924, draws=2000
         )
 
     accepted = (
@@ -652,6 +826,8 @@ def temporal_recalibration(p, y):
         and cand_brier <= raw_brier + 0.002
         and bootstrap["probability_improvement"] >= 0.90
         and bootstrap["p05_improvement"] > 0.0
+        and cluster_bootstrap["probability_improvement"] >= 0.90
+        and cluster_bootstrap["p05_improvement"] > 0.0
     )
     if not accepted:
         return {
@@ -661,6 +837,7 @@ def temporal_recalibration(p, y):
             "selected_candidate": method,
             "candidate_methods": candidates,
             "bootstrap": bootstrap,
+            "cluster_bootstrap": cluster_bootstrap,
         }
 
     if method == "sigmoid":
@@ -685,12 +862,14 @@ def temporal_recalibration(p, y):
         "model": final,
         "candidate_methods": candidates,
         "bootstrap": bootstrap,
+        "cluster_bootstrap": cluster_bootstrap,
     }
 
 
 __all__ = [
     "predictive_entropy",
     "uncertainty_features",
+    "population_drift_features",
     "route_uncertainty_score",
     "expert_voi_targets",
     "fit_uncertainty_loss_selector",
@@ -700,4 +879,5 @@ __all__ = [
     "route_with_selector",
     "apply_recalibration",
     "bootstrap_fold_improvement",
+    "bootstrap_clustered_improvement",
 ]

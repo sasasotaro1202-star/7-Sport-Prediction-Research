@@ -349,7 +349,7 @@ def train(s):
   matchday_holdout_ctx=np.asarray(
    matchday_intelligence.build_matchday_context_rows(holdout_rows),dtype=float
   )
-  if matchday_train_ctx.shape!=(sel,10) or matchday_holdout_ctx.shape!=(hn,10):
+  if matchday_train_ctx.shape!=(sel,14) or matchday_holdout_ctx.shape!=(hn,14):
    return _write_result(s,{'sport':s,'status':'DEFERRED_MATCHDAY_CONTEXT','reason':'matchday_context_shape_mismatch',
                            'training_shape':list(matchday_train_ctx.shape),'holdout_shape':list(matchday_holdout_ctx.shape)})
   # Construct the pool once per sport. Recreating every estimator wrapper for
@@ -369,6 +369,7 @@ def train(s):
   step=max(10,int(np.ceil(max(1,sel-start)/target_oos_folds)))
   oof_probs={name:[] for name in names}
   oof_y=[]
+  oof_event_ids=[]
   oof_folds=[]
   for end in range(start,sel,step):
    te=min(end+step,sel)
@@ -380,9 +381,14 @@ def train(s):
     fold_pred[name]=np.clip(m.predict_proba(X[end:te])[:,1],1e-6,1-1e-6)
     oof_probs[name].extend(fold_pred[name].tolist())
    oof_y.extend(y[end:te].tolist())
+   oof_event_ids.extend([str(r[0]) for r in train_rows[end:te]])
    base_router_ctx=router._context(X[:end],X[end:te])
-   fold_router_ctx=np.column_stack([base_router_ctx,matchday_train_ctx[end:te]])
-   oof_folds.append({'end':end,'te':te,'preds':fold_pred,'context':fold_router_ctx})
+   population_drift=uncertainty_router.population_drift_features(X[:end],X[end:te])
+   population_ctx=np.repeat(population_drift[None,:],te-end,axis=0)
+   fold_router_ctx=np.column_stack([base_router_ctx,matchday_train_ctx[end:te],population_ctx])
+   oof_folds.append({'end':end,'te':te,'preds':fold_pred,'context':fold_router_ctx,
+                     'event_ids':[str(r[0]) for r in train_rows[end:te]],
+                     'population_drift':population_drift.tolist()})
   oof_y=np.asarray(oof_y,int)
   if len(oof_y)<30 or len(np.unique(oof_y))<2:
    return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
@@ -762,7 +768,7 @@ def train(s):
    oof_target=np.asarray(uncertainty_eval.get('oof_targets') or [],dtype=int)
    if uncertainty_eval.get('status')=='EVALUATED' and len(raw_oof)==len(oof_target) and len(raw_oof)>=180:
     uncertainty_calibration=uncertainty_router.temporal_recalibration(
-     np.asarray(raw_oof,dtype=float),oof_target
+     np.asarray(raw_oof,dtype=float),oof_target,np.asarray(oof_event_ids,dtype=object)
     )
     # Build the final research-only selector from all pre-holdout OOF folds.
     u_selector,u_history,u_oof_rows=uncertainty_router.fit_final_selector_from_folds(
@@ -775,9 +781,12 @@ def train(s):
      hold_bp*np.asarray([candidate_weights[name] for name in router_names])[None,:],
      axis=1
     )
+    holdout_population_drift=uncertainty_router.population_drift_features(X,X_holdout)
+    holdout_population_ctx=np.repeat(holdout_population_drift[None,:],len(X_holdout),axis=0)
     hold_ctx=np.column_stack([
      router._context(X,X_holdout),
-     matchday_holdout_ctx
+     matchday_holdout_ctx,
+     holdout_population_ctx
     ])
     raw_hold_unc=uncertainty_router.route_with_selector(
      u_selector,u_history,hold_bp,hold_ctx,hold_baseline
