@@ -304,7 +304,7 @@ def evaluate_oof(
             _clip_prob(np.asarray(fold["preds"][n], dtype=float))
             for n in names
         ])
-        ctx = _fold_context(X, end, te)
+        ctx = np.asarray(fold.get("context"), dtype=float) if fold.get("context") is not None else _fold_context(X, end, te)
         history = _history_loss(meta_l, len(names))
         uf = uncertainty_features(bp, ctx)
         features = np.column_stack([
@@ -419,7 +419,7 @@ def fit_final_selector_from_folds(
             _clip_prob(np.asarray(fold["preds"][n], dtype=float))
             for n in names
         ])
-        ctx = _fold_context(X, end, te)
+        ctx = np.asarray(fold.get("context"), dtype=float) if fold.get("context") is not None else _fold_context(X, end, te)
         history = _history_loss(meta_l, len(names))
         uf = uncertainty_features(bp, ctx)
         features = np.column_stack([
