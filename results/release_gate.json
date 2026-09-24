@@ -31,11 +31,11 @@
       "model_safety": "OK"
     },
     "volleyball": {
-      "events": 21129,
-      "timed_events": 21129,
-      "completed_events": 21129,
-      "resolved_outcomes": 19518,
-      "verified_model_outcomes": 19518,
+      "events": 21131,
+      "timed_events": 21131,
+      "completed_events": 21131,
+      "resolved_outcomes": 19521,
+      "verified_model_outcomes": 19521,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
@@ -49,11 +49,11 @@
       "model_safety": "OK"
     },
     "rizin": {
-      "events": 80,
-      "timed_events": 80,
-      "completed_events": 80,
-      "resolved_outcomes": 80,
-      "verified_model_outcomes": 80,
+      "events": 81,
+      "timed_events": 81,
+      "completed_events": 81,
+      "resolved_outcomes": 81,
+      "verified_model_outcomes": 81,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
