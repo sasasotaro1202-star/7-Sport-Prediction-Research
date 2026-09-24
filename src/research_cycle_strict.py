@@ -1033,8 +1033,23 @@ def train(s):
     for i,name in enumerate(best)
    },baseline_weights=candidate_weights
   ) if len(best)>=2 else {'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected incumbent has one model'}
+  fixed_share_hedge_blocks=list(fixed_share_hedge_eval.get('nonoverlap_block_deltas') or [])
+  fixed_share_hedge_block_improvements=sum(1 for d in fixed_share_hedge_blocks if float(d)<0.0)
+  fixed_share_hedge_min_gain=max(.001,.005*float(selected_oos_metric['logloss']))
+  fixed_share_hedge_accept=(
+   fixed_share_hedge_eval.get('status')=='EVALUATED'
+   and fixed_share_hedge_eval.get('folds',0)>=6
+   and len(fixed_share_hedge_blocks)>=3
+   and fixed_share_hedge_block_improvements>=2
+   and max(fixed_share_hedge_blocks)<=max(.001,.005*float(selected_oos_metric['logloss']))
+   and fixed_share_hedge_eval.get('logloss_improvement',-1.0)>=fixed_share_hedge_min_gain
+   and fixed_share_hedge_eval.get('brier_improvement',-1.0)>=-.002
+   and fixed_share_hedge_eval.get('ece_change',1.0)<=.02
+   and fixed_share_hedge_eval.get('bootstrap_p05_improvement',float('-inf'))>0.0
+   and fixed_share_hedge_eval.get('bootstrap_prob_improvement',0.0)>=.90
+  )
   fixed_share_hedge_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
-  fixed_share_hedge_eval['accepted_for_research_comparison']=False
+  fixed_share_hedge_eval['accepted_for_research_comparison']=bool(fixed_share_hedge_accept)
   # Research-only next generation: uncertainty/disagreement/drift-aware routing
   # followed by a separate temporal recalibration layer. It never changes the
   # incumbent artifact directly; release remains controlled by the existing gate.
