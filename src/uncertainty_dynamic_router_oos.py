@@ -121,37 +121,52 @@ def uncertainty_features(base_probs: np.ndarray, context: np.ndarray) -> np.ndar
     row_shift = ctx[:, 3] if ctx.shape[1] > 3 else np.zeros(len(bp))
     recent_shift = ctx[:, 8] if ctx.shape[1] > 8 else row_shift
     row_missing = ctx[:, 2] if ctx.shape[1] > 2 else np.zeros(len(bp))
-    # Context layout: canonical 10 router columns, 4 matchday-quality columns,
-    # then 3 population-drift columns. Missing context remains unknown.
-    matchday = ctx[:, 10:14] if ctx.shape[1] > 10 else np.empty((len(bp), 0))
-    global_drift = ctx[:, 14:17] if ctx.shape[1] > 14 else np.empty((len(bp), 0))
-    if matchday.shape[1]:
+    # Context layout: canonical 10 router columns, then 14 matchday
+    # columns (10 state + 4 quality), then 3 population-drift columns.
+    matchday = ctx[:, 10:24] if ctx.shape[1] > 10 else np.empty((len(bp), 0))
+    global_drift = ctx[:, 24:27] if ctx.shape[1] > 24 else np.empty((len(bp), 0))
+    if matchday.shape[1] >= 10:
         finite_md = np.isfinite(matchday)
         md_missing = 1.0 - np.mean(finite_md, axis=1)
-        bounded = np.nan_to_num(matchday, nan=0.0, posinf=0.0, neginf=0.0)
+        bounded_state = np.nan_to_num(matchday[:, :10], nan=0.0, posinf=0.0, neginf=0.0)
+        # The first seven fields carry actual late-state movement; counts are
+        # normalized and quality metadata is handled separately below.
         md_mag = np.mean(
             np.column_stack([
-                np.clip(np.abs(bounded[:, 0]), 0.0, 5.0) / 5.0,
-                np.clip(np.abs(bounded[:, 1]), 0.0, 5.0) / 5.0,
-                np.clip(np.abs(bounded[:, 2]), 0.0, 5.0) / 5.0,
-                np.clip(np.abs(bounded[:, 3]), 0.0, 7.0) / 7.0,
+                np.clip(np.abs(bounded_state[:, 0]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded_state[:, 1]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded_state[:, 2]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded_state[:, 3]), 0.0, 7.0) / 7.0,
+                np.clip(np.abs(bounded_state[:, 4]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded_state[:, 5]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded_state[:, 6]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded_state[:, 7]), 0.0, 1.0),
+                np.clip(np.abs(bounded_state[:, 8]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded_state[:, 9]), 0.0, 1.0),
             ]),
             axis=1,
         )
+        quality = np.nan_to_num(matchday[:, 10:14], nan=np.nan)
+        md_quality_missing = np.mean(~np.isfinite(quality), axis=1) if quality.shape[1] else np.ones(len(bp))
+        quality = np.nan_to_num(quality, nan=0.0, posinf=0.0, neginf=0.0)
         # Confidence/freshness/diversity raise trust; conflicts lower it.
-        md_quality = np.clip(
-            0.30 * np.nan_to_num(bounded[:, 0], nan=0.0)
-            + 0.30 * np.nan_to_num(bounded[:, 2], nan=0.0)
-            + 0.20 * np.nan_to_num(bounded[:, 3], nan=0.0)
-            + 0.20 * (1.0 - np.nan_to_num(bounded[:, 1], nan=1.0)),
+        md_quality_score = np.clip(
+            0.30 * quality[:, 0]
+            + 0.30 * quality[:, 2]
+            + 0.20 * quality[:, 3]
+            + 0.20 * (1.0 - quality[:, 1]),
             0.0,
             1.0,
         )
         matchday_shock = np.clip(
-            0.60 * md_mag + 0.20 * (1.0 - md_missing) + 0.20 * md_quality,
+            0.65 * md_mag
+            + 0.15 * (1.0 - md_missing)
+            + 0.20 * md_quality_score,
             0.0,
             1.0,
         )
+    elif matchday.shape[1]:
+        matchday_shock = np.zeros(len(bp))
     else:
         matchday_shock = np.zeros(len(bp))
 
