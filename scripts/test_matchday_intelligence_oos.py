@@ -26,12 +26,12 @@ def main() -> None:
             ("prev","basketball","B","2026-09-22T12:00:00+00:00","COMPLETED","OK"),
         )
         c.execute(
-            "INSERT INTO participant(participant_id,sport,canonical_name) VALUES(?,?,?)",
-            ("p1","basketball","Player One"),
+            "INSERT INTO participant(participant_id,sport,participant_type,canonical_name) VALUES(?,?,?,?)",
+            ("p1","basketball","PLAYER","Player One"),
         )
         c.execute(
             "INSERT INTO participant(participant_id,sport,canonical_name) VALUES(?,?,?)",
-            ("p2","basketball","Player Two"),
+            ("p2","basketball","PLAYER","Player Two"),
         )
         c.executemany(
             "INSERT INTO event_participant(event_id,participant_id,team_id,side,lineup_status,source,effective_at_utc,quality_status) "
