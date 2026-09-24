@@ -70,4 +70,6 @@ if __name__ == "__main__":
     test_risk_target_only_marks_high_confidence_misses()
     test_policy_shrinkage_respects_risk_and_confidence_gates()
     test_policy_shrinkage_is_toward_half_and_bounded()
+    test_dissent_probability_uses_only_opposing_experts()
+    test_dissent_rescue_can_change_pick_only_under_gates()
     test_feature_matrix_preserves_nan_context()
