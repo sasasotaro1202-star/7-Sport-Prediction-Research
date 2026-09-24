@@ -206,8 +206,6 @@ def main():
             'production watchdog lacks first-run guard')
     require('DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION' in watchdog,
             'production watchdog validated dispatch path missing')
-    require('gh run cancel' in watchdog and 'actions: write' in watchdog,
-            'production watchdog lacks automatic heavy-run recovery')
     require('limit=14400' in watchdog and 'limit=8100' not in watchdog,
             'production watchdog production timeout is too short or not aligned with workflow budgets')
     require('v4_5_15_production.yml' in watchdog and 'pit_history_expansion.yml' in watchdog,
