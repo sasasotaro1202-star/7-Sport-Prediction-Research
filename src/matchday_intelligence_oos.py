@@ -77,7 +77,7 @@ def _latest_availability(con, event_id, cutoff):
            AND datetime(a.effective_at_utc) <= datetime(?)
          ORDER BY a.effective_at_utc DESC,a.observed_at_utc DESC
         """,
-        (event_id, cutoff),
+        (event_id, cutoff, cutoff),
     ).fetchall()
     latest = {}
     for row in rows:
@@ -102,7 +102,7 @@ def _latest_lineup(con, event_id, cutoff):
            AND datetime(ep.effective_at_utc) <= datetime(?)
          ORDER BY ep.effective_at_utc DESC
         """,
-        (event_id, cutoff, cutoff),
+        (event_id, cutoff),
     ).fetchall()
     latest = {}
     for row in rows:
