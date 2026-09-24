@@ -76,7 +76,8 @@ def _signal_rows(con, event_id, cutoff):
         FROM availability
         WHERE event_id=?
           AND datetime(observed_at_utc) <= datetime(?)
-          AND (effective_at_utc IS NULL OR datetime(effective_at_utc) <= datetime(?))
+          AND effective_at_utc IS NOT NULL
+          AND datetime(effective_at_utc) <= datetime(?)
         ORDER BY COALESCE(effective_at_utc,observed_at_utc) DESC,
                  observed_at_utc DESC
         """,
@@ -104,7 +105,8 @@ def _participant_and_lineup(con, event_id, cutoff):
         LEFT JOIN participant p ON p.participant_id=ep.participant_id
         WHERE ep.event_id=?
           AND ep.participant_id IS NOT NULL
-          AND (ep.effective_at_utc IS NULL OR datetime(ep.effective_at_utc) <= datetime(?))
+          AND ep.effective_at_utc IS NOT NULL
+          AND datetime(ep.effective_at_utc) <= datetime(?)
         """,
         (event_id, cutoff),
     ).fetchall()
@@ -181,7 +183,8 @@ def _typed_match_stats(con, event_id, cutoff):
         FROM match_stats
         WHERE event_id=?
           AND datetime(observed_at_utc) <= datetime(?)
-          AND (effective_at_utc IS NULL OR datetime(effective_at_utc) <= datetime(?))
+          AND effective_at_utc IS NOT NULL
+          AND datetime(effective_at_utc) <= datetime(?)
         ORDER BY stat_name,
                  COALESCE(effective_at_utc,observed_at_utc) DESC,
                  observed_at_utc DESC
@@ -226,6 +229,11 @@ def build_matchday_intelligence(event_id: str, cutoff_utc: str, db_path: Path = 
         ).fetchone()
         if not event:
             raise KeyError(f"unknown event_id: {event_id}")
+        event_time = _dt(event[2])
+        if event_time is None:
+            raise ValueError("event_time_utc is required for matchday intelligence")
+        if cutoff > event_time:
+            raise ValueError("prediction cutoff must not be after event_time_utc")
 
         availability, raw_availability = _signal_rows(con, event_id, cutoff_utc)
         lineup = _participant_and_lineup(con, event_id, cutoff_utc)
