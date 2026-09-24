@@ -268,6 +268,7 @@ def evaluate_oof(
 
     static_m = metric_fn(np.asarray(y_all), np.asarray(static_all))
     routed_m = metric_fn(np.asarray(y_all), np.asarray(routed_all))
+    boot = bootstrap_fold_improvement(fold_deltas)
     return {
         "status": "EVALUATED",
         "oos_rows": len(meta_l),
@@ -278,7 +279,121 @@ def evaluate_oof(
         "brier_improvement": static_m["brier"] - routed_m["brier"],
         "ece_change": routed_m["ece"] - static_m["ece"],
         "fold_logloss_deltas": [float(x) for x in fold_deltas],
+        "bootstrap_probability_improvement": boot["probability_improvement"],
+        "bootstrap_p05_improvement": boot["p05_improvement"],
+        "oof_targets": [int(x) for x in y_all],
+        "oof_static_predictions": [float(x) for x in static_all],
+        "oof_routed_predictions": [float(x) for x in routed_all],
         "policy": "research_only; chronological OOF; uncertainty_disagreement_drift; no holdout fitting",
+    }
+
+
+
+def fit_final_selector_from_folds(
+    X: np.ndarray,
+    y: np.ndarray,
+    names: Sequence[str],
+    folds: Sequence[Dict],
+):
+    """Fit the uncertainty selector on every pre-holdout OOF fold."""
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y, dtype=int)
+    meta_x, meta_l = [], []
+    for fold in folds:
+        end = int(fold["end"])
+        te = int(fold["te"])
+        bp = np.column_stack([
+            _clip_prob(np.asarray(fold["preds"][n], dtype=float))
+            for n in names
+        ])
+        ctx = _fold_context(X, end, te)
+        history = _history_loss(meta_l, len(names))
+        uf = uncertainty_features(bp, ctx)
+        features = np.column_stack([
+            bp,
+            ctx,
+            np.std(bp, axis=1),
+            uf,
+            np.repeat(history[None, :], len(bp), axis=0),
+        ])
+        yt = y[end:te].astype(float)
+        losses = -(
+            yt[:, None] * np.log(bp)
+            + (1.0 - yt[:, None]) * np.log(1.0 - bp)
+        )
+        meta_x.extend(features.tolist())
+        meta_l.extend(losses.tolist())
+    selector = fit_uncertainty_loss_selector(
+        np.asarray(meta_x, dtype=float),
+        np.asarray(meta_l, dtype=float),
+        names,
+    )
+    return selector, _history_loss(meta_l, len(names)), len(meta_l)
+
+
+def route_with_selector(
+    selector,
+    history_loss,
+    base_probs: np.ndarray,
+    context: np.ndarray,
+    baseline: np.ndarray,
+):
+    """Apply a selector fitted strictly on pre-holdout OOF data."""
+    bp = _clip_prob(base_probs)
+    ctx = np.asarray(context, dtype=float)
+    history = np.asarray(history_loss, dtype=float)
+    if selector is None:
+        return _clip_prob(baseline)
+    uf = uncertainty_features(bp, ctx)
+    features = np.column_stack([
+        bp,
+        ctx,
+        np.std(bp, axis=1),
+        uf,
+        np.repeat(history[None, :], len(bp), axis=0),
+    ])
+    pred_l = np.column_stack([
+        m.predict(features) for m in selector["selectors"]
+    ])
+    pred_l = np.where(np.isfinite(pred_l), pred_l, np.log(2.0))
+    return route_uncertainty_score(pred_l, bp, ctx, baseline=_clip_prob(baseline))
+
+
+def apply_recalibration(p, calibration):
+    """Apply an accepted temporal calibrator; otherwise return raw probabilities."""
+    p = _clip_prob(p)
+    if not isinstance(calibration, dict) or not calibration.get("accepted"):
+        return p
+    method = str(calibration.get("method") or "none")
+    model = calibration.get("model")
+    if model is None or method == "none":
+        return p
+    if method == "sigmoid":
+        z = np.log(p / (1.0 - p)).reshape(-1, 1)
+        return _clip_prob(model.predict_proba(z)[:, 1])
+    if method == "beta":
+        z = np.column_stack([np.log(p), np.log(1.0 - p)])
+        return _clip_prob(model.predict_proba(z)[:, 1])
+    if method == "isotonic":
+        return _clip_prob(model.predict(p))
+    raise ValueError(f"unsupported calibration method: {method}")
+
+
+def bootstrap_fold_improvement(fold_deltas, seed=20260924, draws=1000):
+    """Fold-level bootstrap: positive values mean lower candidate log loss."""
+    d = np.asarray(fold_deltas, dtype=float)
+    if len(d) < 6 or not np.isfinite(d).all():
+        return {
+            "probability_improvement": 0.0,
+            "p05_improvement": float("-inf"),
+        }
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, len(d), size=(draws, len(d)))
+    boot_delta = d[idx].mean(axis=1)
+    improvement = -boot_delta
+    return {
+        "probability_improvement": float(np.mean(improvement > 0.0)),
+        "p05_improvement": float(np.quantile(improvement, 0.05)),
     }
 
 
@@ -419,4 +534,8 @@ __all__ = [
     "fit_uncertainty_loss_selector",
     "evaluate_oof",
     "temporal_recalibration",
+    "fit_final_selector_from_folds",
+    "route_with_selector",
+    "apply_recalibration",
+    "bootstrap_fold_improvement",
 ]
