@@ -413,6 +413,8 @@ def main():
     require('uncertainty_voi_v3' in uncertainty_src,'uncertainty router lacks the versioned VOI-aware selector contract')
     require('recoverability' in uncertainty_src and 'route_strength' in uncertainty_src,'uncertainty router lacks uncertainty/drift shrinkage')
     require('bootstrap_fold_improvement' in uncertainty_src and 'probability_improvement' in uncertainty_src,'uncertainty router lacks fold-level bootstrap stability evidence')
+    require('population_drift_features' in uncertainty_src and 'MMD' in uncertainty_src,'uncertainty router lacks population-level drift state')
+    require('bootstrap_clustered_improvement' in uncertainty_src and 'cluster_bootstrap' in uncertainty_src,'uncertainty recalibration lacks event-clustered stability evidence')
     require('temporal_recalibration' in uncertainty_src and 'research_only' in uncertainty_src,'uncertainty router lacks research-only temporal recalibration')
     require('recalibration_did_not_pass_temporal_bootstrap_gate' in uncertainty_src and '>= 0.90' in uncertainty_src,'temporal recalibration lacks the strengthened bootstrap acceptance gate')
     require('Uncertainty-aware router research-only regression' in lightweight_src,'uncertainty router regression is not wired into lightweight CI')
@@ -421,10 +423,13 @@ def main():
     require('observed_at_utc' in matchday_src and 'effective_at_utc' in matchday_src,'matchday intelligence layer lacks dual timestamp gating')
     require('missing_signals_are_unknown_not_zero' in matchday_src,'matchday intelligence must not coerce missing context into zero')
     require('direct probability override' in matchday_src,'matchday intelligence layer must not directly override probabilities')
+    require('matchday_source_diversity' in matchday_src and 'matchday_conflict_rate' in matchday_src and 'matchday_freshness_score' in matchday_src,'matchday intelligence lacks source-quality/conflict/freshness state')
     require((ROOT/'scripts/test_matchday_intelligence_oos.py').exists(),'matchday intelligence PIT regression test is missing')
     require('test_matchday_intelligence_oos.py' in lightweight_src,'matchday intelligence regression is not wired into lightweight CI')
     require('matchday_intelligence_oos as matchday_intelligence' in strict_src,'strict research cycle does not import the PIT-safe matchday layer')
     require('build_matchday_context_rows(train_rows)' in strict_src and 'matchday_train_ctx' in strict_src,'strict research cycle does not build matchday context from OOS rows')
+    require('population_drift=uncertainty_router.population_drift_features(X[:end],X[end:te])' in strict_src,'strict research cycle does not compute chronological population drift')
+    require('oof_event_ids' in strict_src and 'np.asarray(oof_event_ids,dtype=object)' in strict_src,'strict research cycle does not use event-clustered recalibration groups')
     require("'context':fold_router_ctx" in strict_src,'strict OOS folds do not persist matchday-augmented router context')
     require('fold.get("context")' in uncertainty_src,'uncertainty router does not consume fold-local matchday context')
     require('holdout_X' in router_src and 'holdout_feature_shape_mismatch' in router_src,'frozen-holdout router scorer lacks explicit holdout feature matrix safety')
@@ -490,8 +495,18 @@ def main():
         require(uf.shape==(2,10) and np.all(np.isfinite(uf)),'uncertainty feature construction is invalid')
         equal=um.route_uncertainty_score(np.zeros_like(bp),bp,uctx)
         require(np.allclose(equal,np.mean(bp,axis=1),atol=1e-9),'uncertainty routing overreacts without expert loss separation')
-        cal=um.temporal_recalibration(np.clip(np.linspace(.1,.9,240),1e-5,1-1e-5),np.array([0,1]*120))
+        cal=um.temporal_recalibration(
+            np.clip(np.linspace(.1,.9,240),1e-5,1-1e-5),
+            np.array([0,1]*120),
+            np.repeat(np.arange(120),2)
+        )
         require(isinstance(cal,dict) and 'accepted' in cal,'uncertainty recalibration candidate is not deterministic/schema-safe')
+        drift=um.population_drift_features(
+            np.asarray([[0.0,1.0],[0.1,0.9],[0.0,1.0]]),
+            np.asarray([[1.5,1.0],[1.6,0.9],[1.5,np.nan]])
+        )
+        require(drift.shape==(3,) and np.all(np.isfinite(drift)),'population drift state is invalid')
+        require(np.all((drift>=0.0)&(drift<=1.0)),'population drift state is unbounded')
         require(
             'router.fit_final_router_from_folds(X,y,router_names,oof_folds,sel,candidate_weights)' in strict_src,
             'strict research cycle must persist incumbent weights into final OOS-fold router'
