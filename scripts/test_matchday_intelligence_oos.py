@@ -30,7 +30,7 @@ def main() -> None:
             ("p1","basketball","PLAYER","Player One"),
         )
         c.execute(
-            "INSERT INTO participant(participant_id,sport,canonical_name) VALUES(?,?,?)",
+            "INSERT INTO participant(participant_id,sport,participant_type,canonical_name) VALUES(?,?,?,?)",
             ("p2","basketball","PLAYER","Player Two"),
         )
         c.executemany(
