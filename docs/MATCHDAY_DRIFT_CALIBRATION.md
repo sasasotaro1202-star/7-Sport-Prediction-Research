@@ -50,7 +50,9 @@ The frozen holdout is score-only. It never selects the router or recalibrator.
 
 ## Multi-horizon research
 
-The matchday context builder supports configurable replay horizons, including T-24h, T-6h, T-90m and T-60m. The current production-facing incumbent remains unchanged until sport-specific chronological OOS and frozen-holdout evidence proves a challenger is safer.
+The matchday context builder supports configurable replay horizons, including T-24h, T-6h, T-90m and T-60m. A dedicated research evaluator now performs a rolling chronological ablation against the exact accepted incumbent feature schema. For each horizon it reports PIT-safe context coverage, OOS LogLoss/Brier/ECE, three chronological block comparisons, event-cluster bootstrap evidence, and a score-only frozen-holdout check. The candidate stacker sees only prior OOF rows, so the horizon experiment cannot learn from the same event it evaluates.
+
+The experiment is deliberately isolated from release. Even a positive result remains research-only until the existing sport-specific PIT/OOS, robustness, calibration and frozen-holdout promotion gates pass. This separation is consistent with recent public forecasting systems that explicitly test multiple pre-match information states and require walk-forward paired comparisons before changing production weights. 
 
 ## Evidence base
 
