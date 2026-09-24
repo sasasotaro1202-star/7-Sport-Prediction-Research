@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from src.matchday_intelligence_oos import build_matchday_intelligence
+from src.matchday_intelligence_oos import build_matchday_context_rows, build_matchday_intelligence
 from src.storage.db_v45 import SCHEMA, _migrate
 
 
@@ -76,6 +76,8 @@ def main() -> None:
         c.close()
 
         r = build_matchday_intelligence("e1","2026-09-24T11:00:00+00:00",db)
+        horizon = build_matchday_context_rows([("e1","2026-09-24T12:00:00+00:00")], db, lead_minutes=90)
+        assert len(horizon) == 1 and len(horizon[0]) == 14
         assert r["event_id"] == "e1"
         assert r["features"]["availability_out_side_a"] == 0
         assert r["features"]["availability_out_side_b"] == 0
