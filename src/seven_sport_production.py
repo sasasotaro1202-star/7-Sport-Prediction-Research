@@ -353,6 +353,7 @@ def main():
     ap.add_argument('--full-history',action='store_true')
     ap.add_argument('--start-date')
     ap.add_argument('--end-date')
+    ap.add_argument('--days-forward',type=int,default=7,help='Also collect scheduled events up to this many days after today.')
     ap.add_argument('--reset-state',action='store_true')
     a=ap.parse_args(); sports=[a.sport] if a.sport else list(SPORTS)
     c=connect(); init_db(c)
@@ -361,7 +362,7 @@ def main():
         c.commit()
     h=HTTP(); today=datetime.now(timezone.utc).date()
     start=datetime.fromisoformat(a.start_date).date() if a.start_date else today-timedelta(days=a.days_back)
-    end=datetime.fromisoformat(a.end_date).date() if a.end_date else today
+    end=datetime.fromisoformat(a.end_date).date() if a.end_date else today+timedelta(days=max(0,int(a.days_forward)))
     before=counts(c)
     errors=[]
     for sport in sports:
