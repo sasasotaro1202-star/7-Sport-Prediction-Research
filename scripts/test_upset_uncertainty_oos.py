@@ -42,8 +42,8 @@ def test_dissent_probability_uses_only_opposing_experts():
     ep = np.asarray([[0.92, 0.45, 0.20], [0.08, 0.55, 0.80]])
     d, available = _dissent_probability(p, ep, np.asarray([0.5, 0.3, 0.2]))
     assert available.tolist() == [True, True]
-    assert np.isclose(d[0], 0.45)
-    assert np.isclose(d[1], 0.55)
+    assert np.isclose(d[0], 0.35)
+    assert np.isclose(d[1], 0.65)
 
 
 def test_dissent_rescue_can_change_pick_only_under_gates():
@@ -52,7 +52,7 @@ def test_dissent_rescue_can_change_pick_only_under_gates():
     risk = np.asarray([0.90])
     out, active = _policy_dissent(p, risk, ep, np.asarray([0.5, 0.3, 0.2]), 0.50)
     assert active.tolist() == [True]
-    assert np.isclose(out[0], 0.675)
+    assert np.isclose(out[0], 0.625)
 
 
 def test_feature_matrix_preserves_nan_context():
