@@ -87,9 +87,13 @@ jobs:
           set -euo pipefail
           cancel_run() {
             local id="$1"
-            if gh run cancel "$id"; then
-              return 0
-            fi
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/cancel" >/dev/null 2>&1; then
+                echo "CANCEL_REQUEST_ACCEPTED run_id=${id} attempt=${attempt}"
+                return 0
+              fi
+              sleep "${attempt}"
+            done
             local state
             state=$(gh run view "$id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
             case "$state" in
@@ -97,8 +101,12 @@ jobs:
                 echo "CANCEL_RACE_ALREADY_TERMINAL run_id=$id status=$state"
                 return 0
                 ;;
+              in_progress|queued|waiting|requested|pending)
+                echo "CANCEL_FAILED_ACTIVE run_id=$id status=$state"
+                return 1
+                ;;
               *)
-                echo "CANCEL_FAILED_NONTERMINAL run_id=$id status=$state"
+                echo "CANCEL_STATE_UNKNOWN run_id=$id status=$state"
                 return 1
                 ;;
             esac
@@ -124,9 +132,13 @@ jobs:
           set -euo pipefail
           cancel_run() {
             local id="$1"
-            if gh run cancel "$id"; then
-              return 0
-            fi
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/cancel" >/dev/null 2>&1; then
+                echo "CANCEL_REQUEST_ACCEPTED run_id=${id} attempt=${attempt}"
+                return 0
+              fi
+              sleep "${attempt}"
+            done
             local state
             state=$(gh run view "$id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
             case "$state" in
@@ -134,8 +146,12 @@ jobs:
                 echo "CANCEL_RACE_ALREADY_TERMINAL run_id=$id status=$state"
                 return 0
                 ;;
+              in_progress|queued|waiting|requested|pending)
+                echo "CANCEL_FAILED_ACTIVE run_id=$id status=$state"
+                return 1
+                ;;
               *)
-                echo "CANCEL_FAILED_NONTERMINAL run_id=$id status=$state"
+                echo "CANCEL_STATE_UNKNOWN run_id=$id status=$state"
                 return 1
                 ;;
             esac
@@ -251,9 +267,13 @@ jobs:
           set -euo pipefail
           cancel_run() {
             local id="$1"
-            if gh run cancel "$id"; then
-              return 0
-            fi
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/cancel" >/dev/null 2>&1; then
+                echo "CANCEL_REQUEST_ACCEPTED run_id=${id} attempt=${attempt}"
+                return 0
+              fi
+              sleep "${attempt}"
+            done
             local state
             state=$(gh run view "$id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
             case "$state" in
@@ -261,8 +281,12 @@ jobs:
                 echo "CANCEL_RACE_ALREADY_TERMINAL run_id=$id status=$state"
                 return 0
                 ;;
+              in_progress|queued|waiting|requested|pending)
+                echo "CANCEL_FAILED_ACTIVE run_id=$id status=$state"
+                return 1
+                ;;
               *)
-                echo "CANCEL_FAILED_NONTERMINAL run_id=$id status=$state"
+                echo "CANCEL_STATE_UNKNOWN run_id=$id status=$state"
                 return 1
                 ;;
             esac
