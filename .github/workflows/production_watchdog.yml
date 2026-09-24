@@ -23,10 +23,12 @@ permissions:
   contents: read
 
 concurrency:
-  # Recovery decisions are newest-state driven; cancel an older queued watchdog
-  # when a newer trigger arrives to avoid a stale decision racing the latest SHA.
+  # Never cancel a watchdog because a validator completion or scheduler tick
+  # arrived at the same time. A deterministic newest-run guard below makes only
+  # the newest active watchdog authoritative, while every invocation can finish
+  # cleanly without cancellation churn.
   group: production-run-watchdog
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   watchdog:
@@ -36,6 +38,23 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
+      - name: Exit cleanly when superseded by a newer watchdog run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current_run_number='${{ github.run_number }}'
+          latest_active="$(
+            gh run list --workflow "production_watchdog.yml" --limit 50 \
+              --json databaseId,status,runNumber \
+              --jq --argjson current "$current_run_number" \
+              '[.[] | select(.runNumber > $current and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length'
+          )"
+          if [ "$latest_active" -gt 0 ]; then
+            echo "WATCHDOG_SUPERSEDED_BY_NEWER_ACTIVE_RUN current=$current_run_number newer_active=$latest_active"
+            exit 0
+          fi
+          echo "WATCHDOG_AUTHORITATIVE_RUN current=$current_run_number"
       - name: Guard workflow-run rescue against generated-output commit loops
         id: rescue_guard
         run: |
