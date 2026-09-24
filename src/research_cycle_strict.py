@@ -341,17 +341,14 @@ def train(s):
    return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_observed_feature_values','rows':len(train_rows),'features':0})
   fs=[f for f,k in zip(fs,keep) if k];X=X[:,keep];X_holdout=X_holdout[:,keep]
   sel=len(train_rows);hn=len(holdout_rows)
-  # Matchday intelligence is challenger-only context. It is generated per event
-  # at event_time - 60m from exact source snapshots; missing signals remain NaN.
-  matchday_train_ctx=np.asarray(
-   matchday_intelligence.build_matchday_change_context_rows(train_rows),dtype=float
-  )
+  # Matchday context is built only where the router can consume it: chronological
+  # OOS test rows. The frozen holdout remains separate and immutable.
   matchday_holdout_ctx=np.asarray(
    matchday_intelligence.build_matchday_change_context_rows(holdout_rows),dtype=float
   )
-  if matchday_train_ctx.shape!=(sel,20) or matchday_holdout_ctx.shape!=(hn,20):
+  if matchday_holdout_ctx.shape!=(hn,20):
    return _write_result(s,{'sport':s,'status':'DEFERRED_MATCHDAY_CONTEXT','reason':'matchday_context_shape_mismatch',
-                           'training_shape':list(matchday_train_ctx.shape),'holdout_shape':list(matchday_holdout_ctx.shape)})
+                           'holdout_shape':list(matchday_holdout_ctx.shape)})
   # Construct the pool once per sport. Recreating every estimator wrapper for
   # every fold adds avoidable overhead without changing the fitted models.
   symmetric_mode=s in ('ufc','rizin')
@@ -371,6 +368,7 @@ def train(s):
   oof_y=[]
   oof_event_ids=[]
   oof_folds=[]
+  oof_rows=[]
   for end in range(start,sel,step):
    te=min(end+step,sel)
    if len(np.unique(y[:end]))<2:continue
@@ -385,10 +383,24 @@ def train(s):
    base_router_ctx=router._context(X[:end],X[end:te])
    population_drift=uncertainty_router.population_drift_features(X[:end],X[end:te])
    population_ctx=np.repeat(population_drift[None,:],te-end,axis=0)
-   fold_router_ctx=np.column_stack([base_router_ctx,matchday_train_ctx[end:te],population_ctx])
-   oof_folds.append({'end':end,'te':te,'preds':fold_pred,'context':fold_router_ctx,
+   oof_rows.extend(train_rows[end:te])
+   oof_folds.append({'end':end,'te':te,'preds':fold_pred,'base_router_ctx':base_router_ctx,
+                     'population_ctx':population_ctx,
                      'event_ids':[str(r[0]) for r in train_rows[end:te]],
                      'population_drift':population_drift.tolist()})
+  matchday_oof_ctx=np.asarray(
+   matchday_intelligence.build_matchday_change_context_rows(oof_rows),dtype=float
+  )
+  if matchday_oof_ctx.shape!=(len(oof_rows),20):
+   return _write_result(s,{'sport':s,'status':'DEFERRED_MATCHDAY_CONTEXT','reason':'matchday_context_shape_mismatch',
+                           'oos_shape':list(matchday_oof_ctx.shape),'expected_rows':len(oof_rows)})
+  ctx_offset=0
+  for fold in oof_folds:
+   n_fold=fold['te']-fold['end']
+   base_router_ctx=fold.pop('base_router_ctx')
+   population_ctx=fold.pop('population_ctx')
+   fold['context']=np.column_stack([base_router_ctx,matchday_oof_ctx[ctx_offset:ctx_offset+n_fold],population_ctx])
+   ctx_offset+=n_fold
   oof_y=np.asarray(oof_y,int)
   if len(oof_y)<30 or len(np.unique(oof_y))<2:
    return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
