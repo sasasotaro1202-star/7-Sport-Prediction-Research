@@ -312,6 +312,20 @@ def _history_loss(meta_losses, n_models):
     return np.where(np.isfinite(out), out, np.log(2.0))
 
 
+def _selector_feature_mask(X: np.ndarray) -> np.ndarray:
+    """Keep only finite, non-constant meta features so sklearn binning cannot fail."""
+    X = np.asarray(X, dtype=float)
+    if X.ndim != 2:
+        raise ValueError("selector meta features must be 2D")
+    mask = np.zeros(X.shape[1], dtype=bool)
+    for j in range(X.shape[1]):
+        vals = X[:, j]
+        finite = vals[np.isfinite(vals)]
+        if len(finite) >= 2 and np.unique(finite).size >= 2:
+            mask[j] = True
+    return mask
+
+
 def fit_uncertainty_loss_selector(
     meta_features: np.ndarray,
     meta_losses: np.ndarray,
@@ -324,7 +338,10 @@ def fit_uncertainty_loss_selector(
         return None
     if L.shape[1] != len(model_names):
         return None
-
+    feature_mask = _selector_feature_mask(X)
+    if not feature_mask.any():
+        return None
+    X_fit = X[:, feature_mask]
     selectors = []
     for j in range(L.shape[1]):
         m = HistGradientBoostingRegressor(
@@ -335,7 +352,10 @@ def fit_uncertainty_loss_selector(
             l2_regularization=2.0,
             random_state=1042 + j,
         )
-        m.fit(X, L[:, j])
+        try:
+            m.fit(X_fit, L[:, j])
+        except (ValueError, FloatingPointError):
+            return None
         selectors.append(m)
 
     voi_selectors = None
@@ -353,7 +373,10 @@ def fit_uncertainty_loss_selector(
                 l2_regularization=2.5,
                 random_state=2042 + j,
             )
-            m.fit(X, V[:, j])
+            try:
+                m.fit(X_fit, V[:, j])
+            except (ValueError, FloatingPointError):
+                return None
             voi_selectors.append(m)
 
     return {
@@ -362,8 +385,8 @@ def fit_uncertainty_loss_selector(
         "selectors": selectors,
         "voi_selectors": voi_selectors,
         "consultation_weight": 0.35,
+        "feature_mask": feature_mask.tolist(),
     }
-
 
 def _fold_context(X, end, te):
     from src import dynamic_model_router as existing
@@ -436,14 +459,22 @@ def evaluate_oof(
         if selector is None:
             routed = static.copy()
         else:
+            feature_mask = np.asarray(selector.get("feature_mask") or [], dtype=bool)
+            if feature_mask.size != features.shape[1]:
+                routed = static.copy()
+                static_all.extend(static.tolist())
+                routed_all.extend(routed.tolist())
+                y_all.extend(y[end:te].tolist())
+                continue
+            selected_features = features[:, feature_mask]
             pred_l = np.column_stack([
-                m.predict(features) for m in selector["selectors"]
+                m.predict(selected_features) for m in selector["selectors"]
             ])
             pred_l = np.where(np.isfinite(pred_l), pred_l, np.log(2.0))
             pred_voi = None
             if selector.get("voi_selectors"):
                 pred_voi = np.column_stack([
-                    m.predict(features) for m in selector["voi_selectors"]
+                    m.predict(selected_features) for m in selector["voi_selectors"]
                 ])
                 pred_voi = np.where(np.isfinite(pred_voi), pred_voi, 0.0)
             routed = route_uncertainty_score(
@@ -572,8 +603,12 @@ def route_with_selector(
         uf,
         np.repeat(history[None, :], len(bp), axis=0),
     ])
+    feature_mask = np.asarray(selector.get("feature_mask") or [], dtype=bool)
+    if feature_mask.size != features.shape[1] or not feature_mask.any():
+        return _clip_prob(baseline)
+    selected_features = features[:, feature_mask]
     pred_l = np.column_stack([
-        m.predict(features) for m in selector["selectors"]
+        m.predict(selected_features) for m in selector["selectors"]
     ])
     pred_l = np.where(np.isfinite(pred_l), pred_l, np.log(2.0))
     pred_voi = None
