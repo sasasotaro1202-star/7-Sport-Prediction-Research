@@ -78,6 +78,7 @@ class FixedShareHedge:
         ]
         # Multiplicative update using the realized loss, then fixed-share
         # re-injection toward the incumbent prior prevents permanent collapse.
+        weight_before=list(self.weights)
         scores=[
             max(self.min_weight, w)*exp(-self.learning_rate*min(loss,20.0))
             for w,loss in zip(self.weights,losses)
@@ -88,7 +89,7 @@ class FixedShareHedge:
         )
         return {
             "expert_losses":losses,
-            "weight_before":list(self.weights),
+            "weight_before":weight_before,
             "weight_after":list(self.weights),
         }
 
