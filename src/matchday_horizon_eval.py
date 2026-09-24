@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 """Research-only multi-horizon matchday ablation.
 
 The evaluator asks one narrow production question: does PIT-safe information
@@ -385,10 +386,13 @@ def _evaluate_sport(con, sport):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--sport", choices=ACTIVE_SPORTS)
+    args = ap.parse_args()
     ROOT.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB)
     try:
-        sports = list(ACTIVE_SPORTS)
+        sports = [args.sport] if args.sport else list(ACTIVE_SPORTS)
         out = {
             "generated_at_utc": _utc(),
             "status": "EVALUATED",
