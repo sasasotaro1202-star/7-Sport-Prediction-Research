@@ -105,6 +105,8 @@ jobs:
           PY
       - name: Router incumbent baseline alignment regression
         run: PYTHONPATH=. python scripts/test_router_baseline_alignment.py
+      - name: Uncertainty-aware router research-only regression
+        run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
       - name: LightGBM smoke test
         run: |
           python - <<'PY'
