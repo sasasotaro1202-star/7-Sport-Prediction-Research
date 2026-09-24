@@ -103,6 +103,30 @@ jobs:
           assert isinstance(cal,dict) and 'accepted' in cal
           print("ROUTER_CALIBRATION=PASS")
           PY
+      - name: Recent-loss OOS evaluator regression
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          import numpy as np
+          import src.research_cycle_strict as strict
+          names=["m1","m2"]
+          y=np.array([0,1]*60)
+          folds=[]
+          for i in range(6):
+              end=i*20
+              te=(i+1)*20
+              p1=np.clip(0.45+0.03*np.sin(np.arange(20)),1e-4,1-1e-4)
+              p2=np.clip(0.55+0.02*np.cos(np.arange(20)),1e-4,1-1e-4)
+              folds.append({
+                  "end":end,"te":te,
+                  "preds":{"m1":p1,"m2":p2},
+              })
+          result=strict.evaluate_recent_weighted_router_from_folds(
+              np.zeros((120,1)),y,names,folds,{"m1":0.6,"m2":0.4}
+          )
+          assert result["status"]=="EVALUATED", result
+          assert np.isfinite(result["logloss_improvement"])
+          print("RECENT_LOSS_OOS_EVALUATOR=PASS")
+          PY
       - name: Router incumbent baseline alignment regression
         run: PYTHONPATH=. python scripts/test_router_baseline_alignment.py
       - name: Uncertainty-aware router research-only regression
