@@ -145,8 +145,15 @@ def _evaluate_sport(con, sport):
             "rows": len(rows),
         }
 
+    artifact_features = list(artifact.get("features") or [])
+    if not artifact_features or any(f not in set(features) for f in artifact_features):
+        return {
+            "sport": sport,
+            "status": "DEFERRED",
+            "reason": "incumbent_feature_schema_unavailable",
+        }
     X = np.asarray(
-        [[r[3].get(f, np.nan) for f in features] for r in rows],
+        [[r[3].get(f, np.nan) for f in artifact_features] for r in rows],
         dtype=float,
     )
     y = np.asarray([r[2] for r in rows], dtype=int)
@@ -163,7 +170,7 @@ def _evaluate_sport(con, sport):
         }
 
     names, model_pool = _fit_incumbent_pool(
-        features,
+        artifact_features,
         artifact,
         symmetric=sport in ("ufc", "rizin"),
     )
@@ -280,18 +287,6 @@ def _evaluate_sport(con, sport):
 
             candidate_preds.append(cp)
             candidate_enabled.append(enabled)
-            delta = np.asarray(
-                [
-                    -(base_metric := (
-                        -float(
-                            fold["y"][i] * np.log(np.clip(fold["p"][i], 1e-6, 1 - 1e-6))
-                            - (1 - fold["y"][i]) * np.log(np.clip(1 - fold["p"][i], 1e-6, 1 - 1e-6))
-                        )
-                    ))
-                    for i in range(len(fold["y"]))
-                ],
-                dtype=float,
-            )
             cand_loss = -(
                 fold["y"] * np.log(cp)
                 + (1 - fold["y"]) * np.log(1 - cp)
