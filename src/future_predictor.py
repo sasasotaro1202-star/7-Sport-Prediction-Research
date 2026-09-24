@@ -112,6 +112,7 @@ def _matchday_situation(event_id, event_time, cutoff):
     try:
         payload = matchday_intelligence.build_matchday_intelligence(event_id, cutoff, DB)
         f = payload.get("features") or {}
+        vector = matchday_intelligence.router_context_vector(payload)
         q = {
             "source_diversity": f.get("matchday_source_diversity"),
             "conflict_rate": f.get("matchday_conflict_rate"),
@@ -135,14 +136,7 @@ def _matchday_situation(event_id, event_time, cutoff):
                 None if f.get("lineup_confirmed_side_a") is None or f.get("lineup_confirmed_side_b") is None
                 else float(f.get("lineup_confirmed_side_a")) - float(f.get("lineup_confirmed_side_b"))
             ),
-            "rest_diff_days": (
-                None if payload.get("rest_schedule") is None else (
-                    next(iter([
-                        float(v.get("rest_days")) for v in (payload.get("rest_schedule") or {}).values()
-                        if isinstance(v, dict) and v.get("rest_days") is not None
-                    ]), None)
-                )
-            ),
+            "rest_diff_days": None if not np.isfinite(vector[3]) else float(vector[3]),
             "weather_signal_count": f.get("weather_signal_count"),
             "market_signal_count": f.get("market_signal_count"),
             "news_signal_count": f.get("news_signal_count"),
@@ -150,14 +144,11 @@ def _matchday_situation(event_id, event_time, cutoff):
             "lineup_known_b": f.get("lineup_known_side_b"),
         }
         return {
-            "status": "EXACT_PIT",
+            "status": "PIT_SAFE",
             "cutoff_at_utc": cutoff,
             "quality": q,
             "summary": summary,
-            "feature_snapshot_hash": hashlib.sha256(
-                json.dumps(matchday_intelligence.router_context_vector(payload),
-                           sort_keys=True, default=str).encode()
-            ).hexdigest(),
+            "feature_snapshot_hash": payload.get("feature_snapshot_hash"),
             "policy": str(payload.get("policy") or "research_only;PIT"),
         }
     except Exception as exc:
