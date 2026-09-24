@@ -3,7 +3,9 @@ from __future__ import annotations
 import numpy as np
 
 from src.upset_uncertainty_oos import (
+    _dissent_probability,
     _feature_matrix,
+    _policy_dissent,
     _policy_probability,
     _risk_target,
 )
@@ -33,6 +35,24 @@ def test_policy_shrinkage_is_toward_half_and_bounded():
     assert out[1] > p[1] and out[1] <= 0.5
     assert np.isclose(out[0], 0.745)
     assert np.isclose(out[1], 0.255)
+
+
+def test_dissent_probability_uses_only_opposing_experts():
+    p = np.asarray([0.90, 0.10])
+    ep = np.asarray([[0.92, 0.45, 0.20], [0.08, 0.55, 0.80]])
+    d, available = _dissent_probability(p, ep, np.asarray([0.5, 0.3, 0.2]))
+    assert available.tolist() == [True, True]
+    assert np.isclose(d[0], 0.45)
+    assert np.isclose(d[1], 0.55)
+
+
+def test_dissent_rescue_can_change_pick_only_under_gates():
+    p = np.asarray([0.90])
+    ep = np.asarray([[0.92, 0.45, 0.20]])
+    risk = np.asarray([0.90])
+    out, active = _policy_dissent(p, risk, ep, np.asarray([0.5, 0.3, 0.2]), 0.50)
+    assert active.tolist() == [True]
+    assert np.isclose(out[0], 0.675)
 
 
 def test_feature_matrix_preserves_nan_context():
