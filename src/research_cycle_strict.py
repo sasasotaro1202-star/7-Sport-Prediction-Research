@@ -512,11 +512,12 @@ def evaluate_fixed_share_hedge_from_folds(y, names, folds, baseline_weights=None
         "bootstrap_p05_improvement":boot_p05,
         "bootstrap_prob_improvement":boot_prob,
         "parameters":{"learning_rate":0.12,"share":0.05},
+        "final_weights":hedge.state(),
         "policy":"research_only; per-event causal updates; equal-timestamp outcomes consumed only after the whole timestamp block is predicted; no holdout fitting",
     }
 
 
-def evaluate_fixed_share_hedge_holdout(y_holdout,names,holdout_pred,baseline_weights=None):
+def evaluate_fixed_share_hedge_holdout(y_holdout,names,holdout_pred,baseline_weights=None,initial_weights=None):
     """Frozen-holdout score of the OOS-derived fixed-share state without holdout updates."""
     hy=np.asarray(y_holdout,int)
     bp=np.column_stack([np.asarray(holdout_pred[n],dtype=float) for n in names])
@@ -527,6 +528,11 @@ def evaluate_fixed_share_hedge_holdout(y_holdout,names,holdout_pred,baseline_wei
     # Holdout must remain score-only: initialize at incumbent weights and do not
     # consume any holdout labels for routing or parameter selection.
     hedge=FixedShareHedge(len(names),learning_rate=0.12,share=0.05,baseline_weights=base_w)
+    if initial_weights is not None:
+        iw=np.asarray(initial_weights,dtype=float)
+        if iw.shape != (len(names),) or not np.isfinite(iw).all() or iw.sum() <= 0:
+            return {"status":"INSUFFICIENT_OOS","reason":"invalid_oos_terminal_hedge_state"}
+        hedge.weights=(iw/iw.sum()).tolist()
     routed=np.array([hedge.predict(row) for row in bp],dtype=float)
     sm=base.metric(hy,static); rm=base.metric(hy,routed)
     return {
@@ -535,6 +541,7 @@ def evaluate_fixed_share_hedge_holdout(y_holdout,names,holdout_pred,baseline_wei
         "logloss_improvement":float(sm["logloss"]-rm["logloss"]),
         "brier_improvement":float(sm["brier"]-rm["brier"]),
         "ece_change":float(rm["ece"]-sm["ece"]),
+        "initial_weights":hedge.state(),
         "policy":"frozen_holdout_score_only; no holdout labels consumed by router",
     }
 
@@ -1031,7 +1038,7 @@ def train(s):
    y_holdout,names=list(best) if len(best)>=2 else list(best),holdout_pred={
     name:np.clip(models[i].predict_proba(X_holdout)[:,1],1e-6,1-1e-6)
     for i,name in enumerate(best)
-   },baseline_weights=candidate_weights
+   },baseline_weights=candidate_weights,initial_weights=fixed_share_hedge_eval.get("final_weights")
   ) if len(best)>=2 else {'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected incumbent has one model'}
   fixed_share_hedge_blocks=list(fixed_share_hedge_eval.get('nonoverlap_block_deltas') or [])
   fixed_share_hedge_block_improvements=sum(1 for d in fixed_share_hedge_blocks if float(d)<0.0)
