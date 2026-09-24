@@ -10,6 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
 MODELS=ROOT/'models/research'
 OUT=ROOT/'results/future_predictions.json'
+ELIGIBILITY_OUT=ROOT/'results/prediction_eligibility.json'
 SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby","boxing")
 HEAD_TO_HEAD_SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","rugby","boxing")
 MULTICLASS_SPORTS=("f1",)
@@ -213,6 +214,33 @@ def main():
     report={'generated_at_utc':now.isoformat(),'policy':'accepted-artifact-only; nine-sport scope; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration; F1 binary-artifact fail-closed','sports':results}
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    # Derive eligibility from this exact canonical inference pass so the
+    # eligibility artifact cannot become stale relative to future_predictions.
+    eligibility=[]
+    for item in results:
+        status=str(item.get('status') or '')
+        predictions=item.get('predictions') or []
+        reasons={}
+        if predictions:
+            reasons['ELIGIBLE']=len(predictions)
+        elif status:
+            reasons[status]=int(item.get('count') or 0)
+        eligibility.append({
+            'sport':item.get('sport'),
+            'generated_at_utc':now.isoformat(),
+            'eligible_future_events':len(predictions),
+            'reasons':reasons,
+            'status':status,
+        })
+    eligibility_report={
+        'timestamp_utc':now.isoformat(),
+        'policy':'prediction-eligibility-v3-derived-from-canonical-future-inference',
+        'sports':eligibility,
+    }
+    ELIGIBILITY_OUT.write_text(
+        json.dumps(eligibility_report,ensure_ascii=False,indent=2),
+        encoding='utf-8'
+    )
     print(json.dumps(report,ensure_ascii=False,indent=2))
     blocked=[r for r in results if str(r.get('status','')).startswith('BLOCKED_')]
     return 1 if blocked else 0

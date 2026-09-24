@@ -167,6 +167,8 @@ def main():
             'forward prediction registry table is missing or not immutable')
     require('_persist_forward_prediction' in future_src_for_registry and 'INSERT OR IGNORE INTO forward_prediction' in future_src_for_registry,
             'future predictor does not persist idempotent forward predictions')
+    require("ELIGIBILITY_OUT=ROOT/'results/prediction_eligibility.json'" in future_src_for_registry and 'prediction-eligibility-v3-derived-from-canonical-future-inference' in future_src_for_registry,
+            'future prediction eligibility artifact is not regenerated from canonical inference')
     require('settled_forward_predictions' in outcome_src_for_registry and "status='OPEN'" in outcome_src_for_registry,
             'verified outcomes do not settle open forward predictions')
     accelerated=(ROOT/'src/research_accelerated.py').read_text(encoding='utf-8')
