@@ -472,8 +472,10 @@ def main():
             'future predictor does not fail closed on unaccepted artifacts')
     require('BLOCKED_ARTIFACT_FEATURE_SCHEMA' in future_src and 'missing_schema' in future_src,
             'future predictor does not fail closed on artifact/current feature schema mismatch')
-    require("'quality_status':'ACCEPTED_LOCKED_HOLDOUT'" in strict_src,
-            'strict research artifact does not persist explicit accepted quality state')
+    require("'ACCEPTED_LOCKED_HOLDOUT'" in strict_src,
+            'strict research cycle does not retain explicit production accepted quality state')
+    require("'RESEARCH_CANDIDATE'" in strict_src and "research_only" in strict_src and "models/research_candidates" in strict_src,
+            'strict research-only candidate path is not explicitly isolated')
     try:
         import numpy as np
         from src import dynamic_model_router as dmrouter

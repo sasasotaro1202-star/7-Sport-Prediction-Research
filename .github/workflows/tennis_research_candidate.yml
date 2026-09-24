@@ -1,0 +1,56 @@
+name: Tennis Research Candidate
+
+on:
+  schedule:
+    - cron: '13 */12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tennis-research-candidate
+  cancel-in-progress: true
+
+jobs:
+  tennis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Compile source
+        run: python -m compileall -q src
+      - name: Refresh historical tennis archive
+        run: PYTHONPATH=. python src/tennis_public_backfill.py
+      - name: Run strict tennis research candidate
+        run: PYTHONPATH=. python src/research_cycle_strict.py --sport tennis --research-only
+      - name: Verify research-only isolation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = Path("results/research/tennis.json")
+          assert result.exists(), "tennis research result missing"
+          data = json.loads(result.read_text(encoding="utf-8"))
+          status = str(data.get("status") or "")
+          assert status in {"RESEARCH_CANDIDATE", "DEFERRED", "DEFERRED_FROZEN_HOLDOUT", "DEFERRED_RETRAIN_CARRY_FORWARD", "REJECTED_HOLDOUT_CALIBRATION", "REJECTED_CHALLENGER"}, status
+          artifact = Path(str(data.get("artifact_path") or ""))
+          if artifact.as_posix():
+              assert not artifact.as_posix().startswith("models/research/tennis_current.joblib")
+          print(json.dumps({
+              "status": status,
+              "rows": data.get("training_rows"),
+              "holdout_rows": data.get("frozen_holdout_rows"),
+              "holdout_metrics": data.get("holdout_metrics"),
+              "artifact_path": str(artifact),
+          }, ensure_ascii=False))
+          PY
