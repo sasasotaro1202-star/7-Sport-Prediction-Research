@@ -442,7 +442,7 @@ def main():
     require((ROOT/'scripts/test_matchday_intelligence_oos.py').exists(),'matchday intelligence PIT regression test is missing')
     require('test_matchday_intelligence_oos.py' in lightweight_src,'matchday intelligence regression is not wired into lightweight CI')
     require('matchday_intelligence_oos as matchday_intelligence' in strict_src,'strict research cycle does not import the PIT-safe matchday layer')
-    require('build_matchday_context_rows(train_rows)' in strict_src and 'matchday_train_ctx' in strict_src,'strict research cycle does not build matchday context from OOS rows')
+    require((('build_matchday_context_rows(train_rows)' in strict_src) or ('build_matchday_change_context_rows(train_rows)' in strict_src)) and 'matchday_train_ctx' in strict_src,'strict research cycle does not build matchday context from OOS rows')
     require('population_drift=uncertainty_router.population_drift_features(X[:end],X[end:te])' in strict_src,'strict research cycle does not compute chronological population drift')
     require('oof_event_ids' in strict_src and 'np.asarray(oof_event_ids,dtype=object)' in strict_src,'strict research cycle does not use event-clustered recalibration groups')
     require("'context':fold_router_ctx" in strict_src,'strict OOS folds do not persist matchday-augmented router context')
