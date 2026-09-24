@@ -395,7 +395,14 @@ def main():
     require('lightweight_regression.yml' in watchdog_src and 'lightweight_ok' in watchdog_src and 'lightweight_ok" -ge 1' in watchdog_src,
             'production watchdog dispatch does not require same-SHA Lightweight Regression success')
     router_src=(ROOT/'src/dynamic_model_router.py').read_text(encoding='utf-8')
+    uncertainty_src=(ROOT/'src/uncertainty_dynamic_router_oos.py').read_text(encoding='utf-8')
+    lightweight_src=(ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8')
     require('holdout_y' in router_src and 'holdout_target_shape_mismatch' in router_src,'frozen-holdout router scorer is not target-shape safe')
+    require('research-only uncertainty-aware dynamic routing' in uncertainty_src.lower(),'uncertainty router is not explicitly research-only')
+    require('uncertainty_features' in uncertainty_src and 'predictive_entropy' in uncertainty_src,'uncertainty router lacks predictive uncertainty features')
+    require('recoverability' in uncertainty_src and 'route_strength' in uncertainty_src,'uncertainty router lacks VOI-like recoverability shrinkage')
+    require('temporal_recalibration' in uncertainty_src and 'research_only' in uncertainty_src,'uncertainty router lacks research-only temporal recalibration')
+    require('Uncertainty-aware router research-only regression' in lightweight_src,'uncertainty router regression is not wired into lightweight CI')
     require('holdout_X' in router_src and 'holdout_feature_shape_mismatch' in router_src,'frozen-holdout router scorer lacks explicit holdout feature matrix safety')
     require('challenger-only' in router_src.lower(),'dynamic router is not explicitly challenger-only')
     require('UNSUPPORTED_MULTICLASS_RESEARCH_ONLY' in router_src,'dynamic router lacks multiclass research-only guard')
@@ -452,6 +459,15 @@ def main():
         require('fit_final_router_from_folds' in router_src,'dynamic router lacks OOS-fold reuse for final fit')
         require('baseline_weights' in router_src,'dynamic router is missing incumbent-weight alignment')
         require('loss_spread_scale' in router_src,'dynamic router is missing uncertainty-aware shrinkage')
+        from src import uncertainty_dynamic_router_oos as um
+        bp=np.array([[0.49,0.50,0.51],[0.20,0.80,0.50]],dtype=float)
+        uctx=np.zeros((2,10),dtype=float)
+        uf=um.uncertainty_features(bp,uctx)
+        require(uf.shape==(2,10) and np.all(np.isfinite(uf)),'uncertainty feature construction is invalid')
+        equal=um.route_uncertainty_score(np.zeros_like(bp),bp,uctx)
+        require(np.allclose(equal,np.mean(bp,axis=1),atol=1e-9),'uncertainty routing overreacts without expert loss separation')
+        cal=um.temporal_recalibration(np.clip(np.linspace(.1,.9,240),1e-5,1-1e-5),np.array([0,1]*120))
+        require(isinstance(cal,dict) and 'accepted' in cal,'uncertainty recalibration candidate is not deterministic/schema-safe')
         require(
             'router.fit_final_router_from_folds(X,y,router_names,oof_folds,sel,candidate_weights)' in strict_src,
             'strict research cycle must persist incumbent weights into final OOS-fold router'
