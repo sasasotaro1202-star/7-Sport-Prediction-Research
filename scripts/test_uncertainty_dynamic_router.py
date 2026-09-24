@@ -5,6 +5,7 @@ import numpy as np
 from src.uncertainty_dynamic_router_oos import (
     expert_voi_targets,
     predictive_entropy,
+    fit_uncertainty_loss_selector,
     population_drift_features,
     bootstrap_clustered_improvement,
     route_uncertainty_score,
@@ -48,6 +49,27 @@ def main() -> None:
     loss_equal = np.zeros_like(bp)
     p = route_uncertainty_score(loss_equal, bp, ctx)
     assert np.allclose(p, np.mean(bp, axis=1), atol=1e-9), p
+
+    # Constant meta columns are common with sparse matchday contexts. The
+    # selector must drop them instead of allowing HGB's binning to fail.
+    X_meta = np.column_stack([
+        np.linspace(0.0, 1.0, 140),
+        np.ones(140),
+        np.zeros(140),
+        np.repeat([0.0, 1.0], 70),
+    ])
+    L_meta = np.column_stack([
+        0.5 + 0.05 * np.sin(np.linspace(0.0, 4.0, 140)),
+        0.6 + 0.04 * np.cos(np.linspace(0.0, 4.0, 140)),
+        0.7 + 0.03 * np.sin(np.linspace(0.0, 8.0, 140)),
+    ])
+    V_meta = L_meta - 0.01
+    guarded = fit_uncertainty_loss_selector(
+        X_meta, L_meta, ["a", "b", "c"], V_meta
+    )
+    assert guarded is not None
+    mask = np.asarray(guarded["feature_mask"], dtype=bool)
+    assert mask.shape == (4,) and mask.tolist() == [True, False, False, True]
 
     loss_sep = np.asarray([
         [0.20, 0.80, 0.81],
