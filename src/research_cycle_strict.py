@@ -349,7 +349,7 @@ def evaluate_recent_weighted_router_from_folds(
         for fold in folds:
             end=int(fold["end"]); te=int(fold["te"])
             bp=np.column_stack([np.asarray(fold["preds"][n],dtype=float) for n in names])
-            hl=_recent_model_loss(meta_losses,len(names))
+            hl=router._recent_model_loss(meta_losses,len(names))
             static=np.sum(
                 bp*np.asarray([baseline_weights.get(n,0.0) for n in names])[None,:],
                 axis=1
@@ -422,7 +422,7 @@ def evaluate_recent_weighted_router_holdout_from_folds(
     prev_names=getattr(_recent_weighted_route,"_names",None); _recent_weighted_route._names=list(names)
     try:
         bp=np.column_stack([np.asarray(holdout_pred[n],dtype=float) for n in names])
-        hl=_recent_model_loss(meta_losses,len(names))
+        hl=router._recent_model_loss(meta_losses,len(names))
         if baseline_weights and sum(float(baseline_weights.get(n,0.0)) for n in names)>0:
             w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float); w/=w.sum()
             static=np.sum(bp*w[None,:],axis=1)
@@ -907,6 +907,27 @@ def train(s):
    router_eval={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; dynamic routing cannot add diversification'}
    router_holdout={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected_incumbent_has_one_model; frozen-holdout router comparison not applicable'}
 
+  recent_weighted_eval=evaluate_recent_weighted_router_from_folds(X,y,router_names if router_names else list(best),oof_folds,candidate_weights)
+  recent_weighted_holdout=evaluate_recent_weighted_router_holdout_from_folds(
+   X,y,router_names if router_names else list(best),oof_folds,router_holdout_pred,X_holdout,y_holdout,candidate_weights
+  ) if router_names else {'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected incumbent has one model'}
+  recent_block_deltas=list(recent_weighted_eval.get('nonoverlap_block_deltas') or [])
+  recent_block_improvements=sum(1 for d in recent_block_deltas if float(d)<0.0)
+  recent_allowed_block_degradation=max(.001,.005*float(selected_oos_metric['logloss']))
+  recent_weighted_accept=(
+   recent_weighted_eval.get('status')=='EVALUATED'
+   and recent_weighted_eval.get('folds',0)>=6
+   and len(recent_block_deltas)>=3
+   and recent_block_improvements>=2
+   and max(recent_block_deltas)<=recent_allowed_block_degradation
+   and recent_weighted_eval.get('logloss_improvement',-1.0)>=max(.001,.005*selected_oos_metric['logloss'])
+   and recent_weighted_eval.get('brier_improvement',-1.0)>=-.002
+   and recent_weighted_eval.get('ece_change',1.0)<=.02
+   and recent_weighted_eval.get('bootstrap_p05_improvement',float('-inf'))>0.0
+   and recent_weighted_eval.get('bootstrap_prob_improvement',0.0)>=.90
+  )
+  recent_weighted_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
+  recent_weighted_eval['accepted_for_research_comparison']=bool(recent_weighted_accept)
   # Research-only next generation: uncertainty/disagreement/drift-aware routing
   # followed by a separate temporal recalibration layer. It never changes the
   # incumbent artifact directly; release remains controlled by the existing gate.
