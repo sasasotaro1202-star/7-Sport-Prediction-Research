@@ -11,6 +11,7 @@ on:
       - Cache and PIT Health
       - Production Invariants
       - Production Safety Audit
+      - Lightweight Regression and Safety Checks
     types: [completed]
   # The 5-minute schedule remains the primary heartbeat; low-frequency completion
   # events provide a second recovery path without listening to validator churn.
@@ -43,6 +44,34 @@ jobs:
             echo 'SKIP_WORKFLOW_RUN_RESCUE_GENERATED_OUTPUT_COMMIT'
           fi
           echo "eligible=$eligible" >> "$GITHUB_OUTPUT"
+      - name: Retry failed validators once, then fail closed
+        if: >-
+          github.event_name == 'workflow_run' &&
+          (
+            github.event.workflow_run.name == 'Production Invariants' ||
+            github.event.workflow_run.name == 'Production Safety Audit' ||
+            github.event.workflow_run.name == 'Lightweight Regression and Safety Checks'
+          ) &&
+          (
+            github.event.workflow_run.conclusion == 'failure' ||
+            github.event.workflow_run.conclusion == 'timed_out' ||
+            github.event.workflow_run.conclusion == 'startup_failure'
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          if [ "$RUN_ATTEMPT" -ge 2 ]; then
+            echo "VALIDATOR_RECOVERY_EXHAUSTED workflow=$WORKFLOW_NAME run=$RUN_ID attempt=$RUN_ATTEMPT"
+            exit 0
+          fi
+          echo "RETRY_VALIDATOR_ONCE workflow=$WORKFLOW_NAME run=$RUN_ID attempt=$RUN_ATTEMPT"
+          gh run rerun "$RUN_ID" --failed --repo "${GITHUB_REPOSITORY}"
+          echo "VALIDATOR_RETRY_REQUESTED workflow=$WORKFLOW_NAME run=$RUN_ID"
+      
       - name: Cancel legacy push-triggered heavy runs
         env:
           GH_TOKEN: ${{ github.token }}
