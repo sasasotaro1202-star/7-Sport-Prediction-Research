@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from src.matchday_intelligence_oos import build_matchday_context_horizons, build_matchday_context_rows, build_matchday_intelligence
+from src.matchday_intelligence_oos import build_matchday_change_context_rows, build_matchday_context_horizons, build_matchday_context_rows, build_matchday_intelligence
 from src.storage.db_v45 import SCHEMA, _migrate
 
 
@@ -93,6 +93,9 @@ def main() -> None:
         )
         assert list(horizons) == [1440, 360, 90, 60]
         assert all(len(v) == 1 and len(v[0]) == 14 for v in horizons.values())
+        change_ctx = build_matchday_change_context_rows([('e1','2026-09-24T12:00:00+00:00')], db)
+        assert len(change_ctx) == 1 and len(change_ctx[0]) == 20
+
         vec = __import__("src.matchday_intelligence_oos", fromlist=["router_context_vector"]).router_context_vector(r)
         assert len(vec) == 14 and all(v == v or v != v for v in vec)
         assert r['features']['matchday_source_diversity'] == 1.0
