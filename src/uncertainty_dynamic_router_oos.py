@@ -607,7 +607,51 @@ def bootstrap_fold_improvement(fold_deltas, seed=20260924, draws=1000):
     }
 
 
-def temporal_recalibration(p, y):
+def bootstrap_clustered_improvement(fold_deltas, fold_groups, seed=20260924, draws=2000):
+    """Cluster-bootstrap row-level calibration deltas by physical event."""
+    if not fold_deltas or not fold_groups or len(fold_deltas) != len(fold_groups):
+        return {
+            "probability_improvement": 0.0,
+            "p05_improvement": float("-inf"),
+            "clusters": 0,
+        }
+    rng = np.random.default_rng(seed)
+    fold_means = []
+    cluster_count = 0
+    for delta, groups in zip(fold_deltas, fold_groups):
+        d = np.asarray(delta, dtype=float)
+        g = np.asarray(groups, dtype=object)
+        if len(d) == 0 or len(d) != len(g) or not np.isfinite(d).all():
+            continue
+        unique = np.unique(g)
+        if len(unique) < 5:
+            return {
+                "probability_improvement": 0.0,
+                "p05_improvement": float("-inf"),
+                "clusters": int(len(unique)),
+            }
+        cluster_values = np.asarray([
+            float(np.mean(d[g == key])) for key in unique
+        ], dtype=float)
+        cluster_count += len(cluster_values)
+        idx = rng.integers(0, len(cluster_values), size=(draws, len(cluster_values)))
+        boot_fold = cluster_values[idx].mean(axis=1)
+        fold_means.append(boot_fold)
+    if not fold_means:
+        return {
+            "probability_improvement": 0.0,
+            "p05_improvement": float("-inf"),
+            "clusters": int(cluster_count),
+        }
+    improvement = -np.mean(np.column_stack(fold_means), axis=1)
+    return {
+        "probability_improvement": float(np.mean(improvement > 0.0)),
+        "p05_improvement": float(np.quantile(improvement, 0.05)),
+        "clusters": int(cluster_count),
+    }
+
+
+def temporal_recalibration(p, y, groups=None):
     """
     Fit a low-capacity calibrator only on pre-holdout sequential data.
 
@@ -618,6 +662,16 @@ def temporal_recalibration(p, y):
     """
     p = _clip_prob(p)
     y = np.asarray(y, dtype=int)
+    if groups is None:
+        groups = np.arange(len(p), dtype=object)
+    else:
+        groups = np.asarray(groups, dtype=object)
+        if len(groups) != len(p):
+            return {
+                "accepted": False,
+                "method": "none",
+                "reason": "calibration_group_shape_mismatch",
+            }
     n = len(p)
     if n < 300 or len(np.unique(y)) < 2:
         return {
@@ -677,6 +731,7 @@ def temporal_recalibration(p, y):
     from src.research_cycle_v4 import metric
     methods = ["none", "sigmoid", "beta", "isotonic"]
     scores = {m: [] for m in methods}
+    predictions = {m: [] for m in methods}
     bounds = list(folds)
 
     for method in methods:
@@ -685,6 +740,7 @@ def temporal_recalibration(p, y):
             if pp is None:
                 continue
             scores[method].append(metric(y[a:b], pp))
+            predictions[method].append(np.asarray(pp, dtype=float))
 
     raw = scores["none"]
     if len(raw) < 5:
@@ -715,6 +771,7 @@ def temporal_recalibration(p, y):
     cand_brier = float(np.mean([z["brier"] for z in candidates[method]]))
 
     bootstrap = {"probability_improvement": 0.0, "p05_improvement": float("-inf")}
+    cluster_bootstrap = {"probability_improvement": 0.0, "p05_improvement": float("-inf"), "clusters": 0}
     if method != "none":
         aligned = min(len(candidates["none"]), len(candidates[method]))
         fold_deltas = [
@@ -724,6 +781,22 @@ def temporal_recalibration(p, y):
         bootstrap = bootstrap_fold_improvement(
             fold_deltas, seed=20260924, draws=2000
         )
+        candidate_preds = predictions.get(method, [])
+        raw_preds = predictions.get("none", [])
+        cluster_deltas = []
+        cluster_groups = []
+        for i in range(min(len(candidate_preds), len(raw_preds), len(bounds))):
+            a, b = bounds[i]
+            cp = np.asarray(candidate_preds[i], dtype=float)
+            rp = np.asarray(raw_preds[i], dtype=float)
+            if len(cp) != (b - a) or len(rp) != (b - a):
+                continue
+            delta = _bce_loss(cp, y[a:b]) - _bce_loss(rp, y[a:b])
+            cluster_deltas.append(delta)
+            cluster_groups.append(groups[a:b])
+        cluster_bootstrap = bootstrap_clustered_improvement(
+            cluster_deltas, cluster_groups, seed=20260924, draws=2000
+        )
 
     accepted = (
         method != "none"
@@ -731,6 +804,8 @@ def temporal_recalibration(p, y):
         and cand_brier <= raw_brier + 0.002
         and bootstrap["probability_improvement"] >= 0.90
         and bootstrap["p05_improvement"] > 0.0
+        and cluster_bootstrap["probability_improvement"] >= 0.90
+        and cluster_bootstrap["p05_improvement"] > 0.0
     )
     if not accepted:
         return {
@@ -740,6 +815,7 @@ def temporal_recalibration(p, y):
             "selected_candidate": method,
             "candidate_methods": candidates,
             "bootstrap": bootstrap,
+            "cluster_bootstrap": cluster_bootstrap,
         }
 
     if method == "sigmoid":
@@ -764,6 +840,7 @@ def temporal_recalibration(p, y):
         "model": final,
         "candidate_methods": candidates,
         "bootstrap": bootstrap,
+        "cluster_bootstrap": cluster_bootstrap,
     }
 
 
@@ -780,4 +857,5 @@ __all__ = [
     "route_with_selector",
     "apply_recalibration",
     "bootstrap_fold_improvement",
+    "bootstrap_clustered_improvement",
 ]
