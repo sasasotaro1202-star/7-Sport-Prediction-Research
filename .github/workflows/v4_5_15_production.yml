@@ -262,7 +262,7 @@ jobs:
       - name: Research with frozen holdout
         run: |
           set -euo pipefail
-          timeout --signal=TERM 3600s python -m src.research_cycle_strict
+          timeout --signal=TERM --kill-after=30s 4500s python -m src.research_cycle_strict
 
       - name: Quality report (non-failing coverage mode)
         run: python -m src.quality_gate
