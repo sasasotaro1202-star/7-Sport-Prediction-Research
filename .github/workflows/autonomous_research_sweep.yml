@@ -1,0 +1,37 @@
+name: Autonomous Research Sweep
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autonomous-research-sweep
+  cancel-in-progress: true
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Compile source
+        run: python -m compileall -q src
+      - name: Research router regression
+        run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
+      - name: Matchday intelligence regression
+        run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
+      - name: Production invariant contract
+        run: PYTHONPATH=. python src/production_invariants.py
