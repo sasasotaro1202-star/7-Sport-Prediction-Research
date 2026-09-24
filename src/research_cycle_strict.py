@@ -9,6 +9,7 @@ from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 from src import uncertainty_dynamic_router_oos as uncertainty_router
 from src import matchday_intelligence_oos as matchday_intelligence
+from src.online_fixed_share_hedge import FixedShareHedge
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','ufc','rizin')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
@@ -443,6 +444,70 @@ def evaluate_recent_weighted_router_holdout_from_folds(
         "policy":"research_only; weights fitted from pre-holdout OOF loss history; frozen holdout labels score-only",
     }
 
+def evaluate_fixed_share_hedge_from_folds(y,names,folds,baseline_weights=None,learning_rate=0.12,share=0.05):
+    """Research-only causal fixed-share Hedge on chronological OOS folds."""
+    y=np.asarray(y,dtype=int)
+    if len(names)<2 or len(folds)<6:
+        return {"status":"INSUFFICIENT_OOS","reason":"too_few_chronological_folds"}
+    bw=[float((baseline_weights or {}).get(n,0.0)) for n in names]
+    if sum(bw)<=0: bw=[1.0]*len(names)
+    hedge=FixedShareHedge(len(names),learning_rate=float(learning_rate),share=float(share),baseline_weights=bw)
+    all_static=[];all_online=[];all_y=[];deltas=[]
+    for fold in folds:
+        end,te=int(fold["end"]),int(fold["te"])
+        bp=np.column_stack([np.asarray(fold["preds"][n],dtype=float) for n in names])
+        times=list(fold.get("event_times") or [])
+        if len(times)!=len(bp): return {"status":"INSUFFICIENT_OOS","reason":"event_time_alignment_missing"}
+        w=np.asarray(bw,dtype=float);w/=w.sum()
+        static=np.sum(bp*w[None,:],axis=1);online=np.empty(len(bp),dtype=float)
+        i=0
+        while i<len(bp):
+            j=i+1
+            while j<len(bp) and str(times[j])==str(times[i]): j+=1
+            for k in range(i,j): online[k]=hedge.predict(bp[k])
+            for k in range(i,j): hedge.update(bp[k],int(y[end+k]))
+            i=j
+        yy=y[end:te]
+        sm=base.metric(yy,static);om=base.metric(yy,online)
+        deltas.append(float(om["logloss"]-sm["logloss"]))
+        all_static.extend(static.tolist());all_online.extend(online.tolist());all_y.extend(yy.tolist())
+    if len(all_y)<120:return {"status":"INSUFFICIENT_OOS","reason":"insufficient_hedge_oos","oos_rows":len(all_y)}
+    sm=base.metric(np.asarray(all_y),np.asarray(all_static));om=base.metric(np.asarray(all_y),np.asarray(all_online))
+    d=np.asarray(deltas,dtype=float); rng=np.random.default_rng(20260925)
+    idx=rng.integers(0,len(d),size=(2000,len(d))); imp=-d[idx].mean(axis=1)
+    blocks=[float(np.mean(d[idxs])) for idxs in np.array_split(np.arange(len(d)),3) if len(idxs)]
+    return {"status":"EVALUATED","folds":len(d),"oos_rows":len(all_y),
+            "fixed_ensemble":sm,"fixed_share_hedge":om,
+            "logloss_improvement":float(sm["logloss"]-om["logloss"]),
+            "brier_improvement":float(sm["brier"]-om["brier"]),
+            "ece_change":float(om["ece"]-sm["ece"]),
+            "fold_logloss_deltas":d.tolist(),"nonoverlap_block_deltas":blocks,
+            "bootstrap_p05_improvement":float(np.quantile(imp,.05)),
+            "bootstrap_prob_improvement":float(np.mean(imp>0.0)),
+            "parameters":{"learning_rate":float(learning_rate),"share":float(share)},
+            "final_weights":hedge.state(),
+            "policy":"research_only; chronological OOS; atomic equal-timestamp blocks; no holdout fitting"}
+
+def evaluate_fixed_share_hedge_holdout(y_holdout,names,holdout_pred,baseline_weights=None,initial_weights=None):
+    """Score a pre-holdout Hedge state on frozen holdout without label updates."""
+    hy=np.asarray(y_holdout,dtype=int);bp=np.column_stack([np.asarray(holdout_pred[n],dtype=float) for n in names])
+    bw=[float((baseline_weights or {}).get(n,0.0)) for n in names]
+    if sum(bw)<=0:bw=[1.0]*len(names)
+    w=np.asarray(bw,dtype=float);w/=w.sum();static=np.sum(bp*w[None,:],axis=1)
+    hedge=FixedShareHedge(len(names),learning_rate=.12,share=.05,baseline_weights=bw)
+    if initial_weights is not None:
+        iw=np.asarray(initial_weights,dtype=float)
+        if iw.shape!=(len(names),) or not np.isfinite(iw).all() or iw.sum()<=0:
+            return {"status":"INSUFFICIENT_OOS","reason":"invalid_oos_terminal_hedge_state"}
+        hedge.weights=(iw/iw.sum()).tolist()
+    routed=np.asarray([hedge.predict(row) for row in bp],dtype=float)
+    sm=base.metric(hy,static);rm=base.metric(hy,routed)
+    return {"status":"EVALUATED","holdout_rows":len(hy),"fixed_ensemble":sm,"fixed_share_hedge":rm,
+            "logloss_improvement":float(sm["logloss"]-rm["logloss"]),
+            "brier_improvement":float(sm["brier"]-rm["brier"]),"ece_change":float(rm["ece"]-sm["ece"]),
+            "initial_weights":hedge.state(),"policy":"frozen_holdout_score_only; no holdout labels consumed"}
+
+
 def train(s):
  if s=='f1':
   return _write_result(s,f1())
@@ -529,6 +594,7 @@ def train(s):
    oof_folds.append({'end':end,'te':te,'preds':fold_pred,'base_router_ctx':base_router_ctx,
                      'population_ctx':population_ctx,
                      'event_ids':[str(r[0]) for r in train_rows[end:te]],
+                     'event_times':[str(r[1]) for r in train_rows[end:te]],
                      'population_drift':population_drift.tolist()})
   matchday_oof_ctx=np.asarray(
    matchday_intelligence.build_matchday_change_context_rows(oof_rows),dtype=float
@@ -928,6 +994,33 @@ def train(s):
   )
   recent_weighted_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
   recent_weighted_eval['accepted_for_research_comparison']=bool(recent_weighted_accept)
+  hedge_candidates=[]
+  for eta,share in ((0.06,0.02),(0.12,0.05),(0.20,0.08)):
+   ev=evaluate_fixed_share_hedge_from_folds(y,list(best),oof_folds,candidate_weights,eta,share)
+   if ev.get('status')=='EVALUATED':
+    ev['nonoverlap_block_improvement_count']=int(sum(1 for d in ev.get('nonoverlap_block_deltas',[]) if float(d)<0.0))
+    ev['robust_objective']=float(ev['fixed_share_hedge']['logloss']+0.05*np.std(np.asarray(ev.get('fold_logloss_deltas') or [],dtype=float)))
+    hedge_candidates.append(ev)
+  hedge_candidates.sort(key=lambda z:(z['robust_objective'],z['fixed_share_hedge']['brier'],z['fixed_share_hedge']['ece']))
+  fixed_share_hedge_eval=hedge_candidates[0] if hedge_candidates else {'status':'INSUFFICIENT_OOS','reason':'no_valid_fixed_share_configuration'}
+  if fixed_share_hedge_eval.get('status')=='EVALUATED':
+   fixed_share_hedge_eval['candidate_count']=len(hedge_candidates)
+   fixed_share_hedge_eval['candidate_grid']=[z['parameters'] for z in hedge_candidates]
+   min_gain=max(.001,.005*float(selected_oos_metric['logloss']))
+   fixed_share_hedge_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
+   fixed_share_hedge_eval['accepted_for_research_comparison']=bool(
+    fixed_share_hedge_eval.get('logloss_improvement',-1.0)>=min_gain
+    and fixed_share_hedge_eval.get('brier_improvement',-1.0)>=-.002
+    and fixed_share_hedge_eval.get('ece_change',1.0)<=.02
+    and fixed_share_hedge_eval.get('nonoverlap_block_improvement_count',0)>=2
+    and fixed_share_hedge_eval.get('bootstrap_p05_improvement',-1.0)>0.0
+    and fixed_share_hedge_eval.get('bootstrap_prob_improvement',0.0)>=.90
+   )
+  fixed_share_hedge_holdout=evaluate_fixed_share_hedge_holdout(
+   y_holdout,list(best),
+   {name:np.clip(models[i].predict_proba(X_holdout)[:,1],1e-6,1-1e-6) for i,name in enumerate(best)},
+   candidate_weights,fixed_share_hedge_eval.get('final_weights')
+  ) if fixed_share_hedge_eval.get('status')=='EVALUATED' else {'status':'INSUFFICIENT_OOS','reason':'fixed_share_oos_unavailable'}
   # Research-only next generation: uncertainty/disagreement/drift-aware routing
   # followed by a separate temporal recalibration layer. It never changes the
   # incumbent artifact directly; release remains controlled by the existing gate.
@@ -1043,10 +1136,10 @@ def train(s):
      m.fit(X[:sel],y[:sel])
      router_models_artifact[name]=m
     router_feature_reference=router.context_reference(X[:sel])
-  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'cutoff':train_rows[-1][1],'frozen_holdout_registry_hash':registry['registry_hash']});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'quality_status':'ACCEPTED_LOCKED_HOLDOUT','models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':final_router if router_accept else None,'dynamic_router_names':router_names if router_accept else [],'dynamic_router_models':router_models_artifact if router_accept else {},'dynamic_router_feature_reference':router_feature_reference,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration},path)
+  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'fixed_share_hedge':fixed_share_hedge_eval,'fixed_share_hedge_holdout':fixed_share_hedge_holdout,'cutoff':train_rows[-1][1],'frozen_holdout_registry_hash':registry['registry_hash']});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'quality_status':'ACCEPTED_LOCKED_HOLDOUT','models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':final_router if router_accept else None,'dynamic_router_names':router_names if router_accept else [],'dynamic_router_models':router_models_artifact if router_accept else {},'dynamic_router_feature_reference':router_feature_reference,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'fixed_share_hedge_research':fixed_share_hedge_eval,'fixed_share_hedge_holdout':fixed_share_hedge_holdout,'probability_calibration':calibration},path)
   sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_win_rate':wa_win_rate,'weighted_pair_mean_delta':wa_mean_delta,'weighted_pair_fold_delta_std':wa_fold_std,'weighted_pair_robust_gain':wa_robust_gain,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'frozen_holdout_registry_hash':registry['registry_hash'],'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
   c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in train_rows]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
-  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'),'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary};return _write_result(s,out)
+  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'),'fixed_share_hedge':fixed_share_hedge_eval,'fixed_share_hedge_holdout':fixed_share_hedge_holdout,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary};return _write_result(s,out)
  finally:c.close()
 def main():
  import argparse
