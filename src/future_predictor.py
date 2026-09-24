@@ -5,6 +5,7 @@ from pathlib import Path
 import joblib,numpy as np
 from src import dynamic_model_router as router
 from src import research_cycle_v4 as base
+from src import matchday_intelligence_oos as matchday
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
@@ -175,6 +176,23 @@ def predict_sport(c,s,now):
         apply_cal = None if strategy=='contextual_router' else cal
         apply_method = 'none' if strategy=='contextual_router' else cal_method
         p=float(_apply_calibration(raw,apply_cal,apply_method)[0])
+        matchday_cutoff=(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        try:
+            # Prospective mode uses only observations the system itself demonstrably
+            # saw by cutoff. It is excluded from historical OOS and is logged for
+            # situational awareness / future research.
+            matchday_info=matchday.build_matchday_intelligence(
+                eid,matchday_cutoff,DB,mode='prospective_observed'
+            )
+            matchday_status='OBSERVED' if matchday_info.get('evidence_counts') else 'UNKNOWN'
+        except Exception as exc:
+            matchday_info={
+                'mode':'prospective_observed',
+                'historical_oos_eligible':False,
+                'status':'UNAVAILABLE',
+                'reason':type(exc).__name__,
+            }
+            matchday_status='UNAVAILABLE'
         a,b=c.execute(
             """SELECT GROUP_CONCAT(CASE WHEN side='A' THEN canonical_name END),
                       GROUP_CONCAT(CASE WHEN side='B' THEN canonical_name END)
@@ -185,7 +203,21 @@ def predict_sport(c,s,now):
         prediction_id=_persist_forward_prediction(
             c,eid,s,cutoff,now,1.0-p,p,strategy,artifact.get('model_version'),
             artifact.get('feature_version') or 'unknown',
-            {f:row_features.get(f) for f in features}
+            {
+                'base_features': {f:row_features.get(f) for f in features},
+                'matchday_intelligence': {
+                    'status':matchday_status,
+                    'mode':matchday_info.get('mode'),
+                    'evidence_counts':matchday_info.get('evidence_counts',{}),
+                    'features':matchday_info.get('features',{}),
+                    'availability':matchday_info.get('availability',[]),
+                    'lineup':matchday_info.get('lineup',{}),
+                    'rest_schedule':matchday_info.get('rest_schedule',{}),
+                    'typed_context':matchday_info.get('typed_context',{}),
+                    'feature_snapshot_hash':matchday_info.get('feature_snapshot_hash'),
+                    'policy':matchday_info.get('policy'),
+                }
+            }
         )
         outputs.append({
             'event_id':eid,'event_time_utc':t,'prediction_cutoff_at_utc':cutoff,'side_a':a,'side_b':b,
@@ -195,6 +227,9 @@ def predict_sport(c,s,now):
             'ensemble_weights':dict(weights) if strategy!='contextual_router' else None,
             'model_version':artifact.get('model_version'),
             'feature_version':artifact.get('feature_version') or 'unknown',
+            'matchday_status':matchday_status,
+            'matchday_evidence_counts':matchday_info.get('evidence_counts',{}),
+            'matchday_features':matchday_info.get('features',{}),
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED' if outputs else 'NO_FUTURE_EVENTS',
