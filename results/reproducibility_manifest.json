@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-09-24T00:21:16.390023+00:00",
-  "source_git_commit_sha": "18763e6a3c1b5c748453f806695350c7fc7062a5",
+  "generated_at_utc": "2026-09-24T01:15:06.794720+00:00",
+  "source_git_commit_sha": "68d171dc71244bb2f3cc5e1921222d2696915d42",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 778174464,
-      "sha256": "05eb9636e1ecf7d984a6255147eb2b8a59a3bb77ce23c0d9f858a2424b453cc3"
+      "bytes": 785641472,
+      "sha256": "bc5f817c5e823dc0ad91f8ce7e80cef85e4e82cd6841ebea268a714d21eefcea"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -54,19 +54,19 @@
       "path": "data/db/boxing_v45.sqlite",
       "exists": true,
       "bytes": 24027136,
-      "sha256": "4064e2681591ff328939b19bb45113849136431e4e007fb7a0baa15e3ab0b712"
+      "sha256": "33fde9cc77fd14662d6f126bf0548e859df77513dabdd42a0ef9115ab2ae5bc2"
     },
     {
       "path": "results/quality_gate.json",
       "exists": true,
       "bytes": 3667,
-      "sha256": "9e1c6c514258b37ca5dc260d8312ffd8a6b1cde0252c7bdca2e383babcb5d73d"
+      "sha256": "fd55bf2e632d5a4f021a175fe8d5374af8354b359d7b9b72cb1c4cd866b91eaa"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
       "bytes": 3749,
-      "sha256": "e79490aaf264d16e8e62af8d18f45eefdb5610f3db181c1dd4eabcc0a60718c3"
+      "sha256": "a28225f71cb27bc3c0b96511d02f8bf3120e204474a9b2b8ee94cc979bdb04f8"
     },
     {
       "path": "results/pit_replay.json",
@@ -79,8 +79,8 @@
     {
       "path": "results/research/basketball.json",
       "exists": true,
-      "bytes": 23593,
-      "sha256": "a831f0a90b46931efd1f9ba0ba28464f8b299328007d2024b9b212fcb5fb8b78"
+      "bytes": 23595,
+      "sha256": "c29f3fedf6bc0caa5462ba9625d62106f62194b9fbd2879449aea9a04a089ebc"
     },
     {
       "path": "results/research/basketball_frozen_holdout.json",
@@ -121,8 +121,8 @@
     {
       "path": "results/research/ufc.json",
       "exists": true,
-      "bytes": 28895,
-      "sha256": "397197bca8871856e27e46fcb23db9bf00ebe713ea7e47d54924e35ef0a463eb"
+      "bytes": 28902,
+      "sha256": "799d8b3a820619213b1cc8029bd826d09118cbb753f8be8ff5af698142670e18"
     },
     {
       "path": "results/research/ufc_frozen_holdout.json",
@@ -146,13 +146,13 @@
       "path": "models/research/basketball_current.joblib",
       "exists": true,
       "bytes": 47126899,
-      "sha256": "ae0d56f5abfe64418f92d0884958cebb7237701b19693f8fa04079140d55ff50"
+      "sha256": "e1598809fa8a38ed319ce9a7aa3086d35d37b2a82d3bcca1e199b004486ec915"
     },
     {
       "path": "models/research/ufc_current.joblib",
       "exists": true,
       "bytes": 35665206,
-      "sha256": "396eabe0d1e3785220c7788781c11ea74934f6e5a75d483fdb7d79602044cb44"
+      "sha256": "d65d95b09247f0a6fb14ffe062df093d69248c4d12a2159342c09d7c734ec2d7"
     },
     {
       "path": "models/research/valorant_current.joblib",

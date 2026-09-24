@@ -1,7 +1,7 @@
 {
   "sport": "boxing",
   "status": "DEFERRED_PIT",
-  "timestamp_utc": "2026-09-23T23:44:38.014340+00:00",
+  "timestamp_utc": "2026-09-24T00:47:45.504453+00:00",
   "prediction_cutoff_rule": "event_time_minus_60m",
   "provenance_rule": "retrieval time is never treated as historical publication availability",
   "production_model_enabled": false,
@@ -10,7 +10,7 @@
     "imported_events": 6986,
     "verified_outcomes": 6980,
     "skipped": 0,
-    "retrieved_at_utc": "2026-09-23T23:44:47.091703+00:00"
+    "retrieved_at_utc": "2026-09-24T00:47:54.497368+00:00"
   },
   "database": "data/db/boxing_v45.sqlite",
   "candidate_sources": [
@@ -21,9 +21,9 @@
       "pit_status": "HISTORICAL_LABELS_AVAILABLE; PUBLICATION_TIME_UNPROVEN",
       "probe": {
         "reachable": true,
-        "retrieved_at_utc": "2026-09-23T23:44:38.560460+00:00",
-        "bytes": 263754,
-        "etag": "W/\"394289bb8e7c5d07cf1e5dfc0aa6c80a\""
+        "retrieved_at_utc": "2026-09-24T00:47:46.155112+00:00",
+        "bytes": 263721,
+        "etag": "W/\"579108f954f4323d25d039ae6e469ad0\""
       }
     },
     {
@@ -33,9 +33,9 @@
       "pit_status": "UNPROVEN",
       "probe": {
         "reachable": true,
-        "retrieved_at_utc": "2026-09-23T23:44:39.339018+00:00",
-        "bytes": 262127,
-        "etag": "W/\"f2b533eaaa11c362790857506419f93f\""
+        "retrieved_at_utc": "2026-09-24T00:47:46.874300+00:00",
+        "bytes": 262093,
+        "etag": "W/\"78b5285e14b5a9a8fd8c8b6b304728e9\""
       }
     },
     {
@@ -46,9 +46,9 @@
       "pit_status": "UNPROVEN",
       "probe": {
         "reachable": true,
-        "retrieved_at_utc": "2026-09-23T23:44:39.893951+00:00",
-        "bytes": 235731,
-        "etag": "W/\"5a4f30f043467b736118877e5c877dd7\""
+        "retrieved_at_utc": "2026-09-24T00:47:47.448065+00:00",
+        "bytes": 235697,
+        "etag": "W/\"9c082cb5ea21ac0d4229282a7cb0047e\""
       }
     },
     {
@@ -59,9 +59,9 @@
       "pit_status": "UNPROVEN",
       "probe": {
         "reachable": true,
-        "retrieved_at_utc": "2026-09-23T23:44:40.695731+00:00",
-        "bytes": 1429950,
-        "etag": "W/\"fcd2ce431e1752f4166bd019d60dad1d\""
+        "retrieved_at_utc": "2026-09-24T00:47:48.179686+00:00",
+        "bytes": 1429916,
+        "etag": "W/\"9ff895a96b8aed82e2a4ac3894a11e51\""
       }
     },
     {
@@ -72,9 +72,9 @@
       "pit_status": "UNPROVEN",
       "probe": {
         "reachable": true,
-        "retrieved_at_utc": "2026-09-23T23:44:41.279072+00:00",
-        "bytes": 262373,
-        "etag": "W/\"5ff572e7b803f880e94e6bf200d54945\""
+        "retrieved_at_utc": "2026-09-24T00:47:48.779930+00:00",
+        "bytes": 262339,
+        "etag": "W/\"e237be0ff86f0a79fa0950676c4ecf91\""
       }
     },
     {
@@ -94,9 +94,9 @@
       "pit_status": "UNPROVEN_AND_TERMS_RISK",
       "probe": {
         "reachable": true,
-        "retrieved_at_utc": "2026-09-23T23:44:46.782246+00:00",
-        "bytes": 319643,
-        "etag": "W/\"725ca7f5086d4b8510b336d0e7e25b00\""
+        "retrieved_at_utc": "2026-09-24T00:47:54.105269+00:00",
+        "bytes": 319610,
+        "etag": "W/\"11acda6a8c3b37b62bbad2946b3ec662\""
       }
     }
   ],
