@@ -4,13 +4,13 @@
   "fatal": [],
   "checks": {
     "pit_feature_rows": 193770,
-    "replays_checked": 35118,
+    "replays_checked": 35120,
     "same_event_feature_violations": 0,
     "accepted_models_checked": 2,
     "accepted_models_with_frozen_holdout_metadata": 2,
     "impossible_exact_snapshots": 0
   },
   "audit_version": "independent-leakage-audit-v3-accepted-model-contract",
-  "github_run_id": "36051641341",
+  "github_run_id": "36067066887",
   "minimum_pit_gap_minutes": 60
 }
