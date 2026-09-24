@@ -4,6 +4,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 import joblib,numpy as np
 from src import dynamic_model_router as router
+from src import matchday_intelligence_oos as matchday_intelligence
 from src import research_cycle_v4 as base
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -77,6 +78,105 @@ def _after_now(ts,now):
 
 def _prediction_id(event_id, model_version, cutoff):
     return hashlib.sha256(f"future-v1|{event_id}|winner|{model_version}|{cutoff}".encode()).hexdigest()[:32]
+
+def _prediction_confidence(probability, situation):
+    """Conservative event-level confidence label; probabilities are unchanged."""
+    max_p = max(float(probability), 1.0 - float(probability))
+    quality = situation.get("quality") or {}
+    conflict = quality.get("conflict_rate")
+    freshness = quality.get("freshness_score")
+    evidence = int(quality.get("evidence_count") or 0)
+    if conflict is not None and float(conflict) > 0.50:
+        return "LOW"
+    if max_p >= 0.80 and (freshness is None or float(freshness) >= 0.50) and evidence >= 1:
+        return "HIGH"
+    if max_p >= 0.65:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _prediction_action(confidence, situation):
+    """Keep prediction and decision separate; uncertain/conflicted events abstain."""
+    quality = situation.get("quality") or {}
+    conflict = quality.get("conflict_rate")
+    if conflict is not None and float(conflict) > 0.50:
+        return "PASS"
+    if confidence == "HIGH":
+        return "PRIMARY"
+    if confidence == "MEDIUM":
+        return "SECONDARY"
+    return "PASS"
+
+
+def _matchday_situation(event_id, event_time, cutoff):
+    try:
+        payload = matchday_intelligence.build_matchday_intelligence(event_id, cutoff, DB)
+        f = payload.get("features") or {}
+        q = {
+            "source_diversity": f.get("matchday_source_diversity"),
+            "conflict_rate": f.get("matchday_conflict_rate"),
+            "confidence_mean": f.get("matchday_confidence_mean"),
+            "freshness_score": f.get("matchday_freshness_score"),
+            "evidence_count": sum(
+                int(f.get(k) or 0)
+                for k in ("weather_signal_count", "market_signal_count", "news_signal_count")
+            ),
+        }
+        summary = {
+            "availability_out_diff": (
+                None if f.get("availability_out_side_a") is None or f.get("availability_out_side_b") is None
+                else float(f.get("availability_out_side_a")) - float(f.get("availability_out_side_b"))
+            ),
+            "availability_uncertain_diff": (
+                None if f.get("availability_uncertain_side_a") is None or f.get("availability_uncertain_side_b") is None
+                else float(f.get("availability_uncertain_side_a")) - float(f.get("availability_uncertain_side_b"))
+            ),
+            "lineup_confirmed_diff": (
+                None if f.get("lineup_confirmed_side_a") is None or f.get("lineup_confirmed_side_b") is None
+                else float(f.get("lineup_confirmed_side_a")) - float(f.get("lineup_confirmed_side_b"))
+            ),
+            "rest_diff_days": (
+                None if payload.get("rest_schedule") is None else (
+                    next(iter([
+                        float(v.get("rest_days")) for v in (payload.get("rest_schedule") or {}).values()
+                        if isinstance(v, dict) and v.get("rest_days") is not None
+                    ]), None)
+                )
+            ),
+            "weather_signal_count": f.get("weather_signal_count"),
+            "market_signal_count": f.get("market_signal_count"),
+            "news_signal_count": f.get("news_signal_count"),
+            "lineup_known_a": f.get("lineup_known_side_a"),
+            "lineup_known_b": f.get("lineup_known_side_b"),
+        }
+        return {
+            "status": "EXACT_PIT",
+            "cutoff_at_utc": cutoff,
+            "quality": q,
+            "summary": summary,
+            "feature_snapshot_hash": hashlib.sha256(
+                json.dumps(matchday_intelligence.router_context_vector(payload),
+                           sort_keys=True, default=str).encode()
+            ).hexdigest(),
+            "policy": str(payload.get("policy") or "research_only;PIT"),
+        }
+    except Exception as exc:
+        return {
+            "status": "UNAVAILABLE",
+            "cutoff_at_utc": cutoff,
+            "quality": {
+                "source_diversity": None,
+                "conflict_rate": None,
+                "confidence_mean": None,
+                "freshness_score": None,
+                "evidence_count": 0,
+            },
+            "summary": {},
+            "feature_snapshot_hash": None,
+            "policy": "research_only;PIT",
+            "reason": type(exc).__name__,
+        }
+
 
 def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strategy, model_version, feature_version, features):
     payload={k:features.get(k) for k in sorted(features)}
@@ -175,17 +275,23 @@ def predict_sport(c,s,now):
         apply_cal = None if strategy=='contextual_router' else cal
         apply_method = 'none' if strategy=='contextual_router' else cal_method
         p=float(_apply_calibration(raw,apply_cal,apply_method)[0])
+        cutoff=(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        situation=_matchday_situation(eid,t,cutoff)
+        confidence=_prediction_confidence(p,situation)
+        action_state=_prediction_action(confidence,situation)
         a,b=c.execute(
             """SELECT GROUP_CONCAT(CASE WHEN side='A' THEN canonical_name END),
                       GROUP_CONCAT(CASE WHEN side='B' THEN canonical_name END)
                  FROM event_participant ep
                  LEFT JOIN participant p ON p.participant_id=ep.participant_id
                 WHERE ep.event_id=?""",(eid,)).fetchone()
-        cutoff=(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
         prediction_id=_persist_forward_prediction(
             c,eid,s,cutoff,now,1.0-p,p,strategy,artifact.get('model_version'),
             artifact.get('feature_version') or 'unknown',
-            {f:row_features.get(f) for f in features}
+            {
+                **{f:row_features.get(f) for f in features},
+                "matchday_situation": situation,
+            }
         )
         outputs.append({
             'event_id':eid,'event_time_utc':t,'prediction_cutoff_at_utc':cutoff,'side_a':a,'side_b':b,
@@ -195,6 +301,9 @@ def predict_sport(c,s,now):
             'ensemble_weights':dict(weights) if strategy!='contextual_router' else None,
             'model_version':artifact.get('model_version'),
             'feature_version':artifact.get('feature_version') or 'unknown',
+            'confidence':confidence,
+            'action_state':action_state,
+            'situation':situation,
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED' if outputs else 'NO_FUTURE_EVENTS',
@@ -211,7 +320,7 @@ def main():
         con.commit()
     finally:
         con.close()
-    report={'generated_at_utc':now.isoformat(),'policy':'accepted-artifact-only; nine-sport scope; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration; F1 binary-artifact fail-closed','sports':results}
+    report={'generated_at_utc':now.isoformat(),'policy':'accepted-artifact-only; nine-sport scope; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration; F1 binary-artifact fail-closed; event-confidence-v1; matchday-situation-v1','sports':results}
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     # Derive eligibility from this exact canonical inference pass so the
