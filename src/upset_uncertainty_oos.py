@@ -154,6 +154,43 @@ def _policy_probability(p, risk, strength):
     out[active] = (1.0 - float(strength)) * p[active] + float(strength) * 0.5
     return _clip(out)
 
+def _dissent_probability(p, expert_p, weights):
+    """Weighted probability of experts whose class disagrees with the incumbent."""
+    p = _clip(p)
+    ep = _clip(expert_p)
+    w = np.asarray(weights, dtype=float)
+    if ep.ndim != 2 or ep.shape[0] != len(p):
+        raise ValueError("dissent expert shape mismatch")
+    if w.ndim != 1 or len(w) != ep.shape[1] or not np.isfinite(w).all() or w.sum() <= 0:
+        w = np.full(ep.shape[1], 1.0 / ep.shape[1], dtype=float)
+    else:
+        w = w / w.sum()
+    incumbent_class = (p >= 0.5).astype(int)
+    dissent = (ep >= 0.5).astype(int) != incumbent_class[:, None]
+    denominator = np.sum(w[None, :] * dissent, axis=1)
+    numerator = np.sum(ep * w[None, :] * dissent, axis=1)
+    available = denominator > 0.0
+    out = p.copy()
+    out[available] = numerator[available] / denominator[available]
+    return _clip(out), available
+
+
+def _policy_dissent(p, risk, expert_p, weights, strength):
+    """Consult the opposing expert side only when risk is high and dissent is material."""
+    p = _clip(p)
+    risk = np.clip(np.asarray(risk, dtype=float), 0.0, 1.0)
+    dissent_p, available = _dissent_probability(p, expert_p, weights)
+    high_conf = np.maximum(p, 1.0 - p) >= CONFIDENCE_FLOOR
+    active = (
+        high_conf
+        & (risk >= RISK_THRESHOLD)
+        & available
+        & (np.abs(dissent_p - 0.5) >= 0.08)
+    )
+    out = p.copy()
+    out[active] = (1.0 - float(strength)) * p[active] + float(strength) * dissent_p[active]
+    return _clip(out), active
+
 
 def _risk_diagnostics(y, p, risk):
     target = _risk_target(p, y)
@@ -315,6 +352,7 @@ def _evaluate_sport(con, sport):
                 "y": y[end:te].copy(),
                 "risk_target": target,
                 "feature_rows": features,
+                "expert_p": ep,
                 "enabled": enabled,
                 "event_ids": ids,
             }
@@ -337,37 +375,15 @@ def _evaluate_sport(con, sport):
     baseline = base.metric(oos_y, oos_p)
 
     policy_results = {}
-    for strength in POLICY_STRENGTHS:
-        key = f"shrink_{strength:.2f}"
-        preds = []
-        deltas = []
-        block_metrics = []
-        for f in folds:
-            adj = _policy_probability(f["p"], f["risk"], strength)
-            preds.append(adj)
-            loss_adj = -(f["y"] * np.log(_clip(adj)) + (1 - f["y"]) * np.log(1 - _clip(adj)))
-            loss_base = -(f["y"] * np.log(_clip(f["p"])) + (1 - f["y"]) * np.log(1 - _clip(f["p"])))
-            deltas.append(loss_base - loss_adj)
+    weights_vec = np.asarray([float(weights[name]) for name in names], dtype=float)
+    if not np.isfinite(weights_vec).all() or weights_vec.sum() <= 0:
+        weights_vec = np.full(len(names), 1.0 / len(names), dtype=float)
+    else:
+        weights_vec /= weights_vec.sum()
 
-        cp = np.concatenate(preds)
+    def _record_policy(key, strength, kind, predictions, deltas, block_metrics, active_rows, extra=None):
+        cp = np.concatenate(predictions)
         m = base.metric(oos_y, cp)
-
-        for idxs in np.array_split(np.arange(len(folds)), min(3, len(folds))):
-            yy = np.concatenate([folds[int(i)]["y"] for i in idxs])
-            bb = np.concatenate([folds[int(i)]["p"] for i in idxs])
-            cc = np.concatenate([
-                _policy_probability(folds[int(i)]["p"], folds[int(i)]["risk"], strength)
-                for i in idxs
-            ])
-            block_metrics.append(
-                {
-                    "baseline": base.metric(yy, bb),
-                    "candidate": base.metric(yy, cc),
-                    "logloss_improvement": float(base.metric(yy, bb)["logloss"] - base.metric(yy, cc)["logloss"]),
-                    "brier_improvement": float(base.metric(yy, bb)["brier"] - base.metric(yy, cc)["brier"]),
-                }
-            )
-
         clustered = uncertainty_router.bootstrap_clustered_improvement(
             deltas,
             [np.asarray(f["event_ids"], dtype=object) for f in folds],
@@ -379,27 +395,92 @@ def _evaluate_sport(con, sport):
             for b in block_metrics
             if b["logloss_improvement"] > 0.0 and b["brier_improvement"] >= -0.001
         )
-        policy_results[key] = {
+        payload = {
             "strength": float(strength),
+            "kind": kind,
             "oos": m,
             "oos_logloss_improvement": float(baseline["logloss"] - m["logloss"]),
             "oos_brier_improvement": float(baseline["brier"] - m["brier"]),
+            "oos_accuracy_improvement": float(m["accuracy"] - baseline["accuracy"]),
             "ece_change": float(m["ece"] - baseline["ece"]),
             "positive_block_count": int(positive_blocks),
             "block_results": block_metrics,
             "cluster_bootstrap": clustered,
-            "active_rows": int(sum(
-                np.sum(
-                    (np.maximum(f["p"], 1.0 - f["p"]) >= CONFIDENCE_FLOOR)
-                    & (f["risk"] >= RISK_THRESHOLD)
-                ) for f in folds
-            )),
+            "active_rows": int(active_rows),
         }
+        if extra:
+            payload.update(extra)
+        policy_results[key] = payload
+
+    for strength in POLICY_STRENGTHS:
+        key = f"shrink_{strength:.2f}"
+        preds, deltas, block_metrics = [], [], []
+        active_rows = 0
+        for f in folds:
+            adj = _policy_probability(f["p"], f["risk"], strength)
+            preds.append(adj)
+            active = (
+                (np.maximum(f["p"], 1.0 - f["p"]) >= CONFIDENCE_FLOOR)
+                & (f["risk"] >= RISK_THRESHOLD)
+            )
+            active_rows += int(active.sum())
+            loss_base = -(f["y"] * np.log(_clip(f["p"])) + (1 - f["y"]) * np.log(1 - _clip(f["p"])))
+            loss_adj = -(f["y"] * np.log(_clip(adj)) + (1 - f["y"]) * np.log(1 - _clip(adj)))
+            deltas.append(loss_base - loss_adj)
+        for idxs in np.array_split(np.arange(len(folds)), min(3, len(folds))):
+            yy = np.concatenate([folds[int(i)]["y"] for i in idxs])
+            bb = np.concatenate([folds[int(i)]["p"] for i in idxs])
+            cc = np.concatenate([preds[int(i)] for i in idxs])
+            block_metrics.append({
+                "baseline": base.metric(yy, bb),
+                "candidate": base.metric(yy, cc),
+                "logloss_improvement": float(base.metric(yy, bb)["logloss"] - base.metric(yy, cc)["logloss"]),
+                "brier_improvement": float(base.metric(yy, bb)["brier"] - base.metric(yy, cc)["brier"]),
+                "accuracy_improvement": float(np.mean((cc >= 0.5) == yy) - np.mean((bb >= 0.5) == yy)),
+            })
+        _record_policy(key, strength, "probability_shrinkage", preds, deltas, block_metrics, active_rows)
+
+    for strength in POLICY_STRENGTHS:
+        key = f"dissent_{strength:.2f}"
+        preds, deltas, block_metrics = [], [], []
+        active_rows = 0
+        for f in folds:
+            adj, active = _policy_dissent(
+                f["p"], f["risk"], f["expert_p"], weights_vec, strength
+            )
+            preds.append(adj)
+            active_rows += int(active.sum())
+            loss_base = -(f["y"] * np.log(_clip(f["p"])) + (1 - f["y"]) * np.log(1 - _clip(f["p"])))
+            loss_adj = -(f["y"] * np.log(_clip(adj)) + (1 - f["y"]) * np.log(1 - _clip(adj)))
+            deltas.append(loss_base - loss_adj)
+        for idxs in np.array_split(np.arange(len(folds)), min(3, len(folds))):
+            yy = np.concatenate([folds[int(i)]["y"] for i in idxs])
+            bb = np.concatenate([folds[int(i)]["p"] for i in idxs])
+            cc = np.concatenate([
+                _policy_dissent(
+                    folds[int(i)]["p"], folds[int(i)]["risk"],
+                    folds[int(i)]["expert_p"], weights_vec, strength
+                )[0]
+                for i in idxs
+            ])
+            block_metrics.append({
+                "baseline": base.metric(yy, bb),
+                "candidate": base.metric(yy, cc),
+                "logloss_improvement": float(base.metric(yy, bb)["logloss"] - base.metric(yy, cc)["logloss"]),
+                "brier_improvement": float(base.metric(yy, bb)["brier"] - base.metric(yy, cc)["brier"]),
+                "accuracy_improvement": float(np.mean((cc >= 0.5) == yy) - np.mean((bb >= 0.5) == yy)),
+            })
+        _record_policy(
+            key, strength, "dissent_rescue", preds, deltas, block_metrics,
+            active_rows,
+            extra={"selection_requires_accuracy_improvement": True},
+        )
 
     ranked = sorted(
         policy_results.items(),
         key=lambda item: (
             -float(item[1]["oos_logloss_improvement"]),
+            -float(item[1]["oos_accuracy_improvement"]),
             -float(item[1]["oos_brier_improvement"]),
             float(item[1]["ece_change"]),
         ),
@@ -407,10 +488,15 @@ def _evaluate_sport(con, sport):
     selected_key = "none"
     selected_strength = 0.0
     for key, r in ranked:
+        accuracy_ok = (
+            r.get("kind") != "dissent_rescue"
+            or r.get("oos_accuracy_improvement", 0.0) > 0.0
+        )
         if (
             r["oos_logloss_improvement"] > 0.0
             and r["oos_brier_improvement"] >= -0.001
             and r["positive_block_count"] >= 2
+            and accuracy_ok
         ):
             selected_key = key
             selected_strength = float(r["strength"])
@@ -433,20 +519,31 @@ def _evaluate_sport(con, sport):
     holdout_risk, risk_enabled = _fit_holdout_risk_model(
         final_pre_x, final_pre_target, holdout_features
     )
-    holdout_candidate = (
-        _policy_probability(holdout_base, holdout_risk, selected_strength)
-        if selected_key != "none"
-        else holdout_base.copy()
-    )
+    if selected_key.startswith("dissent_"):
+        holdout_candidate, _ = _policy_dissent(
+            holdout_base, holdout_risk, holdout_ep, weights_vec, selected_strength
+        )
+    else:
+        holdout_candidate = (
+            _policy_probability(holdout_base, holdout_risk, selected_strength)
+            if selected_key != "none"
+            else holdout_base.copy()
+        )
 
     high_conf = np.maximum(oos_p, 1.0 - oos_p) >= CONFIDENCE_FLOOR
     high_conf_p = oos_p[high_conf]
     high_conf_y = oos_y[high_conf]
-    high_conf_candidate = (
-        _policy_probability(high_conf_p, oos_risk[high_conf], selected_strength)
-        if selected_key != "none"
-        else high_conf_p.copy()
-    )
+    if selected_key.startswith("dissent_"):
+        high_expert = np.concatenate([f["expert_p"] for f in folds], axis=0)[high_conf]
+        high_conf_candidate, _ = _policy_dissent(
+            high_conf_p, oos_risk[high_conf], high_expert, weights_vec, selected_strength
+        )
+    else:
+        high_conf_candidate = (
+            _policy_probability(high_conf_p, oos_risk[high_conf], selected_strength)
+            if selected_key != "none"
+            else high_conf_p.copy()
+        )
 
     result = {
         "sport": sport,
