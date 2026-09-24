@@ -344,12 +344,12 @@ def train(s):
   # Matchday intelligence is challenger-only context. It is generated per event
   # at event_time - 60m from exact source snapshots; missing signals remain NaN.
   matchday_train_ctx=np.asarray(
-   matchday_intelligence.build_matchday_context_rows(train_rows),dtype=float
+   matchday_intelligence.build_matchday_change_context_rows(train_rows),dtype=float
   )
   matchday_holdout_ctx=np.asarray(
-   matchday_intelligence.build_matchday_context_rows(holdout_rows),dtype=float
+   matchday_intelligence.build_matchday_change_context_rows(holdout_rows),dtype=float
   )
-  if matchday_train_ctx.shape!=(sel,14) or matchday_holdout_ctx.shape!=(hn,14):
+  if matchday_train_ctx.shape!=(sel,20) or matchday_holdout_ctx.shape!=(hn,20):
    return _write_result(s,{'sport':s,'status':'DEFERRED_MATCHDAY_CONTEXT','reason':'matchday_context_shape_mismatch',
                            'training_shape':list(matchday_train_ctx.shape),'holdout_shape':list(matchday_holdout_ctx.shape)})
   # Construct the pool once per sport. Recreating every estimator wrapper for
