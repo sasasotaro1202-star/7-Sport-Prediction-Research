@@ -184,7 +184,9 @@ def predict_sport(c,s,now):
             matchday_info=matchday.build_matchday_intelligence(
                 eid,matchday_cutoff,DB,mode='prospective_observed'
             )
-            matchday_status='OBSERVED' if matchday_info.get('evidence_counts') else 'UNKNOWN'
+            evidence=matchday_info.get('evidence_counts') or {}
+            evidence_total=sum(int(v or 0) for v in evidence.values())
+            matchday_status='OBSERVED' if evidence_total > 0 else 'UNKNOWN'
         except Exception as exc:
             matchday_info={
                 'mode':'prospective_observed',
