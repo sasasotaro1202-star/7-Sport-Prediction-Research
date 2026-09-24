@@ -607,6 +607,17 @@ def route_with_selector(
     if feature_mask.size != features.shape[1] or not feature_mask.any():
         return _clip_prob(baseline)
     selected_features = features[:, feature_mask]
+    # Fail closed on any persisted selector/model feature-width mismatch.
+    # This protects long-running OOS/research Actions from stopping after a
+    # schema evolution or partially refreshed selector artifact.
+    for model in selector.get("selectors", []):
+        expected = getattr(model, "n_features_in_", None)
+        if expected is not None and int(expected) != int(selected_features.shape[1]):
+            return _clip_prob(baseline)
+    for model in selector.get("voi_selectors") or []:
+        expected = getattr(model, "n_features_in_", None)
+        if expected is not None and int(expected) != int(selected_features.shape[1]):
+            return _clip_prob(baseline)
     pred_l = np.column_stack([
         m.predict(selected_features) for m in selector["selectors"]
     ])
