@@ -455,23 +455,27 @@ def build_matchday_intelligence(event_id: str, cutoff_utc: str, db_path: Path = 
         con.close()
 
 
-def build_matchday_context_rows(rows, db_path: Path = DB):
-    """Return fixed-width PIT-safe router context for event rows."""
+def build_matchday_context_rows(rows, db_path: Path = DB, lead_minutes: int = 60):
+    """Return fixed-width PIT-safe router context for event rows at a chosen horizon."""
+    lead = int(lead_minutes)
+    if lead < 0:
+        raise ValueError("lead_minutes must be non-negative")
     con = sqlite3.connect(db_path)
     out = []
+    width = 14
     try:
         for row in rows:
             event_id, event_time = str(row[0]), str(row[1])
             dt = _dt(event_time)
             if dt is None:
-                out.append([float("nan")] * 10)
+                out.append([float("nan")] * width)
                 continue
-            cutoff = (dt - timedelta(minutes=60)).isoformat()
+            cutoff = (dt - timedelta(minutes=lead)).isoformat()
             try:
                 payload = _build_with_connection(con, event_id, cutoff)
                 out.append(router_context_vector(payload))
             except Exception:
-                out.append([float("nan")] * 10)
+                out.append([float("nan")] * width)
     finally:
         con.close()
     return out
