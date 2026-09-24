@@ -405,6 +405,10 @@ def main():
             "conclusion == 'startup_failure'" in recovery_src,
             'production failure recovery lacks main-only timeout/startup-failure handling')
     watchdog_src=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
+    require('cancel-in-progress: false' in watchdog_src,
+            'production watchdog must not self-cancel concurrent recovery events')
+    require('Exit cleanly when superseded by a newer watchdog run' in watchdog_src,
+            'production watchdog lacks deterministic newest-run self-guard')
     require('lightweight_regression.yml' in watchdog_src and 'lightweight_ok' in watchdog_src and 'lightweight_ok" -ge 1' in watchdog_src,
             'production watchdog dispatch does not require same-SHA Lightweight Regression success')
     require('Lightweight Regression and Safety Checks' in watchdog_src,
