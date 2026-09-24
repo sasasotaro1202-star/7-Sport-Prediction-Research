@@ -23,12 +23,10 @@ permissions:
   contents: read
 
 concurrency:
-  # Recovery checks must not cancel one another. Multiple workflow_run events
-  # can legitimately arrive at the same time after validator completion.
-  # The watchdog itself is bounded to 5 minutes, so queued checks drain while
-  # preserving every recovery attempt instead of losing it to self-cancellation.
+  # Recovery decisions are newest-state driven; cancel an older queued watchdog
+  # when a newer trigger arrives to avoid a stale decision racing the latest SHA.
   group: production-run-watchdog
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   watchdog:
