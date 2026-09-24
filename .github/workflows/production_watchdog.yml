@@ -49,10 +49,10 @@ jobs:
           latest_active=$(printf '%s' "$watchdog_state" | jq --argjson current "$current_run_id" \
             '[.[] | select(.databaseId > $current and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
           if [ "$latest_active" -gt 0 ]; then
-            echo "WATCHDOG_SUPERSEDED_BY_NEWER_ACTIVE_RUN current=$current_run_number newer_active=$latest_active"
+            echo "WATCHDOG_SUPERSEDED_BY_NEWER_ACTIVE_RUN current=$current_run_id newer_active=$latest_active"
             exit 0
           fi
-          echo "WATCHDOG_AUTHORITATIVE_RUN current=$current_run_number"
+          echo "WATCHDOG_AUTHORITATIVE_RUN current=$current_run_id"
       - name: Guard workflow-run rescue against generated-output commit loops
         id: rescue_guard
         run: |
