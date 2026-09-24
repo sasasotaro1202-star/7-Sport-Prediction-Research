@@ -29,8 +29,8 @@ def test_policy_shrinkage_is_toward_half_and_bounded():
     p = np.asarray([0.99, 0.01])
     risk = np.asarray([1.0, 1.0])
     out = _policy_probability(p, risk, 0.50)
-    assert np.all(out >= 0.5)
-    assert np.all(out <= 0.5)
+    assert out[0] < p[0] and out[0] >= 0.5
+    assert out[1] > p[1] and out[1] <= 0.5
     assert np.isclose(out[0], 0.745)
     assert np.isclose(out[1], 0.255)
 
