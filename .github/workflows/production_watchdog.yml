@@ -79,6 +79,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          cancel_run() {
+            local id="$1"
+            if gh run cancel "$id"; then
+              return 0
+            fi
+            local state
+            state=$(gh run view "$id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
+            case "$state" in
+              completed|cancelled|failure|success|neutral|skipped|timed_out)
+                echo "CANCEL_RACE_ALREADY_TERMINAL run_id=$id status=$state"
+                return 0
+                ;;
+              *)
+                echo "CANCEL_FAILED_NONTERMINAL run_id=$id status=$state"
+                return 1
+                ;;
+            esac
+          }
+
           workflows=(
             "v4_5_15_production.yml"
             "pit_history_expansion.yml"
@@ -88,7 +107,7 @@ jobs:
             while IFS=$'\t' read -r run_id status created_at head_sha; do
               [ -n "$run_id" ] || continue
               echo "LEGACY_PUSH_RUN run_id=$run_id status=$status created_at=$created_at sha=$head_sha workflow=$workflow"
-              gh run cancel "$run_id"
+              cancel_run "$run_id"
             done
           done
 
@@ -97,6 +116,44 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          cancel_run() {
+            local id="$1"
+            if gh run cancel "$id"; then
+              return 0
+            fi
+            local state
+            state=$(gh run view "$id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
+            case "$state" in
+              completed|cancelled|failure|success|neutral|skipped|timed_out)
+                echo "CANCEL_RACE_ALREADY_TERMINAL run_id=$id status=$state"
+                return 0
+                ;;
+              *)
+                echo "CANCEL_FAILED_NONTERMINAL run_id=$id status=$state"
+                return 1
+                ;;
+            esac
+          }
+
+          cancel_run() {
+            local id="$1"
+            if gh run cancel "$id"; then
+              return 0
+            fi
+            local state
+            state=$(gh run view "$id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
+            case "$state" in
+              completed|cancelled|failure|success|neutral|skipped|timed_out)
+                echo "CANCEL_RACE_ALREADY_TERMINAL run_id=$id status=$state"
+                return 0
+                ;;
+              *)
+                echo "CANCEL_FAILED_NONTERMINAL run_id=$id status=$state"
+                return 1
+                ;;
+            esac
+          }
+
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
@@ -104,7 +161,7 @@ jobs:
             while IFS=$'	' read -r run_id status event created_at head_sha; do
               [ -n "$run_id" ] || continue
               echo "STALE_UNFINISHED_HEAVY_RUN run_id=$run_id status=$status event=$event sha=$head_sha main=$main_sha workflow=$workflow"
-              gh run cancel "$run_id"
+              cancel_run "$run_id"
             done
           done
 
@@ -214,7 +271,7 @@ jobs:
               [ "$status" = "in_progress" ] || continue
               if [ "$head_sha" != "$main_sha" ]; then
                 echo "STALE_SHA_HEAVY_RUN run_id=$run_id workflow=$workflow event=$event sha=$head_sha main=$main_sha"
-                gh run cancel "$run_id"
+                cancel_run "$run_id"
                 continue
               fi
               created_ts=$(date -u -d "$created_at" +%s)
@@ -224,7 +281,7 @@ jobs:
               if [ "$workflow" = "pit_history_expansion.yml" ]; then limit=2700; fi
               if [ "$age" -ge "$limit" ]; then
                 echo "OVERTIME_HEAVY_RUN run_id=$run_id age=${age}s workflow=$workflow event=$event sha=$head_sha"
-                gh run cancel "$run_id"
+                cancel_run "$run_id"
               fi
             done
           done
