@@ -77,7 +77,7 @@ def _latest_availability(con, event_id, cutoff):
            AND datetime(a.effective_at_utc) <= datetime(?)
          ORDER BY a.effective_at_utc DESC,a.observed_at_utc DESC
         """,
-        (event_id, cutoff, cutoff),
+        (event_id, cutoff),
     ).fetchall()
     latest = {}
     for row in rows:
@@ -177,7 +177,7 @@ def _typed_context(con, event_id, cutoff):
            AND datetime(ms.effective_at_utc) <= datetime(?)
          ORDER BY stat_name,ms.effective_at_utc DESC,ms.observed_at_utc DESC
         """,
-        (event_id, cutoff, cutoff, cutoff),
+        (event_id, cutoff, cutoff),
     ).fetchall()
 
     buckets = {"weather": {}, "market": {}, "news": {}}
