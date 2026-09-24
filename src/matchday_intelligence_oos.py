@@ -78,6 +78,22 @@ def _signal_rows(con, event_id, cutoff):
           AND datetime(observed_at_utc) <= datetime(?)
           AND effective_at_utc IS NOT NULL
           AND datetime(effective_at_utc) <= datetime(?)
+          AND EXISTS (
+                SELECT 1 FROM source_snapshot ss
+                 WHERE ss.source=match_stats.source
+                   AND COALESCE(ss.source_url,'')=COALESCE(match_stats.source_url,'')
+                   AND ss.availability_status='EXACT'
+                   AND ss.source_available_at_utc IS NOT NULL
+                   AND datetime(ss.source_available_at_utc) <= datetime(?)
+          )
+          AND EXISTS (
+                SELECT 1 FROM source_snapshot ss
+                 WHERE ss.source=availability.source
+                   AND COALESCE(ss.source_url,'')=COALESCE(availability.source_url,'')
+                   AND ss.availability_status='EXACT'
+                   AND ss.source_available_at_utc IS NOT NULL
+                   AND datetime(ss.source_available_at_utc) <= datetime(?)
+          )
         ORDER BY COALESCE(effective_at_utc,observed_at_utc) DESC,
                  observed_at_utc DESC
         """,
@@ -107,6 +123,14 @@ def _participant_and_lineup(con, event_id, cutoff):
           AND ep.participant_id IS NOT NULL
           AND ep.effective_at_utc IS NOT NULL
           AND datetime(ep.effective_at_utc) <= datetime(?)
+          AND EXISTS (
+                SELECT 1 FROM source_snapshot ss
+                 WHERE ss.source=ep.source
+                   AND COALESCE(ss.source_url,'')=COALESCE(ep.source_url,'')
+                   AND ss.availability_status='EXACT'
+                   AND ss.source_available_at_utc IS NOT NULL
+                   AND datetime(ss.source_available_at_utc) <= datetime(?)
+          )
         """,
         (event_id, cutoff),
     ).fetchall()
@@ -216,147 +240,69 @@ def _typed_match_stats(con, event_id, cutoff):
     return buckets
 
 
-def build_matchday_intelligence(event_id: str, cutoff_utc: str, db_path: Path = DB) -> dict:
-    cutoff = _dt(cutoff_utc)
-    if cutoff is None:
-        raise ValueError("invalid cutoff_utc")
+def router_context_vector(payload: dict) -> list[float]:
+    """Compact PIT-safe context for the uncertainty router; unknowns remain NaN."""
+    f = payload.get("features") or {}
+    a = payload.get("lineup", {}).get("A", {})
+    b = payload.get("lineup", {}).get("B", {})
+    ra = payload.get("rest_schedule", {})
+    teams_a = a.get("teams") or []
+    teams_b = b.get("teams") or []
+    rest_a = [ra[t].get("rest_days") for t in teams_a if isinstance(ra.get(t), dict) and ra[t].get("rest_days") is not None]
+    rest_b = [ra[t].get("rest_days") for t in teams_b if isinstance(ra.get(t), dict) and ra[t].get("rest_days") is not None]
+    rest_a_v = float(rest_a[0]) if rest_a else float("nan")
+    rest_b_v = float(rest_b[0]) if rest_b else float("nan")
+    exact = payload.get("evidence_counts", {})
+    total_signals = (
+        int(exact.get("availability_latest", 0))
+        + int(exact.get("lineup_rows", 0))
+        + int(exact.get("weather", 0))
+        + int(exact.get("market", 0))
+        + int(exact.get("news", 0))
+    )
+    # Schema is fixed: missing values remain NaN and are handled by the router's
+    # own missingness representation. The final element is an explicit evidence
+    # density signal, not a zero-filled assumption.
+    return [
+        float(f.get("availability_out_side_a", float("nan")) - f.get("availability_out_side_b", float("nan")))
+        if all(x is not None for x in (f.get("availability_out_side_a"), f.get("availability_out_side_b"))) else float("nan"),
+        float(f.get("availability_uncertain_side_a", float("nan")) - f.get("availability_uncertain_side_b", float("nan")))
+        if all(x is not None for x in (f.get("availability_uncertain_side_a"), f.get("availability_uncertain_side_b"))) else float("nan"),
+        float(f.get("lineup_confirmed_side_a", float("nan")) - f.get("lineup_confirmed_side_b", float("nan")))
+        if all(x is not None for x in (f.get("lineup_confirmed_side_a"), f.get("lineup_confirmed_side_b"))) else float("nan"),
+        rest_a_v - rest_b_v if rest_a_v == rest_a_v and rest_b_v == rest_b_v else float("nan"),
+        float(f.get("weather_signal_count", float("nan"))),
+        float(f.get("market_signal_count", float("nan"))),
+        float(f.get("news_signal_count", float("nan"))),
+        float(total_signals),
+        float(a.get("lineup_known", 0) - b.get("lineup_known", 0)),
+        float(f.get("lineup_confirmed_side_a", 0) > 0 or f.get("lineup_confirmed_side_b", 0) > 0),
+    ]
 
+
+def build_matchday_context_rows(rows, db_path: Path = DB):
+    """Build one router-context vector per (event_id,event_time) row using one DB connection."""
+    con = sqlite3.connect(db_path)
+    out = []
+    try:
+        for row in rows:
+            eid, event_time = str(row[0]), str(row[1])
+            dt = _dt(event_time)
+            if dt is None:
+                out.append([float("nan")] * 10)
+                continue
+            cutoff = (dt - __import__("datetime").timedelta(minutes=60)).isoformat()
+            payload = _build_with_connection(con, eid, cutoff)
+            out.append(router_context_vector(payload))
+    finally:
+        con.close()
+    return out
+
+
+def build_matchday_intelligence(event_id: str, cutoff_utc: str, db_path: Path = DB) -> dict:
     con = sqlite3.connect(db_path)
     try:
-        event = con.execute(
-            "SELECT event_id,sport,event_time_utc,status FROM event WHERE event_id=?",
-            (event_id,),
-        ).fetchone()
-        if not event:
-            raise KeyError(f"unknown event_id: {event_id}")
-        event_time = _dt(event[2])
-        if event_time is None:
-            raise ValueError("event_time_utc is required for matchday intelligence")
-        if cutoff > event_time:
-            raise ValueError("prediction cutoff must not be after event_time_utc")
-
-        availability, raw_availability = _signal_rows(con, event_id, cutoff_utc)
-        lineup = _participant_and_lineup(con, event_id, cutoff_utc)
-        schedule = _team_schedule_context(con, event_id, cutoff_utc)
-        typed = _typed_match_stats(con, event_id, cutoff_utc)
-
-        per_side = {}
-        for side, participant_id, team_id, role, lineup_status, source, source_url, effective_at, name in lineup:
-            side_state = per_side.setdefault(side, {
-                "participant_count": 0,
-                "lineup_known": 0,
-                "lineup_confirmed": 0,
-                "availability_out": 0,
-                "availability_uncertain": 0,
-                "availability_available": 0,
-                "participants": [],
-                "teams": set(),
-            })
-            side_state["participant_count"] += 1
-            if lineup_status:
-                side_state["lineup_known"] += 1
-                if str(lineup_status).strip().lower() in {"confirmed", "starter", "confirmed_starter"}:
-                    side_state["lineup_confirmed"] += 1
-            if team_id:
-                side_state["teams"].add(team_id)
-            side_state["participants"].append({
-                "participant_id": participant_id,
-                "name": name,
-                "team_id": team_id,
-                "role": role,
-                "lineup_status": lineup_status,
-                "source": source,
-                "source_url": source_url,
-                "effective_at_utc": effective_at,
-            })
-
-        avail_by_key = {(r[0], r[1]): r for r in availability}
-        for side in per_side:
-            state = per_side[side]
-            for p in state["participants"]:
-                row = avail_by_key.get((p["participant_id"], p["team_id"]))
-                if row:
-                    bucket = _status_bucket(row[2])
-                    p["availability_status"] = bucket
-                    p["availability_reason"] = row[3]
-                    p["availability_source"] = row[4]
-                    p["availability_observed_at_utc"] = row[6]
-                    p["availability_confidence"] = row[8]
-                    if bucket == "OUT":
-                        state["availability_out"] += 1
-                    elif bucket == "LIMITED_OR_UNCERTAIN":
-                        state["availability_uncertain"] += 1
-                    elif bucket == "AVAILABLE":
-                        state["availability_available"] += 1
-                else:
-                    p["availability_status"] = "UNKNOWN"
-
-            state["teams"] = sorted(state["teams"])
-
-        # Convert sets before serialisation.
-        for state in per_side.values():
-            state["teams"] = sorted(state["teams"])
-
-        features = {
-            "availability_out_side_a": int(per_side.get("A", {}).get("availability_out", 0)),
-            "availability_out_side_b": int(per_side.get("B", {}).get("availability_out", 0)),
-            "availability_uncertain_side_a": int(per_side.get("A", {}).get("availability_uncertain", 0)),
-            "availability_uncertain_side_b": int(per_side.get("B", {}).get("availability_uncertain", 0)),
-            "lineup_known_side_a": int(per_side.get("A", {}).get("lineup_known", 0)),
-            "lineup_known_side_b": int(per_side.get("B", {}).get("lineup_known", 0)),
-            "lineup_confirmed_side_a": int(per_side.get("A", {}).get("lineup_confirmed", 0)),
-            "lineup_confirmed_side_b": int(per_side.get("B", {}).get("lineup_confirmed", 0)),
-            "weather_signal_count": len(typed["weather"]),
-            "market_signal_count": len(typed["market"]),
-            "news_signal_count": len(typed["news"]),
-        }
-
-        team_rest = {}
-        for side, state in per_side.items():
-            for team_id in state["teams"]:
-                team_rest[team_id] = schedule.get(team_id, {})
-
-        payload = {
-            "event_id": event[0],
-            "sport": event[1],
-            "event_time_utc": event[2],
-            "prediction_cutoff_at_utc": cutoff.isoformat(),
-            "availability": [
-                {
-                    "participant_id": r[0],
-                    "team_id": r[1],
-                    "status": _status_bucket(r[2]),
-                    "raw_status": r[2],
-                    "reason": r[3],
-                    "source": r[4],
-                    "source_url": r[5],
-                    "observed_at_utc": r[6],
-                    "effective_at_utc": r[7],
-                    "confidence": r[8],
-                    "age_hours_at_cutoff": _age_hours(r[6], cutoff_utc),
-                }
-                for r in availability
-            ],
-            "lineup": per_side,
-            "rest_schedule": team_rest,
-            "typed_context": typed,
-            "features": features,
-            "evidence_counts": {
-                "availability_latest": len(availability),
-                "availability_raw_updates": len(raw_availability),
-                "lineup_rows": len(lineup),
-                "weather": len(typed["weather"]),
-                "market": len(typed["market"]),
-                "news": len(typed["news"]),
-            },
-            "policy": (
-                "research_only; cutoff_strict; observed_at_and_effective_at_must_not_exceed_cutoff; "
-                "missing_signals_are_unknown_not_zero; no direct probability override"
-            ),
-        }
-        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode()
-        payload["feature_snapshot_hash"] = hashlib.sha256(encoded).hexdigest()
-        return payload
+        return _build_with_connection(con, event_id, cutoff_utc)
     finally:
         con.close()
 
