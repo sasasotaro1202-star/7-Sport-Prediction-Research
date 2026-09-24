@@ -501,77 +501,29 @@ def build_matchday_context_rows(rows, db_path: Path = DB, lead_minutes: int = 60
 def build_matchday_change_context_rows(
     rows,
     db_path: Path = DB,
-    lead_minutes=(1440, 360, 90, 60),
+    lead_minutes=(90, 60),
 ):
-    """Build PIT-safe current state plus temporal matchday-change signals.
+    """Build PIT-safe T-60 state plus the immediate T-90 -> T-60 change.
 
-    The base 14-dimension context is taken at the shortest supplied horizon
-    (normally T-60m). Six additional features summarize how availability,
-    lineup confirmation, weather/market/news evidence and freshness changed
-    from earlier horizons into the latest horizon. Missing horizon evidence
-    remains NaN and never becomes a synthetic zero.
+    The temporal signal focuses on the final pre-match transition:
+    availability, lineup confirmation, weather/market/news evidence and
+    freshness changes. Missing horizon evidence remains NaN and never becomes
+    a synthetic zero.
     """
     horizons = tuple(sorted({int(x) for x in lead_minutes}, reverse=True))
-    if horizons != (1440, 360, 90, 60):
-        raise ValueError("lead_minutes must be exactly (1440, 360, 90, 60)")
+    if horizons != (90, 60):
+        raise ValueError("lead_minutes must be exactly (90, 60)")
     matrices = {
         h: np.asarray(build_matchday_context_rows(rows, db_path, lead_minutes=h), dtype=float)
         for h in horizons
     }
     latest = matrices[60]
-    # Indices in router_context_vector:
-    # 0 availability-out diff, 1 uncertainty diff, 2 confirmed-lineup diff,
-    # 4/5/6 weather/market/news counts, 13 freshness.
-    def safe_delta(later, earlier, col):
-        x = later[:, col]
-        y = earlier[:, col]
-        out = x - y
-        finite = np.isfinite(x) & np.isfinite(y)
-        return np.where(finite, out, np.nan)
-
-    change_24h = np.column_stack([
-        safe_delta(latest, matrices[1440], 0),
-        safe_delta(latest, matrices[1440], 2),
-        safe_delta(latest, matrices[1440], 4),
-        safe_delta(latest, matrices[1440], 5),
-        safe_delta(latest, matrices[1440], 6),
-        safe_delta(latest, matrices[1440], 13),
-    ])
-    change_6h = np.column_stack([
-        safe_delta(latest, matrices[360], 0),
-        safe_delta(latest, matrices[360], 2),
-        safe_delta(latest, matrices[360], 4),
-        safe_delta(latest, matrices[360], 5),
-        safe_delta(latest, matrices[360], 6),
-        safe_delta(latest, matrices[360], 13),
-    ])
-    change_90m = np.column_stack([
-        safe_delta(latest, matrices[90], 0),
-        safe_delta(latest, matrices[90], 2),
-        safe_delta(latest, matrices[90], 4),
-        safe_delta(latest, matrices[90], 5),
-        safe_delta(latest, matrices[90], 6),
-        safe_delta(latest, matrices[90], 13),
-    ])
-    # Keep only a compact, interpretable temporal-change summary: average
-    # early-horizon change plus the immediate T-90m -> T-60m shock.
-    stacked = np.stack([change_24h, change_6h])
-    early_count = np.sum(np.isfinite(stacked), axis=0)
-    early_total = np.nansum(stacked, axis=0)
-    early = np.divide(
-        early_total,
-        np.maximum(early_count, 1),
-        out=np.full_like(early_total, np.nan, dtype=float),
-        where=early_count > 0,
-    )
-    immediate = change_90m
-    summary = np.column_stack([
-        early[:, 0], immediate[:, 0],
-        early[:, 1], immediate[:, 1],
-        early[:, 2] + early[:, 3] + early[:, 4],
-        immediate[:, 2] + immediate[:, 3] + immediate[:, 4],
-    ])
-    return np.column_stack([latest, summary]).tolist()
+    earlier = matrices[90]
+    cols = [0, 2, 4, 5, 6, 13]
+    immediate = np.column_stack([latest[:, c] - earlier[:, c] for c in cols])
+    finite = np.isfinite(latest[:, cols]) & np.isfinite(earlier[:, cols])
+    immediate = np.where(finite, immediate, np.nan)
+    return np.column_stack([latest, immediate]).tolist()
 
 def router_context_vector(payload: dict) -> list[float]:
     """Convert matchday state to bounded context; unknown evidence remains NaN."""
