@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from src.matchday_intelligence_oos import build_matchday_context_rows, build_matchday_intelligence
+from src.matchday_intelligence_oos import build_matchday_context_horizons, build_matchday_context_rows, build_matchday_intelligence
 from src.storage.db_v45 import SCHEMA, _migrate
 
 
