@@ -614,7 +614,7 @@ def route_with_selector(
     pred_voi = None
     if selector.get("voi_selectors"):
         pred_voi = np.column_stack([
-            m.predict(features) for m in selector["voi_selectors"]
+            m.predict(selected_features) for m in selector["voi_selectors"]
         ])
         pred_voi = np.where(np.isfinite(pred_voi), pred_voi, 0.0)
     return route_uncertainty_score(
