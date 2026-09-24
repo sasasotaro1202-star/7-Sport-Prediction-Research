@@ -752,7 +752,7 @@ def train(s):
     )
     # Build the final research-only selector from all pre-holdout OOF folds.
     u_selector,u_history,u_oof_rows=uncertainty_router.fit_final_selector_from_folds(
-     X,y,router_names,oof_folds
+     X,y,router_names,oof_folds,candidate_weights
     )
     hold_bp=np.column_stack([
      np.clip(router_holdout_pred[name],1e-6,1-1e-6) for name in router_names

@@ -78,14 +78,16 @@ def route_uncertainty_score(
     base_probs: np.ndarray,
     context: np.ndarray,
     baseline: np.ndarray | None = None,
+    predicted_voi: np.ndarray | None = None,
 ):
     """
-    Conservative fusion.
+    Conservative uncertainty + VOI fusion.
 
-    Uncertainty alone does not increase routing. Routing strength grows only
-    when predicted expert losses are separated enough to imply recoverable risk.
-    High disagreement or drift therefore causes additional shrinkage unless a
-    specialist is clearly better in the current context.
+    The router does not equate uncertainty with useful extra expertise. Loss
+    forecasts identify likely strong experts; optional counterfactual VOI
+    forecasts identify experts expected to reduce the incumbent's risk when
+    consulted. Drift/disagreement only reduce routing strength unless a
+    specialist has positive predicted marginal risk reduction.
     """
     loss = np.asarray(predicted_loss, dtype=float)
     bp = _clip_prob(base_probs)
@@ -100,8 +102,8 @@ def route_uncertainty_score(
         baseline = _clip_prob(baseline)
 
     centered = loss - np.min(loss, axis=1, keepdims=True)
-    weights = np.exp(-centered / 0.15)
-    weights /= np.maximum(weights.sum(axis=1, keepdims=True), EPS)
+    loss_weights = np.exp(-centered / 0.15)
+    loss_weights /= np.maximum(loss_weights.sum(axis=1, keepdims=True), EPS)
 
     uf = uncertainty_features(bp, context)
     uncertainty = np.clip(
@@ -112,18 +114,68 @@ def route_uncertainty_score(
         1.0,
     )
 
-    spread = np.max(loss, axis=1) - np.min(loss, axis=1)
-    recoverability = spread / np.maximum(spread + 0.05, EPS)
-    route_strength = 0.75 * recoverability * (1.0 - 0.60 * uncertainty)
+    # Counterfactual VOI is the predicted reduction in proper loss from a
+    # fixed 35% consultation of one specialist:
+    # mixed = 0.65 * incumbent + 0.35 * expert.
+    if predicted_voi is not None:
+        voi = np.asarray(predicted_voi, dtype=float)
+        if voi.shape != bp.shape:
+            raise ValueError("predicted_voi/base_probs shape mismatch")
+        voi = np.where(np.isfinite(voi), voi, 0.0)
+        positive_voi = np.maximum(voi, 0.0)
+        positive_values = positive_voi[positive_voi > 0.0]
+        voi_scale = max(
+            float(np.quantile(positive_values, 0.75)) if len(positive_values) else 0.01,
+            0.005,
+        )
+        voi_weights = np.exp(positive_voi / voi_scale)
+        voi_weights /= np.maximum(voi_weights.sum(axis=1, keepdims=True), EPS)
+        # Loss suitability remains dominant; VOI only supplies supporting
+        # evidence for which expert is worth consulting.
+        weights = 0.80 * loss_weights + 0.20 * voi_weights
+        max_voi = np.max(positive_voi, axis=1)
+        recoverability = max_voi / np.maximum(max_voi + 0.01, EPS)
+    else:
+        weights = loss_weights
+        spread = np.max(loss, axis=1) - np.min(loss, axis=1)
+        recoverability = spread / np.maximum(spread + 0.05, EPS)
+
+    weights = 0.75 * weights + 0.25 / bp.shape[1]
+    routed = np.sum(bp * weights, axis=1)
+
+    route_strength = 0.75 * recoverability
+    route_strength *= (1.0 - 0.60 * uncertainty)
     route_strength *= (1.0 - 0.35 * uf[:, 9])
     route_strength = np.clip(route_strength, 0.0, 0.75)
 
-    routed = np.sum(bp * weights, axis=1)
     return np.clip(
         baseline + route_strength * (routed - baseline),
         EPS,
         1.0 - EPS,
     )
+
+
+def _bce_loss(p: np.ndarray, y: np.ndarray) -> np.ndarray:
+    p = _clip_prob(p)
+    y = np.asarray(y, dtype=float)
+    return -(y * np.log(p) + (1.0 - y) * np.log(1.0 - p))
+
+
+def expert_voi_targets(
+    base_probs: np.ndarray,
+    y: np.ndarray,
+    baseline: np.ndarray,
+    consultation_weight: float = 0.35,
+) -> np.ndarray:
+    """Create OOF-only counterfactual marginal-risk labels for each expert."""
+    bp = _clip_prob(base_probs)
+    baseline = _clip_prob(baseline)
+    y = np.asarray(y, dtype=float)
+    if bp.ndim != 2 or bp.shape[0] != len(y) or len(baseline) != len(y):
+        raise ValueError("VOI target shape mismatch")
+    w = float(np.clip(consultation_weight, 0.05, 0.50))
+    mixed = (1.0 - w) * baseline[:, None] + w * bp
+    return _bce_loss(baseline, y)[:, None] - _bce_loss(mixed, y[:, None])
 
 
 def _history_loss(meta_losses, n_models):
@@ -141,6 +193,7 @@ def fit_uncertainty_loss_selector(
     meta_features: np.ndarray,
     meta_losses: np.ndarray,
     model_names: Sequence[str],
+    meta_voi: np.ndarray | None = None,
 ):
     X = np.asarray(meta_features, dtype=float)
     L = np.asarray(meta_losses, dtype=float)
@@ -162,10 +215,30 @@ def fit_uncertainty_loss_selector(
         m.fit(X, L[:, j])
         selectors.append(m)
 
+    voi_selectors = None
+    if meta_voi is not None:
+        V = np.asarray(meta_voi, dtype=float)
+        if V.ndim != 2 or V.shape != L.shape or len(V) != len(X):
+            return None
+        voi_selectors = []
+        for j in range(V.shape[1]):
+            m = HistGradientBoostingRegressor(
+                max_iter=100,
+                learning_rate=0.04,
+                max_leaf_nodes=7,
+                min_samples_leaf=20,
+                l2_regularization=2.5,
+                random_state=2042 + j,
+            )
+            m.fit(X, V[:, j])
+            voi_selectors.append(m)
+
     return {
-        "kind": "uncertainty_loss_v2",
+        "kind": "uncertainty_voi_v3" if voi_selectors is not None else "uncertainty_loss_v2",
         "model_names": list(model_names),
         "selectors": selectors,
+        "voi_selectors": voi_selectors,
+        "consultation_weight": 0.35,
     }
 
 
@@ -184,16 +257,20 @@ def evaluate_oof(
 ):
     """
     Chronological OOF evaluation against the exact incumbent baseline.
-    No holdout labels are used.
+
+    The VOI selector is trained only on previous OOF folds. Each VOI label is
+    a counterfactual proper-loss reduction from consulting one expert at a
+    fixed weight. Frozen-holdout labels are never exposed to the selector.
     """
     X = np.asarray(X, dtype=float)
     y = np.asarray(y, dtype=int)
     if metric_fn is None:
         from src.research_cycle_v4 import metric as metric_fn
 
-    meta_x, meta_l = [], []
+    meta_x, meta_l, meta_v = [], [], []
     static_all, routed_all, y_all = [], [], []
     fold_deltas = []
+    fold_voi_means = []
 
     for fold in folds:
         end = int(fold["end"])
@@ -213,14 +290,6 @@ def evaluate_oof(
             np.repeat(history[None, :], len(bp), axis=0),
         ])
 
-        selector = fit_uncertainty_loss_selector(
-            np.asarray(meta_x, dtype=float)
-            if meta_x else np.empty((0, features.shape[1])),
-            np.asarray(meta_l, dtype=float)
-            if meta_l else np.empty((0, len(names))),
-            names,
-        )
-
         if baseline_weights:
             w = np.asarray([float(baseline_weights.get(n, 0.0)) for n in names])
             if np.isfinite(w).all() and w.sum() > 0:
@@ -231,6 +300,16 @@ def evaluate_oof(
         else:
             static = np.mean(bp, axis=1)
 
+        selector = fit_uncertainty_loss_selector(
+            np.asarray(meta_x, dtype=float)
+            if meta_x else np.empty((0, features.shape[1])),
+            np.asarray(meta_l, dtype=float)
+            if meta_l else np.empty((0, len(names))),
+            names,
+            np.asarray(meta_v, dtype=float)
+            if meta_v else np.empty((0, len(names))),
+        )
+
         if selector is None:
             routed = static.copy()
         else:
@@ -238,8 +317,14 @@ def evaluate_oof(
                 m.predict(features) for m in selector["selectors"]
             ])
             pred_l = np.where(np.isfinite(pred_l), pred_l, np.log(2.0))
+            pred_voi = None
+            if selector.get("voi_selectors"):
+                pred_voi = np.column_stack([
+                    m.predict(features) for m in selector["voi_selectors"]
+                ])
+                pred_voi = np.where(np.isfinite(pred_voi), pred_voi, 0.0)
             routed = route_uncertainty_score(
-                pred_l, bp, ctx, baseline=static
+                pred_l, bp, ctx, baseline=static, predicted_voi=pred_voi
             )
 
         static_all.extend(static.tolist())
@@ -247,12 +332,12 @@ def evaluate_oof(
         y_all.extend(y[end:te].tolist())
 
         yt = y[end:te].astype(float)
-        losses = -(
-            yt[:, None] * np.log(bp)
-            + (1.0 - yt[:, None]) * np.log(1.0 - bp)
-        )
+        losses = _bce_loss(bp, yt[:, None])
+        voi_targets = expert_voi_targets(bp, yt, static)
         meta_x.extend(features.tolist())
         meta_l.extend(losses.tolist())
+        meta_v.extend(voi_targets.tolist())
+        fold_voi_means.append(float(np.mean(np.maximum(voi_targets, 0.0))))
 
         if len(yt) and len(np.unique(yt)) > 1:
             fold_deltas.append(float(
@@ -281,12 +366,14 @@ def evaluate_oof(
         "fold_logloss_deltas": [float(x) for x in fold_deltas],
         "bootstrap_probability_improvement": boot["probability_improvement"],
         "bootstrap_p05_improvement": boot["p05_improvement"],
+        "mean_positive_voi": float(np.mean(fold_voi_means)) if fold_voi_means else 0.0,
+        "max_positive_voi": float(np.max(fold_voi_means)) if fold_voi_means else 0.0,
+        "routing_policy": "predicted_loss_0.80 + predicted_counterfactual_voi_0.20; uncertainty/drift shrinkage; bounded consultation",
         "oof_targets": [int(x) for x in y_all],
         "oof_static_predictions": [float(x) for x in static_all],
         "oof_routed_predictions": [float(x) for x in routed_all],
-        "policy": "research_only; chronological OOF; uncertainty_disagreement_drift; no holdout fitting",
+        "policy": "research_only; chronological OOF; uncertainty_disagreement_drift; counterfactual_VOI; no holdout fitting",
     }
-
 
 
 def fit_final_selector_from_folds(
@@ -294,11 +381,12 @@ def fit_final_selector_from_folds(
     y: np.ndarray,
     names: Sequence[str],
     folds: Sequence[Dict],
+    baseline_weights: Dict[str, float] | None = None,
 ):
-    """Fit the uncertainty selector on every pre-holdout OOF fold."""
+    """Fit the uncertainty+VOI selector on every pre-holdout OOF fold."""
     X = np.asarray(X, dtype=float)
     y = np.asarray(y, dtype=int)
-    meta_x, meta_l = [], []
+    meta_x, meta_l, meta_v = [], [], []
     for fold in folds:
         end = int(fold["end"])
         te = int(fold["te"])
@@ -316,17 +404,26 @@ def fit_final_selector_from_folds(
             uf,
             np.repeat(history[None, :], len(bp), axis=0),
         ])
+        if baseline_weights:
+            w = np.asarray([float(baseline_weights.get(n, 0.0)) for n in names])
+            if np.isfinite(w).all() and w.sum() > 0:
+                w /= w.sum()
+                static = np.sum(bp * w[None, :], axis=1)
+            else:
+                static = np.mean(bp, axis=1)
+        else:
+            static = np.mean(bp, axis=1)
         yt = y[end:te].astype(float)
-        losses = -(
-            yt[:, None] * np.log(bp)
-            + (1.0 - yt[:, None]) * np.log(1.0 - bp)
-        )
+        losses = _bce_loss(bp, yt[:, None])
+        voi_targets = expert_voi_targets(bp, yt, static)
         meta_x.extend(features.tolist())
         meta_l.extend(losses.tolist())
+        meta_v.extend(voi_targets.tolist())
     selector = fit_uncertainty_loss_selector(
         np.asarray(meta_x, dtype=float),
         np.asarray(meta_l, dtype=float),
         names,
+        np.asarray(meta_v, dtype=float),
     )
     return selector, _history_loss(meta_l, len(names)), len(meta_l)
 
@@ -356,7 +453,16 @@ def route_with_selector(
         m.predict(features) for m in selector["selectors"]
     ])
     pred_l = np.where(np.isfinite(pred_l), pred_l, np.log(2.0))
-    return route_uncertainty_score(pred_l, bp, ctx, baseline=_clip_prob(baseline))
+    pred_voi = None
+    if selector.get("voi_selectors"):
+        pred_voi = np.column_stack([
+            m.predict(features) for m in selector["voi_selectors"]
+        ])
+        pred_voi = np.where(np.isfinite(pred_voi), pred_voi, 0.0)
+    return route_uncertainty_score(
+        pred_l, bp, ctx, baseline=_clip_prob(baseline),
+        predicted_voi=pred_voi,
+    )
 
 
 def apply_recalibration(p, calibration):
@@ -400,11 +506,16 @@ def bootstrap_fold_improvement(fold_deltas, seed=20260924, draws=1000):
 def temporal_recalibration(p, y):
     """
     Fit a low-capacity calibrator only on pre-holdout sequential data.
+
+    Method choice is made on expanding temporal validation blocks. A
+    recalibrator is accepted only when it improves log loss by a minimum
+    amount, does not materially worsen Brier score, and shows stable positive
+    improvement under a fold-level bootstrap.
     """
     p = _clip_prob(p)
     y = np.asarray(y, dtype=int)
     n = len(p)
-    if n < 180 or len(np.unique(y)) < 2:
+    if n < 300 or len(np.unique(y)) < 2:
         return {
             "accepted": False,
             "method": "none",
@@ -412,16 +523,27 @@ def temporal_recalibration(p, y):
         }
 
     cuts = sorted(set([
-        max(80, int(n * 0.50)),
-        max(110, int(n * 0.67)),
-        max(140, int(n * 0.80)),
+        max(120, int(n * 0.40)),
+        max(150, int(n * 0.50)),
+        max(180, int(n * 0.60)),
+        max(210, int(n * 0.70)),
+        max(240, int(n * 0.80)),
+        max(270, int(n * 0.90)),
     ]))
     cuts = [c for c in cuts if c < n - 30]
-    if len(cuts) < 2:
+    folds = []
+    for i, te_start in enumerate(cuts):
+        te_end = cuts[i + 1] if i + 1 < len(cuts) else n
+        if te_end - te_start < 30:
+            continue
+        if len(np.unique(y[:te_start])) < 2 or len(np.unique(y[te_start:te_end])) < 2:
+            continue
+        folds.append((te_start, te_end))
+    if len(folds) < 5:
         return {
             "accepted": False,
             "method": "none",
-            "reason": "insufficient_temporal_folds",
+            "reason": "insufficient_temporal_calibration_folds",
         }
 
     def fit_predict(method, train_p, train_y, test_p):
@@ -437,16 +559,13 @@ def temporal_recalibration(p, y):
             return _clip_prob(m.predict_proba(zt.reshape(-1, 1))[:, 1]), m
         if method == "beta":
             m = LogisticRegression(C=0.25, max_iter=2000, random_state=1203)
-            a = np.column_stack([np.log(train_p), np.log(1.0 - train_p)])
+            m.fit(np.column_stack([np.log(train_p), np.log(1.0 - train_p)]), train_y)
             at = np.column_stack([np.log(test_p), np.log(1.0 - test_p)])
-            m.fit(a, train_y)
             return _clip_prob(m.predict_proba(at)[:, 1]), m
         if method == "isotonic":
             if len(train_p) < 120 or len(np.unique(train_p)) < 25:
                 return None, None
-            m = IsotonicRegression(
-                y_min=EPS, y_max=1.0-EPS, out_of_bounds="clip"
-            )
+            m = IsotonicRegression(y_min=EPS, y_max=1.0-EPS, out_of_bounds="clip")
             m.fit(train_p, train_y)
             return _clip_prob(m.predict(test_p)), m
         raise ValueError(method)
@@ -454,7 +573,7 @@ def temporal_recalibration(p, y):
     from src.research_cycle_v4 import metric
     methods = ["none", "sigmoid", "beta", "isotonic"]
     scores = {m: [] for m in methods}
-    bounds = list(zip(cuts, cuts[1:] + [n]))
+    bounds = list(folds)
 
     for method in methods:
         for a, b in bounds:
@@ -464,7 +583,7 @@ def temporal_recalibration(p, y):
             scores[method].append(metric(y[a:b], pp))
 
     raw = scores["none"]
-    if len(raw) < 2:
+    if len(raw) < 5:
         return {
             "accepted": False,
             "method": "none",
@@ -477,7 +596,7 @@ def temporal_recalibration(p, y):
 
     candidates = {
         m: v for m, v in scores.items()
-        if m == "none" or len(v) >= 2
+        if m == "none" or len(v) >= 5
     }
     method = min(
         candidates,
@@ -490,17 +609,33 @@ def temporal_recalibration(p, y):
     cand_obj = objective(candidates[method])
     raw_brier = float(np.mean([z["brier"] for z in candidates["none"]]))
     cand_brier = float(np.mean([z["brier"] for z in candidates[method]]))
+
+    bootstrap = {"probability_improvement": 0.0, "p05_improvement": float("-inf")}
+    if method != "none":
+        aligned = min(len(candidates["none"]), len(candidates[method]))
+        fold_deltas = [
+            float(candidates[method][i]["logloss"] - candidates["none"][i]["logloss"])
+            for i in range(aligned)
+        ]
+        bootstrap = bootstrap_fold_improvement(
+            fold_deltas, seed=20260924, draws=2000
+        )
+
     accepted = (
         method != "none"
         and cand_obj <= raw_obj - max(0.001, 0.003 * raw_obj)
         and cand_brier <= raw_brier + 0.002
+        and bootstrap["probability_improvement"] >= 0.90
+        and bootstrap["p05_improvement"] > 0.0
     )
     if not accepted:
         return {
             "accepted": False,
             "method": "none",
-            "reason": "recalibration_did_not_pass_temporal_gate",
+            "reason": "recalibration_did_not_pass_temporal_bootstrap_gate",
+            "selected_candidate": method,
             "candidate_methods": candidates,
+            "bootstrap": bootstrap,
         }
 
     if method == "sigmoid":
@@ -524,6 +659,7 @@ def temporal_recalibration(p, y):
         "method": method,
         "model": final,
         "candidate_methods": candidates,
+        "bootstrap": bootstrap,
     }
 
 
@@ -531,6 +667,7 @@ __all__ = [
     "predictive_entropy",
     "uncertainty_features",
     "route_uncertainty_score",
+    "expert_voi_targets",
     "fit_uncertainty_loss_selector",
     "evaluate_oof",
     "temporal_recalibration",

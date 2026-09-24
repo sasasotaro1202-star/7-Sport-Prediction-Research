@@ -107,6 +107,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_router_baseline_alignment.py
       - name: Uncertainty-aware router research-only regression
         run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
+      - name: Matchday intelligence PIT regression
+        run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
       - name: LightGBM smoke test
         run: |
           python - <<'PY'
