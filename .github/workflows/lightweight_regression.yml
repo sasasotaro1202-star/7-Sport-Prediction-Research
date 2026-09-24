@@ -152,6 +152,8 @@ jobs:
           PY
       - name: PIT CLI smoke test
         run: python -m src.pit_replay_builder --help
+      - name: Independent leakage audit model-contract regression
+        run: PYTHONPATH=. python scripts/test_independent_leakage_audit.py
       - name: Temporal feature immutability regression
         run: PYTHONPATH=. python scripts/test_feature_temporal_invariance.py
       - name: Frozen holdout partition regression

@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, math, sqlite3
+import json, math, os, sqlite3
 from pathlib import Path
 
 
@@ -285,6 +285,38 @@ def main():
         if bad: r['fatal'].append('pit_leakage_or_unknown_status')
         exact_missing=c.execute("SELECT COUNT(*) FROM source_snapshot WHERE availability_status='EXACT' AND source_available_at_utc IS NULL").fetchone()[0]
         if exact_missing: r['fatal'].append('exact_source_missing_availability_time')
+
+        # Independent leakage audit must run after research and inspect the same
+        # accepted model snapshots before any artifact is published. In Actions,
+        # the run id binds the audit to this production execution and prevents a
+        # stale prior report from satisfying the release gate.
+        audit_path = ROOT / 'results/independent_leakage_audit.json'
+        if not audit_path.is_file():
+            r['fatal'].append('independent_leakage_audit_missing')
+        else:
+            try:
+                audit=json.loads(audit_path.read_text(encoding='utf-8'))
+            except Exception as exc:
+                audit={}
+                r['fatal'].append(f'independent_leakage_audit_invalid:{type(exc).__name__}')
+            if audit.get('status') != 'PASS':
+                r['fatal'].append('independent_leakage_audit_not_pass')
+            expected_run=os.getenv('GITHUB_RUN_ID')
+            if expected_run and str(audit.get('github_run_id') or '') != str(expected_run):
+                r['fatal'].append('independent_leakage_audit_stale_run')
+            accepted_snapshot_count=c.execute(
+                "SELECT COUNT(*) FROM model_state_snapshot WHERE quality_status LIKE 'ACCEPTED%'"
+            ).fetchone()[0]
+            audited_count=int((audit.get('checks') or {}).get('accepted_models_checked',0) or 0)
+            valid_count=int((audit.get('checks') or {}).get('accepted_models_with_frozen_holdout_metadata',0) or 0)
+            if audited_count < int(accepted_snapshot_count):
+                r['fatal'].append(
+                    f'independent_leakage_audit_incomplete:{audited_count}/{int(accepted_snapshot_count)}'
+                )
+            if valid_count < int(accepted_snapshot_count):
+                r['fatal'].append(
+                    f'independent_accepted_model_contract_incomplete:{valid_count}/{int(accepted_snapshot_count)}'
+                )
     finally:
         c.close()
     r['publishable_artifacts']=list(dict.fromkeys(r.get('publishable_artifacts') or []))

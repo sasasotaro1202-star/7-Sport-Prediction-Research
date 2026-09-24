@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -19,6 +20,55 @@ def dt(v):
         return x if x.tzinfo else x.replace(tzinfo=timezone.utc)
     except Exception:
         return None
+
+
+def validate_accepted_model_row(row, root):
+    """Validate the safety metadata of an accepted model artifact.
+
+    This audit intentionally stays lightweight: release_gate performs deep artifact
+    loading. The independent audit verifies that every accepted snapshot is actually
+    holdout-frozen, excludes the holdout from fitting, has a frozen registry identity,
+    and points at a present, non-empty model artifact.
+    """
+    failures = []
+    meta = {}
+    try:
+        meta = json.loads(row['metadata_json'] or '{}')
+        if not isinstance(meta, dict):
+            meta = {}
+    except Exception as exc:
+        failures.append(f"invalid_model_metadata:{row['sport']}:{row['model_version']}:{type(exc).__name__}")
+        return failures
+
+    if meta.get('model_version') not in (None, row['model_version']):
+        failures.append(f"model_version_metadata_mismatch:{row['sport']}:{row['model_version']}")
+    if meta.get('holdout_frozen') is not True:
+        failures.append(f"model_holdout_not_frozen:{row['sport']}:{row['model_version']}")
+    if meta.get('production_fit_excludes_holdout') is not True:
+        failures.append(f"model_holdout_fit_leakage:{row['sport']}:{row['model_version']}")
+    if not meta.get('frozen_holdout_registry_hash'):
+        failures.append(f"model_frozen_registry_missing:{row['sport']}:{row['model_version']}")
+
+    cutoff_db = dt(row['training_cutoff_utc'])
+    cutoff_meta = dt(meta.get('training_cutoff_utc'))
+    if cutoff_db is None:
+        failures.append(f"invalid_model_training_cutoff:{row['sport']}:{row['model_version']}")
+    elif cutoff_meta is not None and cutoff_meta != cutoff_db:
+        failures.append(f"model_training_cutoff_mismatch:{row['sport']}:{row['model_version']}")
+
+    artifact_rel = str(row['artifact_path'] or meta.get('artifact_path') or '')
+    p = (root / artifact_rel).resolve()
+    root_resolved = root.resolve()
+    if (
+        not artifact_rel.startswith('models/')
+        or '..' in Path(artifact_rel).parts
+        or root_resolved not in p.parents
+        or not p.is_file()
+        or p.stat().st_size <= 0
+    ):
+        failures.append(f"accepted_model_artifact_invalid:{row['sport']}:{row['model_version']}")
+
+    return failures
 
 
 def main():
@@ -103,13 +153,16 @@ def main():
             fatal.extend(f"same_event_feature:{r['replay_id']}:{r['feature_name']}" for r in same_event)
 
             model_rows = c.execute('''
-                SELECT sport,model_version,training_cutoff_utc,metadata_json
+                SELECT sport,model_version,training_cutoff_utc,artifact_path,metadata_json
                 FROM model_state_snapshot WHERE quality_status LIKE 'ACCEPTED%'
             ''').fetchall()
             checks['accepted_models_checked'] = len(model_rows)
+            checks['accepted_models_with_frozen_holdout_metadata'] = 0
             for r in model_rows:
-                if not dt(r['training_cutoff_utc']):
-                    fatal.append(f"invalid_model_training_cutoff:{r['sport']}:{r['model_version']}")
+                failures = validate_accepted_model_row(r, ROOT)
+                if not failures:
+                    checks['accepted_models_with_frozen_holdout_metadata'] += 1
+                fatal.extend(failures)
 
             impossible = c.execute('''
                 SELECT snapshot_id FROM source_snapshot
@@ -128,7 +181,8 @@ def main():
         'fatal_count': len(fatal),
         'fatal': sorted(set(fatal))[:200],
         'checks': checks,
-        'audit_version': 'independent-leakage-audit-v2-pit-gap-same-event',
+        'audit_version': 'independent-leakage-audit-v3-accepted-model-contract',
+        'github_run_id': os.getenv('GITHUB_RUN_ID') or None,
         'minimum_pit_gap_minutes': 60,
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)

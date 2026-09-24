@@ -254,15 +254,15 @@ jobs:
           set -euo pipefail
           timeout --signal=TERM 2700s python -m src.pit_replay_builder
 
-      - name: Independent leakage audit
-        run: |
-          set -euo pipefail
-          timeout --signal=TERM 900s python -m src.independent_leakage_audit
-
       - name: Research with frozen holdout
         run: |
           set -euo pipefail
           timeout --signal=TERM --kill-after=30s 4500s python -m src.research_cycle_strict
+
+      - name: Independent leakage audit after model generation
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 900s python -m src.independent_leakage_audit
 
       - name: Quality report (non-failing coverage mode)
         run: python -m src.quality_gate
