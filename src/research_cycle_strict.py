@@ -301,6 +301,148 @@ def _load_or_create_frozen_holdout(sport, rows):
  return {'status':'OK','source':'created','event_ids':ids,'registry_hash':payload['registry_hash'],
          'freeze_cutoff_utc':payload['freeze_cutoff_utc'],'row_count_at_freeze':len(rows)}
 
+
+def _recent_weighted_route(bp, history_loss, baseline_weights=None,
+                           temperature=0.12, max_strength=0.65, spread_scale=0.03):
+    """Conservative recent-performance weighting using only pre-row OOF loss history."""
+    bp=np.asarray(bp,dtype=float)
+    if bp.ndim!=2 or bp.shape[1]<2:
+        return None
+    hl=np.asarray(history_loss,dtype=float)
+    if hl.ndim!=1 or len(hl)!=bp.shape[1]:
+        hl=np.full(bp.shape[1],np.log(2.0),dtype=float)
+    hl=np.where(np.isfinite(hl),hl,np.log(2.0))
+    if baseline_weights:
+        base=np.asarray([float(baseline_weights.get(n,0.0)) for n in
+                         getattr(_recent_weighted_route,"_names",[])],dtype=float)
+    else:
+        base=np.full(bp.shape[1],1.0/bp.shape[1],dtype=float)
+    if len(base)!=bp.shape[1] or not np.isfinite(base).all() or base.sum()<=0:
+        base=np.full(bp.shape[1],1.0/bp.shape[1],dtype=float)
+    base=base/base.sum()
+    # Lower recent loss gets more weight; multiplying by incumbent prior prevents
+    # the adaptive layer from discarding a well-established production expert.
+    centered=hl-np.min(hl)
+    raw=base*np.exp(-centered/max(float(temperature),1e-3))
+    if not np.isfinite(raw).all() or raw.sum()<=0:
+        raw=base.copy()
+    raw=raw/raw.sum()
+    adaptive=0.75*raw+0.25*base
+    spread=float(np.max(hl)-np.min(hl))
+    strength=max_strength*float(np.clip(spread/max(spread+spread_scale,1e-9),0.0,1.0))
+    weights=base+strength*(adaptive-base)
+    weights=np.clip(weights,1e-6,None)
+    weights/=weights.sum()
+    return np.clip(np.sum(bp*weights[None,:],axis=1),1e-6,1-1e-6)
+
+def evaluate_recent_weighted_router_from_folds(
+    X, y, names, folds, baseline_weights=None,
+):
+    """Research-only OOS test of recent-loss weighted ensemble; fold t sees only losses from folds < t."""
+    X=np.asarray(X,dtype=float); y=np.asarray(y)
+    if len(names)<2 or len(folds)<3:
+        return {"status":"INSUFFICIENT_OOS","reason":"too_few_chronological_folds"}
+    meta_losses=[]; preds=[]; targets=[]; deltas=[]; used=0
+    prev_names=getattr(_recent_weighted_route,"_names",None)
+    _recent_weighted_route._names=list(names)
+    try:
+        for fold in folds:
+            end=int(fold["end"]); te=int(fold["te"])
+            bp=np.column_stack([np.asarray(fold["preds"][n],dtype=float) for n in names])
+            hl=_recent_model_loss(meta_losses,len(names))
+            static=np.sum(
+                bp*np.asarray([baseline_weights.get(n,0.0) for n in names])[None,:],
+                axis=1
+            ) if baseline_weights and sum(float(baseline_weights.get(n,0.0)) for n in names)>0 else np.mean(bp,axis=1)
+            routed=_recent_weighted_route(bp,hl,baseline_weights)
+            if routed is None: routed=static.copy()
+            ym=y[end:te]
+            sm=_metric(ym,static); rm=_metric(ym,routed)
+            deltas.append(float(rm["logloss"]-sm["logloss"]))
+            preds.extend(routed.tolist()); targets.extend(ym.tolist()); used+=1
+            yt=ym.astype(float)
+            fold_losses=-(yt[:,None]*np.log(bp)+(1.0-yt[:,None])*np.log(1.0-bp))
+            meta_losses.extend(fold_losses.tolist())
+    finally:
+        _recent_weighted_route._names=prev_names
+    if len(targets)<120 or len(meta_losses)<120:
+        return {"status":"INSUFFICIENT_OOS","reason":"insufficient_router_training_oof","oos_rows":len(meta_losses)}
+    static_pred=[]; static_y=[]
+    for fold in folds:
+        end=int(fold["end"]); te=int(fold["te"])
+        bp=np.column_stack([np.asarray(fold["preds"][n],dtype=float) for n in names])
+        if baseline_weights and sum(float(baseline_weights.get(n,0.0)) for n in names)>0:
+            w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float); w/=w.sum()
+            p=np.sum(bp*w[None,:],axis=1)
+        else: p=np.mean(bp,axis=1)
+        static_pred.extend(p.tolist()); static_y.extend(y[end:te].tolist())
+    sm=_metric(np.asarray(static_y),np.asarray(static_pred))
+    rm=_metric(np.asarray(targets),np.asarray(preds))
+    d=np.asarray(deltas,dtype=float)
+    blocks=[]
+    if len(d)>=3:
+        for ids in np.array_split(np.arange(len(d)),3):
+            if len(ids): blocks.append(float(np.mean(d[ids])))
+    boot_p05=float("-inf"); boot_prob=0.0
+    if len(d)>=6 and np.isfinite(d).all():
+        rng=np.random.default_rng(20260925)
+        idx=rng.integers(0,len(d),size=(1000,len(d)))
+        imp=-d[idx].mean(axis=1)
+        boot_p05=float(np.quantile(imp,0.05)); boot_prob=float(np.mean(imp>0.0))
+    return {
+        "status":"EVALUATED","folds":used,"oos_rows":len(meta_losses),
+        "fixed_ensemble":sm,"recent_weighted_router":rm,
+        "logloss_improvement":sm["logloss"]-rm["logloss"],
+        "brier_improvement":sm["brier"]-rm["brier"],
+        "ece_change":rm["ece"]-sm["ece"],
+        "fold_logloss_deltas":d.tolist(),
+        "nonoverlap_block_deltas":blocks,
+        "bootstrap_p05_improvement":boot_p05,
+        "bootstrap_prob_improvement":boot_prob,
+        "policy":"research_only; chronological OOF; recent expert loss prior; no holdout fitting",
+    }
+
+def evaluate_recent_weighted_router_holdout_from_folds(
+    X, y, names, folds, holdout_pred, holdout_X, holdout_y, baseline_weights=None,
+):
+    """Score recent-loss weighting on frozen holdout; all weights come from pre-holdout OOF."""
+    X=np.asarray(X,dtype=float); y=np.asarray(y)
+    hX=np.asarray(holdout_X,dtype=float); hy=np.asarray(holdout_y)
+    if len(names)<2 or hX.ndim!=2 or len(hy)!=len(hX):
+        return {"status":"INSUFFICIENT_HOLDOUT","reason":"invalid_holdout_shapes"}
+    meta_losses=[]
+    for fold in folds:
+        end=int(fold["end"]); te=int(fold["te"])
+        bp=np.column_stack([np.asarray(fold["preds"][n],dtype=float) for n in names])
+        ym=y[end:te].astype(float)
+        fold_losses=-(ym[:,None]*np.log(bp)+(1.0-ym[:,None])*np.log(1.0-bp))
+        meta_losses.extend(fold_losses.tolist())
+    if len(meta_losses)<120:
+        return {"status":"INSUFFICIENT_OOS","reason":"insufficient_router_training_oof","oos_rows":len(meta_losses)}
+    prev_names=getattr(_recent_weighted_route,"_names",None); _recent_weighted_route._names=list(names)
+    try:
+        bp=np.column_stack([np.asarray(holdout_pred[n],dtype=float) for n in names])
+        hl=_recent_model_loss(meta_losses,len(names))
+        if baseline_weights and sum(float(baseline_weights.get(n,0.0)) for n in names)>0:
+            w=np.asarray([float(baseline_weights.get(n,0.0)) for n in names],dtype=float); w/=w.sum()
+            static=np.sum(bp*w[None,:],axis=1)
+        else:
+            static=np.mean(bp,axis=1)
+        routed=_recent_weighted_route(bp,hl,baseline_weights)
+    finally:
+        _recent_weighted_route._names=prev_names
+    if routed is None:
+        return {"status":"INSUFFICIENT_OOS","reason":"recent_weighted_router_fit_failed","oos_rows":len(meta_losses)}
+    sm=_metric(hy.astype(int),static); rm=_metric(hy.astype(int),routed)
+    return {
+        "status":"EVALUATED","oos_training_rows":len(meta_losses),"holdout_rows":len(hy),
+        "fixed_ensemble":sm,"recent_weighted_router":rm,
+        "logloss_improvement":sm["logloss"]-rm["logloss"],
+        "brier_improvement":sm["brier"]-rm["brier"],
+        "ece_change":rm["ece"]-sm["ece"],
+        "policy":"research_only; weights fitted from pre-holdout OOF loss history; frozen holdout labels score-only",
+    }
+
 def train(s):
  if s=='f1':
   return _write_result(s,f1())
