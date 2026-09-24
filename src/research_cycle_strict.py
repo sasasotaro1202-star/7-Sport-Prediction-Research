@@ -624,6 +624,7 @@ def train(s):
    oof_folds.append({'end':end,'te':te,'preds':fold_pred,'base_router_ctx':base_router_ctx,
                      'population_ctx':population_ctx,
                      'event_ids':[str(r[0]) for r in train_rows[end:te]],
+                     'event_times':[str(r[1]) for r in train_rows[end:te]],
                      'population_drift':population_drift.tolist()})
   matchday_oof_ctx=np.asarray(
    matchday_intelligence.build_matchday_change_context_rows(oof_rows),dtype=float
@@ -1023,6 +1024,17 @@ def train(s):
   )
   recent_weighted_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
   recent_weighted_eval['accepted_for_research_comparison']=bool(recent_weighted_accept)
+  fixed_share_hedge_eval=evaluate_fixed_share_hedge_from_folds(
+   y,names=list(best) if len(best)>=2 else list(best),folds=oof_folds,baseline_weights=candidate_weights
+  )
+  fixed_share_hedge_holdout=evaluate_fixed_share_hedge_holdout(
+   y_holdout,names=list(best) if len(best)>=2 else list(best),holdout_pred={
+    name:np.clip(models[i].predict_proba(X_holdout)[:,1],1e-6,1-1e-6)
+    for i,name in enumerate(best)
+   },baseline_weights=candidate_weights
+  ) if len(best)>=2 else {'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected incumbent has one model'}
+  fixed_share_hedge_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
+  fixed_share_hedge_eval['accepted_for_research_comparison']=False
   # Research-only next generation: uncertainty/disagreement/drift-aware routing
   # followed by a separate temporal recalibration layer. It never changes the
   # incumbent artifact directly; release remains controlled by the existing gate.
