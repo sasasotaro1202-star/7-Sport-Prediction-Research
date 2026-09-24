@@ -423,6 +423,12 @@ def main():
     require('direct probability override' in matchday_src,'matchday intelligence layer must not directly override probabilities')
     require((ROOT/'scripts/test_matchday_intelligence_oos.py').exists(),'matchday intelligence PIT regression test is missing')
     require('test_matchday_intelligence_oos.py' in lightweight_src,'matchday intelligence regression is not wired into lightweight CI')
+    postmatch_src=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
+    require('Verified post-match feedback review' in postmatch_src and 'src.postmatch_review' in postmatch_src,
+            'production loop does not settle verified forward predictions for post-match feedback')
+    require((ROOT/'src/postmatch_review.py').exists() and (ROOT/'scripts/test_postmatch_review.py').exists(),
+            'post-match feedback review implementation/test is missing')
+
     require('matchday_intelligence_oos as matchday_intelligence' in strict_src,'strict research cycle does not import the PIT-safe matchday layer')
     require('build_matchday_context_rows(train_rows)' in strict_src and 'matchday_train_ctx' in strict_src,'strict research cycle does not build matchday context from OOS rows')
     require("'context':fold_router_ctx" in strict_src,'strict OOS folds do not persist matchday-augmented router context')
