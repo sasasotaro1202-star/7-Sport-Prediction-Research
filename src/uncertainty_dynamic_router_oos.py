@@ -59,10 +59,35 @@ def uncertainty_features(base_probs: np.ndarray, context: np.ndarray) -> np.ndar
     row_shift = ctx[:, 3] if ctx.shape[1] > 3 else np.zeros(len(bp))
     recent_shift = ctx[:, 8] if ctx.shape[1] > 8 else row_shift
     row_missing = ctx[:, 2] if ctx.shape[1] > 2 else np.zeros(len(bp))
+    # Matchday context may be appended after the canonical 10 router columns.
+    # Treat missing matchday evidence as unknown, not as an affirmative signal.
+    matchday = ctx[:, 10:] if ctx.shape[1] > 10 else np.empty((len(bp), 0))
+    if matchday.shape[1]:
+        finite_md = np.isfinite(matchday)
+        md_missing = 1.0 - np.mean(finite_md, axis=1)
+        bounded = np.nan_to_num(matchday, nan=0.0, posinf=0.0, neginf=0.0)
+        md_mag = np.mean(
+            np.column_stack([
+                np.clip(np.abs(bounded[:, 0]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded[:, 1]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded[:, 2]), 0.0, 5.0) / 5.0,
+                np.clip(np.abs(bounded[:, 3]), 0.0, 7.0) / 7.0,
+                np.clip(np.abs(bounded[:, 4]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded[:, 5]), 0.0, 4.0) / 4.0,
+                np.clip(np.abs(bounded[:, 6]), 0.0, 4.0) / 4.0,
+            ]),
+            axis=1,
+        )
+        # High missingness lowers the trust in any matchday regime signal.
+        matchday_shock = np.clip(0.80 * md_mag + 0.20 * (1.0 - md_missing), 0.0, 1.0)
+    else:
+        matchday_shock = np.zeros(len(bp))
+
     drift = np.clip(
-        0.50 * np.clip(row_shift, 0.0, 8.0) / 8.0
-        + 0.35 * np.clip(recent_shift, 0.0, 8.0) / 8.0
-        + 0.15 * np.clip(row_missing, 0.0, 1.0),
+        0.40 * np.clip(row_shift, 0.0, 8.0) / 8.0
+        + 0.28 * np.clip(recent_shift, 0.0, 8.0) / 8.0
+        + 0.12 * np.clip(row_missing, 0.0, 1.0)
+        + 0.20 * matchday_shock,
         0.0,
         1.0,
     )
@@ -279,7 +304,7 @@ def evaluate_oof(
             _clip_prob(np.asarray(fold["preds"][n], dtype=float))
             for n in names
         ])
-        ctx = _fold_context(X, end, te)
+        ctx = np.asarray(fold.get("context"), dtype=float) if fold.get("context") is not None else _fold_context(X, end, te)
         history = _history_loss(meta_l, len(names))
         uf = uncertainty_features(bp, ctx)
         features = np.column_stack([
@@ -394,7 +419,7 @@ def fit_final_selector_from_folds(
             _clip_prob(np.asarray(fold["preds"][n], dtype=float))
             for n in names
         ])
-        ctx = _fold_context(X, end, te)
+        ctx = np.asarray(fold.get("context"), dtype=float) if fold.get("context") is not None else _fold_context(X, end, te)
         history = _history_loss(meta_l, len(names))
         uf = uncertainty_features(bp, ctx)
         features = np.column_stack([

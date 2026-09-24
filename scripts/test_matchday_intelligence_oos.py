@@ -43,6 +43,17 @@ def main() -> None:
             ],
         )
         c.executemany(
+            "INSERT INTO source_snapshot(snapshot_id,sport,source,source_url,retrieved_at_utc,source_available_at_utc,event_time_utc,content_hash,payload_path,parser_version,availability_status,provenance_json) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            [
+                ("ss1","basketball","official","", "2026-09-24T10:40:00+00:00","2026-09-24T10:20:00+00:00","2026-09-24T12:00:00+00:00","h1",None,"test","EXACT",'{}'),
+                ("ss2","basketball","weather","", "2026-09-24T09:10:00+00:00","2026-09-24T09:10:00+00:00","2026-09-24T12:00:00+00:00","h2",None,"test","EXACT",'{}'),
+                ("ss3","basketball","market","", "2026-09-24T09:15:00+00:00","2026-09-24T09:15:00+00:00","2026-09-24T12:00:00+00:00","h3",None,"test","EXACT",'{}'),
+                ("ss4","basketball","news","", "2026-09-24T09:20:00+00:00","2026-09-24T09:20:00+00:00","2026-09-24T12:00:00+00:00","h4",None,"test","EXACT",'{}'),
+            ],
+        )
+
+        c.executemany(
             "INSERT INTO availability(availability_id,event_id,participant_id,team_id,sport,observed_at_utc,effective_at_utc,cutoff_at_utc,status,reason,source,quality_status,confidence) "
             "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
@@ -73,6 +84,8 @@ def main() -> None:
         assert r["features"]["market_signal_count"] == 1
         assert r["features"]["news_signal_count"] == 1
         assert r["rest_schedule"]["t1"]["rest_days"] == 2.0
+        vec = __import__("src.matchday_intelligence_oos", fromlist=["router_context_vector"]).router_context_vector(r)
+        assert len(vec) == 10 and all(v == v or v != v for v in vec)
         assert all("99.0" not in str(v) for v in r["typed_context"]["weather"].values())
         assert r["policy"].startswith("research_only;")
         print("MATCHDAY_INTELLIGENCE_OOS=PASS")
