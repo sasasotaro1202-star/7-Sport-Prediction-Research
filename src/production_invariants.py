@@ -130,8 +130,17 @@ def main():
             'future predictor lacks explicit Router promotion gate')
     require('Verify workflow SHA is current main before any mutable work' in workflow,
             'canonical Production lacks stale-workflow SHA fail-closed guard')
-    require('group: nine-sport-target-canonical-production-${{ github.sha }}' in workflow,
-            'production concurrency is not actually keyed by GitHub commit SHA')
+    production_concurrency_safe = (
+        'group: nine-sport-target-canonical-production-${{ github.sha }}' in workflow
+        or (
+            'group: nine-sport-target-canonical-production' in workflow
+            and 'cancel-in-progress: true' in workflow
+            and 'Verify workflow SHA is current main before any mutable work' in workflow
+            and 'Verify merge run SHA is current main before mutable work' in workflow
+        )
+    )
+    require(production_concurrency_safe,
+            'production concurrency/stale-run protection contract is missing')
     require('Verify merge run SHA is current main before mutable work' in workflow,
             'canonical Production merge job lacks stale-workflow SHA fail-closed guard')
     require("if: needs.collect.result == 'success'" in workflow and "if: always() && needs.collect.result != 'skipped'" not in workflow,
