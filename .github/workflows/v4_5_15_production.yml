@@ -76,7 +76,7 @@ jobs:
         run: |
           set -uo pipefail
           collector_rc=0
-          if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
+          if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3 --days-forward 7; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
           backfill_rc=0
           case '${{ matrix.sport }}' in
             basketball)
