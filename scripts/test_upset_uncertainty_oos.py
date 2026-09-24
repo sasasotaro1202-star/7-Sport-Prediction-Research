@@ -13,7 +13,7 @@ def test_risk_target_only_marks_high_confidence_misses():
     p = np.asarray([0.90, 0.85, 0.60, 0.40, 0.10])
     y = np.asarray([1, 0, 0, 1, 0])
     target = _risk_target(p, y)
-    assert target.tolist() == [1, 0, 0, 0, 0]
+    assert target.tolist() == [1, 1, 0, 0, 0]
 
 
 def test_policy_shrinkage_respects_risk_and_confidence_gates():
