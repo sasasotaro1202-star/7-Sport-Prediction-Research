@@ -222,8 +222,11 @@ def main():
     require('workflow_run:' not in workflow,
             'canonical production workflow should not create a second heavy run after PIT completion')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
-    require('Production Run Watchdog' in watchdog
-            and ('gh run cancel' in watchdog or 'actions/runs/${id}/cancel' in watchdog),
+    watchdog_cancel_path_ok = (
+        'gh run cancel' in watchdog
+        or 'repos/${GITHUB_REPOSITORY}/actions/runs/${id}/cancel' in watchdog
+    )
+    require('Production Run Watchdog' in watchdog and watchdog_cancel_path_ok,
             'production watchdog is missing automatic heavy-run recovery')
     require('actions: write' in watchdog and 'cancel-in-progress: true' in watchdog,
             'production watchdog lacks required action permission or newest-run concurrency')
