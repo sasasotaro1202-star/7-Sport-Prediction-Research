@@ -149,12 +149,29 @@ class ShockAdaptiveBT:
 
 
 def chronological_predictions(events: Iterable[BTEvent]) -> list[tuple[BTEvent, float]]:
-    """Predict each event before consuming its outcome."""
+    """Predict in chronological blocks without within-block outcome leakage.
+
+    Events sharing the exact supplied timestamp are treated as one information
+    block: every prediction in the block is generated before any outcome from
+    that block is consumed. This is conservative when source timestamps are
+    coarser than true event times.
+    """
     ordered = sorted(events, key=lambda x: (x.event_time_utc, x.event_id))
     model = ShockAdaptiveBT()
     out: list[tuple[BTEvent, float]] = []
-    for event in ordered:
-        p = model.predict_event(event.side_a, event.side_b)
-        out.append((event, p))
-        model.update(event.side_a, event.side_b, event.outcome)
+    i = 0
+    while i < len(ordered):
+        ts = ordered[i].event_time_utc
+        j = i
+        while j < len(ordered) and ordered[j].event_time_utc == ts:
+            j += 1
+        block = ordered[i:j]
+        predictions = [
+            (event, model.predict_event(event.side_a, event.side_b))
+            for event in block
+        ]
+        out.extend(predictions)
+        for event, _ in predictions:
+            model.update(event.side_a, event.side_b, event.outcome)
+        i = j
     return out
