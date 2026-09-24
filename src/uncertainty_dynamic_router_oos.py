@@ -506,11 +506,16 @@ def bootstrap_fold_improvement(fold_deltas, seed=20260924, draws=1000):
 def temporal_recalibration(p, y):
     """
     Fit a low-capacity calibrator only on pre-holdout sequential data.
+
+    Method choice is made on expanding temporal validation blocks. A
+    recalibrator is accepted only when it improves log loss by a minimum
+    amount, does not materially worsen Brier score, and shows stable positive
+    improvement under a fold-level bootstrap.
     """
     p = _clip_prob(p)
     y = np.asarray(y, dtype=int)
     n = len(p)
-    if n < 180 or len(np.unique(y)) < 2:
+    if n < 300 or len(np.unique(y)) < 2:
         return {
             "accepted": False,
             "method": "none",
@@ -518,16 +523,27 @@ def temporal_recalibration(p, y):
         }
 
     cuts = sorted(set([
-        max(80, int(n * 0.50)),
-        max(110, int(n * 0.67)),
-        max(140, int(n * 0.80)),
+        max(120, int(n * 0.40)),
+        max(150, int(n * 0.50)),
+        max(180, int(n * 0.60)),
+        max(210, int(n * 0.70)),
+        max(240, int(n * 0.80)),
+        max(270, int(n * 0.90)),
     ]))
     cuts = [c for c in cuts if c < n - 30]
-    if len(cuts) < 2:
+    folds = []
+    for i, te_start in enumerate(cuts):
+        te_end = cuts[i + 1] if i + 1 < len(cuts) else n
+        if te_end - te_start < 30:
+            continue
+        if len(np.unique(y[:te_start])) < 2 or len(np.unique(y[te_start:te_end])) < 2:
+            continue
+        folds.append((te_start, te_end))
+    if len(folds) < 5:
         return {
             "accepted": False,
             "method": "none",
-            "reason": "insufficient_temporal_folds",
+            "reason": "insufficient_temporal_calibration_folds",
         }
 
     def fit_predict(method, train_p, train_y, test_p):
@@ -543,16 +559,13 @@ def temporal_recalibration(p, y):
             return _clip_prob(m.predict_proba(zt.reshape(-1, 1))[:, 1]), m
         if method == "beta":
             m = LogisticRegression(C=0.25, max_iter=2000, random_state=1203)
-            a = np.column_stack([np.log(train_p), np.log(1.0 - train_p)])
+            m.fit(np.column_stack([np.log(train_p), np.log(1.0 - train_p)]), train_y)
             at = np.column_stack([np.log(test_p), np.log(1.0 - test_p)])
-            m.fit(a, train_y)
             return _clip_prob(m.predict_proba(at)[:, 1]), m
         if method == "isotonic":
             if len(train_p) < 120 or len(np.unique(train_p)) < 25:
                 return None, None
-            m = IsotonicRegression(
-                y_min=EPS, y_max=1.0-EPS, out_of_bounds="clip"
-            )
+            m = IsotonicRegression(y_min=EPS, y_max=1.0-EPS, out_of_bounds="clip")
             m.fit(train_p, train_y)
             return _clip_prob(m.predict(test_p)), m
         raise ValueError(method)
@@ -560,7 +573,7 @@ def temporal_recalibration(p, y):
     from src.research_cycle_v4 import metric
     methods = ["none", "sigmoid", "beta", "isotonic"]
     scores = {m: [] for m in methods}
-    bounds = list(zip(cuts, cuts[1:] + [n]))
+    bounds = list(folds)
 
     for method in methods:
         for a, b in bounds:
@@ -570,7 +583,7 @@ def temporal_recalibration(p, y):
             scores[method].append(metric(y[a:b], pp))
 
     raw = scores["none"]
-    if len(raw) < 2:
+    if len(raw) < 5:
         return {
             "accepted": False,
             "method": "none",
@@ -583,7 +596,7 @@ def temporal_recalibration(p, y):
 
     candidates = {
         m: v for m, v in scores.items()
-        if m == "none" or len(v) >= 2
+        if m == "none" or len(v) >= 5
     }
     method = min(
         candidates,
@@ -596,17 +609,33 @@ def temporal_recalibration(p, y):
     cand_obj = objective(candidates[method])
     raw_brier = float(np.mean([z["brier"] for z in candidates["none"]]))
     cand_brier = float(np.mean([z["brier"] for z in candidates[method]]))
+
+    bootstrap = {"probability_improvement": 0.0, "p05_improvement": float("-inf")}
+    if method != "none":
+        aligned = min(len(candidates["none"]), len(candidates[method]))
+        fold_deltas = [
+            float(candidates[method][i]["logloss"] - candidates["none"][i]["logloss"])
+            for i in range(aligned)
+        ]
+        bootstrap = bootstrap_fold_improvement(
+            fold_deltas, seed=20260924, draws=2000
+        )
+
     accepted = (
         method != "none"
         and cand_obj <= raw_obj - max(0.001, 0.003 * raw_obj)
         and cand_brier <= raw_brier + 0.002
+        and bootstrap["probability_improvement"] >= 0.90
+        and bootstrap["p05_improvement"] > 0.0
     )
     if not accepted:
         return {
             "accepted": False,
             "method": "none",
-            "reason": "recalibration_did_not_pass_temporal_gate",
+            "reason": "recalibration_did_not_pass_temporal_bootstrap_gate",
+            "selected_candidate": method,
             "candidate_methods": candidates,
+            "bootstrap": bootstrap,
         }
 
     if method == "sigmoid":
@@ -630,6 +659,7 @@ def temporal_recalibration(p, y):
         "method": method,
         "model": final,
         "candidate_methods": candidates,
+        "bootstrap": bootstrap,
     }
 
 
