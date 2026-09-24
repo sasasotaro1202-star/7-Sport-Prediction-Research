@@ -85,7 +85,11 @@ def main() -> None:
         assert r["features"]["news_signal_count"] == 1
         assert r["rest_schedule"]["t1"]["rest_days"] == 2.0
         vec = __import__("src.matchday_intelligence_oos", fromlist=["router_context_vector"]).router_context_vector(r)
-        assert len(vec) == 10 and all(v == v or v != v for v in vec)
+        assert len(vec) == 14 and all(v == v or v != v for v in vec)
+        assert r['features']['matchday_source_diversity'] == 1.0
+        assert r['features']['matchday_conflict_rate'] == 0.0
+        assert r['features']['matchday_confidence_mean'] == 0.99
+        assert 0.0 < r['features']['matchday_freshness_score'] <= 1.0
         assert all("99.0" not in str(v) for v in r["typed_context"]["weather"].values())
         assert r["policy"].startswith("research_only;")
         print("MATCHDAY_INTELLIGENCE_OOS=PASS")
