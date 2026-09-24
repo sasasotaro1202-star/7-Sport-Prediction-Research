@@ -37,3 +37,13 @@ def test_invalid_participants_fail_closed():
         pass
     else:
         raise AssertionError("same participant IDs must fail closed")
+
+
+def test_same_timestamp_predictions_do_not_consume_same_block_outcomes():
+    events = [
+        BTEvent("a", "2026-01-01T00:00:00Z", "A", "B", 1),
+        BTEvent("b", "2026-01-01T00:00:00Z", "A", "C", 1),
+    ]
+    preds = chronological_predictions(events)
+    assert abs(preds[0][1] - 0.5) < 1e-12
+    assert abs(preds[1][1] - 0.5) < 1e-12
