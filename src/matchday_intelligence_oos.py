@@ -555,9 +555,15 @@ def build_matchday_change_context_rows(
     ])
     # Keep only a compact, interpretable temporal-change summary: average
     # early-horizon change plus the immediate T-90m -> T-60m shock.
-    early = np.nanmean(np.stack([change_24h, change_6h]), axis=0)
-    early_count = np.sum(np.isfinite(np.stack([change_24h, change_6h])), axis=0)
-    early = np.where(early_count > 0, early, np.nan)
+    stacked = np.stack([change_24h, change_6h])
+    early_count = np.sum(np.isfinite(stacked), axis=0)
+    early_total = np.nansum(stacked, axis=0)
+    early = np.divide(
+        early_total,
+        np.maximum(early_count, 1),
+        out=np.full_like(early_total, np.nan, dtype=float),
+        where=early_count > 0,
+    )
     immediate = change_90m
     summary = np.column_stack([
         early[:, 0], immediate[:, 0],
