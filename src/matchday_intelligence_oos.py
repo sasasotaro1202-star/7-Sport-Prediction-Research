@@ -455,6 +455,21 @@ def build_matchday_intelligence(event_id: str, cutoff_utc: str, db_path: Path = 
         con.close()
 
 
+def build_matchday_context_horizons(
+    rows,
+    db_path: Path = DB,
+    lead_minutes=(1440, 360, 90, 60),
+):
+    """Build PIT-safe matchday contexts at multiple pre-event horizons."""
+    horizons = tuple(sorted({int(x) for x in lead_minutes}, reverse=True))
+    if not horizons or any(x < 0 for x in horizons):
+        raise ValueError("lead_minutes must contain non-negative integers")
+    return {
+        int(minutes): build_matchday_context_rows(rows, db_path, lead_minutes=int(minutes))
+        for minutes in horizons
+    }
+
+
 def build_matchday_context_rows(rows, db_path: Path = DB, lead_minutes: int = 60):
     """Return fixed-width PIT-safe router context for event rows at a chosen horizon."""
     lead = int(lead_minutes)
@@ -540,5 +555,6 @@ def router_context_vector(payload: dict) -> list[float]:
 __all__ = [
     "build_matchday_intelligence",
     "build_matchday_context_rows",
+    "build_matchday_context_horizons",
     "router_context_vector",
 ]
