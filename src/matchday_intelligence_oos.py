@@ -390,11 +390,8 @@ def build_matchday_context_rows(rows, db_path: Path = DB):
                 out.append([float("nan")] * 10)
                 continue
             cutoff = (dt - timedelta(minutes=60)).isoformat()
-            try:
-                payload = _build_with_connection(con, event_id, cutoff, 'historical_exact')
-                out.append(router_context_vector(payload))
-            except Exception:
-                out.append([float("nan")] * 10)
+            payload = _build_with_connection(con, event_id, cutoff, 'historical_exact')
+            out.append(router_context_vector(payload))
     finally:
         con.close()
     return out
