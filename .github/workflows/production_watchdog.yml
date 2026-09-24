@@ -13,6 +13,7 @@ on:
       - Production Safety Audit
       - Lightweight Regression and Safety Checks
       - Autonomous Research Sweep
+      - Matchday Horizon Research
     types: [completed]
   # The 5-minute schedule remains the primary heartbeat; low-frequency completion
   # events provide a second recovery path without listening to validator churn.
@@ -52,7 +53,8 @@ jobs:
             github.event.workflow_run.name == 'Production Invariants' ||
             github.event.workflow_run.name == 'Production Safety Audit' ||
             github.event.workflow_run.name == 'Lightweight Regression and Safety Checks' ||
-            github.event.workflow_run.name == 'Autonomous Research Sweep'
+            github.event.workflow_run.name == 'Autonomous Research Sweep' ||
+            github.event.workflow_run.name == 'Matchday Horizon Research'
           ) &&
           (
             github.event.workflow_run.conclusion == 'failure' ||
