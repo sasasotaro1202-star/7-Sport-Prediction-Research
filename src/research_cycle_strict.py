@@ -9,6 +9,7 @@ from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 from src import uncertainty_dynamic_router_oos as uncertainty_router
 from src import matchday_intelligence_oos as matchday_intelligence
+from src.online_fixed_share_hedge import FixedShareHedge
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','ufc','rizin')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
@@ -441,6 +442,100 @@ def evaluate_recent_weighted_router_holdout_from_folds(
         "brier_improvement":sm["brier"]-rm["brier"],
         "ece_change":rm["ece"]-sm["ece"],
         "policy":"research_only; weights fitted from pre-holdout OOF loss history; frozen holdout labels score-only",
+    }
+
+
+def evaluate_fixed_share_hedge_from_folds(y, names, folds, baseline_weights=None):
+    """Research-only per-event online expert fusion using causal fixed-share Hedge."""
+    y=np.asarray(y,int)
+    if len(names)<2 or len(folds)<3:
+        return {"status":"INSUFFICIENT_OOS","reason":"too_few_chronological_folds"}
+    base_w=[float((baseline_weights or {}).get(n,0.0)) for n in names]
+    if sum(base_w)<=0:
+        base_w=[1.0]*len(names)
+    hedge=FixedShareHedge(len(names),learning_rate=0.12,share=0.05,baseline_weights=base_w)
+    all_static=[]; all_online=[]; all_y=[]; fold_deltas=[]; fold_used=0
+    for fold in folds:
+        end=int(fold["end"]); te=int(fold["te"])
+        bp=np.column_stack([np.asarray(fold["preds"][n],dtype=float) for n in names])
+        times=list(fold.get("event_times") or [])
+        if len(times)!=len(bp):
+            # A missing or misaligned event clock would make same-time PIT ambiguous.
+            return {"status":"INSUFFICIENT_OOS","reason":"event_time_alignment_missing"}
+        static_w=np.asarray(base_w,dtype=float); static_w/=static_w.sum()
+        static=np.sum(bp*static_w[None,:],axis=1)
+        online=[]
+        order=list(range(len(bp)))
+        i=0
+        while i<len(order):
+            ts=str(times[order[i]])
+            j=i+1
+            while j<len(order) and str(times[order[j]])==ts:
+                j+=1
+            block=order[i:j]
+            block_preds=[hedge.predict(bp[k]) for k in block]
+            online.extend((k,p) for k,p in zip(block,block_preds))
+            for k,p in block_preds:
+                hedge.update(bp[k],int(y[end+k]))
+            i=j
+        online_arr=np.empty(len(bp),dtype=float)
+        for k,p in online:
+            online_arr[k]=p
+        yy=y[end:te]
+        sm=base.metric(yy,static); om=base.metric(yy,online_arr)
+        fold_deltas.append(float(om["logloss"]-sm["logloss"]))
+        all_static.extend(static.tolist()); all_online.extend(online_arr.tolist()); all_y.extend(yy.tolist())
+        fold_used+=1
+    if len(all_y)<120 or fold_used<3:
+        return {"status":"INSUFFICIENT_OOS","reason":"insufficient_hedge_oos","oos_rows":len(all_y)}
+    sm=base.metric(np.asarray(all_y),np.asarray(all_static))
+    om=base.metric(np.asarray(all_y),np.asarray(all_online))
+    d=np.asarray(fold_deltas,dtype=float)
+    blocks=[]
+    for ids in np.array_split(np.arange(len(d)),3):
+        if len(ids): blocks.append(float(np.mean(d[ids])))
+    boot_p05=float("-inf"); boot_prob=0.0
+    if len(d)>=6 and np.isfinite(d).all():
+        rng=np.random.default_rng(20260925)
+        idx=rng.integers(0,len(d),size=(1000,len(d)))
+        imp=-d[idx].mean(axis=1)
+        boot_p05=float(np.quantile(imp,0.05))
+        boot_prob=float(np.mean(imp>0.0))
+    return {
+        "status":"EVALUATED","folds":fold_used,"oos_rows":len(all_y),
+        "fixed_ensemble":sm,"fixed_share_hedge":om,
+        "logloss_improvement":float(sm["logloss"]-om["logloss"]),
+        "brier_improvement":float(sm["brier"]-om["brier"]),
+        "ece_change":float(om["ece"]-sm["ece"]),
+        "fold_logloss_deltas":d.tolist(),
+        "nonoverlap_block_deltas":blocks,
+        "bootstrap_p05_improvement":boot_p05,
+        "bootstrap_prob_improvement":boot_prob,
+        "parameters":{"learning_rate":0.12,"share":0.05},
+        "policy":"research_only; per-event causal updates; equal-timestamp outcomes consumed only after the whole timestamp block is predicted; no holdout fitting",
+    }
+
+
+def evaluate_fixed_share_hedge_holdout(y_holdout,names,holdout_pred,baseline_weights=None):
+    """Frozen-holdout score of the OOS-derived fixed-share state without holdout updates."""
+    hy=np.asarray(y_holdout,int)
+    bp=np.column_stack([np.asarray(holdout_pred[n],dtype=float) for n in names])
+    base_w=[float((baseline_weights or {}).get(n,0.0)) for n in names]
+    if sum(base_w)<=0: base_w=[1.0]*len(names)
+    static_w=np.asarray(base_w,dtype=float); static_w/=static_w.sum()
+    static=np.sum(bp*static_w[None,:],axis=1)
+    # Holdout must remain score-only: initialize at incumbent weights and do not
+    # consume any holdout labels for routing or parameter selection.
+    hedge=FixedShareHedge(len(names),learning_rate=0.12,share=0.05,baseline_weights=base_w)
+    routed=np.array([hedge.predict(row) for row in bp],dtype=float)
+    sm=base.metric(hy,static); rm=base.metric(hy,routed)
+    return {
+        "status":"EVALUATED","holdout_rows":len(hy),
+        "fixed_ensemble":sm,"fixed_share_hedge":rm,
+        "logloss_improvement":float(sm["logloss"]-rm["logloss"]),
+        "brier_improvement":float(sm["brier"]-rm["brier"]),
+        "ece_change":float(rm["ece"]-sm["ece"]),
+        "policy":"frozen_holdout_score_only; no holdout labels consumed by router",
     }
 
 def train(s):
