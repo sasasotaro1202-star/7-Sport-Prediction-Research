@@ -6,6 +6,7 @@ import joblib,numpy as np
 from src import dynamic_model_router as router
 from src import matchday_intelligence_oos as matchday_intelligence
 from src import research_cycle_v4 as base
+from src import prediction_experience as experience
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
@@ -487,6 +488,8 @@ def main():
         finally:
             con.close()
     report={'generated_at_utc':now.isoformat(),'policy':'nine-sport-mandatory; accepted-artifact-first; PIT-safe research features; explicit safe-prior fallback; F1 multiclass safe-prior lane; gated contextual routing; frozen-holdout-validated calibration; event-confidence-v1; matchday-situation-v1','sports':results}
+    archive_status=experience.archive_predictions(results, now.isoformat())
+    report['experience_archive']=archive_status
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     # Derive eligibility from this exact canonical inference pass so the
