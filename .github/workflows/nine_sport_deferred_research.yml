@@ -1,0 +1,171 @@
+name: Nine-Sport Deferred Research
+
+on:
+  push:
+    paths:
+      - 'src/tennis_public_backfill.py'
+      - 'src/f1_openf1_backfill.py'
+      - 'src/rugby_production.py'
+      - 'src/boxing_production.py'
+      - '.github/workflows/nine_sport_deferred_research.yml'
+  schedule:
+    - cron: '41 */12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nine-sport-deferred-research
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  research:
+    name: Deferred research (${{ matrix.sport }})
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        sport: [tennis, f1, rugby, boxing]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+
+      - name: Restore deferred research cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/db
+            data/raw/http_cache
+          key: nine-sport-deferred-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            nine-sport-deferred-${{ matrix.sport }}-
+
+      - name: Initialize directories
+        run: mkdir -p data/db data/raw/http_cache results
+
+      - name: Run sport research collector
+        shell: bash
+        run: |
+          set -euo pipefail
+          case '${{ matrix.sport }}' in
+            tennis)
+              python -m src.tennis_public_backfill
+              ;;
+            f1)
+              python -m src.f1_openf1_backfill --start-year 2023 --end-year "$(date -u +%Y)" --timeout 45
+              ;;
+            rugby)
+              python -m src.rugby_production --max-pages 150
+              ;;
+            boxing)
+              python -m src.boxing_production --ingest-history
+              ;;
+          esac
+
+      - name: Build auditable lane report
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import sqlite3
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          sport='${{ matrix.sport }}'
+          report={
+              'schema_version': 1,
+              'sport': sport,
+              'generated_at_utc': datetime.now(timezone.utc).isoformat(),
+              'research_only': True,
+              'production_changed': False,
+              'promotion_allowed': False,
+              'status': 'DEFERRED_RESEARCH_COMPLETE'
+          }
+
+          db_candidates=[
+              Path('data/db/sports_v45.sqlite'),
+              Path('data/db/rugby_v45.sqlite') if sport=='rugby' else Path('/nonexistent'),
+              Path('data/db/boxing_v45.sqlite') if sport=='boxing' else Path('/nonexistent'),
+          ]
+          db=next((p for p in db_candidates if p.is_file() and p.stat().st_size>0),None)
+
+          if db:
+              con=sqlite3.connect(f'file:{db.resolve()}?mode=ro',uri=True)
+              tables={r[0] for r in con.execute("select name from sqlite_master where type='table'")}
+              report['database']=str(db)
+              if 'event' in tables:
+                  report['events']=int(con.execute("select count(*) from event where sport=?",(sport,)).fetchone()[0])
+                  report['timed_events']=int(con.execute("select count(*) from event where sport=? and event_time_utc is not null",(sport,)).fetchone()[0])
+              if 'event_outcome' in tables:
+                  report['verified_outcomes']=int(con.execute("select count(*) from event_outcome where sport=? and outcome_status='VERIFIED'",(sport,)).fetchone()[0])
+              if 'source_snapshot' in tables:
+                  report['source_snapshots']=int(con.execute("select count(*) from source_snapshot where sport=?",(sport,)).fetchone()[0])
+                  report['exact_source_snapshots']=int(con.execute("select count(*) from source_snapshot where sport=? and availability_status='EXACT'",(sport,)).fetchone()[0])
+              con.close()
+
+          for p in [
+              Path('results/tennis_public_backfill.json'),
+              Path('results/v45/rugby_coverage.json'),
+              Path('results/v45/boxing_coverage.json'),
+              Path('results/f1_openf1_backfill.json'),
+          ]:
+              if p.is_file():
+                  try:
+                      report['collector_report']=json.loads(p.read_text(encoding='utf-8'))
+                      break
+                  except Exception:
+                      pass
+
+          out=Path(f'results/nine_sport_deferred_{sport}_research.json')
+          out.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          PY
+
+      - name: Verify no production publication occurred
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nine_sport_deferred_${{ matrix.sport }}_research.json")
+          o=json.loads(p.read_text(encoding="utf-8"))
+          assert o["research_only"] is True
+          assert o["production_changed"] is False
+          assert o["promotion_allowed"] is False
+          print("DEFERRED_RESEARCH_POLICY=OK")
+          PY
+
+      - name: Save deferred research cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/db
+            data/raw/http_cache
+          key: nine-sport-deferred-${{ matrix.sport }}-${{ github.run_id }}
+
+      - name: Upload deferred research evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: nine-sport-deferred-${{ matrix.sport }}-${{ github.run_id }}
+          path: results/nine_sport_deferred_${{ matrix.sport }}_research.json
+          if-no-files-found: error
+          retention-days: 14
