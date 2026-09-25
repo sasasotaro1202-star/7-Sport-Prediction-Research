@@ -26,4 +26,6 @@ jobs:
       - name: Compile candidate
         run: python -m py_compile src/future_predictor.py scripts/test_f1_current_roster_pit.py
       - name: Run candidate smoke
+        env:
+          PYTHONPATH: .
         run: python scripts/test_f1_current_roster_pit.py
