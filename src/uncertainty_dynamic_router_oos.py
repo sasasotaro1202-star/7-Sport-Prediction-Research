@@ -465,6 +465,11 @@ def evaluate_oof(
         else:
             static = np.mean(bp, axis=1)
 
+        selector_sample_weight = (
+            _recency_weights(len(meta_x), selector_recency_half_life)
+            if selector_recency_half_life is not None and meta_x
+            else None
+        )
         selector = fit_uncertainty_loss_selector(
             np.asarray(meta_x, dtype=float)
             if meta_x else np.empty((0, features.shape[1])),
@@ -473,6 +478,7 @@ def evaluate_oof(
             names,
             np.asarray(meta_v, dtype=float)
             if meta_v else np.empty((0, len(names))),
+            sample_weight=selector_sample_weight,
         )
 
         if selector is None:
@@ -594,11 +600,17 @@ def fit_final_selector_from_folds(
         meta_x.extend(features.tolist())
         meta_l.extend(losses.tolist())
         meta_v.extend(voi_targets.tolist())
+    selector_sample_weight = (
+        _recency_weights(len(meta_x), selector_recency_half_life)
+        if selector_recency_half_life is not None and meta_x
+        else None
+    )
     selector = fit_uncertainty_loss_selector(
         np.asarray(meta_x, dtype=float),
         np.asarray(meta_l, dtype=float),
         names,
         np.asarray(meta_v, dtype=float),
+        sample_weight=selector_sample_weight,
     )
     return selector, _history_loss(meta_l, len(names)), len(meta_l)
 
