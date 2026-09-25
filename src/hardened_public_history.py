@@ -184,11 +184,21 @@ def _rizin_archive_urls(base, max_archive_pages):
 
 
 def _rizin_result_urls(html, base_url):
-    """Return discovered RIZIN content URLs in page order, de-duplicated."""
-    candidates = []
-    candidates.extend(re.findall(r"https?://jp\.rizinff\.com/_ct/\d+", html or ""))
-    candidates.extend(re.findall(r'(?:href|data-href)=["\']([^"\']*/_ct/\d+)["\']', html or "", re.I))
-    candidates.extend(re.findall(r"(/_ct/\d+)", html or ""))
+    """Discover canonical result pages first, then keep a de-duplicated fallback."""
+    prioritized = []
+    fallback = []
+    anchor_re = re.compile(
+        r'<a\\b[^>]+(?:href|data-href)=["\\\']([^"\\\']*/_ct/\\d+)["\\\'][^>]*>(.*?)</a>',
+        re.I | re.S,
+    )
+    for href, inner in anchor_re.findall(html or ""):
+        url = urljoin(base_url, href)
+        label = clean(html_text(inner))
+        (prioritized if "試合結果一覧" in label else fallback).append(url)
+
+    candidates = prioritized + fallback
+    candidates.extend(re.findall(r"https?://jp\\.rizinff\\.com/_ct/\\d+", html or ""))
+    candidates.extend(re.findall(r"(/_ct/\\d+)", html or ""))
     out = []
     seen = set()
     for raw_url in candidates:
