@@ -317,14 +317,50 @@ def backfill_rizin(c, max_pages=150):
                     )
                     exact_snapshots += 1
 
+    # Persisted-shape diagnostics: distinguish collection volume from researchable
+    # fight rows. These counts are observational only and do not relax PIT gates.
+    persisted_events = c.execute(
+        "SELECT COUNT(*) FROM event WHERE sport='rizin'"
+    ).fetchone()[0]
+    paired_events = c.execute(
+        """SELECT COUNT(*)
+             FROM event e
+             JOIN event_participant a ON a.event_id=e.event_id AND a.side='A'
+             JOIN event_participant b ON b.event_id=e.event_id AND b.side='B'
+            WHERE e.sport='rizin'"""
+    ).fetchone()[0]
+    verified_outcome_events = c.execute(
+        """SELECT COUNT(*)
+             FROM event_outcome o
+            WHERE o.sport='rizin' AND o.outcome_status='VERIFIED'
+              AND o.outcome IN ('A','B')"""
+    ).fetchone()[0]
+    paired_verified_events = c.execute(
+        """SELECT COUNT(*)
+             FROM event e
+             JOIN event_participant a ON a.event_id=e.event_id AND a.side='A'
+             JOIN event_participant b ON b.event_id=e.event_id AND b.side='B'
+             JOIN event_outcome o ON o.event_id=e.event_id
+            WHERE e.sport='rizin' AND o.outcome_status='VERIFIED'
+              AND o.outcome IN ('A','B')"""
+    ).fetchone()[0]
+    unique_event_dates = c.execute(
+        "SELECT COUNT(DISTINCT substr(event_time_utc,1,10)) FROM event WHERE sport='rizin' AND event_time_utc IS NOT NULL"
+    ).fetchone()[0]
     coverage = {
         "status": "PASS" if added > 0 else "DEFERRED",
+
         "sport": "rizin",
         "archive_pages_scanned": len(archive_html),
         "result_article_urls": len(detail_urls),
         "events_added": added,
         "labeled_bouts": labeled,
         "exact_pit_snapshots": exact_snapshots,
+        "persisted_events": int(persisted_events),
+        "paired_events": int(paired_events),
+        "verified_outcome_events": int(verified_outcome_events),
+        "paired_verified_events": int(paired_verified_events),
+        "unique_event_dates": int(unique_event_dates),
         "reason": None if added > 0 else "official_rizin_result_archive_returned_no_parseable_result_records",
     }
     out = ROOT / "results" / "v45" / "rizin_coverage.json"
