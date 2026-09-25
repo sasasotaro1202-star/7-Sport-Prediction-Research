@@ -21,9 +21,9 @@ jobs:
     name: Collect ${{ matrix.sport }}
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 9
       matrix:
-        sport: [valorant, basketball, volleyball, ufc, rizin]
+        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1, rugby, boxing]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -68,9 +68,32 @@ jobs:
             nine-sport-target-db-v4-${{ matrix.sport }}-pit-
             nine-sport-target-db-v4-${{ matrix.sport }}-
       - name: Validate/repair restored database before collection
-        run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          case '${{ matrix.sport }}' in
+            rugby)
+              if [ -s data/db/rugby_v45.sqlite ]; then python -m src.cache_health --db data/db/rugby_v45.sqlite --sport rugby --repair; else echo 'RUGBY_CACHE=EMPTY'; fi
+              ;;
+            boxing)
+              if [ -s data/db/boxing_v45.sqlite ]; then python -m src.cache_health --db data/db/boxing_v45.sqlite --sport boxing --repair; else echo 'BOXING_CACHE=EMPTY'; fi
+              ;;
+            *)
+              python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
+              ;;
+          esac
       - name: Initialize schema
-        run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+        shell: bash
+        run: |
+          set -euo pipefail
+          case '${{ matrix.sport }}' in
+            rugby|boxing)
+              echo "Dedicated database sport=${{ matrix.sport }}; sport-specific collector owns schema initialization."
+              ;;
+            *)
+              python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+              ;;
+          esac
       - name: Incremental collector (source failures degrade explicitly)
         run: |
           set -uo pipefail
@@ -102,6 +125,12 @@ jobs:
             valorant) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports valorant; then echo 'valorant_backfill_status=OK'; else backfill_rc=$?; echo "valorant_backfill_status=DEGRADED exit=$backfill_rc"; fi; if timeout --signal=TERM 300s python -m src.valorant_git_provenance; then echo 'valorant_provenance_status=OK'; else echo "valorant_provenance_status=DEGRADED exit=$?"; fi ;;
             rizin) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports rizin; then echo 'rizin_backfill_status=OK'; else backfill_rc=$?; echo "rizin_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
             ufc) if timeout --signal=TERM 120s python -m src.ufc_api_backfill --limit 200; then echo 'ufc_backfill_status=OK'; else backfill_rc=$?; echo "ufc_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
+            rugby)
+              if timeout --signal=TERM 600s python -m src.rugby_production --max-pages 150; then echo 'rugby_collection_status=OK'; else backfill_rc=$?; echo "rugby_collection_status=DEGRADED exit=$backfill_rc"; fi
+              ;;
+            boxing)
+              if timeout --signal=TERM 600s python -m src.boxing_production --ingest-history; then echo 'boxing_collection_status=OK'; else backfill_rc=$?; echo "boxing_collection_status=DEGRADED exit=$backfill_rc"; fi
+              ;;
           esac
           guard_rc=0
           if python -m src.collection_guard --sport ${{ matrix.sport }}; then echo 'collection_guard_status=OK'; else guard_rc=$?; echo "collection_guard_status=FAILED exit=$guard_rc"; fi
@@ -222,25 +251,38 @@ jobs:
           fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
-      - name: Deferred scope note
-        run: echo 'Tennis, F1, Rugby and Boxing are intentionally deferred by project scope; no canonical model partition is required until sport-specific PIT/OOS gates pass.'
+      - name: Nine-sport prediction scope
+        run: echo 'All nine target sports are mandatory prediction lanes; model promotion remains separately gated by PIT/OOS/holdout evidence.'
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
-          for sport in valorant basketball volleyball ufc; do
+          for sport in valorant basketball volleyball tennis ufc rizin f1; do
             if [ -s "hourly-artifacts/$sport/sports_v45.sqlite" ]; then
               python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
             else
               echo "$sport"_PARTITION=DEFERRED
             fi
           done
-          if [ -s hourly-artifacts/rizin/sports_v45.sqlite ]; then
-            python -m src.partition_cache_guard --db hourly-artifacts/rizin/sports_v45.sqlite --sport rizin
-          else
-            echo 'RIZIN_PARTITION=DEFERRED'
-          fi
+          echo 'RUGBY_PARTITION=DEDICATED_DB'
+          echo 'BOXING_PARTITION=DEDICATED_DB'
       - name: Merge partitions
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
+      - name: Restore Rugby dedicated prediction database
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db/rugby_v45.sqlite
+          key: nine-sport-target-db-v4-rugby-${{ github.run_id }}
+          restore-keys: |
+            nine-sport-target-db-v4-rugby-
+
+      - name: Restore Boxing dedicated prediction database
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db/boxing_v45.sqlite
+          key: nine-sport-target-db-v4-boxing-${{ github.run_id }}
+          restore-keys: |
+            nine-sport-target-db-v4-boxing-
+
       - name: Robust adapters
         run: python -m src.robust_sport_adapters_v4
       - name: Boxing history ingestion and PIT guard
