@@ -942,11 +942,11 @@
     },
     "bootstrap": {
       "probability_improvement": 0.0,
-      "p05_improvement": -Infinity
+      "p05_improvement": null
     },
     "cluster_bootstrap": {
       "probability_improvement": 0.0,
-      "p05_improvement": -Infinity,
+      "p05_improvement": null,
       "clusters": 0
     }
   }
