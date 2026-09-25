@@ -130,20 +130,19 @@ def build_pairwise_rows(races):
             })
 
         # Update state only after all pairwise predictions for the race have been created.
-        for r in results:
-            d = r["driver"]
-            c = r["constructor"]
+        for rr in results:
+            d = rr["driver"]
+            c = rr["constructor"]
             current = elo[d]
-            avg = np.mean([elo[z["driver"]] for z in results if z["driver"] != d]) if len(results) > 1 else 1500.0
-            actual_w = sum(1 for z in results if z["position"] > r["position"])
+            actual_w = sum(1 for z in results if z["position"] > rr["position"])
             expected_w = sum(1.0 / (1.0 + 10.0 ** ((elo[z["driver"]] - elo[d]) / 400.0))
                              for z in results if z["driver"] != d)
             denom = max(1, len(results)-1)
             elo[d] = current + 18.0 * ((actual_w / denom) - (expected_w / denom))
-            ctor_elo[c] = 0.9 * ctor_elo[c] + 0.1 * (1500.0 + (25.0 - r["position"]) * 20.0)
-            finish_hist[d].append(r["position"])
-            dnf_hist[d].append(r["dnf"])
-            circuit_hist[d][circuit].append(r["position"])
+            ctor_elo[c] = 0.9 * ctor_elo[c] + 0.1 * (1500.0 + (25.0 - rr["position"]) * 20.0)
+            finish_hist[d].append(rr["position"])
+            dnf_hist[d].append(rr["dnf"])
+            circuit_hist[d][circuit].append(rr["position"])
     return out
 
 
