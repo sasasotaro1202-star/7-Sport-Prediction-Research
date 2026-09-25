@@ -499,10 +499,10 @@ def main():
             'future predictor does not implement Beta calibration transform safely')
     require("method=='isotonic'" in future_src,
             'future predictor does not implement isotonic calibration branch')
-    require("artifact.get('quality_status')" in future_src and 'DEFERRED_ARTIFACT_NOT_ACCEPTED' in future_src,
-            'future predictor does not fail closed on unaccepted artifacts')
-    require('BLOCKED_ARTIFACT_FEATURE_SCHEMA' in future_src and 'missing_schema' in future_src,
-            'future predictor does not fail closed on artifact/current feature schema mismatch')
+    require("artifact.get('quality_status')" in future_src and '_safe_prior_binary(c,s,now)' in future_src,
+            'future predictor lacks safe fallback when production artifact is unavailable/unaccepted')
+    require('missing_schema' in future_src and "return _safe_prior_binary(c,s,now)" in future_src,
+            'future predictor does not fail safely when artifact/current feature schema is unusable')
     require("'quality_status':'ACCEPTED_LOCKED_HOLDOUT'" in strict_src,
             'strict research artifact does not persist explicit accepted quality state')
     try:
