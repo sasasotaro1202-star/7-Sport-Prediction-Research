@@ -28,5 +28,10 @@ if __name__ == "__main__":
 
 
 def test_event_result_page_filter():
-    assert _rizin_is_event_result_page("RIZIN.44 試合結果一覧 第10試合")
-    assert not _rizin_is_event_result_page("〖試合結果〗RIZIN.44 第10試合／クレベル・コイケ vs. 金原正徳")
+    assert _rizin_is_event_result_page("<h1>RIZIN.44 試合結果一覧</h1>")
+    assert not _rizin_is_event_result_page(
+        "<h1>第10試合／クレベル・コイケ vs. 金原正徳</h1>"
+        "<nav>RIZIN.44 試合結果一覧</nav>"
+    )
+
+
