@@ -28,7 +28,7 @@ def main():
     to_date = "2026-10-02"
     for page in range(8):
         data = get_json(
-            f"{BASE}/tournaments?page={page}&pageSize=100"
+            f"{BASE}/tournaments/?page={page}&pageSize=100"
             f"&from={from_date}&to={to_date}"
         )
         page_rows = data.get("content")
