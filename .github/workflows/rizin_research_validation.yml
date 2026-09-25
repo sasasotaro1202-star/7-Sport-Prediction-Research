@@ -1,0 +1,111 @@
+name: RIZIN Research Validation
+
+on:
+  pull_request:
+    paths:
+      - "src/hardened_public_history.py"
+      - "src/seven_sport_production.py"
+      - "src/research_cycle_v4.py"
+      - "src/research_cycle_strict.py"
+      - ".github/workflows/rizin_research_validation.yml"
+  push:
+    paths:
+      - "src/hardened_public_history.py"
+      - "src/seven_sport_production.py"
+      - "src/research_cycle_v4.py"
+      - "src/research_cycle_strict.py"
+      - ".github/workflows/rizin_research_validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Push and PR events for the same source branch share one group to prevent duplicate research runs.
+  group: rizin-research-validation-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONPATH: .
+
+jobs:
+  rizin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+
+      - name: Initialize database
+        run: |
+          set -euo pipefail
+          mkdir -p data/db data/raw/http_cache results/research results/v45 models/research
+          python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+
+      - name: Backfill official RIZIN result archive
+        run: |
+          set -euo pipefail
+          python -m src.hardened_public_history --sport rizin
+
+      - name: Build strict PIT replay
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=20s 1800s python -m src.pit_replay_builder
+
+      - name: Run chronological OOS research
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport rizin
+
+      - name: Verify research evidence
+        run: |
+          set -euo pipefail
+          test -s results/research/rizin.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          research=json.loads(Path("results/research/rizin.json").read_text(encoding="utf-8"))
+          coverage=json.loads(Path("results/v45/rizin_coverage.json").read_text(encoding="utf-8"))
+          print(f"RIZIN_STATUS={research.get('status')}")
+          print(f"RIZIN_TRAINING_ROWS={research.get('training_rows', research.get('rows', 0))}")
+          print(f"RIZIN_EVENTS_ADDED={coverage.get('events_added', 0)}")
+          print(f"RIZIN_LABELED_BOUTS={coverage.get('labeled_bouts', 0)}")
+          print(f"RIZIN_EXACT_PIT_SNAPSHOTS={coverage.get('exact_pit_snapshots', 0)}")
+          print(f"RIZIN_ARCHIVE_PAGES={coverage.get('archive_pages_scanned', 0)}")
+          assert research.get("sport") == "rizin"
+          assert isinstance(research.get("status"), str)
+          PY
+
+      - name: RIZIN date parser regression
+        run: |
+          set -euo pipefail
+          python scripts/test_rizin_date_parser.py
+
+      - name: Compile and smoke regression
+        run: |
+          set -euo pipefail
+          python -m compileall -q src scripts
+          python scripts/model_system_smoke.py
+
+      - name: Upload RIZIN evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: rizin-research-validation-${{ github.run_id }}
+          path: |
+            results/research/rizin.json
+            results/v45/rizin_coverage.json
+            results/hardened_public_history_rizin.json
+            results/*.json
+          if-no-files-found: warn
+          retention-days: 14
