@@ -134,10 +134,7 @@ def main():
         'group: nine-sport-target-canonical-production-${{ github.sha }}' in workflow
         or (
             'group: nine-sport-target-canonical-production' in workflow
-            and (
-                'cancel-in-progress: true' in workflow
-                or 'cancel-in-progress: false' in workflow
-            )
+            and 'cancel-in-progress: false' in workflow
             and 'Verify workflow SHA is current main before any mutable work' in workflow
             and 'Verify merge run SHA is current main before mutable work' in workflow
         )
