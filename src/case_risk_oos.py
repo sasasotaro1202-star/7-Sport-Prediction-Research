@@ -102,9 +102,8 @@ def _aurc(y_error, risk):
     coverage = np.arange(1, len(kept)+1) / len(kept)
     if len(cum) <= 1:
         return float(cum[0])
-    # NumPy 2.0 removed np.trapz; retain compatibility with older NumPy.
-    integrate = getattr(np, "trapezoid", np.trapz)
-    return float(integrate(cum, coverage))
+    # Integrate explicitly to avoid NumPy-version-specific trapz/trapezoid APIs.
+    return float(np.sum((cum[:-1] + cum[1:]) * np.diff(coverage) * 0.5))
 
 
 def evaluate_selective_case_risk_oof(
