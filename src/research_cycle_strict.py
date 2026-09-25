@@ -18,6 +18,18 @@ def utc():
  from datetime import datetime,timezone
  return datetime.now(timezone.utc).isoformat()
 def h(x):return hashlib.sha256(json.dumps(x,sort_keys=True,default=str).encode()).hexdigest()[:16]
+
+def _json_safe(x):
+ if isinstance(x,(float,np.floating)):
+  return float(x) if np.isfinite(x) else None
+ if isinstance(x,dict):
+  return {str(k):_json_safe(v) for k,v in x.items()}
+ if isinstance(x,(list,tuple)):
+  return [_json_safe(v) for v in x]
+ return x
+
+def _json_dump(x,**kwargs):
+ return json.dumps(_json_safe(x),ensure_ascii=False,allow_nan=False,**kwargs)
 def f1():
  c=sqlite3.connect(DB)
  try:n=c.execute("select count(*) from event where sport='f1'").fetchone()[0];e=c.execute("select count(*) from source_snapshot where source='OpenF1' and availability_status='EXACT'").fetchone()[0]
@@ -127,7 +139,7 @@ def _temporal_calibration_candidate(p, y):
 def _write_result(s, payload):
     """Persist every research outcome, including DEFERRED/REJECTED states."""
     RESULTS.mkdir(parents=True,exist_ok=True)
-    (RESULTS/f'{s}.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
+    (RESULTS/f'{s}.json').write_text(_json_dump(payload,indent=2),encoding='utf-8')
     return payload
 
 def _carry_forward_previous(c, sport, previous, current_features):
@@ -165,7 +177,7 @@ def _carry_forward_previous(c, sport, previous, current_features):
               (sid,sport,"winner",utc(),meta["model_version"],meta["feature_version"],
                meta["training_cutoff_utc"],h(meta),meta["git_commit_sha"],
                str(artifact.relative_to(ROOT)),"ACCEPTED_CARRY_FORWARD",
-               json.dumps(meta,ensure_ascii=False)))
+               _json_dump(meta)))
     c.commit()
     return meta
 
