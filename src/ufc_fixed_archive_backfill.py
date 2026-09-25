@@ -29,7 +29,7 @@ PARSER_VERSION = "ufc-fixed-archive-backfill-v1"
 def _norm(value: str | None) -> str:
     if value is None:
         return ""
-    return " ".join(str(value).strip().casefold().replace(".", "").split())
+    return " ".join(str(value).strip().casefold().replace(".", " ").split())
 
 
 def _iso_date(value: str | None) -> str:
