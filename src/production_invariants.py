@@ -120,6 +120,8 @@ def main():
             'future predictor does not support dedicated Rugby/Boxing databases')
     require('PREDICTED_SAFE_PRIOR' in predictor and 'PREDICTED_SAFE_PRIOR_MULTICLASS' in predictor,
             'future predictor has no explicit all-nine safe fallback lane')
+    require("availability_status='EXACT'" in predictor and 'source_available_at_utc' in predictor,
+            'safe fallback prior does not enforce exact historical source availability')
     base_src=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('class TimeDecay:' in base_src and 'lightgbm_time_decay_300' in base_src,
             'recency-decay challenger is missing from the canonical model pool')
