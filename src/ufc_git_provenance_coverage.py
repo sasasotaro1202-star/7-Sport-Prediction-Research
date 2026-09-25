@@ -8,13 +8,22 @@ import shutil
 import sqlite3
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+import io
+import requests
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 
 UPSTREAM_REPO = "https://github.com/Greco1899/scrape_ufc_stats.git"
 UPSTREAM_FILES = ("ufc_fight_stats.csv", "ufc_fight_details.csv")
-PARSER_VERSION = "ufc-git-provenance-coverage-v1"
+PARSER_VERSION = "ufc-git-provenance-coverage-v2"
+ARCHIVE_REPO = "cinhui/ufc-events-stats"
+ARCHIVE_COMMIT = "823361a68e1d15242f6182714a683534e02464be"
+ARCHIVE_COMMIT_AT = datetime(2020, 6, 15, 16, 52, 4, tzinfo=timezone.utc)
+ARCHIVE_OVERVIEW_URL = (
+    "https://raw.githubusercontent.com/cinhui/ufc-events-stats/"
+    f"{ARCHIVE_COMMIT}/data_ufcstats/ufc-stats-matches-overview.csv"
+)
 MIN_PIT_GAP_MINUTES = 60
 
 
@@ -122,6 +131,142 @@ def _db_events(con: sqlite3.Connection) -> list[tuple[str, str, str]]:
             """
         )
     )
+
+
+def _norm_person(value: str | None) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).strip().casefold().replace(".", "").split())
+
+
+def _parse_num(value: str | None) -> float | None:
+    try:
+        x = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return x if x == x and abs(x) != float("inf") else None
+
+
+def _load_archive_overview(url: str = ARCHIVE_OVERVIEW_URL) -> tuple[str, list[dict]]:
+    r = requests.get(url, headers={"User-Agent": "SevenSportResearchEngine/4.5.16"}, timeout=45)
+    r.raise_for_status()
+    raw = r.text
+    rows = list(csv.DictReader(io.StringIO(raw)))
+    if not rows:
+        raise RuntimeError("archive overview returned zero rows")
+    return raw, rows
+
+
+def _archive_value_index(rows: list[dict]) -> dict[tuple[str, str, str, str], list[dict]]:
+    out: dict[tuple[str, str, str, str], list[dict]] = {}
+    for row in rows:
+        date = str(row.get("Date") or "").strip()[:10]
+        event = _norm_event(row.get("Event"))
+        f1 = _norm_person(row.get("Fighter_1"))
+        f2 = _norm_person(row.get("Fighter_2"))
+        if not date or not event or not f1 or not f2:
+            continue
+        key = (date, event, *sorted((f1, f2)))
+        out.setdefault(key, []).append({
+            "fighter_1": f1,
+            "fighter_2": f2,
+            "sig_str_1": _parse_num(row.get("STR_1")),
+            "sig_str_2": _parse_num(row.get("STR_2")),
+            "takedown_1": _parse_num(row.get("TD_1")),
+            "takedown_2": _parse_num(row.get("TD_2")),
+        })
+    return out
+
+
+def _db_local_index(con: sqlite3.Connection):
+    events = con.execute(
+        "SELECT event_id, COALESCE(competition_id,''), event_time_utc FROM event WHERE sport='ufc' AND event_time_utc IS NOT NULL"
+    ).fetchall()
+    event_index: dict[tuple[str, str], list[str]] = {}
+    event_time: dict[str, datetime] = {}
+    for eid, name, et in events:
+        try:
+            dt = _parse_timestamp(str(et))
+        except ValueError:
+            continue
+        event_time[str(eid)] = dt
+        event_index.setdefault((dt.date().isoformat(), _norm_event(name)), []).append(str(eid))
+    participants: dict[str, dict[str, str]] = {}
+    for eid, pid, side in con.execute(
+        "SELECT event_id, participant_id, side FROM event_participant WHERE event_id IN (SELECT event_id FROM event WHERE sport='ufc') AND side IN ('A','B')"
+    ):
+        participants.setdefault(str(eid), {})[str(side)] = str(pid)
+    names = {str(pid): _norm_person(name) for pid, name in con.execute(
+        "SELECT participant_id, canonical_name FROM participant WHERE sport='ufc'"
+    )}
+    stats: dict[tuple[str, str, str], set[float]] = {}
+    for eid, pid, stat, value in con.execute(
+        "SELECT event_id, participant_id, stat_name, value_num FROM match_stats WHERE sport='ufc' AND stat_name IN ('sig_str','takedown') AND participant_id IS NOT NULL AND value_num IS NOT NULL"
+    ):
+        stats.setdefault((str(eid), str(pid), str(stat)), set()).add(float(value))
+    return event_index, event_time, participants, names, stats
+
+
+def _value_equivalence(con: sqlite3.Connection, archive_rows: list[dict]) -> dict:
+    event_index, event_time, participants, names, stats = _db_local_index(con)
+    archive = _archive_value_index(archive_rows)
+    exact = 0
+    exact_events: set[str] = set()
+    evidence: dict[tuple[str, str], list[datetime]] = {}
+    checked = 0
+    for (date, event_name, _a, _b), source_rows in archive.items():
+        for eid in event_index.get((date, event_name), []):
+            checked += 1
+            side_to_name = {side: names.get(pid, "") for side, pid in participants.get(eid, {}).items()}
+            for row in source_rows:
+                for idx, side in ((1, "A"), (2, "B")):
+                    src_name = row[f"fighter_{idx}"]
+                    pid = next((p for p, nm in side_to_name.items() if nm == src_name), None)
+                    if pid is None:
+                        continue
+                    for stat, field in (("sig_str", f"sig_str_{idx}"), ("takedown", f"takedown_{idx}")):
+                        value = row[field]
+                        if value is None:
+                            continue
+                        vals = stats.get((eid, pid, stat), set())
+                        if any(abs(v - value) <= 1e-9 for v in vals):
+                            exact += 1
+                            exact_events.add(eid)
+                            evidence.setdefault((pid, stat), []).append(event_time[eid])
+
+    target_events = 0
+    candidate_events = 0
+    for eid, et in event_time.items():
+        cutoff = et - timedelta(minutes=MIN_PIT_GAP_MINUTES)
+        if cutoff <= ARCHIVE_COMMIT_AT:
+            continue
+        candidate_events += 1
+        pids = list(participants.get(eid, {}).values())
+        if len(pids) != 2:
+            continue
+        ok_sides = 0
+        for pid in pids:
+            ok = any(
+                any(hist_et < et and hist_et <= cutoff for hist_et in times)
+                for (epid, _stat), times in evidence.items()
+                if epid == pid
+            )
+            ok_sides += int(ok)
+        if ok_sides == 2:
+            target_events += 1
+    return {
+        "archive_repo": ARCHIVE_REPO,
+        "archive_commit": ARCHIVE_COMMIT,
+        "archive_commit_at_utc": ARCHIVE_COMMIT_AT.isoformat(),
+        "archive_rows": int(len(archive_rows)),
+        "local_event_join_candidates_checked": int(checked),
+        "exact_local_stat_value_matches": int(exact),
+        "exact_local_event_ids": int(len(exact_events)),
+        "candidate_target_events_after_archive_snapshot": int(candidate_events),
+        "potential_target_events_with_both_sides_historical_evidence": int(target_events),
+        "matched_stat_names": ["sig_str", "takedown"],
+        "status": "VALUE_EQUIVALENCE_ESTIMATE_ONLY",
+    }
 
 
 def _db_stat_counts(con: sqlite3.Connection) -> dict[str, int]:
@@ -255,6 +400,11 @@ def main() -> int:
         first_seen, first_commit, commit_rows = collect_first_seen(repo_dir)
         with sqlite3.connect(db_path) as con:
             result = evaluate_coverage(con, first_seen, first_commit)
+            archive_raw, archive_rows = _load_archive_overview()
+            result["fixed_archive_value_equivalence"] = _value_equivalence(con, archive_rows)
+            result["archive_content_sha256"] = hashlib.sha256(
+                archive_raw.encode("utf-8", "ignore")
+            ).hexdigest()
         result["git_commit_history_rows_scanned"] = int(commit_rows)
         result["unique_upstream_event_names_seen"] = int(len(first_seen))
         result["status"] = "ESTIMATE_ONLY"
