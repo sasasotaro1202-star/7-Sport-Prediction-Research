@@ -1,3 +1,4 @@
+# nine-sport matrix source-preflight hardened
 name: All-Sport Research Matrix
 
 on:
@@ -115,6 +116,16 @@ jobs:
               if [ -s data/db/boxing_v45.sqlite ]; then cp data/db/boxing_v45.sqlite data/db/sports_v45.sqlite; fi
               ;;
           esac
+
+      - name: Targeted source preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.sport }}" = "f1" ]; then
+            python -m py_compile src/f1_pairwise_oos.py
+          else
+            python -m py_compile src/research_cycle_strict.py
+          fi
 
       - name: Reset isolated frozen holdout registry
         shell: bash
