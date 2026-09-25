@@ -102,7 +102,7 @@ jobs:
           con.close()
           PY
 
-      - name: Upload research artifact
+      - name: Research UFC with frozen holdout on fixed-archive PIT DB        run: |          set -euo pipefail          timeout --signal=TERM --kill-after=30s 4500s python -m src.research_cycle_strict --sport ufc      - name: Independent PIT leakage audit on research DB        run: |          set -euo pipefail          python -m src.independent_leakage_audit      - name: Upload research artifact
         uses: actions/upload-artifact@v4
         with:
           name: ufc-fixed-archive-backfill-${{ github.run_id }}
