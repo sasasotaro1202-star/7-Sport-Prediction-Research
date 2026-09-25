@@ -17,13 +17,14 @@ concurrency:
 
 env:
   PYTHONUNBUFFERED: "1"
+  PYTHONFAULTHANDLER: "1"
 
 jobs:
   research:
     name: Research ${{ matrix.sport }}
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 9
       matrix:
         sport:
           - valorant
@@ -85,7 +86,7 @@ jobs:
               python -m src.public_history_backfill --sports rizin
               ;;
             f1)
-              python -m src.f1_openf1_backfill --start-year 2023 --end-year "$(date -u +%Y)" --timeout 45
+              echo "F1_OPENF1_STATUS=SKIPPED; dedicated Jolpica pairwise OOS lane owns F1 research data"
               ;;
             rugby)
               python -m src.rugby_production --max-pages 150
@@ -103,6 +104,7 @@ jobs:
           echo "FROZEN_HOLDOUT_REGISTRY=RESET sport=${{ matrix.sport }}"
 
       - name: Build common strict PIT replay
+        if: matrix.sport != 'f1'
         shell: bash
         run: |
           set -euo pipefail
@@ -112,7 +114,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport "${{ matrix.sport }}"
+          if [ "${{ matrix.sport }}" = "f1" ]; then
+            timeout --signal=TERM --kill-after=20s 2400s python -m src.f1_pairwise_oos
+          else
+            timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport "${{ matrix.sport }}"
+          fi
 
       - name: Verify research result is explicit JSON
         shell: bash
