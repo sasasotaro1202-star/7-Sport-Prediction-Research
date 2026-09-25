@@ -11,9 +11,9 @@ from src import uncertainty_dynamic_router_oos as uncertainty_router
 from src import matchday_intelligence_oos as matchday_intelligence
 from src import case_risk_oos as case_risk
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
-SPORTS=('valorant','basketball','volleyball','ufc','rizin')
+SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
-ALL_SPORTS=SPORTS+DEFERRED_SPORTS
+ALL_SPORTS=SPORTS
 def utc():
  from datetime import datetime,timezone
  return datetime.now(timezone.utc).isoformat()
