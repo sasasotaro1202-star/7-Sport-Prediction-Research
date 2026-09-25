@@ -21,7 +21,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: rizin-research-validation-${{ github.ref }}
+  # Push and PR events for the same source branch share one group to prevent duplicate research runs.
+  group: rizin-research-validation-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 env:
