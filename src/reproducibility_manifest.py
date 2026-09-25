@@ -37,6 +37,14 @@ def git_head() -> str:
     return p.stdout.strip()
 
 
+def display_path(path: Path) -> str:
+    """Return a stable relative path for repo files and a safe absolute fallback for test fixtures."""
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def file_record(path: Path) -> dict:
     if not path.is_file():
         return {"path": display_path(path), "exists": False}
