@@ -116,7 +116,7 @@ def main() -> int:
         ("first_seen_at_or_after_conservative_cutoff", at_or_after_cutoff),
         ("event_date_unknown", unknown),
         ("before_conservative_cutoff_rate", (before_cutoff / with_event_date) if with_event_date else None),
-        ("non_pit_evidence_rate_upper_bound", (at_or_after_event / with_event_date) if with_event_date else None),
+        ("non_pit_evidence_rate_upper_bound", (at_or_after_cutoff / with_event_date) if with_event_date else None),
         ("pit_policy", "research_only; first Git appearance is a conservative upper bound on source availability"),
         ("prediction_cutoff_policy", "event_date_utc_minus_60_minutes; comparison is conservative because source exposes date but not fight start time"),
         ("unknown_is_fail_closed", True),
