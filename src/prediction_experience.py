@@ -186,6 +186,48 @@ def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | N
     return {"added": added, "skipped_existing": skipped}
 
 
+
+def archive_forward_prediction_db(
+    c: sqlite3.Connection,
+    sport: str,
+    generated_at_utc: str | None = None,
+) -> dict[str, int]:
+    """Export persisted forward predictions from the current DB into the durable archive."""
+    exists = c.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='forward_prediction'"
+    ).fetchone()
+    if exists is None:
+        return {"added": 0, "skipped_existing": 0}
+    rows = c.execute(
+        """SELECT prediction_id,event_id,prediction_cutoff_at_utc,generated_at_utc,
+                  probability_side_a,probability_side_b,strategy,model_version,
+                  feature_version,features_json,status
+             FROM forward_prediction
+            WHERE sport=?
+            ORDER BY generated_at_utc,prediction_id""",
+        (sport,),
+    ).fetchall()
+    preds = []
+    for row in rows:
+        try:
+            features = json.loads(row[9]) if row[9] else {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            features = {}
+        preds.append({
+            "prediction_id": row[0],
+            "event_id": row[1],
+            "prediction_cutoff_at_utc": row[2],
+            "generated_at_utc": row[3] or generated_at_utc,
+            "probability_side_a": row[4],
+            "probability_side_b": row[5],
+            "strategy": row[6],
+            "model_version": row[7],
+            "feature_version": row[8],
+            "status": row[10],
+            "situation": features.get("matchday_situation") if isinstance(features, dict) else None,
+        })
+    return archive_predictions([{"sport": sport, "predictions": preds}], generated_at_utc)
+
 def _db_for_sport(sport: str) -> Path:
     return DB_PATHS.get(sport, ROOT / "data/db/sports_v45.sqlite")
 
