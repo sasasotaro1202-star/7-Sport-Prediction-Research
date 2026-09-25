@@ -89,9 +89,11 @@ jobs:
               ;;
             rugby)
               python -m src.rugby_production --max-pages 150
+              if [ -s data/db/rugby_v45.sqlite ]; then cp data/db/rugby_v45.sqlite data/db/sports_v45.sqlite; fi
               ;;
             boxing)
               python -m src.boxing_production --ingest-history
+              if [ -s data/db/boxing_v45.sqlite ]; then cp data/db/boxing_v45.sqlite data/db/sports_v45.sqlite; fi
               ;;
           esac
 
