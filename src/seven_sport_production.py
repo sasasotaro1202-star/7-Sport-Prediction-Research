@@ -165,6 +165,8 @@ def explicit_publication_time(html):
     for ld in parse_jsonld(html):
         value = ld.get('datePublished')
         if value:
+            if not re.search(r"(?:T|\s)\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?", str(value)):
+                continue
             parsed = iso(value)
             if parsed:
                 return parsed
@@ -175,7 +177,10 @@ def explicit_publication_time(html):
     for pattern in patterns:
         m = re.search(pattern, html or '', re.I)
         if m:
-            parsed = iso(m.group(1))
+            raw = m.group(1)
+            if not re.search(r"(?:T|\s)\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?", raw):
+                continue
+            parsed = iso(raw)
             if parsed:
                 return parsed
     return None
