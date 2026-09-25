@@ -1006,6 +1006,10 @@ def train(s):
   uncertainty_holdout={'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected incumbent has one model'}
   uncertainty_calibration={'accepted':False,'method':'none','reason':'not_evaluated'}
   uncertainty_accept=False
+  uncertainty_recency_eval={'status':'NOT_EVALUATED','selector_recency_half_life':720.0}
+  uncertainty_recency_holdout={'status':'NOT_EVALUATED','selector_recency_half_life':720.0}
+  uncertainty_recency_calibration={'accepted':False,'method':'none','reason':'not_evaluated'}
+  uncertainty_recency_accept=False
   if router_names:
    uncertainty_eval=uncertainty_router.evaluate_oof(
     X,y,router_names,oof_folds,candidate_weights,base.metric
@@ -1077,9 +1081,82 @@ def train(s):
      and uncertainty_eval['bootstrap'].get('probability_improvement',0.0)>=.90
      and uncertainty_calibration.get('accepted') is True
     )
+
+    # Research-only drift-adaptive candidate: recency-weight the selector's
+    # pre-holdout OOF training data. The incumbent uncertainty router remains
+    # untouched; this branch is evaluated independently and is never auto-promoted.
+    uncertainty_recency_eval=uncertainty_router.evaluate_oof(
+     X,y,router_names,oof_folds,candidate_weights,base.metric,selector_recency_half_life=720.0
+    )
+    rr_oof=uncertainty_recency_eval.get('oof_routed_predictions') or []
+    rr_target=np.asarray(uncertainty_recency_eval.get('oof_targets') or [],dtype=int)
+    if uncertainty_recency_eval.get('status')=='EVALUATED' and len(rr_oof)==len(rr_target) and len(rr_oof)>=180:
+     uncertainty_recency_calibration=uncertainty_router.temporal_recalibration(
+      np.asarray(rr_oof,dtype=float),rr_target,np.asarray(oof_event_ids,dtype=object)
+     )
+     rr_selector,rr_history,rr_oof_rows=uncertainty_router.fit_final_selector_from_folds(
+      X,y,router_names,oof_folds,candidate_weights,selector_recency_half_life=720.0
+     )
+     rr_hold_raw=uncertainty_router.route_with_selector(
+      rr_selector,rr_history,hold_bp,hold_ctx,hold_baseline
+     )
+     rr_hold_cal=uncertainty_router.apply_recalibration(
+      rr_hold_raw,uncertainty_recency_calibration
+     )
+     rr_hold_raw_m=base.metric(y_holdout,rr_hold_raw)
+     rr_hold_cal_m=base.metric(y_holdout,rr_hold_cal)
+     rr_fixed_m=base.metric(y_holdout,hold_baseline)
+     uncertainty_recency_holdout={
+      'status':'EVALUATED',
+      'holdout_rows':int(len(y_holdout)),
+      'oos_training_rows':int(rr_oof_rows),
+      'fixed_ensemble':rr_fixed_m,
+      'uncertainty_router_raw':rr_hold_raw_m,
+      'uncertainty_router_recalibrated':rr_hold_cal_m,
+      'raw_logloss_improvement':float(rr_fixed_m['logloss']-rr_hold_raw_m['logloss']),
+      'recalibrated_logloss_improvement':float(rr_fixed_m['logloss']-rr_hold_cal_m['logloss']),
+      'calibration_accepted_pre_holdout':bool(uncertainty_recency_calibration.get('accepted')),
+      'calibration_method':str(uncertainty_recency_calibration.get('method') or 'none'),
+      'selector_recency_half_life':720.0,
+     }
+     rr_deltas=np.asarray(uncertainty_recency_eval.get('fold_logloss_deltas') or [],dtype=float)
+     rr_blocks=[]
+     if len(rr_deltas)>=3:
+      for ridx in np.array_split(np.arange(len(rr_deltas)),3):
+       if len(ridx): rr_blocks.append(float(np.mean(rr_deltas[ridx])))
+     uncertainty_recency_eval['nonoverlap_block_deltas']=rr_blocks
+     uncertainty_recency_eval['nonoverlap_block_improvement_count']=int(sum(1 for d in rr_blocks if d<0.0))
+     uncertainty_recency_eval['bootstrap']=uncertainty_router.bootstrap_fold_improvement(rr_deltas)
+     rr_allowed=max(.001,.005*float(selected_oos_metric['logloss']))
+     uncertainty_recency_accept=bool(
+      uncertainty_recency_eval.get('status')=='EVALUATED'
+      and uncertainty_recency_eval.get('folds',0)>=6
+      and len(rr_blocks)>=3
+      and uncertainty_recency_eval['nonoverlap_block_improvement_count']>=2
+      and max(rr_blocks)<=rr_allowed
+      and uncertainty_recency_eval.get('logloss_improvement',-1.0)>=rr_allowed
+      and uncertainty_recency_eval.get('brier_improvement',-1.0)>=-.002
+      and uncertainty_recency_eval.get('ece_change',1.0)<=.02
+      and uncertainty_recency_eval['bootstrap'].get('p05_improvement',float('-inf'))>0.0
+      and uncertainty_recency_eval['bootstrap'].get('probability_improvement',0.0)>=.90
+      and uncertainty_recency_calibration.get('accepted') is True
+      and rr_holdout.get('raw_logloss_improvement',-1.0)>=0.0
+      and rr_holdout.get('recalibrated_logloss_improvement',-1.0)>=0.0
+     )
+    uncertainty_recency_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
+    uncertainty_recency_eval['accepted_for_research_comparison']=bool(uncertainty_recency_accept)
+   else:
+    uncertainty_recency_eval={'status':'INSUFFICIENT_OOS','reason':'recency-weighted selector could not form auditable pre-holdout OOF sample','selector_recency_half_life':720.0}
+    uncertainty_recency_holdout={'status':'INSUFFICIENT_OOS','selector_recency_half_life':720.0}
+
    else:
     uncertainty_eval={'status':'INSUFFICIENT_OOS', 'reason':'uncertainty router could not form auditable pre-holdout OOF sample'}
   # Never serialize raw OOF prediction vectors into the committed research JSON.
+  uncertainty_recency_eval.pop('oof_targets',None)
+  uncertainty_recency_eval.pop('oof_static_predictions',None)
+  uncertainty_recency_eval.pop('oof_routed_predictions',None)
+  uncertainty_recency_eval.setdefault('promotion_status','RESEARCH_ONLY_NO_AUTO_PROMOTION')
+  uncertainty_recency_eval.setdefault('accepted_for_research_comparison',bool(uncertainty_recency_accept))
   uncertainty_eval.pop('oof_targets',None)
   uncertainty_eval.pop('oof_static_predictions',None)
   uncertainty_eval.pop('oof_routed_predictions',None)
@@ -1114,10 +1191,10 @@ def train(s):
      m.fit(X[:sel],y[:sel])
      router_models_artifact[name]=m
     router_feature_reference=router.context_reference(X[:sel])
-  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'cutoff':train_rows[-1][1],'frozen_holdout_registry_hash':registry['registry_hash']});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'quality_status':'ACCEPTED_LOCKED_HOLDOUT','models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':final_router if router_accept else None,'dynamic_router_names':router_names if router_accept else [],'dynamic_router_models':router_models_artifact if router_accept else {},'dynamic_router_feature_reference':router_feature_reference,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration,'case_risk_status':case_risk_status,'case_risk_model':case_risk_bundle if case_risk_eval.get('accepted_for_research_comparison') else None},path)
+  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'uncertainty_recency':uncertainty_recency_eval,'uncertainty_recency_holdout':uncertainty_recency_holdout,'cutoff':train_rows[-1][1],'frozen_holdout_registry_hash':registry['registry_hash']});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'quality_status':'ACCEPTED_LOCKED_HOLDOUT','models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':final_router if router_accept else None,'dynamic_router_names':router_names if router_accept else [],'dynamic_router_models':router_models_artifact if router_accept else {},'dynamic_router_feature_reference':router_feature_reference,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration,'case_risk_status':case_risk_status,'case_risk_model':case_risk_bundle if case_risk_eval.get('accepted_for_research_comparison') else None},path)
   sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_win_rate':wa_win_rate,'weighted_pair_mean_delta':wa_mean_delta,'weighted_pair_fold_delta_std':wa_fold_std,'weighted_pair_robust_gain':wa_robust_gain,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'frozen_holdout_registry_hash':registry['registry_hash'],'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
   c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in train_rows]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
-  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'),'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'case_risk_eval':case_risk_eval,'case_risk_holdout':case_risk_holdout,'case_risk_status':case_risk_status};return _write_result(s,out)
+  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'),'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'uncertainty_recency':uncertainty_recency_eval,'uncertainty_recency_holdout':uncertainty_recency_holdout,'uncertainty_recency_calibration':{k:v for k,v in uncertainty_recency_calibration.items() if k!='model'},'case_risk_eval':case_risk_eval,'case_risk_holdout':case_risk_holdout,'case_risk_status':case_risk_status};return _write_result(s,out)
  finally:c.close()
 def main():
  import argparse
