@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: all-sport-research-matrix
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: "1"
@@ -94,6 +94,13 @@ jobs:
               python -m src.boxing_production --ingest-history
               ;;
           esac
+
+      - name: Reset isolated frozen holdout registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "results/research/${{ matrix.sport }}_frozen_holdout.json"
+          echo "FROZEN_HOLDOUT_REGISTRY=RESET sport=${{ matrix.sport }}"
 
       - name: Build common strict PIT replay
         shell: bash
