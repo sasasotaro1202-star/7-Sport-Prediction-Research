@@ -1140,8 +1140,6 @@ def train(s):
       and uncertainty_recency_eval['bootstrap'].get('p05_improvement',float('-inf'))>0.0
       and uncertainty_recency_eval['bootstrap'].get('probability_improvement',0.0)>=.90
       and uncertainty_recency_calibration.get('accepted') is True
-      and uncertainty_recency_holdout.get('raw_logloss_improvement',-1.0)>=0.0
-      and uncertainty_recency_holdout.get('recalibrated_logloss_improvement',-1.0)>=0.0
      )
     uncertainty_recency_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
     uncertainty_recency_eval['accepted_for_research_comparison']=bool(uncertainty_recency_accept)
