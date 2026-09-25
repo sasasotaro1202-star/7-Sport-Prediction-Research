@@ -1,0 +1,113 @@
+name: UFC Greco Stats PIT Research
+
+on:
+  push:
+    branches:
+      - research/ufc-greco-stat-pit-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ufc-greco-stat-pit
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore safe UFC research database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: ufc-greco-stat-pit-research-${{ github.run_id }}
+          restore-keys: |
+            nine-sport-target-db-v4-ufc-pit-
+            nine-sport-target-db-v4-ufc-
+            pit-history-seed-ufc-
+      - name: Validate database
+        run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ufc
+      - name: Compile source
+        run: python -m compileall -q src
+      - name: Unit regression
+        run: PYTHONPATH=. python scripts/test_ufc_greco_stat_pit.py
+      - name: Count strict replay rows before
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          c=sqlite3.connect('data/db/sports_v45.sqlite')
+          n=c.execute("""SELECT COUNT(*) FROM pit_replay
+                         WHERE replay_status='REPLAYABLE'
+                           AND leakage_status='CLEAN'
+                           AND event_id IN (SELECT event_id FROM event WHERE sport='ufc')""").fetchone()[0]
+          c.close()
+          print(f"STRICT_BEFORE={int(n)}")
+          Path('results/greco_before.txt').write_text(str(int(n)),encoding='utf-8')
+          PY
+      - name: Clone Greco source history
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/greco
+          git clone --filter=blob:none --no-checkout https://github.com/Greco1899/scrape_ufc_stats.git /tmp/greco
+          test -d /tmp/greco/.git
+          git -C /tmp/greco rev-parse HEAD
+      - name: Backfill exact Git-history PIT stats
+        run: PYTHONPATH=. python -m src.ufc_greco_stat_pit --db data/db/sports_v45.sqlite --upstream-dir /tmp/greco --output results/ufc_greco_stat_pit.json
+      - name: Force strict PIT replay
+        run: PYTHONPATH=. python -m src.pit_replay_builder --sport ufc --force
+      - name: Independent leakage audit
+        run: PYTHONPATH=. python -m src.independent_leakage_audit
+      - name: Measure verified gain
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,sqlite3
+          from pathlib import Path
+          c=sqlite3.connect('data/db/sports_v45.sqlite')
+          n=c.execute("""SELECT COUNT(*) FROM pit_replay
+                         WHERE replay_status='REPLAYABLE'
+                           AND leakage_status='CLEAN'
+                           AND event_id IN (SELECT event_id FROM event WHERE sport='ufc')""").fetchone()[0]
+          s=c.execute("""SELECT COUNT(*) FROM match_stats
+                         WHERE sport='ufc' AND source='Greco1899/scrape_ufc_stats'
+                           AND quality_status='EXACT'""").fetchone()[0]
+          c.close()
+          before=int(Path('results/greco_before.txt').read_text())
+          p=Path('results/ufc_greco_stat_pit.json')
+          r=json.loads(p.read_text(encoding='utf-8'))
+          r['strict_replayable_rows_before']=before
+          r['strict_replayable_rows_after']=int(n)
+          r['strict_replayable_row_gain']=int(n)-before
+          r['greco_exact_match_stats_rows_current']=int(s)
+          p.write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(r,ensure_ascii=False,indent=2))
+          PY
+      - name: Save research database
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: ufc-greco-stat-pit-research-${{ github.run_id }}
+      - name: Upload PIT report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufc-greco-stat-pit-${{ github.run_id }}
+          path: results/ufc_greco_stat_pit.json
+          retention-days: 14
+          if-no-files-found: error
