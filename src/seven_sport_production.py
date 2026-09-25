@@ -249,6 +249,131 @@ def f1_event_status(event_time_utc, result_rows, now=None):
     return 'UNKNOWN'
 
 
+
+
+def _nested_player_name(value):
+    if isinstance(value,dict):
+        for key in ('fullName','name','displayName','playerName'):
+            if value.get(key):
+                return clean(value.get(key))
+        player=value.get('player')
+        if isinstance(player,dict):
+            return _nested_player_name(player)
+    return clean(value) if isinstance(value,str) else None
+
+
+def _first_time(value):
+    if isinstance(value,dict):
+        for key in ('date','startDate','matchDate','scheduledTime','startTime'):
+            parsed=iso(value.get(key))
+            if parsed:
+                return parsed
+        for key in ('time','timestamp','startTimestamp'):
+            raw=value.get(key)
+            if raw is None:
+                continue
+            try:
+                if isinstance(raw,(int,float)) or str(raw).isdigit():
+                    n=float(raw)
+                    if n>1e12: n/=1000.0
+                    return datetime.fromtimestamp(n,tz=timezone.utc).isoformat()
+                parsed=iso(raw)
+                if parsed:
+                    return parsed
+            except Exception:
+                pass
+    return iso(value)
+
+
+def collect_wta_public(c,h,start_date,end_date):
+    """Collect current WTA schedule identity only; never promote unverifiable publication timing into PIT training."""
+    base='https://api.wtatennis.com/tennis'
+    tournaments=[]
+    seen_tournaments=set()
+    current_year=datetime.now(timezone.utc).year
+    query_from=(start_date-timedelta(days=14)).isoformat()
+    query_to=end_date.isoformat()
+    for page in range(8):
+        try:
+            raw,_,_=h.get(
+                f'{base}/tournaments/?page={page}&pageSize=100'
+                f'&from={query_from}&to={query_to}'
+            )
+            payload=json.loads(raw)
+        except Exception:
+            break
+        rows=payload.get('content') if isinstance(payload,dict) else None
+        if not isinstance(rows,list):
+            rows=payload.get('tournaments') if isinstance(payload,dict) else []
+        if not rows:
+            break
+        tournaments.extend(rows)
+        page_info=payload.get('pageInfo') if isinstance(payload,dict) else {}
+        num_pages=page_info.get('numPages') if isinstance(page_info,dict) else None
+        if isinstance(num_pages,int) and page + 1 >= num_pages:
+            break
+    event_rows=0
+    for t in tournaments:
+        if not isinstance(t,dict):
+            continue
+        tg=t.get('tournamentGroup') or {}
+        group_id=tg.get('id') or t.get('tournamentGroupId') or t.get('groupId')
+        year=t.get('year') or t.get('seasonYear') or (current_year if group_id else None)
+        if not group_id or str(year)!=str(current_year):
+            continue
+        key=(str(group_id),str(year))
+        if key in seen_tournaments:
+            continue
+        seen_tournaments.add(key)
+        try:
+            raw_m,ret_m,_=h.get(f'{base}/tournaments/{group_id}/{year}/matches')
+            data=json.loads(raw_m)
+        except Exception:
+            continue
+        matches=data.get('matches') if isinstance(data,dict) else None
+        if not isinstance(matches,list):
+            matches=data.get('content') if isinstance(data,dict) else []
+        tournament_name=_nested_player_name(tg.get('name')) or clean(t.get('name') or f'WTA {group_id}')
+        for m in matches:
+            if not isinstance(m,dict):
+                continue
+            et=None
+            for key_name in ('matchDate','date','scheduledAt','startDate','startTime','dateTime'):
+                et=_first_time(m.get(key_name))
+                if et:
+                    break
+            if not et:
+                et=_first_time(m)
+            if not et:
+                continue
+            try:
+                edt=datetime.fromisoformat(et.replace('Z','+00:00')).date()
+            except Exception:
+                continue
+            if edt < start_date or edt > end_date:
+                continue
+            p1=_nested_player_name(m.get('player1') or m.get('player1Name') or m.get('homePlayer') or m.get('playerA') or m.get('entrant1') or m.get('entrantA'))
+            p2=_nested_player_name(m.get('player2') or m.get('player2Name') or m.get('awayPlayer') or m.get('playerB') or m.get('entrant2') or m.get('entrantB'))
+            if not p1 or not p2 or p1==p2:
+                continue
+            round_name=clean(m.get('round') or m.get('roundName') or m.get('roundLabel') or '')
+            name=f'{p1} vs {p2}'
+            eid=upsert_event(c,'tennis',name,et,'wta',f'{base}/tournaments/{group_id}/{year}/matches',clean(m.get('status') or m.get('matchStatus') or 'SCHEDULED'),tournament_name,str(year),None,None)
+            pid1=upsert_participant(c,'tennis',p1,'player')
+            pid2=upsert_participant(c,'tennis',p2,'player')
+            upsert_ep(c,eid,pid1,None,'A',round_name,'wta',f'{base}/tournaments/{group_id}/{year}/matches')
+            upsert_ep(c,eid,pid2,None,'B',round_name,'wta',f'{base}/tournaments/{group_id}/{year}/matches')
+            ph=hashlib.sha256(raw_m.encode()).hexdigest()
+            add_snapshot(
+                c,'tennis','wta',f'{base}/tournaments/{group_id}/{year}/matches',
+                ret_m,et,ph,'UNVERIFIABLE',
+                provenance={'sport':'tennis','parser':PARSER,'scope':'current_schedule_only',
+                            'availability_policy':'UNVERIFIABLE_without_explicit_historical_publication_time'}
+            )
+            event_rows += 1
+    c.commit()
+    return event_rows
+
 def collect_f1(c,h,years):
     base='https://api.jolpi.ca/ergast/f1'
     for season in years:
@@ -415,7 +540,9 @@ def main():
     for sport in sports:
         try:
             if sport=='basketball': collect_espn(c,h,sport,['nba','wnba','mens-college-basketball'],start,end)
-            elif sport=='tennis': collect_espn(c,h,sport,['atp','wta'],start,end)
+            elif sport=='tennis':
+                collect_espn(c,h,sport,['atp','wta'],start,end)
+                collect_wta_public(c,h,start,end)
             elif sport=='f1': collect_f1(c,h,(datetime.now(timezone.utc).year,))
             elif sport=='valorant': collect_vlr(c,h,int(os.getenv('V45_VLR_PAGES','180' if a.full_history else '20')))
             elif sport=='volleyball': collect_generic(c,h,sport,['https://en.volleyballworld.com/volleyball/competitions','https://en.volleyballworld.com/volleyball/matches'],200 if a.full_history else 40)
