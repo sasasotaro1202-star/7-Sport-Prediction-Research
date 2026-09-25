@@ -21,6 +21,8 @@ def main():
     assert len(db.calls) == 2
     for sql,params in db.calls:
         assert "ss.event_time_utc=e.event_time_utc" in sql
+        if "o.outcome=ep.side" in sql:
+            assert "COUNT(DISTINCT e.event_id)" in sql
         assert "datetime(ss.source_available_at_utc) <= datetime(?)" in sql
         assert "datetime(ss.retrieved_at_utc) <= datetime(?)" in sql
         assert params[-3:] == (cutoff,cutoff,cutoff)
