@@ -337,6 +337,20 @@ jobs:
           set -euo pipefail
           timeout --signal=TERM --kill-after=30s 4500s python -m src.research_cycle_strict
 
+      # Preserve partial strict-research outputs even when the research step times out.
+      # These are diagnostics only; they never publish model artifacts.
+      - name: Preserve partial research checkpoint artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nine-sport-research-checkpoint-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            results/research/**
+            results/v45/**
+            models/research/**
+
       - name: Independent leakage audit after model generation
         run: |
           set -euo pipefail
