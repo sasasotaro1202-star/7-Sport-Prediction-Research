@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from src.ufc_git_provenance_coverage import _added_event_names, _norm_event, _parse_timestamp
+from src.ufc_git_provenance_coverage import (
+    _added_event_names,
+    _archive_value_index,
+    _norm_event,
+    _norm_person,
+    _parse_timestamp,
+)
 
 
 def test_event_normalization_is_stable():
@@ -34,3 +40,27 @@ if __name__ == "__main__":
     test_event_normalization_is_stable()
     test_added_event_names_reads_only_added_csv_rows()
     test_timestamp_without_zone_is_treated_as_utc()
+
+
+
+def test_archive_value_index_normalizes_and_parses_numeric_fields():
+    rows = [{
+        "Date": "2020-05-30",
+        "Event": "UFC 250: ABC",
+        "Fighter_1": "John Doe",
+        "Fighter_2": "Jane Smith",
+        "STR_1": "12",
+        "STR_2": "--",
+        "TD_1": "2",
+        "TD_2": "0",
+    }]
+    idx = _archive_value_index(rows)
+    key = ("2020-05-30", "ufc 250: abc", "jane smith", "john doe")
+    assert idx[key][0]["sig_str_1"] == 12.0
+    assert idx[key][0]["sig_str_2"] is None
+    assert idx[key][0]["takedown_1"] == 2.0
+    assert idx[key][0]["takedown_2"] == 0.0
+
+
+def test_person_normalization_is_case_and_punctuation_insensitive():
+    assert _norm_person("  John.Doe  ") == "john doe"
