@@ -99,6 +99,51 @@ jobs:
           p.write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
           print(json.dumps(r,ensure_ascii=False,indent=2))
           PY
+      - name: Snapshot pre-Greco UFC research result
+        run: |
+          set -euo pipefail
+          if [ -f results/ufc.json ]; then cp results/ufc.json results/ufc_before_greco.json; else printf '%s\\n' '{"status":"MISSING_BASELINE"}' > results/ufc_before_greco.json; fi
+      - name: Re-run UFC research with Greco PIT stats (research-only)
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=30s 1800s python -m src.research_cycle_strict --sport ufc
+      - name: Compare Greco PIT candidate against pre-Greco baseline
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          before=json.loads(Path('results/ufc_before_greco.json').read_text(encoding='utf-8'))
+          after=json.loads(Path('results/ufc.json').read_text(encoding='utf-8'))
+          def get(o,*keys):
+              for k in keys:
+                  o=o.get(k) if isinstance(o,dict) else None
+              return o
+          bm=get(before,'holdout_metrics') or {}
+          am=get(after,'holdout_metrics') or {}
+          out={
+              'research_only': True,
+              'production_model_changed': False,
+              'before_status': before.get('status'),
+              'after_status': after.get('status'),
+              'before_model': bm.get('model'),
+              'after_model': am.get('model'),
+              'before_holdout_logloss': bm.get('logloss'),
+              'after_holdout_logloss': am.get('logloss'),
+              'holdout_logloss_improvement': (float(bm['logloss'])-float(am['logloss'])) if bm.get('logloss') is not None and am.get('logloss') is not None else None,
+              'before_holdout_brier': bm.get('brier'),
+              'after_holdout_brier': am.get('brier'),
+              'holdout_brier_improvement': (float(bm['brier'])-float(am['brier'])) if bm.get('brier') is not None and am.get('brier') is not None else None,
+              'before_holdout_accuracy': bm.get('accuracy'),
+              'after_holdout_accuracy': am.get('accuracy'),
+              'before_holdout_ece': bm.get('ece'),
+              'after_holdout_ece': am.get('ece'),
+              'after_case_risk_status': after.get('case_risk_status'),
+              'after_dynamic_router_status': after.get('dynamic_router_status'),
+          }
+          Path('results/ufc_greco_feature_comparison.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
       - name: Save research database
         uses: actions/cache/save@v4
         with:
