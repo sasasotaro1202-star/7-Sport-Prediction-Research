@@ -631,6 +631,8 @@ def score_archive() -> dict[str, Any]:
             if outcome is None:
                 unresolved["OUTCOME_NOT_AVAILABLE"] += 1
                 continue
+            if status == "VERIFIED" and outcome not in {"A", "B", "VOID", "DRAW"}:
+                raise RuntimeError(f"INVALID_ACTUAL_OUTCOME_LABEL:{outcome}")
             if status != "VERIFIED":
                 unresolved[f"OUTCOME_STATUS_{status or 'UNKNOWN'}"] += 1
                 continue
