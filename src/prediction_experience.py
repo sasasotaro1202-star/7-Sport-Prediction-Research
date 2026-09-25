@@ -602,11 +602,15 @@ def score_archive() -> dict[str, Any]:
     durable = _load_settlements()
     durable_rows = list(durable.values())
     unresolved_total = max(0, len(predictions) - len(durable_rows))
-    unresolved["NOT_YET_SETTLED"] = unresolved_total
-    summary = _summary(durable_rows, len(predictions), unresolved)
+    summary = _summary(
+        durable_rows,
+        len(predictions),
+        Counter({"NOT_YET_SETTLED": unresolved_total}),
+    )
     summary["settlement_ledger_total"] = len(durable_rows)
     summary["new_settlements"] = settlement_write
     summary["predictions_waiting_for_result"] = unresolved_total
+    summary["current_run_unresolved_reasons"] = dict(unresolved)
     EXPERIENCE_DIR.mkdir(parents=True, exist_ok=True)
     SUMMARY_OUT.write_text(_json(summary) + "\n", encoding="utf-8")
     return summary
