@@ -62,8 +62,9 @@ def test_feature_matrix_preserves_nan_context():
     X = np.asarray([[1.0, np.nan], [2.0, 3.0]])
     f = _feature_matrix(p, ep, ctx, X)
     assert f.shape == (2, 10)
-    assert np.isnan(f[0, 10])
-    assert np.isnan(f[1, 11])
+    # Eight derived signals precede the two context columns.
+    assert np.isnan(f[0, 8])
+    assert np.isnan(f[1, 9])
 
 
 if __name__ == "__main__":
