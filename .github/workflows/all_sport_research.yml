@@ -114,7 +114,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport "${{ matrix.sport }}"
+          if [ "${{ matrix.sport }}" = "f1" ]; then
+            timeout --signal=TERM --kill-after=20s 2400s python -m src.f1_pairwise_oos
+          else
+            timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport "${{ matrix.sport }}"
+          fi
 
       - name: Verify research result is explicit JSON
         shell: bash
