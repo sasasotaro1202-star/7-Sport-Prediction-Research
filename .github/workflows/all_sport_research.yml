@@ -17,13 +17,14 @@ concurrency:
 
 env:
   PYTHONUNBUFFERED: "1"
+  PYTHONFAULTHANDLER: "1"
 
 jobs:
   research:
     name: Research ${{ matrix.sport }}
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 9
       matrix:
         sport:
           - valorant
