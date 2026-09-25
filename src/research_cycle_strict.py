@@ -1,8 +1,9 @@
 from __future__ import annotations
-import hashlib,json,sqlite3,subprocess
+import hashlib,json,sqlite3,subprocess,os
 from pathlib import Path
 from itertools import combinations
 import joblib,numpy as np
+from threadpoolctl import threadpool_limits
 from sklearn.linear_model import LogisticRegression
 from sklearn.isotonic import IsotonicRegression
 from src import research_cycle_v4 as base
@@ -32,6 +33,46 @@ def _bounded_oos_fold_params(sel):
     start=min(max(60,int(sel*f)) for f in (0.55,0.60,0.65))
     step=max(10,int(np.ceil(max(1,sel-start)/target)))
     return target,step
+
+def _set_inner_n_jobs_one(model):
+    """Limit nested estimator parallelism before outer model-level parallel fitting."""
+    seen=set()
+    def visit(obj):
+        if obj is None or id(obj) in seen:
+            return
+        seen.add(id(obj))
+        get_params=getattr(obj,"get_params",None)
+        set_params=getattr(obj,"set_params",None)
+        if callable(get_params) and callable(set_params):
+            try:
+                params=get_params(deep=True)
+                updates={k:1 for k in params if k.endswith("n_jobs")}
+                if updates:
+                    set_params(**updates)
+            except Exception:
+                pass
+        for attr in ("b","base"):
+            child=getattr(obj,attr,None)
+            if child is not None:
+                visit(child)
+    visit(model)
+
+
+def _fit_predict_oos_models_parallel(fold_pool,names,X_train,y_train,X_test):
+    """Fit independent OOS candidate models concurrently without nested oversubscription."""
+    workers=max(1,min(len(names),4,os.cpu_count() or 1))
+    def one(name):
+        model=fold_pool[name]
+        _set_inner_n_jobs_one(model)
+        model.fit(X_train,y_train)
+        pred=np.clip(model.predict_proba(X_test)[:,1],1e-6,1-1e-6)
+        return name,pred
+    with threadpool_limits(limits=1):
+        pairs=joblib.Parallel(n_jobs=workers,prefer="threads")(
+            joblib.delayed(one)(name) for name in names
+        )
+    return dict(pairs)
+
 
 def _json_safe(x):
  if isinstance(x,(float,np.floating)):
@@ -548,11 +589,10 @@ def train(s):
      for end in range(start,sel,step):
       te=min(end+step,sel)
       if len(np.unique(y[:end]))<2:continue
-      fold_pred={}
+      fold_pred=_fit_predict_oos_models_parallel(
+       fold_pool,names,X[:end],y[:end],X[end:te]
+      )
       for name in names:
-       m=fold_pool[name]
-       m.fit(X[:end],y[:end])
-       fold_pred[name]=np.clip(m.predict_proba(X[end:te])[:,1],1e-6,1-1e-6)
        oof_probs[name].extend(fold_pred[name].tolist())
       oof_y.extend(y[end:te].tolist())
       oof_event_ids.extend([str(r[0]) for r in train_rows[end:te]])
