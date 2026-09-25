@@ -13,33 +13,22 @@ DB = ROOT / "data/db/sports_v45.sqlite"
 THRESHOLDS = (0.45, 0.50, 0.55, 0.60, 0.65, 0.70)
 
 
-def _set_default_threshold(fn, threshold: float):
-    defaults = list(fn.__defaults__ or ())
-    if not defaults:
-        raise RuntimeError("policy_function_has_no_default_threshold")
-    defaults[-1] = float(threshold)
-    fn.__defaults__ = tuple(defaults)
-
-
 def evaluate_sport(sport: str) -> dict:
     if not DB.is_file():
         raise SystemExit(f"FAIL_CLOSED_DB_MISSING:{DB}")
 
-    original_prob = uq._policy_probability.__defaults__
-    original_dissent = uq._policy_dissent.__defaults__
+    original_threshold = uq.RISK_THRESHOLD
     runs = []
 
     try:
         for threshold in THRESHOLDS:
-            _set_default_threshold(uq._policy_probability, threshold)
-            _set_default_threshold(uq._policy_dissent, threshold)
+            uq.RISK_THRESHOLD = float(threshold)
             with sqlite3.connect(DB) as con:
                 result = uq._evaluate_sport(con, sport)
             result["sweep_risk_threshold"] = float(threshold)
             runs.append(result)
     finally:
-        uq._policy_probability.__defaults__ = original_prob
-        uq._policy_dissent.__defaults__ = original_dissent
+        uq.RISK_THRESHOLD = original_threshold
 
     evaluated = [r for r in runs if r.get("status") == "EVALUATED"]
     ranked = sorted(
