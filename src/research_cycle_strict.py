@@ -457,23 +457,31 @@ def evaluate_recent_weighted_router_holdout_from_folds(
     }
 
 def train(s):
-  # Fail-closed guard: deferred sports must never be trained through the generic lane.
-  # They require an explicit sport-specific PIT/OOS implementation before enabling.
-  if s in DEFERRED_SPORTS:
-   return _write_result(s, {
-    'sport': s,
-    'status': 'DEFERRED_PIT',
-    'reason': 'sport_specific_PIT_gate_not_enabled_for_generic_strict_training',
-    'production_changed': False,
-    'promotion_allowed': False,
-   })
+    # Fail-closed guard: deferred sports must never be trained through the generic lane.
+    # They require an explicit sport-specific PIT/OOS implementation before enabling.
+    if s in DEFERRED_SPORTS:
+        return _write_result(s, {
+            'sport': s,
+            'status': 'DEFERRED_PIT',
+            'reason': 'sport_specific_PIT_gate_not_enabled_for_generic_strict_training',
+            'production_changed': False,
+            'promotion_allowed': False,
+        })
 
- if s=='f1':
-  return _write_result(s,f1())
- if s=='boxing':
-  return boxing()
- if s in ('tennis','rugby'):
-  return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'DEFERRED_BY_PROJECT_SCOPE','promotion_policy':'Do not train or publish until sport-specific PIT, chronological OOS and frozen-holdout requirements are enabled'})
+    if s == 'f1':
+        return _write_result(s, f1())
+    if s == 'boxing':
+        return boxing()
+    if s in ('tennis', 'rugby'):
+        return _write_result(
+            s,
+            {
+                'sport': s,
+                'status': 'DEFERRED',
+                'reason': 'DEFERRED_BY_PROJECT_SCOPE',
+                'promotion_policy': 'Do not train or publish until sport-specific PIT, chronological OOS and frozen-holdout requirements are enabled',
+            },
+        )
  c=sqlite3.connect(DB)
  try:
   previous=_previous_result(s) or _previous_model_from_db(c,s)
