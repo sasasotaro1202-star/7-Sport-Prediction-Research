@@ -370,6 +370,21 @@ def backfill_rizin(c, max_pages=150):
     unique_event_dates = c.execute(
         "SELECT COUNT(DISTINCT substr(event_time_utc,1,10)) FROM event WHERE sport='rizin' AND event_time_utc IS NOT NULL"
     ).fetchone()[0]
+    date_rows = c.execute(
+        """SELECT substr(event_time_utc,1,10) AS event_date, COUNT(*) AS n
+             FROM event
+            WHERE sport='rizin' AND event_time_utc IS NOT NULL
+            GROUP BY substr(event_time_utc,1,10)
+            ORDER BY event_date ASC"""
+    ).fetchall()
+    name_rows = c.execute(
+        """SELECT name, substr(event_time_utc,1,10) AS event_date, COUNT(*) AS n
+             FROM event
+            WHERE sport='rizin' AND event_time_utc IS NOT NULL
+            GROUP BY name, substr(event_time_utc,1,10)
+            ORDER BY event_date ASC, name ASC
+            LIMIT 20"""
+    ).fetchall()
     coverage = {
         "status": "PASS" if added > 0 else "DEFERRED",
 
@@ -384,6 +399,8 @@ def backfill_rizin(c, max_pages=150):
         "verified_outcome_events": int(verified_outcome_events),
         "paired_verified_events": int(paired_verified_events),
         "unique_event_dates": int(unique_event_dates),
+        "event_date_counts": [{"date": str(d), "events": int(n)} for d, n in date_rows],
+        "sample_event_names": [{"name": str(nm), "date": str(d), "events": int(n)} for nm, d, n in name_rows],
         "reason": None if added > 0 else "official_rizin_result_archive_returned_no_parseable_result_records",
     }
     out = ROOT / "results" / "v45" / "rizin_coverage.json"
