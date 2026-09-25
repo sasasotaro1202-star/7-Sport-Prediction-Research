@@ -54,10 +54,33 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
 
-      - name: Initialize database
+      - name: Initialize research directories
         run: |
           set -euo pipefail
           mkdir -p data/db data/raw/http_cache results/research results/v45 models/research
+
+      - name: Restore latest safe database cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
+          restore-keys: |
+            nine-sport-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-target-db-v4-${{ matrix.sport }}-
+
+      - name: Validate/repair restored database
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -s data/db/sports_v45.sqlite ]; then
+            python -m src.cache_health --db data/db/sports_v45.sqlite --sport "${{ matrix.sport }}" --repair
+          else
+            echo "RESEARCH_CACHE=EMPTY sport=${{ matrix.sport }}"
+          fi
+
+      - name: Initialize database schema
+        run: |
+          set -euo pipefail
           python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
 
       - name: Collect sport-specific history
