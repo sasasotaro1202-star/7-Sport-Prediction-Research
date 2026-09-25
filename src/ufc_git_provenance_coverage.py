@@ -148,6 +148,7 @@ def evaluate_coverage(
     matched = 0
     potential_events = 0
     potential_stats_rows = 0
+    current_event_rows = len(events)
     uncovered: list[dict] = []
     covered: list[dict] = []
 
@@ -213,7 +214,7 @@ def evaluate_coverage(
         "potential_pit_covered_events": potential_events,
         "potential_current_match_stats_rows": potential_stats_rows,
         "current_strict_replayable_rows": int(strict_rows),
-        "potential_gain_in_event_count": max(0, potential_events - int(strict_rows)),
+        "potential_gain_in_event_count": max(0, potential_events - current_event_rows),
         "methodology": (
             "Research-only coverage estimate. An upstream event is considered "
             "potentially PIT-usable when its first observed addition to the "
