@@ -31,13 +31,22 @@ jobs:
           echo '--- HEAD ---'
           git rev-parse HEAD
           echo '--- FILES ---'
-          git ls-tree -r --name-only HEAD | grep -E 'ufc_.*\.csv$' | head -80
+          python - <<'PY'
+          import subprocess
+          files=subprocess.check_output(["git","ls-tree","-r","--name-only","HEAD"],text=True).splitlines()
+          matches=[x for x in files if x.startswith("ufc_") and x.endswith(".csv")]
+          print("\n".join(matches[:80]))
+          PY
           echo '--- STATS HEADER/SAMPLE ---'
-          git show HEAD:ufc_fight_stats.csv | head -n 6
+          python - <<'PY'
+          import subprocess
+          text=subprocess.check_output(["git","show","HEAD:ufc_fight_stats.csv"],text=True)
+          print("\n".join(text.splitlines()[:6]))
+          PY
           echo '--- STATS SIZE ---'
           git cat-file -s HEAD:ufc_fight_stats.csv
           echo '--- HISTORY ---'
-          git log --format='%H %cI %s' --follow -- ufc_fight_stats.csv | head -40
+          git log -n 40 --format='%H %cI %s' --follow -- ufc_fight_stats.csv
       - name: Clone parser source for reference
         run: |
           set -euo pipefail
