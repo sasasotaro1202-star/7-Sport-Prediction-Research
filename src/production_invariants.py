@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import re,sys
 ROOT=Path(__file__).resolve().parents[1];FAILURES=[]
-EXPECTED_CORE={'valorant','basketball','volleyball','ufc','rizin'}
+EXPECTED_CORE={'valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing'}
 EXPECTED_DEFERRED={'tennis','f1','rugby','boxing'}
 
 def require(condition,message):
@@ -20,7 +20,7 @@ def main():
     m=re.search(r"SPORTS=\(([^)]*)\)",research)
     actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
     require(EXPECTED_CORE<=actual,f'research engine missing sports: {sorted(EXPECTED_CORE-actual)}')
-    require(len(actual)==5,f'research engine active sports count is {len(actual)}, expected exactly 5')
+    require(len(actual)==9,f'research engine sport count is {len(actual)}, expected exactly 9')
     require('matrix:' in workflow,'canonical workflow matrix missing')
     db_src=(ROOT/'src/storage/db_v45.py').read_text(encoding='utf-8')
     prod_src=(ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8')
@@ -30,13 +30,13 @@ def main():
     for sport in sorted(EXPECTED_CORE):
         require(re.search(rf'(?m)^\s*[-] {sport}$',workflow) is not None or sport in workflow,
                 f'canonical workflow missing sport token: {sport}')
-    require('max-parallel: 8' in workflow or 'max-parallel: 6' in workflow,'canonical workflow parallelism declaration missing')
+    require('max-parallel: 9' in workflow,'canonical workflow parallelism declaration missing')
     require('nine-sport-target-db-v4-' in workflow,'canonical production cache namespace is not nine-sport target scoped')
     require('eight-sport-db-v4-' not in workflow,'canonical production still references legacy eight-sport cache namespace')
     
     require('Nine-Sport Target v4.5.15 Production' in workflow,'canonical workflow name is not nine-sport target')
-    require('F1, Rugby and Boxing are intentionally deferred by project scope' in workflow,
-            'canonical production workflow does not explicitly defer Boxing')
+    require('All nine target sports are mandatory prediction lanes' in workflow,
+            'canonical production workflow does not declare all-nine mandatory prediction scope')
     require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src,
             'strict research deferred-sport declaration does not include all deferred targets')
     release_gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
@@ -63,8 +63,8 @@ def main():
     scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
     require('"B.LEAGUE"' in scope and '"Asian Games Basketball"' in scope and '"Asian Games Volleyball"' in scope,'active scope target competitions missing')
     require("target_event(s,name,competition_id)" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'research engine lacks explicit target-competition filtering')
-    require('Tennis, F1, Rugby and Boxing are currently deferred' in readme,'README does not declare all four deferred target sports')
-    require('Boxing (currently deferred)' in readme,'README does not list Boxing as a deferred target sport')
+    require('All nine sports are mandatory prediction lanes' in readme,'README does not declare all-nine mandatory prediction scope')
+    require('- Boxing' in readme,'README does not list Boxing in the nine-sport target set')
 
     # Repository-wide temporal evaluation guard: prevent legacy random-split or
     # hidden failure patterns from re-entering the codebase through an unrelated module.
@@ -110,6 +110,11 @@ def main():
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require("old_registry_hash==registry['registry_hash']" in strict_src,'holdout baseline comparison is not bound to the same frozen registry')
     require('production_release_gate' in workflow,'production release gate missing')
+    predictor=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    require('DEDICATED_DBS' in predictor and "'rugby'" in predictor and "'boxing'" in predictor,
+            'future predictor does not support dedicated Rugby/Boxing databases')
+    require('PREDICTED_SAFE_PRIOR' in predictor and 'PREDICTED_SAFE_PRIOR_MULTICLASS' in predictor,
+            'future predictor has no explicit all-nine safe fallback lane')
     predictor=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
     base_src=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('class TimeDecay:' in base_src and 'lightgbm_time_decay_300' in base_src,
