@@ -9,6 +9,7 @@ from src import research_cycle_v4 as base
 from src import dynamic_model_router as router
 from src import uncertainty_dynamic_router_oos as uncertainty_router
 from src import matchday_intelligence_oos as matchday_intelligence
+from src import case_risk_oos as case_risk
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','ufc','rizin')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
@@ -928,6 +929,64 @@ def train(s):
   )
   recent_weighted_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
   recent_weighted_eval['accepted_for_research_comparison']=bool(recent_weighted_accept)
+  # Research-only selective case-risk layer. It predicts whether the
+  # incumbent ensemble will be wrong without modifying its probability.
+  case_risk_eval = case_risk.evaluate_selective_case_risk_oof(
+   y, router_names if router_names else list(best), oof_folds, candidate_weights
+  )
+  case_risk_holdout = {'status':'DISABLED_SINGLE_MODEL_BASELINE','reason':'selected incumbent has one model'}
+  case_risk_status = 'RESEARCH_ONLY_NO_AUTO_PROMOTION'
+  case_risk_bundle = None
+  if case_risk_eval.get('status') == 'EVALUATED':
+   risk_names = router_names if router_names else list(best)
+   case_risk_bundle = case_risk.fit_final_case_risk_model(y, risk_names, oof_folds, candidate_weights)
+   if case_risk_bundle is not None:
+    hold_bp_risk = np.column_stack([np.clip(router_holdout_pred[name],1e-6,1-1e-6) for name in risk_names]) if risk_names else np.empty((len(y_holdout),0))
+    hold_base_risk = np.sum(hold_bp_risk*np.asarray([candidate_weights[name] for name in risk_names])[None,:],axis=1) if risk_names else np.full(len(y_holdout),0.5)
+    holdout_population_ctx_risk = np.repeat(uncertainty_router.population_drift_features(X,X_holdout)[None,:],len(X_holdout),axis=0)
+    hold_risk_ctx = np.column_stack([router._context(X,X_holdout),matchday_holdout_ctx,holdout_population_ctx_risk])
+    risk_hold = case_risk.predict_case_risk(case_risk_bundle,hold_bp_risk,hold_risk_ctx)
+    hold_err = ((hold_base_risk >= 0.5).astype(int) != y_holdout).astype(int)
+    hold_base_risk_score = np.clip(1.0-np.abs(hold_base_risk-0.5)*2.0,1e-6,1.0-1e-6)
+    case_risk_holdout = {
+     'status':'EVALUATED','holdout_rows':int(len(y_holdout)),
+     'fixed_ensemble_error_rate':float(np.mean(hold_err)),
+     'risk_auc':case_risk._safe_auc(hold_err,risk_hold),
+     'risk_average_precision':case_risk._safe_ap(hold_err,risk_hold),
+     'baseline_confidence_auc':case_risk._safe_auc(hold_err,hold_base_risk_score),
+     'risk_coverage':case_risk._risk_coverage(hold_err,risk_hold),
+     'baseline_confidence_coverage':case_risk._risk_coverage(hold_err,hold_base_risk_score),
+     'aurc':case_risk._aurc(hold_err,risk_hold),
+     'baseline_confidence_aurc':case_risk._aurc(hold_err,hold_base_risk_score),
+    }
+    case_risk_holdout['auc_improvement'] = None if case_risk_holdout['risk_auc'] is None or case_risk_holdout['baseline_confidence_auc'] is None else float(case_risk_holdout['risk_auc']-case_risk_holdout['baseline_confidence_auc'])
+    case_risk_holdout['aurc_improvement'] = float(case_risk_holdout['baseline_confidence_aurc']-case_risk_holdout['aurc'])
+    oos_auc_gain = case_risk_eval.get('auc_improvement')
+    oos_aurc_gain = case_risk_eval.get('aurc_improvement')
+    oos_relative_aurc = float(oos_aurc_gain/max(abs(float(case_risk_eval.get('baseline_confidence_aurc',0.0))),1e-9)) if oos_aurc_gain is not None else 0.0
+    hold_auc_gain = case_risk_holdout.get('auc_improvement')
+    hold_aurc_gain = case_risk_holdout.get('aurc_improvement')
+    case_risk_eval['relative_aurc_improvement_vs_baseline_confidence']=oos_relative_aurc
+    case_risk_holdout['oos_auc_improvement']=oos_auc_gain
+    case_risk_holdout['oos_relative_aurc_improvement']=oos_relative_aurc
+    case_risk_accept=bool(
+     case_risk_eval.get('folds',0)>=6
+     and case_risk_eval.get('crossfit_folds_with_trained_risk_model',0)>=4
+     and oos_auc_gain is not None and float(oos_auc_gain)>=0.02
+     and oos_relative_aurc>=0.03
+     and hold_auc_gain is not None and float(hold_auc_gain)>=0.0
+     and hold_aurc_gain is not None and float(hold_aurc_gain)>=0.0
+    )
+    case_risk_eval['accepted_for_research_comparison']=case_risk_accept
+    case_risk_holdout['accepted_for_research_comparison']=case_risk_accept
+    if case_risk_accept: case_risk_status='RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY'
+   else:
+    case_risk_eval['accepted_for_research_comparison']=False
+  else:
+   case_risk_eval['accepted_for_research_comparison']=False
+  case_risk_eval['promotion_status']=case_risk_status
+  case_risk_holdout['promotion_status']=case_risk_status
+
   # Research-only next generation: uncertainty/disagreement/drift-aware routing
   # followed by a separate temporal recalibration layer. It never changes the
   # incumbent artifact directly; release remains controlled by the existing gate.
@@ -1043,10 +1102,10 @@ def train(s):
      m.fit(X[:sel],y[:sel])
      router_models_artifact[name]=m
     router_feature_reference=router.context_reference(X[:sel])
-  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'cutoff':train_rows[-1][1],'frozen_holdout_registry_hash':registry['registry_hash']});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'quality_status':'ACCEPTED_LOCKED_HOLDOUT','models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':final_router if router_accept else None,'dynamic_router_names':router_names if router_accept else [],'dynamic_router_models':router_models_artifact if router_accept else {},'dynamic_router_feature_reference':router_feature_reference,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration},path)
+  ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'cutoff':train_rows[-1][1],'frozen_holdout_registry_hash':registry['registry_hash']});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'quality_status':'ACCEPTED_LOCKED_HOLDOUT','models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':final_router if router_accept else None,'dynamic_router_names':router_names if router_accept else [],'dynamic_router_models':router_models_artifact if router_accept else {},'dynamic_router_feature_reference':router_feature_reference,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration,'case_risk_status':case_risk_status,'case_risk_model':case_risk_bundle if case_risk_eval.get('accepted_for_research_comparison') else None},path)
   sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_win_rate':wa_win_rate,'weighted_pair_mean_delta':wa_mean_delta,'weighted_pair_fold_delta_std':wa_fold_std,'weighted_pair_robust_gain':wa_robust_gain,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'frozen_holdout_registry_hash':registry['registry_hash'],'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'frozen_holdout_registry_hash':registry['registry_hash'],'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'}
   c.execute('INSERT INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in train_rows]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
-  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'),'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary};return _write_result(s,out)
+  out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'),'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'case_risk_eval':case_risk_eval,'case_risk_holdout':case_risk_holdout,'case_risk_status':case_risk_status};return _write_result(s,out)
  finally:c.close()
 def main():
  import argparse
