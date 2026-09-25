@@ -226,25 +226,67 @@ def collect_espn(c,h,sport,leagues,start_date,end_date):
         c.commit(); d+=timedelta(days=1)
 
 
+def f1_event_status(event_time_utc, result_rows, now=None):
+    """Classify F1 event status without marking future races as completed."""
+    now = now or datetime.now(timezone.utc)
+    if result_rows:
+        return 'COMPLETED'
+    if not event_time_utc:
+        return 'UNKNOWN'
+    try:
+        event_dt = datetime.fromisoformat(str(event_time_utc).replace('Z', '+00:00'))
+        if event_dt.tzinfo is None:
+            event_dt = event_dt.replace(tzinfo=timezone.utc)
+        if event_dt > now:
+            return 'SCHEDULED'
+    except Exception:
+        return 'UNKNOWN'
+    return 'UNKNOWN'
+
+
 def collect_f1(c,h,years):
     base='https://api.jolpi.ca/ergast/f1'
     for season in years:
-        try: data=h.json(f'{base}/{season}.json?limit=100'); races=data.get('MRData',{}).get('RaceTable',{}).get('Races',[])
-        except Exception: continue
+        try:
+            data=h.json(f'{base}/{season}.json?limit=100')
+            races=data.get('MRData',{}).get('RaceTable',{}).get('Races',[])
+        except Exception:
+            continue
         for race in races:
-            et=iso(f"{race.get('date')}T{race.get('time','00:00:00Z')}"); name=clean(race.get('raceName')); rnd=str(race.get('round')); baseurl=f'{base}/{season}/{rnd}/'; eid=upsert_event(c,'f1',name,et,'jolpica',baseurl,'COMPLETED','F1',str(season),None,rnd)
+            et=iso(f"{race.get('date')}T{race.get('time','00:00:00Z')}")
+            name=clean(race.get('raceName'))
+            rnd=str(race.get('round'))
+            baseurl=f'{base}/{season}/{rnd}/'
+            endpoint_rows={}
             for ep in ('results','qualifying','pitstops'):
-                try: rr=h.json(f'{base}/{season}/{rnd}/{ep}.json?limit=100').get('MRData',{}).get('RaceTable',{}).get('Races',[])
-                except Exception: continue
+                try:
+                    rr=h.json(f'{base}/{season}/{rnd}/{ep}.json?limit=100').get('MRData',{}).get('RaceTable',{}).get('Races',[])
+                except Exception:
+                    rr=[]
+                rows_all=[]
                 for race2 in rr:
-                    rows=race2.get('Results',[]) if ep=='results' else race2.get('QualifyingResults',[]) if ep=='qualifying' else race2.get('PitStops',[])
-                    for z in rows:
-                        dr=z.get('Driver') or {}; n=clean(f"{dr.get('givenName','')} {dr.get('familyName','')}"); pid=upsert_participant(c,'f1',n,'driver'); upsert_ep(c,eid,pid,None,None,ep,'jolpica',baseurl)
-                        for k,v in z.items():
-                            if isinstance(v,(str,int,float)):
-                                try: num=float(v)
-                                except Exception: num=None
-                                add_stat(c,eid,pid,None,'f1',f'{ep}.{k}',num,str(v),'jolpica',baseurl)
+                    rows_all.extend(
+                        race2.get('Results',[]) if ep=='results'
+                        else race2.get('QualifyingResults',[]) if ep=='qualifying'
+                        else race2.get('PitStops',[])
+                    )
+                endpoint_rows[ep]=rows_all
+            result_rows=endpoint_rows.get('results') or []
+            status=f1_event_status(et,result_rows)
+            eid=upsert_event(c,'f1',name,et,'jolpica',baseurl,status,'F1',str(season),None,rnd)
+            for ep,rows in endpoint_rows.items():
+                for z in rows:
+                    dr=z.get('Driver') or {}
+                    n=clean(f"{dr.get('givenName','')} {dr.get('familyName','')}")
+                    if not n.strip():
+                        continue
+                    pid=upsert_participant(c,'f1',n,'driver')
+                    upsert_ep(c,eid,pid,None,None,ep,'jolpica',baseurl)
+                    for k,v in z.items():
+                        if isinstance(v,(str,int,float)):
+                            try: num=float(v)
+                            except Exception: num=None
+                            add_stat(c,eid,pid,None,'f1',f'{ep}.{k}',num,str(v),'jolpica',baseurl)
             add_snapshot(c,'f1','jolpica',baseurl,utcnow(),et,None,'UNVERIFIABLE')
         c.commit()
 
