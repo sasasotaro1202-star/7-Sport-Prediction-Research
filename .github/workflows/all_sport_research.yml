@@ -62,6 +62,16 @@ jobs:
           python -m py_compile src/f1_pairwise_oos.py
           python scripts/test_f1_pairwise_oos.py
 
+      - name: Restore latest safe sport database cache
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        with:
+          path: data/db
+          key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
+          restore-keys: |
+            nine-sport-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-target-db-v4-${{ matrix.sport }}-
+        continue-on-error: true
+
       - name: Initialize database
         run: |
           set -euo pipefail
