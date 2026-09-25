@@ -176,6 +176,7 @@ def main():
             'production collection must retain a forward schedule window for future prediction')
     require('backfill_status=DEGRADED' in workflow,'backfill degradation is not explicitly recorded')
     require('collection_guard_status=FAILED' in workflow,'collection guard failure is not explicitly surfaced')
+    require("EXPLICIT_DEFERRED_ON_EMPTY={'tennis','f1','rugby','boxing'}" in guard_src,'empty deferred prediction lanes are not explicitly enumerated in collection guard')
     require("if: needs.collect.result == 'success'" in workflow,
             'production merge must only run after the full collector matrix succeeds')
     require('  push:' not in workflow,
