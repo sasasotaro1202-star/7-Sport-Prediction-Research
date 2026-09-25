@@ -115,6 +115,8 @@ def main():
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require("old_registry_hash==registry['registry_hash']" in strict_src,'holdout baseline comparison is not bound to the same frozen registry')
     require('production_release_gate' in workflow,'production release gate missing')
+    require('Preserve partial research checkpoint artifacts' in workflow and 'if: always()' in workflow and 'nine-sport-research-checkpoint-${{ github.run_id }}' in workflow,
+            'strict research failure does not preserve partial checkpoint artifacts')
     predictor=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
     require('DEDICATED_DBS' in predictor and "'rugby'" in predictor and "'boxing'" in predictor,
             'future predictor does not support dedicated Rugby/Boxing databases')
