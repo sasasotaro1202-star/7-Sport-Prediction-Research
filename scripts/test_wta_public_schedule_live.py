@@ -24,8 +24,13 @@ def get_json(url):
 def main():
     rows = []
     page_count = 0
+    from_date = "2026-09-11"
+    to_date = "2026-10-02"
     for page in range(8):
-        data = get_json(f"{BASE}/tournaments?page={page}&pageSize=100")
+        data = get_json(
+            f"{BASE}/tournaments?page={page}&pageSize=100"
+            f"&from={from_date}&to={to_date}"
+        )
         page_rows = data.get("content")
         assert isinstance(page_rows, list), "WTA tournament response missing content[]"
         if not page_rows:
@@ -49,7 +54,7 @@ def main():
         if gid and str(year) == str(YEAR):
             current.append((str(gid), str(year)))
 
-    assert current, f"no current-year tournaments found in first {page_count} pages; year={YEAR}"
+    assert current, f"no current-year tournaments found in date-window pages={page_count}; year={YEAR}"
 
     gid, year = current[0]
     match_data = get_json(f"{BASE}/tournaments/{gid}/{year}/matches")
