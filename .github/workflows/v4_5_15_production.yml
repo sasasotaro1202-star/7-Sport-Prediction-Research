@@ -60,7 +60,7 @@ jobs:
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - run: mkdir -p data/raw/http_cache data/db results models
       - name: Restore latest safe database cache
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
           key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
@@ -110,7 +110,7 @@ jobs:
           exit 0
       - name: Save database
         if: success()
-        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
           key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.run_id }}
@@ -150,7 +150,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore VALORANT
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
           key: nine-sport-target-db-v4-valorant-${{ github.run_id }}
@@ -163,7 +163,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore Basketball
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
           key: nine-sport-target-db-v4-basketball-${{ github.run_id }}
@@ -176,7 +176,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore Volleyball
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
           key: nine-sport-target-db-v4-volleyball-${{ github.run_id }}
@@ -189,7 +189,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore UFC
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
           key: nine-sport-target-db-v4-ufc-${{ github.run_id }}
@@ -202,7 +202,7 @@ jobs:
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore RIZIN
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
           key: nine-sport-target-db-v4-rizin-${{ github.run_id }}
