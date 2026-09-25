@@ -40,6 +40,11 @@ def main() -> None:
     assert result["oos_rows"] >= 120
     assert np.isfinite(result["aurc"])
 
+    single_names = ["single"]
+    single_folds = [dict(f, preds={"single": np.asarray(f["preds"]["a"])}) for f in folds]
+    single_result = evaluate_selective_case_risk_oof(y, single_names, single_folds)
+    assert single_result["status"] == "EVALUATED"
+
     bundle = fit_final_case_risk_model(y, names, folds)
     assert bundle is not None
     risk = predict_case_risk(
