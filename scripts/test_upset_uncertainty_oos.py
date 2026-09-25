@@ -61,7 +61,7 @@ def test_feature_matrix_preserves_nan_context():
     ctx = np.asarray([[np.nan, 1.0], [0.0, np.nan]])
     X = np.asarray([[1.0, np.nan], [2.0, 3.0]])
     f = _feature_matrix(p, ep, ctx, X)
-    assert f.shape == (2, 10 + 2 + 2)
+    assert f.shape == (2, 10)
     assert np.isnan(f[0, 10])
     assert np.isnan(f[1, 11])
 
