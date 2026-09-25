@@ -22,9 +22,21 @@ def get_json(url):
     return data
 
 def main():
-    data = get_json(f"{BASE}/tournaments?page=0&pageSize=100")
-    rows = data.get("content")
-    assert isinstance(rows, list), "WTA tournament response missing content[]"
+    rows = []
+    page_count = 0
+    for page in range(8):
+        data = get_json(f"{BASE}/tournaments?page={page}&pageSize=100")
+        page_rows = data.get("content")
+        assert isinstance(page_rows, list), "WTA tournament response missing content[]"
+        if not page_rows:
+            break
+        rows.extend(page_rows)
+        page_count += 1
+        page_info = data.get("pageInfo")
+        num_pages = page_info.get("numPages") if isinstance(page_info, dict) else None
+        if isinstance(num_pages, int) and page + 1 >= num_pages:
+            break
+
     assert rows, "WTA tournament response is empty"
 
     current = []
@@ -37,7 +49,7 @@ def main():
         if gid and str(year) == str(YEAR):
             current.append((str(gid), str(year)))
 
-    assert current, f"no current-year tournaments found on first page; year={YEAR}"
+    assert current, f"no current-year tournaments found in first {page_count} pages; year={YEAR}"
 
     gid, year = current[0]
     match_data = get_json(f"{BASE}/tournaments/{gid}/{year}/matches")
@@ -49,8 +61,9 @@ def main():
     print({
         "status": "PASS",
         "year": YEAR,
-        "tournament_rows_page0": len(rows),
-        "current_year_tournaments_page0": len(current),
+        "tournament_rows_scanned": len(rows),
+        "tournament_pages_scanned": page_count,
+        "current_year_tournaments_scanned": len(current),
         "probe_group_id": gid,
         "probe_match_rows": len(matches),
         "pit_policy": "UNVERIFIABLE_for_historical_publication_timing",
