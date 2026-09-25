@@ -29,7 +29,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, brier_score_loss, log_loss
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "results/research/f1_pairwise_oos.json"
+OUT = ROOT / "results/research/f1.json"
 BASE = "https://api.jolpi.ca/ergast/f1"
 
 
