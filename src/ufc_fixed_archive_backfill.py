@@ -89,7 +89,18 @@ def load_local_maps(con: sqlite3.Connection):
     ):
         event_participants.setdefault(str(eid), {})[str(side)] = str(pid)
 
-    return event_map, participant_map, event_participants
+    event_times = {
+        str(eid): str(event_time)
+        for eid, event_time in con.execute(
+            "SELECT event_id, event_time_utc FROM event WHERE sport='ufc' AND event_time_utc IS NOT NULL"
+        )
+    }
+    pid_to_name = {
+        str(pid): name
+        for name, pids in participant_map.items()
+        for pid in pids
+    }
+    return event_map, participant_map, event_participants, event_times, pid_to_name
 
 
 def upsert_snapshot(
@@ -151,7 +162,7 @@ def main() -> int:
     content_hash = hashlib.sha256(raw.encode("utf-8", "ignore")).hexdigest()
 
     with sqlite3.connect(db) as con:
-        event_map, participant_map, event_participants = load_local_maps(con)
+        event_map, participant_map, event_participants, event_times, pid_to_name = load_local_maps(con)
         snapshot_id = upsert_snapshot(con, content_hash)
 
         matched_rows = 0
@@ -182,22 +193,12 @@ def main() -> int:
             matched_rows += 1
 
             local_sides = event_participants.get(eid, {})
-            fighter_to_pid = {
-                participant_map.get(_norm(row.get("Fighter_1")), [None])[0]: "A",
-                participant_map.get(_norm(row.get("Fighter_2")), [None])[0]: "B",
-            }
-
             side_pid: dict[str, str] = {}
-            for side, pid in local_sides.items():
-                name_candidates = [
-                    name for name, pids in participant_map.items() if pid in pids
-                ]
-                if not name_candidates:
-                    continue
-                if side == "A" and _norm(row.get("Fighter_1")) in name_candidates:
-                    side_pid["A"] = pid
-                elif side == "B" and _norm(row.get("Fighter_2")) in name_candidates:
-                    side_pid["B"] = pid
+            for side in ("A", "B"):
+                pid = local_sides.get(side)
+                expected_name = f1 if side == "A" else f2
+                if pid and pid_to_name.get(pid) == expected_name:
+                    side_pid[side] = pid
 
             if "A" not in side_pid or "B" not in side_pid:
                 # Fallback to exact canonical-name matching, but never fuzzy-match.
@@ -222,10 +223,7 @@ def main() -> int:
                 stat_id = hashlib.sha256(
                     f"ufc-fixed|{eid}|{pid}|sig_str|{value}".encode()
                 ).hexdigest()[:32]
-                event_time = con.execute(
-                    "SELECT event_time_utc FROM event WHERE event_id=?",
-                    (eid,),
-                ).fetchone()[0]
+                event_time = event_times[eid]
                 con.execute(
                     """
                     INSERT OR REPLACE INTO match_stats(
