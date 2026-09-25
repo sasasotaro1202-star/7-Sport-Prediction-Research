@@ -364,16 +364,27 @@ def _case_profile(pred: dict[str, Any], max_p: float) -> dict[str, str]:
     }
 
 
-def _score_binary(pred: dict[str, Any], outcome: str) -> dict[str, Any] | None:
-    if outcome not in {"A", "B"}:
-        return None
+def _validate_binary_probabilities(pred: dict[str, Any]) -> tuple[float, float]:
+    """Fail closed on malformed binary prediction probabilities."""
     try:
         pa = float(pred.get("probability_side_a"))
         pb = float(pred.get("probability_side_b"))
-    except (TypeError, ValueError):
-        return None
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("INVALID_BINARY_PROBABILITIES:non_numeric") from exc
     if not (math.isfinite(pa) and math.isfinite(pb)):
+        raise RuntimeError("INVALID_BINARY_PROBABILITIES:non_finite")
+    if pa < -EPS or pa > 1.0 + EPS or pb < -EPS or pb > 1.0 + EPS:
+        raise RuntimeError("INVALID_BINARY_PROBABILITIES:out_of_range")
+    total = pa + pb
+    if abs(total - 1.0) > 1e-6:
+        raise RuntimeError("INVALID_BINARY_PROBABILITIES:sum_not_one")
+    return pa, pb
+
+
+def _score_binary(pred: dict[str, Any], outcome: str) -> dict[str, Any] | None:
+    if outcome not in {"A", "B"}:
         return None
+    pa, pb = _validate_binary_probabilities(pred)
     p = min(1.0 - EPS, max(EPS, pb if outcome == "B" else pa))
     y = 1.0 if outcome == "B" else 0.0
     max_p = max(pa, pb)
