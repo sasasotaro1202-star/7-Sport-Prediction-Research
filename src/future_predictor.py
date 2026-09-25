@@ -16,6 +16,10 @@ SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby"
 HEAD_TO_HEAD_SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","rugby","boxing")
 MULTICLASS_SPORTS=("f1",)
 PIT_LEAD_MINUTES=60
+DEDICATED_DBS={
+    'rugby': ROOT/'data/db/rugby_v45.sqlite',
+    'boxing': ROOT/'data/db/boxing_v45.sqlite',
+}
 
 
 def utc_now():
@@ -78,6 +82,152 @@ def _after_now(ts,now):
 
 def _prediction_id(event_id, model_version, cutoff):
     return hashlib.sha256(f"future-v1|{event_id}|winner|{model_version}|{cutoff}".encode()).hexdigest()[:32]
+
+def _participant_sides(c,event_id):
+    rows=c.execute(
+        """SELECT ep.side,ep.participant_id,p.canonical_name
+             FROM event_participant ep
+             LEFT JOIN participant p ON p.participant_id=ep.participant_id
+            WHERE ep.event_id=? AND ep.side IN ('A','B')
+            ORDER BY ep.side,ep.participant_id""",(event_id,)
+    ).fetchall()
+    out={}
+    for side,pid,name in rows:
+        out.setdefault(side,(pid,name))
+    return out.get('A'),out.get('B')
+
+
+def _prior_record(c,sport,participant_id,event_time):
+    """PIT-safe historical win-rate prior using only completed events before target time."""
+    starts=c.execute(
+        """SELECT COUNT(DISTINCT e.event_id)
+             FROM event e
+             JOIN event_participant ep ON ep.event_id=e.event_id
+             JOIN event_outcome o ON o.event_id=e.event_id
+             JOIN source_snapshot ss ON ss.source_url=o.source_url
+            WHERE e.sport=? AND ep.participant_id=?
+              AND e.event_time_utc < ?
+              AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
+              AND o.outcome_status='VERIFIED'
+              AND ss.availability_status='EXACT'
+              AND ss.source_available_at_utc IS NOT NULL
+              AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+        (sport,participant_id,event_time,event_time),
+    ).fetchone()[0]
+    wins=c.execute(
+        """SELECT COUNT(*)
+             FROM event e
+             JOIN event_participant ep ON ep.event_id=e.event_id
+             JOIN event_outcome o ON o.event_id=e.event_id
+             JOIN source_snapshot ss ON ss.source_url=o.source_url
+            WHERE e.sport=? AND ep.participant_id=?
+              AND e.event_time_utc < ?
+              AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
+              AND o.outcome_status='VERIFIED'
+              AND o.outcome=ep.side
+              AND ss.availability_status='EXACT'
+              AND ss.source_available_at_utc IS NOT NULL
+              AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+        (sport,participant_id,event_time,event_time),
+    ).fetchone()[0]
+    starts=int(starts or 0); wins=int(wins or 0)
+    return starts,wins,(wins+1.0)/(starts+2.0)
+
+
+def _safe_prior_binary(c,s,now):
+    future=_future_events(c,s,now)
+    outputs=[]
+    for eid,meta in future.items():
+        if meta['participant_count']!=2:
+            continue
+        a,b=_participant_sides(c,eid)
+        if not a or not b:
+            continue
+        event_time=meta['event_time_utc']
+        sa,wa,rate_a=_prior_record(c,s,a[0],event_time)
+        sb,wb,rate_b=_prior_record(c,s,b[0],event_time)
+        denom=max(rate_a+rate_b,1e-12)
+        pb=float(np.clip(rate_b/denom,1e-6,1-1e-6))
+        cutoff=(datetime.fromisoformat(str(event_time).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        features={
+            'prior_starts_a':sa,'prior_wins_a':wa,'prior_win_rate_a':rate_a,
+            'prior_starts_b':sb,'prior_wins_b':wb,'prior_win_rate_b':rate_b,
+            'fallback_policy':'pit_safe_historical_prior_v1',
+        }
+        pid=_persist_forward_prediction(
+            c,eid,s,cutoff,now,1.0-pb,pb,'safe_prior','safe-prior-v1',
+            'pit-safe-historical-win-rate-v1',features
+        )
+        outputs.append({
+            'event_id':eid,'event_time_utc':event_time,'prediction_cutoff_at_utc':cutoff,
+            'side_a':a[1],'side_b':b[1],
+            'probability_side_b':pb,'probability_side_a':1.0-pb,
+            'strategy':'safe_prior','router_status':'SAFE_PRIOR_FALLBACK',
+            'prediction_id':pid,'models':['historical_prior'],'ensemble_weights':None,
+            'model_version':'safe-prior-v1','feature_version':'pit-safe-historical-win-rate-v1',
+            'confidence':'LOW','action_state':'PASS',
+            'situation':{'status':'PIT_SAFE','quality':{'evidence_count':sa+sb,'conflict_rate':None,'freshness_score':None},'policy':'historical outcomes only; no current unavailable information inferred'},
+            'generated_at_utc':now.isoformat(),
+        })
+    return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
+
+
+def _safe_prior_f1(c,now):
+    future=_future_events(c,'f1',now)
+    outputs=[]
+    for eid,meta in future.items():
+        event_time=meta['event_time_utc']
+        drivers=c.execute(
+            """SELECT DISTINCT ep.participant_id,p.canonical_name
+                 FROM event_participant ep
+                 LEFT JOIN participant p ON p.participant_id=ep.participant_id
+                WHERE ep.event_id=? AND lower(coalesce(ep.role,''))='driver'
+                ORDER BY ep.participant_id""",(eid,)
+        ).fetchall()
+        if len(drivers)<2:
+            continue
+        scored=[]
+        for pid,name in drivers:
+            starts=c.execute(
+                """SELECT COUNT(DISTINCT ms.event_id)
+                     FROM match_stats ms JOIN event e ON e.event_id=ms.event_id
+                     JOIN source_snapshot ss ON ss.source_url=ms.source_url
+                    WHERE ms.sport='f1' AND ms.participant_id=? AND ms.stat_name='results.position'
+                      AND e.event_time_utc < ?
+                      AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
+                      AND ss.availability_status='EXACT'
+                      AND ss.source_available_at_utc IS NOT NULL
+                      AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+                (pid,event_time,event_time),
+            ).fetchone()[0]
+            wins=c.execute(
+                """SELECT COUNT(*)
+                     FROM match_stats ms JOIN event e ON e.event_id=ms.event_id
+                     JOIN source_snapshot ss ON ss.source_url=ms.source_url
+                    WHERE ms.sport='f1' AND ms.participant_id=? AND ms.stat_name='results.position'
+                      AND ms.value_num=1 AND e.event_time_utc < ?
+                      AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
+                      AND ss.availability_status='EXACT'
+                      AND ss.source_available_at_utc IS NOT NULL
+                      AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+                (pid,event_time,event_time),
+            ).fetchone()[0]
+            scored.append((pid,name,int(starts or 0),int(wins or 0),(int(wins or 0)+1.0)/(int(starts or 0)+2.0)))
+        total=sum(x[4] for x in scored)
+        if total<=0:
+            continue
+        probs=[{'participant_id':pid,'name':name,'probability':float(score/total),'prior_starts':starts,'prior_wins':wins} for pid,name,starts,wins,score in scored]
+        probs.sort(key=lambda x:(-x['probability'],x['participant_id']))
+        cutoff=(datetime.fromisoformat(str(event_time).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        outputs.append({
+            'event_id':eid,'event_time_utc':event_time,'prediction_cutoff_at_utc':cutoff,
+            'market':'winner_multiclass','strategy':'safe_prior_multiclass','model_version':'safe-prior-f1-v1',
+            'feature_version':'pit-safe-f1-driver-win-prior-v1','drivers':probs,
+            'confidence':'LOW','action_state':'PASS','generated_at_utc':now.isoformat(),
+            'policy':'F1 multiclass safe prior; only pre-event completed driver results are used',
+        })
+    return {'sport':'f1','status':'PREDICTED_SAFE_PRIOR_MULTICLASS' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
+
 
 def _prediction_confidence(probability, situation):
     """Conservative event-level confidence label; probabilities are unchanged."""
@@ -187,15 +337,24 @@ def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strateg
 
 
 def predict_sport(c,s,now):
+    # Every sport is a mandatory prediction lane. F1 has distinct multiclass semantics;
+    # sports without an accepted production artifact use an explicit PIT-safe historical-prior
+    # prediction instead of silently disappearing from the output.
+    if s=='f1':
+        return _safe_prior_f1(c,now)
     artifact_path=MODELS/f'{s}_current.joblib'
     if not artifact_path.is_file() or artifact_path.stat().st_size<=0:
-        return {'sport':s,'status':'DEFERRED_NO_ACCEPTED_ARTIFACT'}
+        return _safe_prior_binary(c,s,now)
     try:
         artifact=joblib.load(artifact_path)
-    except Exception as exc:
-        return {'sport':s,'status':'BLOCKED_ARTIFACT_LOAD','reason':type(exc).__name__}
+    except Exception:
+        # A corrupt/unreadable artifact must never make the mandatory prediction
+        # lane disappear. Fall back to the explicit PIT-safe prior.
+        return _safe_prior_binary(c,s,now)
     if artifact.get('quality_status') not in ('ACCEPTED_LOCKED_HOLDOUT','ACCEPTED_AFTER_LOCKED_HOLDOUT'):
-        return {'sport':s,'status':'DEFERRED_ARTIFACT_NOT_ACCEPTED','quality_status':artifact.get('quality_status')}
+        # Candidate/deferred artifacts are never used as production models, but
+        # the event still receives the mandatory explicitly-labelled safe prior.
+        return _safe_prior_binary(c,s,now)
     features=list(artifact.get('features') or [])
     models=list(artifact.get('models') or [])
     names=list(artifact.get('model_names') or [])
@@ -205,16 +364,16 @@ def predict_sport(c,s,now):
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     router_obj=artifact.get('dynamic_router')
     if router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and router_obj is None:
-        return {'sport':s,'status':'BLOCKED_ARTIFACT_ROUTER_STATE'}
+        return _safe_prior_binary(c,s,now)
     rows,_=base.build(c,s,include_unlabeled=True)
     available_features=set()
     for _,_,_,row_features in rows:
         available_features.update(row_features.keys())
     missing_schema=sorted(set(features)-available_features)
     if missing_schema:
-        return {'sport':s,'status':'BLOCKED_ARTIFACT_FEATURE_SCHEMA','missing_features':missing_schema,
-                'artifact_feature_version':artifact.get('feature_version'),
-                'current_feature_count':len(available_features)}
+        # Never synthesize missing model features. Use the PIT-safe fallback
+        # instead, which depends only on pre-event verified historical outcomes.
+        return _safe_prior_binary(c,s,now)
     future=_future_events(c,s,now)
     outputs=[]
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
@@ -304,14 +463,22 @@ def predict_sport(c,s,now):
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--sport',choices=SPORTS);args=ap.parse_args()
     now=utc_now()
-    con=sqlite3.connect(DB)
-    try:
-        sports=[args.sport] if args.sport else list(SPORTS)
-        results=[predict_sport(con,s,now) for s in sports]
-        con.commit()
-    finally:
-        con.close()
-    report={'generated_at_utc':now.isoformat(),'policy':'accepted-artifact-only; nine-sport scope; PIT-safe research features; gated contextual routing; frozen-holdout-validated calibration; F1 binary-artifact fail-closed; event-confidence-v1; matchday-situation-v1','sports':results}
+    sports=[args.sport] if args.sport else list(SPORTS)
+    results=[]
+    for s in sports:
+        db_path=DEDICATED_DBS.get(s,DB)
+        if not db_path.exists() or db_path.stat().st_size<=0:
+            results.append({'sport':s,'status':'PREDICTION_UNAVAILABLE_NO_DATA'})
+            continue
+        con=sqlite3.connect(db_path)
+        try:
+            results.append(predict_sport(con,s,now))
+            con.commit()
+        except Exception as exc:
+            results.append({'sport':s,'status':'PREDICTION_BLOCKED_RUNTIME','reason':type(exc).__name__})
+        finally:
+            con.close()
+    report={'generated_at_utc':now.isoformat(),'policy':'nine-sport-mandatory; accepted-artifact-first; PIT-safe research features; explicit safe-prior fallback; F1 multiclass safe-prior lane; gated contextual routing; frozen-holdout-validated calibration; event-confidence-v1; matchday-situation-v1','sports':results}
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     # Derive eligibility from this exact canonical inference pass so the

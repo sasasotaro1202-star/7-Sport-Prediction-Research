@@ -4,7 +4,8 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
-SPORTS=('valorant','basketball','volleyball','ufc','rizin','tennis','f1','rugby')
+SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
+DEDICATED_DBS={'rugby':ROOT/'data/db/rugby_v45.sqlite','boxing':ROOT/'data/db/boxing_v45.sqlite'}
 
 
 def source_count_for_sport(c, sport):
@@ -59,11 +60,12 @@ def main():
                     raise SystemExit(0)
             except (OSError, ValueError):
                 pass
-    if not DB.exists() or DB.stat().st_size == 0:
-        report={'status':'DEFERRED','reason':'database_missing_or_empty','sport':a.sport}
+    db_path=DEDICATED_DBS.get(a.sport,DB)
+    if not db_path.exists() or db_path.stat().st_size == 0:
+        report={'status':'DEFERRED','reason':'database_missing_or_empty','sport':a.sport,'database':str(db_path)}
         exit_code=2
     else:
-        c=sqlite3.connect(DB)
+        c=sqlite3.connect(db_path)
         try:
             integrity=c.execute('PRAGMA integrity_check').fetchone()[0]
             tables={r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}

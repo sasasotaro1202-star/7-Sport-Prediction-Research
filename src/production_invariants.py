@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import re,sys
 ROOT=Path(__file__).resolve().parents[1];FAILURES=[]
-EXPECTED_CORE={'valorant','basketball','volleyball','ufc','rizin'}
+EXPECTED_CORE={'valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing'}
 EXPECTED_DEFERRED={'tennis','f1','rugby','boxing'}
 
 def require(condition,message):
@@ -20,8 +20,13 @@ def main():
     m=re.search(r"SPORTS=\(([^)]*)\)",research)
     actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
     require(EXPECTED_CORE<=actual,f'research engine missing sports: {sorted(EXPECTED_CORE-actual)}')
-    require(len(actual)==5,f'research engine active sports count is {len(actual)}, expected exactly 5')
+    require(len(actual)==9,f'research engine sport count is {len(actual)}, expected exactly 9')
     require('matrix:' in workflow,'canonical workflow matrix missing')
+    required_matrix='sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1, rugby, boxing]'
+    require(required_matrix in workflow,'canonical workflow matrix is not the full nine-sport target set')
+    guard_src=(ROOT/'src/collection_guard.py').read_text(encoding='utf-8')
+    require("'boxing'" in guard_src and "'rugby'" in guard_src and 'DEDICATED_DBS' in guard_src,
+            'collection guard does not cover dedicated Rugby/Boxing prediction lanes')
     db_src=(ROOT/'src/storage/db_v45.py').read_text(encoding='utf-8')
     prod_src=(ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8')
     require('source_snapshot(snapshot_id TEXT PRIMARY KEY,sport TEXT' in db_src,'source_snapshot sport column is not in canonical schema')
@@ -30,13 +35,13 @@ def main():
     for sport in sorted(EXPECTED_CORE):
         require(re.search(rf'(?m)^\s*[-] {sport}$',workflow) is not None or sport in workflow,
                 f'canonical workflow missing sport token: {sport}')
-    require('max-parallel: 8' in workflow or 'max-parallel: 6' in workflow,'canonical workflow parallelism declaration missing')
+    require('max-parallel: 9' in workflow,'canonical workflow parallelism declaration missing')
     require('nine-sport-target-db-v4-' in workflow,'canonical production cache namespace is not nine-sport target scoped')
     require('eight-sport-db-v4-' not in workflow,'canonical production still references legacy eight-sport cache namespace')
     
     require('Nine-Sport Target v4.5.15 Production' in workflow,'canonical workflow name is not nine-sport target')
-    require('F1, Rugby and Boxing are intentionally deferred by project scope' in workflow,
-            'canonical production workflow does not explicitly defer Boxing')
+    require('All nine target sports are mandatory prediction lanes' in workflow,
+            'canonical production workflow does not declare all-nine mandatory prediction scope')
     require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src,
             'strict research deferred-sport declaration does not include all deferred targets')
     release_gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
@@ -63,8 +68,8 @@ def main():
     scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
     require('"B.LEAGUE"' in scope and '"Asian Games Basketball"' in scope and '"Asian Games Volleyball"' in scope,'active scope target competitions missing')
     require("target_event(s,name,competition_id)" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'research engine lacks explicit target-competition filtering')
-    require('Tennis, F1, Rugby and Boxing are currently deferred' in readme,'README does not declare all four deferred target sports')
-    require('Boxing (currently deferred)' in readme,'README does not list Boxing as a deferred target sport')
+    require('All nine sports are mandatory prediction lanes' in readme,'README does not declare all-nine mandatory prediction scope')
+    require('- Boxing' in readme,'README does not list Boxing in the nine-sport target set')
 
     # Repository-wide temporal evaluation guard: prevent legacy random-split or
     # hidden failure patterns from re-entering the codebase through an unrelated module.
@@ -111,6 +116,12 @@ def main():
     require("old_registry_hash==registry['registry_hash']" in strict_src,'holdout baseline comparison is not bound to the same frozen registry')
     require('production_release_gate' in workflow,'production release gate missing')
     predictor=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    require('DEDICATED_DBS' in predictor and "'rugby'" in predictor and "'boxing'" in predictor,
+            'future predictor does not support dedicated Rugby/Boxing databases')
+    require('PREDICTED_SAFE_PRIOR' in predictor and 'PREDICTED_SAFE_PRIOR_MULTICLASS' in predictor,
+            'future predictor has no explicit all-nine safe fallback lane')
+    require("availability_status='EXACT'" in predictor and 'source_available_at_utc' in predictor,
+            'safe fallback prior does not enforce exact historical source availability')
     base_src=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('class TimeDecay:' in base_src and 'lightgbm_time_decay_300' in base_src,
             'recency-decay challenger is missing from the canonical model pool')
@@ -261,7 +272,7 @@ def main():
     future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
     require((ROOT/'src/future_predictor.py').exists(),'future prediction inference module is missing')
     require('src.future_predictor' in workflow,'canonical production workflow does not execute future prediction inference')
-    require('accepted-artifact-only' in future_src,'future predictor is not restricted to accepted artifacts')
+    require('accepted-artifact-first' in future_src,'future predictor no longer declares accepted-artifact-first policy')
     require('PRODUCTION_ROUTABLE_AFTER_GATES' in future_src and 'contextual_router' in future_src,
             'future predictor lacks gated situation-specific routing path')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
@@ -273,8 +284,8 @@ def main():
         boxing_def_pos >= 0 and boxing_handler_pos >= 0
         and (deferred_guard_pos < 0 or boxing_handler_pos < deferred_guard_pos),
         'Boxing research lane is not wired to an explicit deferred handler before the generic gate')
-    require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src and "ALL_SPORTS=SPORTS+DEFERRED_SPORTS" in strict_src,
-            'Strict research does not explicitly separate the complete active/deferred sport lanes')
+    require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src and 'ALL_SPORTS=SPORTS' in strict_src,
+            'Strict research does not declare the full nine-sport lane set alongside explicit gated model lanes')
     research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
@@ -488,10 +499,10 @@ def main():
             'future predictor does not implement Beta calibration transform safely')
     require("method=='isotonic'" in future_src,
             'future predictor does not implement isotonic calibration branch')
-    require("artifact.get('quality_status')" in future_src and 'DEFERRED_ARTIFACT_NOT_ACCEPTED' in future_src,
-            'future predictor does not fail closed on unaccepted artifacts')
-    require('BLOCKED_ARTIFACT_FEATURE_SCHEMA' in future_src and 'missing_schema' in future_src,
-            'future predictor does not fail closed on artifact/current feature schema mismatch')
+    require("artifact.get('quality_status')" in future_src and '_safe_prior_binary(c,s,now)' in future_src,
+            'future predictor lacks safe fallback when production artifact is unavailable/unaccepted')
+    require('missing_schema' in future_src and "return _safe_prior_binary(c,s,now)" in future_src,
+            'future predictor does not fail safely when artifact/current feature schema is unusable')
     require("'quality_status':'ACCEPTED_LOCKED_HOLDOUT'" in strict_src,
             'strict research artifact does not persist explicit accepted quality state')
     try:
