@@ -142,7 +142,10 @@ def _risk_pipeline():
                 LogisticRegression(
                     C=0.25,
                     max_iter=2000,
-                    class_weight="balanced",
+                    # Preserve the empirical event prior so the risk score can
+                    # be thresholded as a probability rather than a rebalanced
+                    # classifier score. Calibration is evaluated separately.
+                    class_weight=None,
                     random_state=20260925,
                 ),
             ),
