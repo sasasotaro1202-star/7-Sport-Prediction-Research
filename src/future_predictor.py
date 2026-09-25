@@ -128,7 +128,7 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
         (sport,participant_id,prediction_cutoff,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     wins=c.execute(
-        """SELECT COUNT(*)
+        """SELECT COUNT(DISTINCT e.event_id)
              FROM event e
              JOIN event_participant ep ON ep.event_id=e.event_id
              JOIN event_outcome o ON o.event_id=e.event_id
