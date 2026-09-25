@@ -212,7 +212,7 @@ def _rizin_event_date(plain):
                 continue
     if not candidates:
         return None
-    return min(candidates).isoformat()
+    return candidates[0].isoformat()
 
 def _rizin_detail_fetch(hurl):
     try:
