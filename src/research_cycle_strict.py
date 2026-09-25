@@ -910,6 +910,10 @@ def train(s):
   # Challenger-only dynamic routing. It is evaluated against the exact selected
   # incumbent ensemble, not a different equal-weight model pool.
   # A single-model incumbent has no routing surface and therefore keeps the fixed model.
+  # Always materialize frozen-holdout component predictions for downstream
+  # research layers. This is safe for production because the predictions are
+  # derived from the already-selected production candidate and do not alter it.
+  router_holdout_pred={name:np.clip(model.predict_proba(X_holdout)[:,1],1e-6,1-1e-6) for name,model in zip(best,models)}
   router_names=list(best) if len(best)>=2 else []
   if router_names:
    router_eval=router.evaluate_router_from_folds(X,y,router_names,oof_folds,sel,base.metric,candidate_weights)
