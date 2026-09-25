@@ -209,9 +209,18 @@ def _rizin_result_urls(html, base_url):
     return out
 
 
-def _rizin_is_event_result_page(plain):
-    """Accept only the canonical event-level result-list pages."""
-    return "試合結果一覧" in clean(plain)
+def _rizin_is_event_result_page(raw):
+    """Accept only pages whose primary H1 is the event-level result list.
+    
+    Individual fight reports also contain a breadcrumb link to 「試合結果一覧」,
+    so searching the whole text is insufficient and can duplicate every bout.
+    """
+    headings = re.findall(r"<h1\\b[^>]*>(.*?)</h1>", raw or "", re.I | re.S)
+    for heading in headings:
+        title = clean(re.sub(r"<[^>]+>", " ", heading))
+        if "試合結果一覧" in title:
+            return True
+    return False
 
 
 def _rizin_event_date(plain):
@@ -299,7 +308,7 @@ def backfill_rizin(c, max_pages=150):
         # Individual fight-report pages also contain WIN/LOSE patterns and event
         # footer dates. They are not the canonical event result-list source and
         # must never be reinterpreted as an event-level result feed.
-        if not _rizin_is_event_result_page(plain):
+        if not _rizin_is_event_result_page(raw):
             continue
         dm = re.search(r"(20\d{2})\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})", plain)
         et = iso("-".join(dm.groups())) if dm else None
