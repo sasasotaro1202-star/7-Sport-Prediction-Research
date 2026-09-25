@@ -16,6 +16,52 @@ SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby"
 HEAD_TO_HEAD_SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","rugby","boxing")
 MULTICLASS_SPORTS=("f1",)
 PIT_LEAD_MINUTES=60
+F1_CURRENT_ROSTER_URL="https://www.formula1.com/en/drivers"
+
+_F1_ROSTER_CACHE=None
+
+
+def _current_f1_roster(now):
+    """Fetch the current official F1 driver roster for future inference only.
+
+    The roster is current-state information, not event-specific entry confirmation.
+    It is admitted only when retrieval_time <= the event PIT cutoff, and callers must
+    keep the resulting field explicitly low-confidence / unconfirmed.
+    """
+    global _F1_ROSTER_CACHE
+    if _F1_ROSTER_CACHE is not None:
+        return _F1_ROSTER_CACHE
+    try:
+        from urllib.request import Request,urlopen
+        from bs4 import BeautifulSoup
+        req=Request(
+            F1_CURRENT_ROSTER_URL,
+            headers={"User-Agent":"SevenSportResearchEngine/F1-Future-Roster","Accept-Language":"en-US,en;q=0.8"},
+        )
+        with urlopen(req,timeout=15) as r:
+            raw=r.read().decode("utf-8","ignore")
+        retrieved=utc_now()
+        soup=BeautifulSoup(raw,"lxml")
+        names=[]
+        for a in soup.select('a[href*="/en/drivers/"]'):
+            href=str(a.get("href") or "")
+            text_name=" ".join(a.get_text(" ",strip=True).split())
+            if not text_name or href.rstrip("/").endswith("/drivers"):
+                continue
+            slug=href.rstrip("/").split("/")[-1]
+            if not slug or slug in {"drivers"}:
+                continue
+            name=" ".join(part.capitalize() for part in slug.replace("-"," ").split())
+            if len(name.split()) < 2:
+                continue
+            if name not in names:
+                names.append(name)
+        names=names[:30]
+        _F1_ROSTER_CACHE=(retrieved,names)
+    except Exception:
+        _F1_ROSTER_CACHE=None
+    return _F1_ROSTER_CACHE
+
 DEDICATED_DBS={
     'rugby': ROOT/'data/db/rugby_v45.sqlite',
     'boxing': ROOT/'data/db/boxing_v45.sqlite',
