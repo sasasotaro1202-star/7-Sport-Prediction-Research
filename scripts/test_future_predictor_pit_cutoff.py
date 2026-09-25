@@ -150,6 +150,33 @@ def assert_pit_behavior():
     assert rate == 0.5
     db.close()
 
+    db = build_db()
+    db.execute(
+        "INSERT INTO event VALUES (?,?,?,?)",
+        ("e3", "tennis", "2026-09-24T10:00:00+00:00", "COMPLETED"),
+    )
+    db.execute("INSERT INTO event_participant VALUES (?,?,?)", ("e3", "p1", "A"))
+    db.execute(
+        "INSERT INTO event_outcome VALUES (?,?,?,?)",
+        ("e3", "VERIFIED", "A", "https://source/e3"),
+    )
+    # Explicit publication before cutoff is valid even when retrieval was later.
+    db.execute(
+        "INSERT INTO source_snapshot VALUES (?,?,?,?,?)",
+        (
+            "https://source/e3",
+            "2026-09-24T10:00:00+00:00",
+            "EXACT",
+            "2026-09-25T09:00:00+00:00",
+            "2026-09-25T11:00:00+00:00",
+        ),
+    )
+    db.commit()
+    starts, wins, rate = _prior_record(db, "tennis", "p1", cutoff)
+    assert (starts, wins) == (1, 1), (starts, wins)
+    assert abs(rate - (2.0 / 3.0)) < 1e-12, rate
+    db.close()
+
 
 def main():
     assert_query_shape()
