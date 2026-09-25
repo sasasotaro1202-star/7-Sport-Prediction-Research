@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import csv
 import io
+import os
 import json
 import subprocess
 from collections import OrderedDict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 
 RESULTS_FILE = "ufc_fight_results.csv"
 EVENTS_FILE = "ufc_event_details.csv"
-OUT = Path("results/ufc_greco_pit_provenance.json")
+OUT = Path(os.environ.get("UFC_GRECO_PIT_PROVENANCE_OUT", "results/ufc_greco_pit_provenance.json"))
 
 
 def git(*args: str) -> str:
@@ -63,7 +64,7 @@ def main() -> int:
     commits = git("log", "--reverse", "--format=%H", "--follow", "--", RESULTS_FILE).splitlines()
     if not commits:
         raise SystemExit("no historical commits found")
-    first_bout, first_event = first_seen_index(commits)
+    first_bout, _first_event = first_seen_index(commits)
 
     current_events = parse_csv_at("HEAD", EVENTS_FILE)
     event_date = {
@@ -72,7 +73,7 @@ def main() -> int:
         if (r.get("EVENT") or "").strip()
     }
 
-    total = with_event_date = before_event = at_or_after_event = unknown = 0
+    total = with_event_date = before_cutoff = at_or_after_cutoff = unknown = 0
     examples = []
     for key, seen_at in first_bout.items():
         total += 1
@@ -82,16 +83,18 @@ def main() -> int:
             unknown += 1
             continue
         with_event_date += 1
-        if seen_at < when:
-            before_event += 1
+        cutoff = when - timedelta(minutes=60)
+        if seen_at < cutoff:
+            before_cutoff += 1
         else:
-            at_or_after_event += 1
+            at_or_after_cutoff += 1
         if len(examples) < 10 and not seen_at < when:
             examples.append({
                 "event": event,
                 "bout": _bout,
                 "first_seen_at_utc": seen_at.isoformat(),
                 "event_date_utc": when.isoformat(),
+                "conservative_cutoff_utc": (when - timedelta(minutes=60)).isoformat(),
             })
 
     report = OrderedDict([
