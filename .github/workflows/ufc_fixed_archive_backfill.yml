@@ -108,6 +108,25 @@ jobs:
           test -s models/research/ufc_current.joblib
           cp models/research/ufc_current.joblib /tmp/ufc_incumbent.joblib
 
+      - name: Verify enriched strict PIT replay count before modeling
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python - <<'PY'
+          import sqlite3
+          con = sqlite3.connect("data/db/sports_v45.sqlite")
+          row = con.execute("""
+              SELECT
+                COUNT(*) AS replay_rows,
+                SUM(CASE WHEN replay_status='REPLAYABLE' AND leakage_status='CLEAN' THEN 1 ELSE 0 END) AS clean_replayable
+              FROM pit_replay
+              WHERE event_id IN (SELECT event_id FROM event WHERE sport='ufc')
+          """).fetchone()
+          print({"ufc_pit_replay_rows": int(row[0] or 0), "ufc_clean_replayable": int(row[1] or 0)})
+          if int(row[1] or 0) < 70:
+              raise SystemExit("ENRICHED_PIT_COUNT_REGRESSION")
+          con.close()
+          PY
+
       - name: Research UFC with fresh frozen holdout on fixed-archive PIT DB
         run: |
           set -euo pipefail
