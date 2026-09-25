@@ -457,6 +457,17 @@ def evaluate_recent_weighted_router_holdout_from_folds(
     }
 
 def train(s):
+  # Fail-closed guard: deferred sports must never be trained through the generic lane.
+  # They require an explicit sport-specific PIT/OOS implementation before enabling.
+  if s in DEFERRED_SPORTS:
+   return _write_result(s, {
+    'sport': s,
+    'status': 'DEFERRED_PIT',
+    'reason': 'sport_specific_PIT_gate_not_enabled_for_generic_strict_training',
+    'production_changed': False,
+    'promotion_allowed': False,
+   })
+
  if s=='f1':
   return _write_result(s,f1())
  if s=='boxing':
