@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: all-sport-research-matrix
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   PYTHONUNBUFFERED: "1"
