@@ -19,7 +19,7 @@ env:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v6
         with:
@@ -102,10 +102,31 @@ jobs:
           con.close()
           PY
 
-      - name: Research UFC with frozen holdout on fixed-archive PIT DB
+      - name: Preserve incumbent UFC research artifact
+        run: |
+          set -euo pipefail
+          test -s models/research/ufc_current.joblib
+          cp models/research/ufc_current.joblib /tmp/ufc_incumbent.joblib
+
+      - name: Research UFC with fresh frozen holdout on fixed-archive PIT DB
         run: |
           set -euo pipefail
           timeout --signal=TERM --kill-after=30s 4500s python -m src.research_cycle_strict --sport ufc
+          PYTHONPATH=. python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/research/ufc.json")
+          obj=json.loads(p.read_text(encoding="utf-8"))
+          rows=obj if isinstance(obj,list) else [obj]
+          if not rows or rows[0].get("status") != "TRAINED":
+              raise SystemExit(f"UFC_RESEARCH_NOT_TRAINED:{rows}")
+          print({"status": rows[0].get("status"), "model_version": rows[0].get("model_version")})
+          PY
+
+      - name: Compare incumbent vs fixed-archive candidate on identical OOS and holdout
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/compare_ufc_fixed_archive_oos.py             --incumbent /tmp/ufc_incumbent.joblib             --candidate models/research/ufc_current.joblib             --output results/ufc_fixed_archive_oos_comparison.json
 
       - name: Independent PIT leakage audit on research DB
         run: |
@@ -116,6 +137,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ufc-fixed-archive-backfill-${{ github.run_id }}
-          path: results/ufc_fixed_archive_backfill.json
+          path: |
+            results/ufc_fixed_archive_backfill.json
+            results/ufc_fixed_archive_oos_comparison.json
+            results/research/ufc.json
+            results/research/ufc_frozen_holdout.json
           retention-days: 14
           if-no-files-found: error
