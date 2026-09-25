@@ -121,16 +121,19 @@ jobs:
                   report['exact_source_snapshots']=int(con.execute("select count(*) from source_snapshot where sport=? and availability_status='EXACT'",(sport,)).fetchone()[0])
               con.close()
 
-          for p in [
-              Path('results/tennis_public_backfill.json'),
-              Path('results/v45/rugby_coverage.json'),
-              Path('results/v45/boxing_coverage.json'),
-              Path('results/f1_openf1_backfill.json'),
-          ]:
+          collector_paths = {
+              'tennis': [Path('results/tennis_public_backfill.json')],
+              'f1': [Path('results/f1_openf1_backfill.json')],
+              'rugby': [Path('results/v45/rugby_coverage.json'), Path('data/db/rugby_coverage.json')],
+              'boxing': [Path('results/v45/boxing_coverage.json')],
+          }[sport]
+          for p in collector_paths:
               if p.is_file():
                   try:
-                      report['collector_report']=json.loads(p.read_text(encoding='utf-8'))
-                      break
+                      candidate=json.loads(p.read_text(encoding='utf-8'))
+                      if str(candidate.get('sport') or '').lower() in {sport, ''}:
+                          report['collector_report']=candidate
+                          break
                   except Exception:
                       pass
 
