@@ -364,6 +364,8 @@ jobs:
         run: python -m src.production_release_gate
       - name: Future prediction inference
         run: python -m src.future_predictor
+      - name: Score and accumulate prediction experience
+        run: python -m src.prediction_experience --score-only
       - name: Production invariants
         run: python -m src.production_invariants
       - name: Compile check
