@@ -47,6 +47,18 @@ jobs:
           git cat-file -s HEAD:ufc_fight_stats.csv
           echo '--- HISTORY ---'
           git log -n 40 --format='%H %cI %s' --follow -- ufc_fight_stats.csv
+      - name: Quantify historical first-seen provenance
+        run: |
+          set -euo pipefail
+          python scripts/ufc_greco_pit_provenance.py
+
+      - name: Upload provenance index
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufc-greco-pit-provenance-${{ github.run_id }}
+          path: results/ufc_greco_pit_provenance.json
+          retention-days: 7
+
       - name: Clone parser source for reference
         run: |
           set -euo pipefail
