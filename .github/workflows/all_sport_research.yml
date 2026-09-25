@@ -70,8 +70,6 @@ jobs:
           restore-keys: |
             nine-sport-target-db-v4-${{ matrix.sport }}-pit-
             nine-sport-target-db-v4-${{ matrix.sport }}-
-        continue-on-error: true
-
       - name: Initialize database
         run: |
           set -euo pipefail
