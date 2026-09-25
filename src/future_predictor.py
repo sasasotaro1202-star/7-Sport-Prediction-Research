@@ -196,7 +196,9 @@ def _safe_prior_f1(c,now):
             starts=c.execute(
                 """SELECT COUNT(DISTINCT ms.event_id)
                      FROM match_stats ms JOIN event e ON e.event_id=ms.event_id
-                     JOIN source_snapshot ss ON ss.source_url=ms.source_url
+                     JOIN source_snapshot ss
+                       ON ss.source_url=ms.source_url
+                      AND ss.event_time_utc=e.event_time_utc
                     WHERE ms.sport='f1' AND ms.participant_id=? AND ms.stat_name='results.position'
                       AND e.event_time_utc < ?
                       AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
@@ -208,7 +210,9 @@ def _safe_prior_f1(c,now):
             wins=c.execute(
                 """SELECT COUNT(*)
                      FROM match_stats ms JOIN event e ON e.event_id=ms.event_id
-                     JOIN source_snapshot ss ON ss.source_url=ms.source_url
+                     JOIN source_snapshot ss
+                       ON ss.source_url=ms.source_url
+                      AND ss.event_time_utc=e.event_time_utc
                     WHERE ms.sport='f1' AND ms.participant_id=? AND ms.stat_name='results.position'
                       AND ms.value_num=1 AND e.event_time_utc < ?
                       AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
