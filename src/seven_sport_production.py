@@ -269,24 +269,47 @@ def collect_wta_public(c,h,start_date,end_date):
     UNVERIFIABLE and are never promoted into strict PIT training features.
     """
     base='https://api.wtatennis.com/tennis'
-    try:
-        raw,retrieved,_=h.get(f'{base}/tournaments?page=0&pageSize=100')
-        payload=json.loads(raw)
-    except Exception:
-        return 0
-    tournaments=payload.get('content') if isinstance(payload,dict) else None
-    if not isinstance(tournaments,list):
-        tournaments=payload.get('tournaments') if isinstance(payload,dict) else []
+    tournaments=[]
     seen_tournaments=set()
+    current_year=datetime.now(timezone.utc).year
+    # The calendar is paginated across many years. Walk a bounded number of pages
+    # so current-year tournaments are not silently missed while avoiding an
+    # unbounded request fan-out in production collection.
+    for page in range(8):
+        try:
+            raw,_,_=h.get(f'{base}/tournaments?page={page}&pageSize=100')
+            payload=json.loads(raw)
+        except Exception:
+            break
+        rows=payload.get('content') if isinstance(payload,dict) else None
+        if not isinstance(rows,list):
+            rows=payload.get('tournaments') if isinstance(payload,dict) else []
+        if not rows:
+            break
+        tournaments.extend(rows)
+        page_info=payload.get('pageInfo') if isinstance(payload,dict) else {}
+        num_pages=page_info.get('numPages') if isinstance(page_info,dict) else None
+        if isinstance(num_pages,int) and page + 1 >= num_pages:
+            break
     event_rows=0
     for t in tournaments:
         if not isinstance(t,dict):
             continue
         tg=t.get('tournamentGroup') or {}
         group_id=tg.get('id') or t.get('tournamentGroupId') or t.get('groupId')
-        year=t.get('year') or t.get('seasonYear') or (datetime.now(timezone.utc).year if group_id else None)
-        if not group_id or str(year)!=str(datetime.now(timezone.utc).year):
+        year=t.get('year') or t.get('seasonYear') or (current_year if group_id else None)
+        if not group_id or str(year)!=str(current_year):
             continue
+        tournament_start=_first_time(t.get('startDate'))
+        tournament_end=_first_time(t.get('endDate')) or tournament_start
+        if tournament_start and tournament_end:
+            try:
+                if datetime.fromisoformat(tournament_end.replace('Z','+00:00')).date() < start_date:
+                    continue
+                if datetime.fromisoformat(tournament_start.replace('Z','+00:00')).date() > end_date:
+                    continue
+            except Exception:
+                pass
         key=(str(group_id),str(year))
         if key in seen_tournaments:
             continue
@@ -315,8 +338,14 @@ def collect_wta_public(c,h,start_date,end_date):
             edt=datetime.fromisoformat(et.replace('Z','+00:00')).date()
             if edt < start_date or edt > end_date:
                 continue
-            p1=_nested_player_name(m.get('player1') or m.get('player1Name') or m.get('homePlayer'))
-            p2=_nested_player_name(m.get('player2') or m.get('player2Name') or m.get('awayPlayer'))
+            p1=_nested_player_name(
+                m.get('player1') or m.get('player1Name') or m.get('homePlayer') or
+                m.get('playerA') or m.get('entrant1') or m.get('entrantA')
+            )
+            p2=_nested_player_name(
+                m.get('player2') or m.get('player2Name') or m.get('awayPlayer') or
+                m.get('playerB') or m.get('entrant2') or m.get('entrantB')
+            )
             if not p1 or not p2 or p1==p2:
                 continue
             round_name=clean((m.get('round') or m.get('roundName') or m.get('roundLabel') or ''))
