@@ -84,10 +84,15 @@ def _weighted_prediction(fitted, names, weights, X):
     return _clip(arr @ w), arr
 
 
+def _high_confidence_mask(p):
+    p = _clip(p)
+    return np.maximum(p, 1.0 - p) >= CONFIDENCE_FLOOR
+
+
 def _risk_target(p, y):
     p = _clip(p)
     y = np.asarray(y, dtype=int)
-    confident = np.maximum(p, 1.0 - p) >= CONFIDENCE_FLOOR
+    confident = _high_confidence_mask(p)
     pred = (p >= 0.5).astype(int)
     miss = pred != y
     return (confident & miss).astype(int)
@@ -306,6 +311,8 @@ def _evaluate_sport(con, sport):
     folds = []
     history_meta_x = []
     history_target = []
+    history_high_conf_x = []
+    history_high_conf_target = []
 
     for end in range(start, sel, fold_step):
         te = min(end + fold_step, sel)
@@ -325,22 +332,32 @@ def _evaluate_sport(con, sport):
         target = _risk_target(p, y[end:te])
 
         risk_model = None
-        if len(history_target) >= 240 and len(np.unique(history_target)) == 2:
+        if (
+            len(history_high_conf_target) >= 120
+            and len(np.unique(history_high_conf_target)) == 2
+        ):
             risk_model = _risk_pipeline()
             try:
-                risk_model.fit(np.asarray(history_meta_x), np.asarray(history_target))
+                risk_model.fit(
+                    np.asarray(history_high_conf_x),
+                    np.asarray(history_high_conf_target),
+                )
             except (ValueError, FloatingPointError):
                 risk_model = None
 
+        test_conf = _high_confidence_mask(p)
+        risk = np.full(len(features), 0.5, dtype=float)
         if risk_model is None:
-            risk = np.full(len(features), 0.5, dtype=float)
             enabled = False
         else:
             try:
-                risk = np.clip(risk_model.predict_proba(features)[:, 1], EPS, 1.0 - EPS)
+                risk[test_conf] = np.clip(
+                    risk_model.predict_proba(features[test_conf])[:, 1],
+                    EPS,
+                    1.0 - EPS,
+                )
                 enabled = True
             except (ValueError, FloatingPointError):
-                risk = np.full(len(features), 0.5, dtype=float)
                 enabled = False
 
         folds.append(
@@ -359,6 +376,9 @@ def _evaluate_sport(con, sport):
         )
         history_meta_x.extend(features.tolist())
         history_target.extend(target.tolist())
+        if test_conf.any():
+            history_high_conf_x.extend(features[test_conf].tolist())
+            history_high_conf_target.extend(target[test_conf].tolist())
 
     if len(folds) < 6:
         return {
@@ -502,8 +522,8 @@ def _evaluate_sport(con, sport):
             selected_strength = float(r["strength"])
             break
 
-    final_pre_x = np.asarray(history_meta_x, dtype=float)
-    final_pre_target = np.asarray(history_target, dtype=int)
+    final_pre_x = np.asarray(history_high_conf_x, dtype=float)
+    final_pre_target = np.asarray(history_high_conf_target, dtype=int)
 
     holdout_fitted = {}
     for name in names:
@@ -516,9 +536,14 @@ def _evaluate_sport(con, sport):
     holdout_ids = [str(rows[i][0]) for i in range(sel, len(rows))]
     holdout_ctx = np.asarray([context_map[eid] for eid in holdout_ids], dtype=float)
     holdout_features = _feature_matrix(holdout_base, holdout_ep, holdout_ctx, X[sel:])
-    holdout_risk, risk_enabled = _fit_holdout_risk_model(
-        final_pre_x, final_pre_target, holdout_features
+    holdout_conf = _high_confidence_mask(holdout_base)
+    holdout_risk = np.full(len(holdout_features), 0.5, dtype=float)
+    holdout_risk_conf, risk_enabled = _fit_holdout_risk_model(
+        final_pre_x,
+        final_pre_target,
+        holdout_features[holdout_conf],
     )
+    holdout_risk[holdout_conf] = holdout_risk_conf
     if selected_key.startswith("dissent_"):
         holdout_candidate, _ = _policy_dissent(
             holdout_base, holdout_risk, holdout_ep, weights_vec, selected_strength
@@ -575,6 +600,7 @@ def _evaluate_sport(con, sport):
         },
         "policy": {
             "target": "high-confidence incumbent miss",
+            "risk_model_training_population": "high-confidence cases only",
             "confidence_floor": CONFIDENCE_FLOOR,
             "risk_threshold": RISK_THRESHOLD,
             "candidate_strengths": list(POLICY_STRENGTHS),
