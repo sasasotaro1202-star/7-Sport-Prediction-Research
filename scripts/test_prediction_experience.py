@@ -37,6 +37,24 @@ class PredictionExperienceTests(unittest.TestCase):
         self.assertFalse(row["correct"])
         self.assertGreater(row["logloss"], 10.0)
 
+    def test_score_binary_rejects_out_of_range_probability(self):
+        pred = {"probability_side_a": 1.2, "probability_side_b": -0.2}
+        with self.assertRaisesRegex(RuntimeError, "INVALID_BINARY_PROBABILITIES:out_of_range"):
+            pe._score_binary(pred, "A")
+
+    def test_score_binary_rejects_non_unit_probability_sum(self):
+        pred = {"probability_side_a": 0.7, "probability_side_b": 0.2}
+        with self.assertRaisesRegex(RuntimeError, "INVALID_BINARY_PROBABILITIES:sum_not_one"):
+            pe._score_binary(pred, "A")
+
+    def test_score_binary_accepts_valid_probability_pair(self):
+        row = pe._score_binary(
+            {"probability_side_a": 0.7, "probability_side_b": 0.3}, "A"
+        )
+        self.assertIsNotNone(row)
+        self.assertEqual(row["predicted_outcome"], "A")
+        self.assertTrue(row["correct"])
+
     def test_probability_bucket_and_case_profile(self):
         self.assertEqual(pe._bucket_probability(0.82), "0.80-0.90")
         profile = pe._case_profile(
