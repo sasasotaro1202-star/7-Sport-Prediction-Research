@@ -275,9 +275,14 @@ def collect_wta_public(c,h,start_date,end_date):
     # The calendar is paginated across many years. Walk a bounded number of pages
     # so current-year tournaments are not silently missed while avoiding an
     # unbounded request fan-out in production collection.
+    query_from=(start_date-timedelta(days=14)).isoformat()
+    query_to=end_date.isoformat()
     for page in range(8):
         try:
-            raw,_,_=h.get(f'{base}/tournaments?page={page}&pageSize=100')
+            raw,_,_=h.get(
+                f'{base}/tournaments?page={page}&pageSize=100'
+                f'&from={query_from}&to={query_to}'
+            )
             payload=json.loads(raw)
         except Exception:
             break
