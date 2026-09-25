@@ -188,7 +188,7 @@ def _rizin_result_urls(html, base_url):
     prioritized = []
     fallback = []
     anchor_re = re.compile(
-        r'<a\\b[^>]+(?:href|data-href)=["\\\']([^"\\\']*/_ct/\\d+)["\\\'][^>]*>(.*?)</a>',
+        r'<a\b[^>]+(?:href|data-href)=["\']([^"\']*/_ct/\d+)["\'][^>]*>(.*?)</a>',
         re.I | re.S,
     )
     for href, inner in anchor_re.findall(html or ""):
@@ -197,8 +197,8 @@ def _rizin_result_urls(html, base_url):
         (prioritized if "試合結果一覧" in label else fallback).append(url)
 
     candidates = prioritized + fallback
-    candidates.extend(re.findall(r"https?://jp\\.rizinff\\.com/_ct/\\d+", html or ""))
-    candidates.extend(re.findall(r"(/_ct/\\d+)", html or ""))
+    candidates.extend(re.findall(r"https?://jp\.rizinff\.com/_ct/\d+", html or ""))
+    candidates.extend(re.findall(r"(/_ct/\d+)", html or ""))
     out = []
     seen = set()
     for raw_url in candidates:
