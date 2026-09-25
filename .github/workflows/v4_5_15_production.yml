@@ -10,11 +10,10 @@ on:
 permissions:
   contents: write
 concurrency:
-  # Only one canonical production execution may exist at a time. When main
-  # advances, the older execution is cancelled rather than reaching the
-  # stale-SHA fail-fast guard and producing a red Action.
+  # Keep an active canonical run intact. At most one newer run waits behind it;
+  # stale-SHA guards stop an old run before mutable publication if main advances.
   group: nine-sport-target-canonical-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 env:
   PYTHONUNBUFFERED: '1'
 jobs:
