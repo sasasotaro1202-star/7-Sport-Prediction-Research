@@ -86,7 +86,16 @@ jobs:
               python -m src.public_history_backfill --sports rizin
               ;;
             f1)
-              python -m src.f1_openf1_backfill --start-year 2023 --end-year "$(date -u +%Y)" --timeout 45
+              if python -m src.f1_openf1_backfill --start-year 2023 --end-year "$(date -u +%Y)" --timeout 45; then
+                echo "F1_OPENF1_STATUS=OK"
+              else
+                rc=$?
+                if [ "$rc" -ne 2 ]; then
+                  echo "F1_OPENF1_STATUS=FATAL exit=$rc"
+                  exit "$rc"
+                fi
+                echo "F1_OPENF1_STATUS=UNAVAILABLE exit=2; continuing with research-only Jolpica pairwise OOS"
+              fi
               ;;
             rugby)
               python -m src.rugby_production --max-pages 150
