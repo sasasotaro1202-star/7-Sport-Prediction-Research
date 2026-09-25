@@ -1,0 +1,49 @@
+name: Nine-Sport Lane Audit
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/nine_sport_lane_audit.py'
+      - 'results/research/**'
+      - 'results/v45/**'
+      - '.github/workflows/nine_sport_lane_audit.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nine-sport-lane-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run nine-sport lane audit
+        run: python -m src.nine_sport_lane_audit
+      - name: Validate exactly nine sport lanes
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/nine_sport_lane_audit.json")
+          o=json.loads(p.read_text(encoding="utf-8"))
+          assert o["status"] == "OK"
+          assert len(o["sports"]) == 9
+          expected={"valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby","boxing"}
+          assert set(o["sports"]) == expected
+          print("NINE_SPORT_LANES=OK")
+          PY
+      - name: Upload lane audit
+        uses: actions/upload-artifact@v6
+        with:
+          name: nine-sport-lane-audit-${{ github.run_id }}
+          path: results/nine_sport_lane_audit.json
+          if-no-files-found: error
+          retention-days: 14
