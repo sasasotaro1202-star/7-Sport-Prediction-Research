@@ -9,7 +9,6 @@ research-only: it never changes the incumbent probability by itself.
 from typing import Dict, Sequence
 import numpy as np
 from sklearn.impute import SimpleImputer
-from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
@@ -101,7 +100,11 @@ def _aurc(y_error, risk):
     kept = y_error[order]
     cum = np.cumsum(kept) / np.arange(1, len(kept)+1)
     coverage = np.arange(1, len(kept)+1) / len(kept)
-    return float(np.trapz(cum, coverage)) if len(cum) > 1 else float(cum[0])
+    if len(cum) <= 1:
+        return float(cum[0])
+    # NumPy 2.0 removed np.trapz; retain compatibility with older NumPy.
+    integrate = getattr(np, "trapezoid", np.trapz)
+    return float(integrate(cum, coverage))
 
 
 def evaluate_selective_case_risk_oof(
