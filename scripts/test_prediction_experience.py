@@ -37,6 +37,41 @@ class PredictionExperienceTests(unittest.TestCase):
         self.assertFalse(row["correct"])
         self.assertGreater(row["logloss"], 10.0)
 
+    def test_score_archive_rejects_invalid_verified_outcome_label(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as td:
+            old_pred = pe.PREDICTIONS_DIR
+            old_sett = pe.SETTLEMENTS_DIR
+            old_sum = pe.SUMMARY_OUT
+            try:
+                pe.PREDICTIONS_DIR = Path(td) / "predictions"
+                pe.SETTLEMENTS_DIR = Path(td) / "settlements"
+                pe.SUMMARY_OUT = Path(td) / "summary.json"
+                pe.PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
+                (pe.PREDICTIONS_DIR / "2026-09-26.jsonl").write_text(
+                    json.dumps({
+                        "prediction_id": "bad-outcome", "sport": "basketball", "event_id": "e1",
+                        "event_time_utc": "2026-09-26T10:00:00+00:00",
+                        "prediction_cutoff_at_utc": "2026-09-26T09:00:00+00:00",
+                        "generated_at_utc": "2026-09-26T09:01:00+00:00",
+                        "probability_side_a": 0.6, "probability_side_b": 0.4,
+                    }) + "\n",
+                    encoding="utf-8",
+                )
+                old_connect = pe._connect_dbs
+                db = sqlite3.connect(":memory:")
+                db.execute("CREATE TABLE event_outcome(outcome TEXT, outcome_status TEXT, source TEXT, event_id TEXT)")
+                db.execute("INSERT INTO event_outcome VALUES ('HOME','VERIFIED','test','e1')")
+                pe._connect_dbs = lambda: {"basketball": db}
+                with self.assertRaisesRegex(RuntimeError, "INVALID_ACTUAL_OUTCOME_LABEL:HOME"):
+                    pe.score_archive()
+                pe._connect_dbs = old_connect
+                db.close()
+            finally:
+                pe.PREDICTIONS_DIR = old_pred
+                pe.SETTLEMENTS_DIR = old_sett
+                pe.SUMMARY_OUT = old_sum
+
     def test_score_binary_rejects_out_of_range_probability(self):
         pred = {"probability_side_a": 1.2, "probability_side_b": -0.2}
         with self.assertRaisesRegex(RuntimeError, "INVALID_BINARY_PROBABILITIES:out_of_range"):
