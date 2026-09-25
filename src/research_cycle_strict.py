@@ -589,8 +589,19 @@ def train(s):
      for end in range(start,sel,step):
       te=min(end+step,sel)
       if len(np.unique(y[:end]))<2:continue
+      # Columns with no observed values in the training prefix carry no
+      # learnable signal for this fold. Drop them using training data only;
+      # never inspect the OOS/test prefix when deciding the feature set.
+      fold_keep=np.isfinite(X[:end]).any(axis=0)
+      if not fold_keep.any():
+       return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_observed_fold_training_features','fold_end':end})
+      fold_X_train=X[:end,fold_keep]
+      fold_X_test=X[end:te,fold_keep]
+      dropped=int((~fold_keep).sum())
+      if dropped:
+       print(f"FOLD_FEATURE_PRUNE fold_end={end} dropped_all_missing={dropped}",flush=True)
       fold_pred=_fit_predict_oos_models_parallel(
-       fold_pool,names,X[:end],y[:end],X[end:te]
+       fold_pool,names,fold_X_train,y[:end],fold_X_test
       )
       for name in names:
        oof_probs[name].extend(fold_pred[name].tolist())
