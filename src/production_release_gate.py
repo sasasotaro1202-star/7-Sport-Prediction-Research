@@ -66,7 +66,7 @@ def _artifact_valid(meta):
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
 OUT=ROOT/'results/release_gate.json'
-SPORTS=('valorant','basketball','volleyball','ufc','rizin')
+SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
 COMPLETED_STATUSES=('COMPLETED','FINISHED','POST')
 
