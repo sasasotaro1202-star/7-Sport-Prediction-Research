@@ -49,7 +49,17 @@ def _features(bp: np.ndarray, ctx: np.ndarray) -> np.ndarray:
     from src.uncertainty_dynamic_router_oos import uncertainty_features
     bp = _clip(bp)
     ctx = np.asarray(ctx, dtype=float)
-    uf = uncertainty_features(bp, ctx)
+    if bp.shape[1] >= 2:
+        uf = uncertainty_features(bp, ctx)
+    else:
+        # Single-model incumbents have no inter-model disagreement surface.
+        # Preserve a fixed-width feature schema with neutral uncertainty fields.
+        mean_p_tmp = np.mean(bp, axis=1)
+        uf = np.column_stack([
+            mean_p_tmp, np.zeros(len(bp)),
+            -(mean_p_tmp*np.log(mean_p_tmp) + (1.0-mean_p_tmp)*np.log(1.0-mean_p_tmp)),
+            np.zeros((len(bp), 7)),
+        ])
     mean_p = np.mean(bp, axis=1)
     confidence = np.abs(mean_p - 0.5)
     entropy = -(mean_p*np.log(mean_p) + (1.0-mean_p)*np.log(1.0-mean_p))
