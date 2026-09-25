@@ -101,23 +101,34 @@ def _prior_record(c,sport,participant_id,event_time):
     """PIT-safe historical win-rate prior using only completed events before target time."""
     starts=c.execute(
         """SELECT COUNT(DISTINCT e.event_id)
-             FROM event e JOIN event_participant ep ON ep.event_id=e.event_id
+             FROM event e
+             JOIN event_participant ep ON ep.event_id=e.event_id
+             JOIN event_outcome o ON o.event_id=e.event_id
+             JOIN source_snapshot ss ON ss.source_url=o.source_url
             WHERE e.sport=? AND ep.participant_id=?
               AND e.event_time_utc < ?
-              AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')""",
-        (sport,participant_id,event_time),
+              AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
+              AND o.outcome_status='VERIFIED'
+              AND ss.availability_status='EXACT'
+              AND ss.source_available_at_utc IS NOT NULL
+              AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+        (sport,participant_id,event_time,event_time),
     ).fetchone()[0]
     wins=c.execute(
         """SELECT COUNT(*)
              FROM event e
              JOIN event_participant ep ON ep.event_id=e.event_id
              JOIN event_outcome o ON o.event_id=e.event_id
+             JOIN source_snapshot ss ON ss.source_url=o.source_url
             WHERE e.sport=? AND ep.participant_id=?
               AND e.event_time_utc < ?
               AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
               AND o.outcome_status='VERIFIED'
-              AND o.outcome=ep.side""",
-        (sport,participant_id,event_time),
+              AND o.outcome=ep.side
+              AND ss.availability_status='EXACT'
+              AND ss.source_available_at_utc IS NOT NULL
+              AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+        (sport,participant_id,event_time,event_time),
     ).fetchone()[0]
     starts=int(starts or 0); wins=int(wins or 0)
     return starts,wins,(wins+1.0)/(starts+2.0)
@@ -178,19 +189,28 @@ def _safe_prior_f1(c,now):
         scored=[]
         for pid,name in drivers:
             starts=c.execute(
-                """SELECT COUNT(DISTINCT e.event_id)
-                     FROM event e JOIN event_participant ep ON ep.event_id=e.event_id
-                    WHERE e.sport='f1' AND ep.participant_id=? AND lower(coalesce(ep.role,''))='driver'
-                      AND e.event_time_utc < ? AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')""",
-                (pid,event_time),
+                """SELECT COUNT(DISTINCT ms.event_id)
+                     FROM match_stats ms JOIN event e ON e.event_id=ms.event_id
+                     JOIN source_snapshot ss ON ss.source_url=ms.source_url
+                    WHERE ms.sport='f1' AND ms.participant_id=? AND ms.stat_name='results.position'
+                      AND e.event_time_utc < ?
+                      AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
+                      AND ss.availability_status='EXACT'
+                      AND ss.source_available_at_utc IS NOT NULL
+                      AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+                (pid,event_time,event_time),
             ).fetchone()[0]
             wins=c.execute(
                 """SELECT COUNT(*)
                      FROM match_stats ms JOIN event e ON e.event_id=ms.event_id
+                     JOIN source_snapshot ss ON ss.source_url=ms.source_url
                     WHERE ms.sport='f1' AND ms.participant_id=? AND ms.stat_name='results.position'
                       AND ms.value_num=1 AND e.event_time_utc < ?
-                      AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')""",
-                (pid,event_time),
+                      AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
+                      AND ss.availability_status='EXACT'
+                      AND ss.source_available_at_utc IS NOT NULL
+                      AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+                (pid,event_time,event_time),
             ).fetchone()[0]
             scored.append((pid,name,int(starts or 0),int(wins or 0),(int(wins or 0)+1.0)/(int(starts or 0)+2.0)))
         total=sum(x[4] for x in scored)
