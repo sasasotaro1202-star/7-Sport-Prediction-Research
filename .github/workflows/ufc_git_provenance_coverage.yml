@@ -49,7 +49,7 @@ jobs:
       - name: Run non-mutating provenance coverage estimate
         run: PYTHONPATH=. python -m src.ufc_git_provenance_coverage --db data/db/sports_v45.sqlite --output results/ufc_git_provenance_coverage.json
       - name: Upload coverage report
-        uses: actions/upload-artifact@3f4b5d5c6b7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef
+        uses: actions/upload-artifact@v4
         with:
           name: ufc-git-provenance-coverage-${{ github.run_id }}
           path: results/ufc_git_provenance_coverage.json
