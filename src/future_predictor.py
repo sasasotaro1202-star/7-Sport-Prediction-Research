@@ -482,6 +482,8 @@ def main():
         con=sqlite3.connect(db_path)
         try:
             results.append(predict_sport(con,s,now))
+            # Export both newly-created and previously persisted forward predictions.
+            experience.archive_forward_prediction_db(con, s, now.isoformat())
             con.commit()
         except Exception as exc:
             results.append({'sport':s,'status':'PREDICTION_BLOCKED_RUNTIME','reason':type(exc).__name__})
