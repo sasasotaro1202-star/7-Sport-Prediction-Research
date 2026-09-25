@@ -266,10 +266,13 @@ def main():
             'future predictor lacks gated situation-specific routing path')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
     require('sha256_file' in manifest and 'source_git_commit_sha' in manifest,'reproducibility manifest lacks source/hash provenance')
+    boxing_def_pos=strict_src.find("def boxing()")
+    boxing_handler_pos=strict_src.find("if s=='boxing':")
+    deferred_guard_pos=strict_src.find("if s in DEFERRED_SPORTS:")
     require(
-        re.search(r"def\s+boxing\(\).*?DEFERRED_PIT", strict_src, re.S) is not None
-                and (re.search(r"if\s+s\s*==\s*['"]boxing['"]", strict_src) is not None or "def boxing()" in strict_src),
-        'Boxing research lane is not wired to an explicit deferred handler')
+        boxing_def_pos >= 0 and boxing_handler_pos >= 0
+        and (deferred_guard_pos < 0 or boxing_handler_pos < deferred_guard_pos),
+        'Boxing research lane is not wired to an explicit deferred handler before the generic gate')
     require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src and "ALL_SPORTS=SPORTS+DEFERRED_SPORTS" in strict_src,
             'Strict research does not explicitly separate the complete active/deferred sport lanes')
     research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
