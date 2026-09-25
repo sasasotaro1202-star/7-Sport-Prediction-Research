@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin
@@ -48,7 +49,8 @@ def sid(*values):
 
 
 def publication_time(html):
-    """Extract only an explicit publication timestamp from the official page.
+    """Extract only a full explicit publication timestamp from the official page.
+    Date-only publication values are not sufficient for the strict PIT clock.
     Retrieval time and dateModified are intentionally not accepted as PIT evidence.
     """
     patterns = [
@@ -59,7 +61,10 @@ def publication_time(html):
     for pattern in patterns:
         m = re.search(pattern, html or "", re.I)
         if m:
-            value = iso(m.group(1))
+            raw = m.group(1)
+            if not re.search(r"(?:T|\s)\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?", raw):
+                continue
+            value = iso(raw)
             if value:
                 return value
     return None
@@ -172,97 +177,142 @@ def html_text(raw):
     return clean(" ".join(meta_parts) + " " + raw_body)
 
 
+def _rizin_archive_urls(base, max_archive_pages):
+    """Return a bounded official result-archive page set."""
+    cap = max(1, int(max_archive_pages))
+    return [base if page == 1 else f"{base}?p={page}" for page in range(1, cap + 1)]
+
+
+def _rizin_result_urls(html, base_url):
+    urls = set(re.findall(r"https?://jp\.rizinff\.com/_ct/\d+", html or ""))
+    urls.update(urljoin(base_url, x) for x in re.findall(r'(?:href|data-href)=["\']([^"\']*/_ct/\d+)["\']', html or "", re.I))
+    urls.update(urljoin(base_url, x) for x in re.findall(r"(/_ct/\d+)", html or ""))
+    return urls
+
+
+def _rizin_detail_fetch(hurl):
+    try:
+        raw, retrieved = http(hurl)
+        plain = html_text(raw)
+        if "（WIN）" not in plain and "(WIN)" not in plain and "WIN" not in plain:
+            m_id = re.search(r"/_ct/(\d+)", hurl)
+            if m_id:
+                amp_url = f"https://jp.rizinff.com/_amp/_ct/{m_id.group(1)}"
+                try:
+                    amp_raw, amp_retrieved = http(amp_url)
+                    amp_plain = html_text(amp_raw)
+                    if len(amp_plain) > len(plain) and ("（WIN）" in amp_plain or "(WIN)" in amp_plain or "WIN" in amp_plain):
+                        raw, retrieved, plain = amp_raw, amp_retrieved, amp_plain
+                        hurl = amp_url
+                except Exception:
+                    pass
+        return hurl, raw, retrieved, plain
+    except Exception:
+        return None
+
+
 def backfill_rizin(c, max_pages=150):
+    # Crawl the official paginated result archive before fetching detail articles.
     index, _ = http(RIZIN_TAG)
-    urls = set(re.findall(r"https?://jp\.rizinff\.com/_ct/\d+", index))
-    urls.update(urljoin(RIZIN_TAG, x) for x in re.findall(r"(?:href|data-href)=[\"']([^\"']*/_ct/\d+)[\"']", index, re.I))
-    urls.update(urljoin(RIZIN_TAG, x) for x in re.findall(r"(/_ct/\d+)", index))
-    added = 0; labeled = 0
-    for url in sorted(urls)[:max_pages]:
+    archive_cap = min(24, max(6, (int(max_pages) + 7) // 8))
+    archive_urls = _rizin_archive_urls(RIZIN_TAG, archive_cap)
+    archive_html = {RIZIN_TAG: index}
+    for page_url in archive_urls[1:]:
         try:
-            raw, retrieved = http(url)
-            plain = html_text(raw)
-            # Some RIZIN pages return a thin shell to non-browser clients while
-            # the AMP variant exposes the same official result content directly.
-            # Retry the official AMP representation before treating the page as
-            # empty; this is a bounded fallback, not a second source.
-            if "（WIN）" not in plain and "(WIN)" not in plain and "WIN" not in plain:
-                m_id = re.search(r"/_ct/(\d+)", url)
-                if m_id:
-                    amp_url = f"https://jp.rizinff.com/_amp/_ct/{m_id.group(1)}"
-                    try:
-                        amp_raw, amp_retrieved = http(amp_url)
-                        amp_plain = html_text(amp_raw)
-                        if len(amp_plain) > len(plain) and ("（WIN）" in amp_plain or "(WIN)" in amp_plain or "WIN" in amp_plain):
-                            raw, retrieved, plain = amp_raw, amp_retrieved, amp_plain
-                            url = amp_url
-                    except Exception:
-                        pass
+            html, _ = http(page_url)
+            if "/_ct/" not in html:
+                break
+            archive_html[page_url] = html
         except Exception:
-            continue
+            break
+
+    urls = set()
+    for page_url, html in archive_html.items():
+        urls.update(_rizin_result_urls(html, page_url))
+    detail_urls = sorted(urls)[:max(1, int(max_pages))]
+
+    added = 0
+    labeled = 0
+    exact_snapshots = 0
+    workers = max(1, min(6, int(__import__("os").getenv("RIZIN_DETAIL_WORKERS", "6"))))
+    results = []
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = [ex.submit(_rizin_detail_fetch, u) for u in detail_urls]
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                results.append(result)
+
+    for url, raw, retrieved, plain in results:
         dm = re.search(r"(20\d{2})\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})", plain)
         et = iso("-".join(dm.groups())) if dm else None
         tm = re.search(r"([^\n]{2,100})試合結果(?:一覧)?", plain)
         title = clean(tm.group(1)) if tm else url
-        # This matches the actual official page representation, including the
-        # HTML-stripped '(WIN) A vs B (LOSE)' form observed on RIZIN result pages.
         matches = list(re.finditer(r"(?:\(WIN\)|（WIN）|WIN)\s+(.{1,80}?)\s+vs\.?\s+(.{1,80}?)\s+(?:\(LOSE\)|（LOSE）|LOSE)", plain, re.I))
         matches += list(re.finditer(r"(?:\(LOSE\)|（LOSE）|LOSE)\s+(.{1,80}?)\s+vs\.?\s+(.{1,80}?)\s+(?:\(WIN\)|（WIN）|WIN)", plain, re.I))
         seen = set()
         for m in matches:
             left_marker = "WIN" if re.match(r"(?:\(WIN\)|（WIN）|WIN)\s+", m.group(0), re.I) else "LOSE"
             a, b = clean(m.group(1)), clean(m.group(2))
-            a = re.sub(r"\s+", " ", a); b = re.sub(r"\s+", " ", b)
-            if not a or not b or a == b or len(a) > 80 or len(b) > 80: continue
-            key=(a,b,et,url)
-            if key in seen: continue
+            if not a or not b or a == b or len(a) > 80 or len(b) > 80:
+                continue
+            key = (a, b, et, url)
+            if key in seen:
+                continue
             seen.add(key)
-            eid=upsert_event(c,"rizin",f"{a} vs {b}",et,"jp.rizinff.com",url,"COMPLETED",competition=title,season=str(et)[:4] if et else None)
-            p1=upsert_participant(c,"rizin",a,"fighter"); p2=upsert_participant(c,"rizin",b,"fighter")
-            upsert_ep(c,eid,p1,p1,"A","fight","jp.rizinff.com",url); upsert_ep(c,eid,p2,p2,"B","fight","jp.rizinff.com",url)
-            side="A" if "WIN" in left_marker.upper() else "B"
-            add_outcome(c,"rizin",eid,p1,p2,side,url); labeled += 1; added += 1
+            eid = upsert_event(c, "rizin", f"{a} vs {b}", et, "jp.rizinff.com", url, "COMPLETED",
+                               competition=title, season=str(et)[:4] if et else None)
+            p1 = upsert_participant(c, "rizin", a, "fighter")
+            p2 = upsert_participant(c, "rizin", b, "fighter")
+            upsert_ep(c, eid, p1, p1, "A", "fight", "jp.rizinff.com", url)
+            upsert_ep(c, eid, p2, p2, "B", "fight", "jp.rizinff.com", url)
+            side = "A" if "WIN" in left_marker.upper() else "B"
+            add_outcome(c, "rizin", eid, p1, p2, side, url)
+            labeled += 1
+            added += 1
         if matches:
-            payload_hash = hashlib.sha256(raw.encode("utf-8","ignore")).hexdigest()
-            add_snapshot(c,"rizin","jp.rizinff.com",url,retrieved,et,payload_hash,"UNVERIFIABLE")
-            # Promote only when the official page itself exposes an explicit
-            # publication timestamp. Retrieval time and event date are not
-            # historical availability evidence.
+            payload_hash = hashlib.sha256(raw.encode("utf-8", "ignore")).hexdigest()
+            add_snapshot(c, "rizin", "jp.rizinff.com", url, retrieved, et, payload_hash, "UNVERIFIABLE")
             published_at = publication_time(raw)
-            if published_at and (not et or published_at <= et):
-                snapshot_id = sid("rizin","jp.rizinff.com",url,payload_hash)
-                c.execute(
-                    """UPDATE source_snapshot
-                       SET source_available_at_utc=?,
-                           availability_status='EXACT',
-                           provenance_json=?
-                       WHERE snapshot_id=?""",
-                    (published_at, json.dumps({
-                        "sport":"rizin",
-                        "parser":"v4.5.16",
-                        "evidence":"official_page_datePublished",
-                        "publication_time_utc":published_at,
-                    }, ensure_ascii=False), snapshot_id),
-                )
+            if published_at and et:
+                published_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00")).astimezone(timezone.utc)
+                event_dt = datetime.fromisoformat(et.replace("Z", "+00:00")).astimezone(timezone.utc)
+                if published_dt <= event_dt - __import__("datetime").timedelta(minutes=60):
+                    snapshot_id = sid("rizin", "jp.rizinff.com", url, payload_hash)
+                    c.execute(
+                        """UPDATE source_snapshot
+                           SET source_available_at_utc=?, availability_status='EXACT', provenance_json=?
+                           WHERE snapshot_id=?""",
+                        (published_at, json.dumps({
+                            "sport": "rizin",
+                            "parser": "v4.5.17-rizin-archive-pit",
+                            "evidence": "official_page_datePublished",
+                            "publication_time_utc": published_at,
+                            "pit_rule": "publication_at_or_before_event_minus_60m",
+                        }, ensure_ascii=False), snapshot_id),
+                    )
+                    exact_snapshots += 1
+
     coverage = {
         "status": "PASS" if added > 0 else "DEFERRED",
         "sport": "rizin",
-        "events": added,
-        "source_snapshots": len(urls) if added > 0 else 0,
-        "timed_events": 0,
-        "participants": 0,
-        "reason": None if added > 0 else "official_rizin_public_pages_expose_no_machine_readable_result_records_to_this_collector"
+        "archive_pages_scanned": len(archive_html),
+        "result_article_urls": len(detail_urls),
+        "events_added": added,
+        "labeled_bouts": labeled,
+        "exact_pit_snapshots": exact_snapshots,
+        "reason": None if added > 0 else "official_rizin_result_archive_returned_no_parseable_result_records",
     }
     out = ROOT / "results" / "v45" / "rizin_coverage.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(coverage, ensure_ascii=False, indent=2), encoding="utf-8")
-    return added, labeled, len(urls)
+    return added, labeled, len(detail_urls)
 
 
 def main():
     import argparse
     ap=argparse.ArgumentParser(); ap.add_argument("--sport",choices=("basketball","rizin"),required=True); a=ap.parse_args()
-    c=connect(); report={"version":"v4.5.16-hardened","sport":a.sport,"timestamp_utc":utcnow(),"added":{},"warnings":[]}
+    c=connect(); report={"version":"v4.5.17-rizin-archive-pit","sport":a.sport,"timestamp_utc":utcnow(),"added":{},"warnings":[]}
     try:
         if a.sport=="basketball":
             for name,url in (("nba",NBA_GAMES),("wnba",WNBA_GAMES),("fiba_2019",FIBA_2019)):
