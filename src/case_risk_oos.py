@@ -8,6 +8,7 @@ research-only: it never changes the incumbent probability by itself.
 
 from typing import Dict, Sequence
 import numpy as np
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
@@ -126,6 +127,7 @@ def evaluate_selective_case_risk_oof(
         risk = None
         if len(meta_x) >= min_training_rows and len(np.unique(meta_error)) >= 2:
             model = Pipeline([
+                ("impute", SimpleImputer(strategy="median", add_indicator=True)),
                 ("scale", StandardScaler()),
                 ("clf", LogisticRegression(
                     C=0.5, class_weight="balanced", max_iter=2000, random_state=2401
@@ -211,6 +213,7 @@ def fit_final_case_risk_model(
     if len(xs) < 180 or len(np.unique(ys)) < 2:
         return None
     model = Pipeline([
+        ("impute", SimpleImputer(strategy="median", add_indicator=True)),
         ("scale", StandardScaler()),
         ("clf", LogisticRegression(
             C=0.5, class_weight="balanced", max_iter=2000, random_state=2401
