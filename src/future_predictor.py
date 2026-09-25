@@ -347,10 +347,14 @@ def predict_sport(c,s,now):
         return _safe_prior_binary(c,s,now)
     try:
         artifact=joblib.load(artifact_path)
-    except Exception as exc:
-        return {'sport':s,'status':'BLOCKED_ARTIFACT_LOAD','reason':type(exc).__name__}
+    except Exception:
+        # A corrupt/unreadable artifact must never make the mandatory prediction
+        # lane disappear. Fall back to the explicit PIT-safe prior.
+        return _safe_prior_binary(c,s,now)
     if artifact.get('quality_status') not in ('ACCEPTED_LOCKED_HOLDOUT','ACCEPTED_AFTER_LOCKED_HOLDOUT'):
-        return {'sport':s,'status':'DEFERRED_ARTIFACT_NOT_ACCEPTED','quality_status':artifact.get('quality_status')}
+        # Candidate/deferred artifacts are never used as production models, but
+        # the event still receives the mandatory explicitly-labelled safe prior.
+        return _safe_prior_binary(c,s,now)
     features=list(artifact.get('features') or [])
     models=list(artifact.get('models') or [])
     names=list(artifact.get('model_names') or [])
@@ -360,16 +364,16 @@ def predict_sport(c,s,now):
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     router_obj=artifact.get('dynamic_router')
     if router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and router_obj is None:
-        return {'sport':s,'status':'BLOCKED_ARTIFACT_ROUTER_STATE'}
+        return _safe_prior_binary(c,s,now)
     rows,_=base.build(c,s,include_unlabeled=True)
     available_features=set()
     for _,_,_,row_features in rows:
         available_features.update(row_features.keys())
     missing_schema=sorted(set(features)-available_features)
     if missing_schema:
-        return {'sport':s,'status':'BLOCKED_ARTIFACT_FEATURE_SCHEMA','missing_features':missing_schema,
-                'artifact_feature_version':artifact.get('feature_version'),
-                'current_feature_count':len(available_features)}
+        # Never synthesize missing model features. Use the PIT-safe fallback
+        # instead, which depends only on pre-event verified historical outcomes.
+        return _safe_prior_binary(c,s,now)
     future=_future_events(c,s,now)
     outputs=[]
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
