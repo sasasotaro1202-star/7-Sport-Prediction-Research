@@ -189,7 +189,7 @@ def _load_local_maps(con):
             participants[key].append(str(pid))
     event_participants = defaultdict(set)
     for eid, pid, side in con.execute(
-        "SELECT event_id, participant_id, side FROM event_participant WHERE sport='ufc' AND side IN ('A','B') AND participant_id IS NOT NULL"
+        "SELECT event_id, participant_id, side FROM event_participant WHERE side IN ('A','B') AND participant_id IS NOT NULL"
     ):
         event_participants[str(eid)].add(str(pid))
     event_times = {
