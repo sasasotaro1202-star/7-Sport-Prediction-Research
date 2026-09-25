@@ -1,0 +1,140 @@
+name: All-Sport Research Matrix
+
+on:
+  push:
+    paths:
+      - ".github/workflows/all_sport_research.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "11 */12 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: all-sport-research-matrix
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  research:
+    name: Research ${{ matrix.sport }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        sport:
+          - valorant
+          - basketball
+          - volleyball
+          - tennis
+          - ufc
+          - rizin
+          - f1
+          - rugby
+          - boxing
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+
+      - name: Initialize database
+        run: |
+          set -euo pipefail
+          mkdir -p data/db data/raw/http_cache results/research results/v45 models/research
+          python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+
+      - name: Collect sport-specific history
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.sport }}" in
+            valorant)
+              python -m src.public_history_backfill --sports valorant
+              python -m src.valorant_git_provenance
+              ;;
+            basketball)
+              python -m src.basketball_cdn_backfill --official-only
+              ;;
+            volleyball)
+              python -m src.volleyball_fivb_vis_backfill
+              ;;
+            tennis)
+              python -m src.tennis_public_backfill
+              ;;
+            ufc)
+              python -m src.ufc_api_backfill --limit 200
+              ;;
+            rizin)
+              python -m src.public_history_backfill --sports rizin
+              ;;
+            f1)
+              python -m src.f1_openf1_backfill --start-year 2023 --end-year "$(date -u +%Y)" --timeout 45
+              ;;
+            rugby)
+              python -m src.rugby_production --max-pages 150
+              ;;
+            boxing)
+              python -m src.boxing_production --ingest-history
+              ;;
+          esac
+
+      - name: Build common strict PIT replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=20s 1800s python -m src.pit_replay_builder
+
+      - name: Run chronological OOS research
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport "${{ matrix.sport }}"
+
+      - name: Verify research result is explicit JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "results/research/${{ matrix.sport }}.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          sport="${{ matrix.sport }}"
+          p=Path(f"results/research/{sport}.json")
+          o=json.loads(p.read_text(encoding="utf-8"))
+          assert o.get("sport")==sport
+          assert isinstance(o.get("status"),str)
+          print(f"SPORT={sport} STATUS={o['status']}")
+          print(f"PRODUCTION_CHANGED={o.get('production_changed', False)}")
+          PY
+
+      - name: Compile and unit regression
+        run: |
+          set -euo pipefail
+          python -m compileall -q src scripts
+          python scripts/test_case_risk_oos.py
+
+      - name: Upload sport research evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: all-sport-research-${{ matrix.sport }}-${{ github.run_id }}
+          path: |
+            results/research/${{ matrix.sport }}.json
+            results/*.json
+            results/v45/*.json
+          if-no-files-found: warn
+          retention-days: 14
