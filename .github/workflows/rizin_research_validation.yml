@@ -86,6 +86,11 @@ jobs:
           assert isinstance(research.get("status"), str)
           PY
 
+      - name: RIZIN date parser regression
+        run: |
+          set -euo pipefail
+          python scripts/test_rizin_date_parser.py
+
       - name: Compile and smoke regression
         run: |
           set -euo pipefail
