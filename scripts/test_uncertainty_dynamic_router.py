@@ -11,6 +11,7 @@ from src.uncertainty_dynamic_router_oos import (
     route_uncertainty_score,
     temporal_recalibration,
     uncertainty_features,
+    _recency_weights,
 )
 
 
@@ -23,6 +24,12 @@ def main() -> None:
     u = uncertainty_features(bp, ctx)
     assert u.shape == (2, 10)
     assert np.all(np.isfinite(u))
+    recency = _recency_weights(8, 2.0)
+    assert recency.shape == (8,)
+    assert np.all(np.isfinite(recency))
+    assert np.all(np.diff(recency) > 0.0)
+    assert np.isclose(np.mean(recency), 1.0)
+
     assert predictive_entropy(np.asarray([0.5]))[0] > predictive_entropy(np.asarray([0.9]))[0]
 
     ref = np.asarray([[0.0, 1.0, 0.5], [0.1, 0.9, 0.4], [0.0, 1.0, np.nan]])
