@@ -14,6 +14,7 @@ RESULTS = ROOT / "results"
 EXPERIENCE_DIR = RESULTS / "experience"
 PREDICTIONS_DIR = EXPERIENCE_DIR / "predictions"
 SUMMARY_OUT = RESULTS / "experience_summary.json"
+PREDICTION_INDEX = EXPERIENCE_DIR / "prediction_ids.txt"
 SETTLEMENTS_DIR = EXPERIENCE_DIR / "settlements"
 
 SPORTS = (
@@ -106,7 +107,11 @@ def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | N
     out = PREDICTIONS_DIR / f"{day}.jsonl"
 
     existing_ids: set[str] = set()
-    if out.exists():
+    if PREDICTION_INDEX.exists():
+        with PREDICTION_INDEX.open("r", encoding="utf-8") as fh:
+            existing_ids = {line.strip() for line in fh if line.strip()}
+    elif out.exists():
+        # Bootstrap the index once from the current day's archive.
         with out.open("r", encoding="utf-8") as fh:
             for raw in fh:
                 raw = raw.strip()
@@ -122,6 +127,7 @@ def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | N
 
     added = 0
     skipped = 0
+    new_ids: list[str] = []
     with out.open("a", encoding="utf-8") as fh:
         for sport_result in results:
             sport = str(sport_result.get("sport") or "")
@@ -170,7 +176,13 @@ def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | N
                 }
                 fh.write(_json(normalized) + "\n")
                 existing_ids.add(pid)
+                new_ids.append(pid)
                 added += 1
+    if new_ids:
+        EXPERIENCE_DIR.mkdir(parents=True, exist_ok=True)
+        with PREDICTION_INDEX.open("a", encoding="utf-8") as fh:
+            for pid in new_ids:
+                fh.write(pid + "\n")
     return {"added": added, "skipped_existing": skipped}
 
 
