@@ -151,7 +151,7 @@ def _safe_prior_binary(c,s,now):
             'event_id':eid,'event_time_utc':event_time,'prediction_cutoff_at_utc':cutoff,
             'side_a':a[1],'side_b':b[1],
             'probability_side_b':pb,'probability_side_a':1.0-pb,
-            'strategy':'safe_prior','router_status':'FALLBACK_FIXED_ENSEMBLE',
+            'strategy':'safe_prior','router_status':'SAFE_PRIOR_FALLBACK',
             'prediction_id':pid,'models':['historical_prior'],'ensemble_weights':None,
             'model_version':'safe-prior-v1','feature_version':'pit-safe-historical-win-rate-v1',
             'confidence':'LOW','action_state':'PASS',
