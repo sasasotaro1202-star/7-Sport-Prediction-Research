@@ -312,6 +312,18 @@ def _history_loss(meta_losses, n_models):
     return np.where(np.isfinite(out), out, np.log(2.0))
 
 
+def _recency_weights(n: int, half_life: float) -> np.ndarray:
+    """Deterministic exponential recency weights for concept-drift research."""
+    n = int(n)
+    half_life = float(half_life)
+    if n <= 0 or not np.isfinite(half_life) or half_life <= 0.0:
+        return np.ones(max(n, 0), dtype=float)
+    idx = np.arange(n, dtype=float)
+    age = float(max(n - 1, 0)) - idx
+    w = np.exp(-np.log(2.0) * age / half_life)
+    return w / np.maximum(np.mean(w), EPS)
+
+
 def _selector_feature_mask(X: np.ndarray) -> np.ndarray:
     """Keep only finite, non-constant meta features so sklearn binning cannot fail."""
     X = np.asarray(X, dtype=float)
@@ -331,6 +343,7 @@ def fit_uncertainty_loss_selector(
     meta_losses: np.ndarray,
     model_names: Sequence[str],
     meta_voi: np.ndarray | None = None,
+    sample_weight: np.ndarray | None = None,
 ):
     X = np.asarray(meta_features, dtype=float)
     L = np.asarray(meta_losses, dtype=float)
@@ -338,6 +351,11 @@ def fit_uncertainty_loss_selector(
         return None
     if L.shape[1] != len(model_names):
         return None
+    if sample_weight is not None:
+        sample_weight = np.asarray(sample_weight, dtype=float)
+        if sample_weight.ndim != 1 or len(sample_weight) != len(X) or not np.isfinite(sample_weight).all():
+            return None
+        sample_weight = np.clip(sample_weight, EPS, None)
     feature_mask = _selector_feature_mask(X)
     if not feature_mask.any():
         return None
@@ -353,7 +371,7 @@ def fit_uncertainty_loss_selector(
             random_state=1042 + j,
         )
         try:
-            m.fit(X_fit, L[:, j])
+            m.fit(X_fit, L[:, j], sample_weight=sample_weight)
         except (ValueError, FloatingPointError):
             return None
         selectors.append(m)
@@ -374,7 +392,7 @@ def fit_uncertainty_loss_selector(
                 random_state=2042 + j,
             )
             try:
-                m.fit(X_fit, V[:, j])
+                m.fit(X_fit, V[:, j], sample_weight=sample_weight)
             except (ValueError, FloatingPointError):
                 return None
             voi_selectors.append(m)
@@ -400,6 +418,7 @@ def evaluate_oof(
     folds: Sequence[Dict],
     baseline_weights: Dict[str, float] | None = None,
     metric_fn=None,
+    selector_recency_half_life: float | None = None,
 ):
     """
     Chronological OOF evaluation against the exact incumbent baseline.
@@ -523,6 +542,7 @@ def evaluate_oof(
         "mean_positive_voi": float(np.mean(fold_voi_means)) if fold_voi_means else 0.0,
         "max_positive_voi": float(np.max(fold_voi_means)) if fold_voi_means else 0.0,
         "routing_policy": "predicted_loss_0.80 + predicted_counterfactual_voi_0.20; uncertainty/drift shrinkage; bounded consultation",
+        "selector_recency_half_life": None if selector_recency_half_life is None else float(selector_recency_half_life),
         "oof_targets": [int(x) for x in y_all],
         "oof_static_predictions": [float(x) for x in static_all],
         "oof_routed_predictions": [float(x) for x in routed_all],
@@ -536,6 +556,7 @@ def fit_final_selector_from_folds(
     names: Sequence[str],
     folds: Sequence[Dict],
     baseline_weights: Dict[str, float] | None = None,
+    selector_recency_half_life: float | None = None,
 ):
     """Fit the uncertainty+VOI selector on every pre-holdout OOF fold."""
     X = np.asarray(X, dtype=float)
