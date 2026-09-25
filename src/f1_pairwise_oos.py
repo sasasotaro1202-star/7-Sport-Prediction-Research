@@ -218,7 +218,7 @@ def main() -> int:
     final_model = {
         "logistic": Pipeline([("i", SimpleImputer(strategy="median", add_indicator=True)), ("s", StandardScaler()), ("m", LogisticRegression(C=0.25, max_iter=2000))]),
         "extra_trees": Pipeline([("i", SimpleImputer(strategy="median", add_indicator=True)), ("m", ExtraTreesClassifier(n_estimators=300, min_samples_leaf=4, max_features="sqrt", class_weight="balanced", n_jobs=-1, random_state=42))]),
-        "hist_gb": Pipeline([("i", SimpleImputer(strategy="median", add_indicator=True)), ("m", HistGradientBoostingClassifier(max_iter=260, learning_rate=.04, l2_regularization=1.5, max_leaf_nodes=15, random_state=43)]),
+        "hist_gb": Pipeline([("i", SimpleImputer(strategy="median", add_indicator=True)), ("m", HistGradientBoostingClassifier(max_iter=260, learning_rate=.04, l2_regularization=1.5, max_leaf_nodes=15, random_state=43))]),
     }[best]
     final_model.fit(X, y)
     XH = np.asarray([r["x"] for r in hold_rows], float)
