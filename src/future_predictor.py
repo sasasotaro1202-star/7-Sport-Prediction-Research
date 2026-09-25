@@ -111,9 +111,19 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
               AND e.event_time_utc < ?
               AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
               AND o.outcome_status='VERIFIED'
-              AND ss.availability_status='EXACT'
-              AND ss.source_available_at_utc IS NOT NULL
-              AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+              AND (
+                    (
+                      ss.availability_status='EXACT'
+                      AND ss.source_available_at_utc IS NOT NULL
+                      AND datetime(ss.source_available_at_utc) <= datetime(?)
+                    )
+                    OR
+                    (
+                      ss.source_available_at_utc IS NULL
+                      AND ss.retrieved_at_utc IS NOT NULL
+                      AND datetime(ss.retrieved_at_utc) <= datetime(?)
+                    )
+                  )""",
         (sport,participant_id,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     wins=c.execute(
@@ -129,9 +139,19 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
               AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
               AND o.outcome_status='VERIFIED'
               AND o.outcome=ep.side
-              AND ss.availability_status='EXACT'
-              AND ss.source_available_at_utc IS NOT NULL
-              AND datetime(ss.source_available_at_utc) <= datetime(?)""",
+              AND (
+                    (
+                      ss.availability_status='EXACT'
+                      AND ss.source_available_at_utc IS NOT NULL
+                      AND datetime(ss.source_available_at_utc) <= datetime(?)
+                    )
+                    OR
+                    (
+                      ss.source_available_at_utc IS NULL
+                      AND ss.retrieved_at_utc IS NOT NULL
+                      AND datetime(ss.retrieved_at_utc) <= datetime(?)
+                    )
+                  )""",
         (sport,participant_id,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     starts=int(starts or 0); wins=int(wins or 0)
