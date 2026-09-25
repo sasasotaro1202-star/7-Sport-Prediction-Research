@@ -215,7 +215,7 @@ def _rizin_is_event_result_page(raw):
     Individual fight reports also contain a breadcrumb link to 「試合結果一覧」,
     so searching the whole text is insufficient and can duplicate every bout.
     """
-    headings = re.findall(r"<h1\\b[^>]*>(.*?)</h1>", raw or "", re.I | re.S)
+    headings = re.findall(r"<h1\b[^>]*>(.*?)</h1>", raw or "", re.I | re.S)
     for heading in headings:
         title = clean(re.sub(r"<[^>]+>", " ", heading))
         if "試合結果一覧" in title:
