@@ -1,0 +1,42 @@
+name: Uncertainty Router Research Smoke
+
+on:
+  push:
+    branches:
+      - "research/all-nine-generic-oos-20260925"
+    paths:
+      - "src/uncertainty_dynamic_router_oos.py"
+      - "scripts/test_uncertainty_dynamic_router.py"
+      - ".github/workflows/uncertainty_router_research_smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uncertainty-router-research-smoke
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONFAULTHANDLER: "1"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Compile uncertainty router
+        run: python -m py_compile src/uncertainty_dynamic_router_oos.py scripts/test_uncertainty_dynamic_router.py
+      - name: Run uncertainty router regression
+        run: python scripts/test_uncertainty_dynamic_router.py
