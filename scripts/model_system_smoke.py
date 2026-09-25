@@ -10,6 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from src import dynamic_model_router as router
 from src import future_predictor
 from src import research_cycle_v4 as base
+from src.research_cycle_v4 import target_event
 
 
 def main():
