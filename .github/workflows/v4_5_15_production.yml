@@ -98,7 +98,14 @@ jobs:
         run: |
           set -uo pipefail
           collector_rc=0
-          if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3 --days-forward 7; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
+          case '${{ matrix.sport }}' in
+            rugby|boxing)
+              echo 'dedicated_collector_status=SELECTED'
+              ;;
+            *)
+              if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3 --days-forward 7; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
+              ;;
+          esac
           backfill_rc=0
           case '${{ matrix.sport }}' in
             basketball)
@@ -175,7 +182,7 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install dependencies with transient-network retry
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
-      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,ufc,rizin} data/db results models
+      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,f1,ufc,rizin} data/db results models
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore VALORANT
@@ -215,6 +222,36 @@ jobs:
           if [ ! -s data/db/sports_v45.sqlite ]; then echo 'VOLLEYBALL_PARTITION=DEFERRED_NO_DB'; exit 0; fi
           events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute('SELECT COUNT(*) FROM event WHERE sport=\'volleyball\'').fetchone()[0]); c.close()")
           if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite; echo "VOLLEYBALL_PARTITION=PASS events=$events"; else echo "VOLLEYBALL_PARTITION=DEFERRED events=$events"; fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Restore Tennis
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: nine-sport-target-db-v4-tennis-${{ github.run_id }}
+          restore-keys: |
+            nine-sport-target-db-v4-tennis-
+      - name: Materialize Tennis partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'TENNIS_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='tennis'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/tennis/sports_v45.sqlite; echo "TENNIS_PARTITION=PASS events=$events"; else echo "TENNIS_PARTITION=DEFERRED events=$events"; fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Restore F1
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: nine-sport-target-db-v4-f1-${{ github.run_id }}
+          restore-keys: |
+            nine-sport-target-db-v4-f1-
+      - name: Materialize F1 partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'F1_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='f1'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/f1/sports_v45.sqlite; echo "F1_PARTITION=PASS events=$events"; else echo "F1_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore UFC
