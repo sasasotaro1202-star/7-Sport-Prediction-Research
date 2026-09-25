@@ -135,6 +135,24 @@ jobs:
               raise SystemExit(f"RESEARCH_COMPARISON_REQUIRES_TRAINED:before={before.get('status')}:after={after.get('status')}")
           bm=before.get('holdout_metrics') or {}
           am=after.get('holdout_metrics') or {}
+          def selected_oos(obj):
+              models=obj.get('models') or []
+              ensemble=obj.get('ensemble_selection') or {}
+              if models:
+                  key='+'.join(models)
+                  if key in ensemble:
+                      return ensemble[key]
+                  singles=[(ensemble.get(m) or {}) for m in models if m in ensemble]
+                  if singles:
+                      return {
+                          'logloss': sum(float(x['logloss']) for x in singles)/len(singles),
+                          'brier': sum(float(x['brier']) for x in singles)/len(singles),
+                          'ece': sum(float(x['ece']) for x in singles)/len(singles),
+                          'n': sum(int(x.get('n',0)) for x in singles),
+                      }
+              return {}
+          bo=selected_oos(before)
+          ao=selected_oos(after)
           out={
               'research_only': True,
               'production_model_changed': False,
@@ -146,6 +164,14 @@ jobs:
               'after_training_rows': after.get('training_rows'),
               'before_holdout_rows': before.get('frozen_holdout_rows'),
               'after_holdout_rows': after.get('frozen_holdout_rows'),
+              'before_oos_logloss': bo.get('logloss'),
+              'after_oos_logloss': ao.get('logloss'),
+              'oos_logloss_improvement': (float(bo['logloss'])-float(ao['logloss'])) if bo.get('logloss') is not None and ao.get('logloss') is not None else None,
+              'before_oos_brier': bo.get('brier'),
+              'after_oos_brier': ao.get('brier'),
+              'oos_brier_improvement': (float(bo['brier'])-float(ao['brier'])) if bo.get('brier') is not None and ao.get('brier') is not None else None,
+              'before_oos_ece': bo.get('ece'),
+              'after_oos_ece': ao.get('ece'),
               'before_holdout_logloss': bm.get('logloss'),
               'after_holdout_logloss': am.get('logloss'),
               'holdout_logloss_improvement': (float(bm['logloss'])-float(am['logloss'])) if bm.get('logloss') is not None and am.get('logloss') is not None else None,
