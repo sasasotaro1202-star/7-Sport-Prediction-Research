@@ -70,19 +70,19 @@ jobs:
           print("SPORTS", base.SPORTS)
           PY
       - name: Strict research JSON artifact regression
-  run: |
-    PYTHONPATH=. python - <<'PY'
-    import json
-    from pathlib import Path
-    files = sorted(Path("results/research").glob("*.json"))
-    assert files, "no research result JSON artifacts found"
-    for path in files:
-        with path.open("r", encoding="utf-8") as fh:
-            json.load(fh, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(f"non-standard JSON constant {value} in {path}")))
-    print(f"STRICT_RESEARCH_JSON=PASS files={len(files)}")
-    PY
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          import json
+          from pathlib import Path
+          files = sorted(Path("results/research").glob("*.json"))
+          assert files, "no research result JSON artifacts found"
+          for path in files:
+              with path.open("r", encoding="utf-8") as fh:
+                  json.load(fh, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(f"non-standard JSON constant {value} in {path}")))
+          print(f"STRICT_RESEARCH_JSON=PASS files={len(files)}")
+          PY
 
-- name: Forward prediction registry smoke test
+      - name: Forward prediction registry smoke test
         run: |
           python - <<'PY'
           import sqlite3
