@@ -93,7 +93,7 @@ jobs:
       - name: Prove historical source availability
         if: steps.cadence.outputs.run == 'true'
         run: |
-          set -uo pipefail
+          set -euo pipefail
           if [ '${{ matrix.sport }}' = 'basketball' ]; then
             python -m src.bleaguer_git_provenance --db data/db/sports_v45.sqlite --workers 6
           else
