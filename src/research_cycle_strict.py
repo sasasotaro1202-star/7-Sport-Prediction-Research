@@ -521,8 +521,12 @@ def train(s):
      window_fracs=(0.55,0.60,0.65)
      window_starts=[max(60,int(sel*f)) for f in window_fracs]
      start=min(window_starts)
-     target_oos_folds=min(12,max(6,sel//500))
-     step=max(10,int(np.ceil(max(1,sel-start)/target_oos_folds)))
+     # Keep the minimum six chronological folds required by the promotion contract,
+     # but cap dense fold generation so the full 14-model research pool does not
+     # multiply into hundreds of avoidable refits. Larger datasets get at most eight
+     # folds; smaller datasets remain at the six-fold floor for temporal robustness.
+     target_oos_folds=min(8,max(6,sel//1000))
+     step=max(10,int(np.ceil(max(1,sel-start)/target_oos_folds))
      oof_probs={name:[] for name in names}
      oof_y=[]
      oof_event_ids=[]
