@@ -184,10 +184,24 @@ def _rizin_archive_urls(base, max_archive_pages):
 
 
 def _rizin_result_urls(html, base_url):
-    urls = set(re.findall(r"https?://jp\.rizinff\.com/_ct/\d+", html or ""))
-    urls.update(urljoin(base_url, x) for x in re.findall(r'(?:href|data-href)=["\']([^"\']*/_ct/\d+)["\']', html or "", re.I))
-    urls.update(urljoin(base_url, x) for x in re.findall(r"(/_ct/\d+)", html or ""))
-    return urls
+    """Return discovered RIZIN content URLs in page order, de-duplicated."""
+    candidates = []
+    candidates.extend(re.findall(r"https?://jp\.rizinff\.com/_ct/\d+", html or ""))
+    candidates.extend(re.findall(r'(?:href|data-href)=["\']([^"\']*/_ct/\d+)["\']', html or "", re.I))
+    candidates.extend(re.findall(r"(/_ct/\d+)", html or ""))
+    out = []
+    seen = set()
+    for raw_url in candidates:
+        url = urljoin(base_url, raw_url)
+        if url not in seen:
+            seen.add(url)
+            out.append(url)
+    return out
+
+
+def _rizin_is_event_result_page(plain):
+    """Accept only the canonical event-level result-list pages."""
+    return "試合結果一覧" in clean(plain)
 
 
 def _rizin_event_date(plain):
@@ -250,10 +264,14 @@ def backfill_rizin(c, max_pages=150):
         except Exception:
             break
 
-    urls = set()
+    urls = []
+    seen_urls = set()
     for page_url, html in archive_html.items():
-        urls.update(_rizin_result_urls(html, page_url))
-    detail_urls = sorted(urls)[:max(1, int(max_pages))]
+        for url in _rizin_result_urls(html, page_url):
+            if url not in seen_urls:
+                seen_urls.add(url)
+                urls.append(url)
+    detail_urls = urls[:max(1, int(max_pages))]
 
     added = 0
     labeled = 0
@@ -268,6 +286,11 @@ def backfill_rizin(c, max_pages=150):
                 results.append(result)
 
     for url, raw, retrieved, plain in results:
+        # Individual fight-report pages also contain WIN/LOSE patterns and event
+        # footer dates. They are not the canonical event result-list source and
+        # must never be reinterpreted as an event-level result feed.
+        if not _rizin_is_event_result_page(plain):
+            continue
         dm = re.search(r"(20\d{2})\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})", plain)
         et = iso("-".join(dm.groups())) if dm else None
         tm = re.search(r"([^\n]{2,100})試合結果(?:一覧)?", plain)
