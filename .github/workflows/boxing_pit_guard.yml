@@ -26,6 +26,10 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies with transient-network retry
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - name: Verify Python runtime
         run: python --version
       - name: Install Python dependencies
