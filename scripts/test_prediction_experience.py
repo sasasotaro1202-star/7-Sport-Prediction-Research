@@ -52,6 +52,54 @@ class PredictionExperienceTests(unittest.TestCase):
         self.assertEqual(profile["evidence_bucket"], "6+")
         self.assertEqual(profile["freshness_bucket"], "low")
 
+    def test_archive_forward_prediction_db_exports_existing_rows(self):
+        import sqlite3
+
+        with tempfile.TemporaryDirectory() as td:
+            old_dir = pe.PREDICTIONS_DIR
+            old_idx = pe.PREDICTION_INDEX
+            try:
+                pe.PREDICTIONS_DIR = Path(td) / "predictions"
+                pe.PREDICTION_INDEX = Path(td) / "prediction_ids.txt"
+                con = sqlite3.connect(":memory:")
+                con.execute(
+                    """CREATE TABLE forward_prediction(
+                        prediction_id TEXT PRIMARY KEY,
+                        event_id TEXT,
+                        sport TEXT,
+                        prediction_cutoff_at_utc TEXT,
+                        generated_at_utc TEXT,
+                        probability_side_a REAL,
+                        probability_side_b REAL,
+                        strategy TEXT,
+                        model_version TEXT,
+                        feature_version TEXT,
+                        features_json TEXT,
+                        status TEXT
+                    )"""
+                )
+                con.execute(
+                    "INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        "db-p1", "e-db", "basketball", "2026-09-25T10:00:00+00:00",
+                        "2026-09-25T10:05:00+00:00", 0.35, 0.65, "router",
+                        "m1", "f1", '{"matchday_situation":{"status":"PIT_SAFE"}}', "OPEN",
+                    ),
+                )
+                con.commit()
+                result = pe.archive_forward_prediction_db(
+                    con, "basketball", "2026-09-25T10:06:00+00:00"
+                )
+                self.assertEqual(result["added"], 1)
+                archived = pe._load_jsonl_dir(pe.PREDICTIONS_DIR)
+                self.assertEqual(len(archived), 1)
+                self.assertEqual(archived[0]["prediction_id"], "db-p1")
+                self.assertEqual(archived[0]["strategy"], "router")
+                con.close()
+            finally:
+                pe.PREDICTIONS_DIR = old_dir
+                pe.PREDICTION_INDEX = old_idx
+
     def test_archive_deduplicates_prediction_ids(self):
         with tempfile.TemporaryDirectory() as td:
             old_dir = pe.PREDICTIONS_DIR
