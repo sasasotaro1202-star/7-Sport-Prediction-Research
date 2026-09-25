@@ -17,6 +17,52 @@ SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby"
 HEAD_TO_HEAD_SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","rugby","boxing")
 MULTICLASS_SPORTS=("f1",)
 PIT_LEAD_MINUTES=60
+F1_CURRENT_ROSTER_URL="https://www.formula1.com/en/drivers"
+
+_F1_ROSTER_CACHE=None
+
+
+def _current_f1_roster(now):
+    """Fetch the current official F1 driver roster for future inference only.
+
+    The roster is current-state information, not event-specific entry confirmation.
+    It is admitted only when retrieval_time <= the event PIT cutoff, and callers must
+    keep the resulting field explicitly low-confidence / unconfirmed.
+    """
+    global _F1_ROSTER_CACHE
+    if _F1_ROSTER_CACHE is not None:
+        return _F1_ROSTER_CACHE
+    try:
+        from urllib.request import Request,urlopen
+        from bs4 import BeautifulSoup
+        req=Request(
+            F1_CURRENT_ROSTER_URL,
+            headers={"User-Agent":"SevenSportResearchEngine/F1-Future-Roster","Accept-Language":"en-US,en;q=0.8"},
+        )
+        with urlopen(req,timeout=15) as r:
+            raw=r.read().decode("utf-8","ignore")
+        retrieved=utc_now()
+        soup=BeautifulSoup(raw,"lxml")
+        names=[]
+        for a in soup.select('a[href*="/en/drivers/"]'):
+            href=str(a.get("href") or "")
+            text_name=" ".join(a.get_text(" ",strip=True).split())
+            if not text_name or href.rstrip("/").endswith("/drivers"):
+                continue
+            slug=href.rstrip("/").split("/")[-1]
+            if not slug or slug in {"drivers"}:
+                continue
+            name=" ".join(part.capitalize() for part in slug.replace("-"," ").split())
+            if len(name.split()) < 2:
+                continue
+            if name not in names:
+                names.append(name)
+        names=names[:30]
+        _F1_ROSTER_CACHE=(retrieved,names)
+    except Exception:
+        _F1_ROSTER_CACHE=None
+    return _F1_ROSTER_CACHE
+
 DEDICATED_DBS={
     'rugby': ROOT/'data/db/rugby_v45.sqlite',
     'boxing': ROOT/'data/db/boxing_v45.sqlite',
@@ -190,8 +236,24 @@ def _safe_prior_f1(c,now):
                 WHERE ep.event_id=? AND lower(coalesce(ep.role,''))='driver'
                 ORDER BY ep.participant_id""",(eid,)
         ).fetchall()
+        field_source="EVENT_CONFIRMED_PARTICIPANTS"
+        field_status="EVENT_PARTICIPANTS_CONFIRMED"
+        roster_retrieved=None
         if len(drivers)<2:
-            continue
+            roster=_current_f1_roster(now)
+            if not roster:
+                continue
+            roster_retrieved,roster_names=roster
+            if roster_retrieved > datetime.fromisoformat(cutoff.replace("Z","+00:00")):
+                continue
+            drivers=[]
+            for name in roster_names:
+                pid=hashlib.sha256(f"f1|driver|{name}".encode()).hexdigest()[:32]
+                drivers.append((pid,name))
+            if len(drivers)<2:
+                continue
+            field_source="FORMULA1_OFFICIAL_CURRENT_DRIVER_ROSTER"
+            field_status="CURRENT_ROSTER_NOT_EVENT_CONFIRMED"
         scored=[]
         for pid,name in drivers:
             starts=c.execute(
@@ -232,8 +294,10 @@ def _safe_prior_f1(c,now):
             'event_id':eid,'event_time_utc':event_time,'prediction_cutoff_at_utc':cutoff,
             'market':'winner_multiclass','strategy':'safe_prior_multiclass','model_version':'safe-prior-f1-v1',
             'feature_version':'pit-safe-f1-driver-win-prior-v1','drivers':probs,
+            'field_source':field_source,'field_status':field_status,
+            'field_roster_retrieved_at_utc':roster_retrieved.isoformat() if roster_retrieved else None,
             'confidence':'LOW','action_state':'PASS','generated_at_utc':now.isoformat(),
-            'policy':'F1 multiclass safe prior; only pre-event completed driver results are used',
+            'policy':'F1 multiclass safe prior; only pre-event completed driver results are used; current roster fallback is explicitly not event-confirmed',
         })
     return {'sport':'f1','status':'PREDICTED_SAFE_PRIOR_MULTICLASS' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
 
