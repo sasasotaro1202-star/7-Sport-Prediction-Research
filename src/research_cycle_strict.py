@@ -1140,8 +1140,8 @@ def train(s):
       and uncertainty_recency_eval['bootstrap'].get('p05_improvement',float('-inf'))>0.0
       and uncertainty_recency_eval['bootstrap'].get('probability_improvement',0.0)>=.90
       and uncertainty_recency_calibration.get('accepted') is True
-      and rr_holdout.get('raw_logloss_improvement',-1.0)>=0.0
-      and rr_holdout.get('recalibrated_logloss_improvement',-1.0)>=0.0
+      and uncertainty_recency_holdout.get('raw_logloss_improvement',-1.0)>=0.0
+      and uncertainty_recency_holdout.get('recalibrated_logloss_improvement',-1.0)>=0.0
      )
     uncertainty_recency_eval['promotion_status']='RESEARCH_ONLY_NO_AUTO_PROMOTION'
     uncertainty_recency_eval['accepted_for_research_comparison']=bool(uncertainty_recency_accept)
@@ -1149,7 +1149,7 @@ def train(s):
     uncertainty_recency_eval={'status':'INSUFFICIENT_OOS','reason':'recency-weighted selector could not form auditable pre-holdout OOF sample','selector_recency_half_life':720.0}
     uncertainty_recency_holdout={'status':'INSUFFICIENT_OOS','selector_recency_half_life':720.0}
 
-   else:
+  else:
     uncertainty_eval={'status':'INSUFFICIENT_OOS', 'reason':'uncertainty router could not form auditable pre-holdout OOF sample'}
   # Never serialize raw OOF prediction vectors into the committed research JSON.
   uncertainty_recency_eval.pop('oof_targets',None)
