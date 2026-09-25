@@ -130,7 +130,7 @@ def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | N
         EXPERIENCE_DIR.mkdir(parents=True, exist_ok=True)
         with PREDICTION_INDEX.open("a", encoding="utf-8") as fh:
             for pid in missing_index_ids:
-                fh.write(pid + "\\n")
+                fh.write(pid + "\n")
 
     added = 0
     skipped = 0
