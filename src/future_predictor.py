@@ -145,9 +145,21 @@ def _participant_sides(c,event_id):
 
 
 def _prior_record(c,sport,participant_id,prediction_cutoff):
-    """PIT-safe historical win-rate prior using only data available by prediction cutoff."""
-    starts=c.execute(
-        """SELECT COUNT(DISTINCT e.event_id)
+    """PIT-safe future-inference prior using publication time or proven retrieval time."""
+    pit_clause = """(
+        (
+            ss.availability_status='EXACT'
+            AND ss.source_available_at_utc IS NOT NULL
+            AND datetime(ss.source_available_at_utc) <= datetime(?)
+        )
+        OR
+        (
+            ss.source_available_at_utc IS NULL
+            AND ss.retrieved_at_utc IS NOT NULL
+            AND datetime(ss.retrieved_at_utc) <= datetime(?)
+        )
+    )"""
+    common = f"""
              FROM event e
              JOIN event_participant ep ON ep.event_id=e.event_id
              JOIN event_outcome o ON o.event_id=e.event_id
@@ -158,28 +170,15 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
               AND e.event_time_utc < ?
               AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
               AND o.outcome_status='VERIFIED'
-              AND ss.availability_status='EXACT'
-              AND ss.source_available_at_utc IS NOT NULL
-              AND datetime(ss.source_available_at_utc) <= datetime(?)""",
-        (sport,participant_id,prediction_cutoff,prediction_cutoff),
+              AND {pit_clause}
+    """
+    starts=c.execute(
+        "SELECT COUNT(DISTINCT e.event_id) " + common,
+        (sport,participant_id,prediction_cutoff,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     wins=c.execute(
-        """SELECT COUNT(*)
-             FROM event e
-             JOIN event_participant ep ON ep.event_id=e.event_id
-             JOIN event_outcome o ON o.event_id=e.event_id
-             JOIN source_snapshot ss
-              ON ss.source_url=o.source_url
-             AND ss.event_time_utc=e.event_time_utc
-            WHERE e.sport=? AND ep.participant_id=?
-              AND e.event_time_utc < ?
-              AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
-              AND o.outcome_status='VERIFIED'
-              AND o.outcome=ep.side
-              AND ss.availability_status='EXACT'
-              AND ss.source_available_at_utc IS NOT NULL
-              AND datetime(ss.source_available_at_utc) <= datetime(?)""",
-        (sport,participant_id,prediction_cutoff,prediction_cutoff),
+        "SELECT COUNT(DISTINCT e.event_id) " + common + " AND o.outcome=ep.side",
+        (sport,participant_id,prediction_cutoff,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     starts=int(starts or 0); wins=int(wins or 0)
     return starts,wins,(wins+1.0)/(starts+2.0)
@@ -203,7 +202,7 @@ def _safe_prior_binary(c,s,now):
         features={
             'prior_starts_a':sa,'prior_wins_a':wa,'prior_win_rate_a':rate_a,
             'prior_starts_b':sb,'prior_wins_b':wb,'prior_win_rate_b':rate_b,
-            'fallback_policy':'pit_safe_historical_prior_v1',
+            'fallback_policy':'pit_safe_historical_prior_v2_retrieval_pit',
         }
         pid=_persist_forward_prediction(
             c,eid,s,cutoff,now,1.0-pb,pb,'safe_prior','safe-prior-v1',
