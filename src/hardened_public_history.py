@@ -190,6 +190,30 @@ def _rizin_result_urls(html, base_url):
     return urls
 
 
+def _rizin_event_date(plain):
+    """Parse the event/article date without accepting template/future footer dates."""
+    text = clean(plain)
+    candidates = []
+    patterns = (
+        r"(20\\d{2})\\s*[年/-]\\s*(\\d{1,2})\\s*[月/-]\\s*(\\d{1,2})",
+        r"(20\\d{2})\\s*[./-]\\s*(\\d{1,2})\\s*[./-]\\s*(\\d{1,2})",
+    )
+    for pattern in patterns:
+        for m in re.finditer(pattern, text):
+            try:
+                year, month, day = map(int, m.groups())
+                if year < 2010 or year > datetime.now(timezone.utc).year + 1:
+                    continue
+                dt = datetime(year, month, day, tzinfo=timezone.utc)
+                if dt.date().isoformat() == "2000-01-01":
+                    continue
+                candidates.append(dt)
+            except ValueError:
+                continue
+    if not candidates:
+        return None
+    return min(candidates).isoformat()
+
 def _rizin_detail_fetch(hurl):
     try:
         raw, retrieved = http(hurl)
