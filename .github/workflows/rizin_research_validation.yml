@@ -1,6 +1,13 @@
 name: RIZIN Research Validation
 
 on:
+  pull_request:
+    paths:
+      - "src/hardened_public_history.py"
+      - "src/seven_sport_production.py"
+      - "src/research_cycle_v4.py"
+      - "src/research_cycle_strict.py"
+      - ".github/workflows/rizin_research_validation.yml"
   push:
     paths:
       - "src/hardened_public_history.py"
