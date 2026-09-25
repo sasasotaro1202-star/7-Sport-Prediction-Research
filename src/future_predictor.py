@@ -98,7 +98,8 @@ def _participant_sides(c,event_id):
 
 
 def _prior_record(c,sport,participant_id,prediction_cutoff):
-    """PIT-safe historical win-rate prior using only data available by prediction cutoff."""
+    """PIT-safe future-inference prior: publication time or earlier retrieval time must be <= cutoff."""
+
     starts=c.execute(
         """SELECT COUNT(DISTINCT e.event_id)
              FROM event e
@@ -124,7 +125,7 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
                       AND datetime(ss.retrieved_at_utc) <= datetime(?)
                     )
                   )""",
-        (sport,participant_id,prediction_cutoff,prediction_cutoff),
+        (sport,participant_id,prediction_cutoff,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     wins=c.execute(
         """SELECT COUNT(*)
@@ -152,7 +153,7 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
                       AND datetime(ss.retrieved_at_utc) <= datetime(?)
                     )
                   )""",
-        (sport,participant_id,prediction_cutoff,prediction_cutoff),
+        (sport,participant_id,prediction_cutoff,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     starts=int(starts or 0); wins=int(wins or 0)
     return starts,wins,(wins+1.0)/(starts+2.0)
