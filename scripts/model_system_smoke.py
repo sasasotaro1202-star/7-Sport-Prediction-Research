@@ -96,6 +96,7 @@ def main():
     assert pit_exact_publication_time('2024-01-01T11:01:00+00:00','2024-01-01T12:00:00+00:00') is None
     assert explicit_publication_time('<meta property="article:published_time" content="2024-01-01T10:00:00Z">') == '2024-01-01T10:00:00+00:00'
     assert explicit_publication_time('<meta property="article:modified_time" content="2024-01-01T10:00:00Z">') is None
+    assert target_event('volleyball','ordinary league match','VNL') is True
 
     weights={'logistic':0.2,'hist_gb':0.3,'extra_trees':0.2,'lightgbm':0.3}
     assert abs(sum(weights.values())-1.0)<1e-12
