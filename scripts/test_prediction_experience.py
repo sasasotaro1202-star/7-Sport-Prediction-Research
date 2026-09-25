@@ -126,7 +126,7 @@ class PredictionExperienceTests(unittest.TestCase):
                 raw = json.loads(archive_file.read_text(encoding="utf-8").splitlines()[0])
                 raw["prediction_id"] = "p-crash-window"
                 with archive_file.open("a", encoding="utf-8") as fh:
-                    fh.write(json.dumps(raw, ensure_ascii=False) + "\\n")
+                    fh.write(json.dumps(raw, ensure_ascii=False) + "\n")
 
                 self.assertEqual(pe.archive_predictions([{
                     "sport": "basketball",
