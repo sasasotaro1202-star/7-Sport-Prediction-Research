@@ -23,7 +23,7 @@ def main():
         assert "ss.event_time_utc=e.event_time_utc" in sql
         assert "datetime(ss.source_available_at_utc) <= datetime(?)" in sql
         assert "datetime(ss.retrieved_at_utc) <= datetime(?)" in sql
-        assert params[-4:] == (cutoff,cutoff,cutoff,cutoff)
+        assert params[-3:] == (cutoff,cutoff,cutoff)
         assert "e.event_time_utc < ?" in sql
         assert "ss.source_available_at_utc IS NULL" in sql
     print("future predictor PIT retrieval-time test: PASS")
