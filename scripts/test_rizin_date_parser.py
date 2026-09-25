@@ -1,4 +1,4 @@
-from src.hardened_public_history import _rizin_event_date
+from src.hardened_public_history import _rizin_event_date, _rizin_is_event_result_page
 
 
 def test_japanese_date():
@@ -22,6 +22,11 @@ def test_header_date_is_not_overridden_by_later_footer_dates():
 
 
 if __name__ == "__main__":
-    for fn in (test_japanese_date, test_iso_date_beats_template_date, test_slash_date, test_invalid_or_template_only_is_rejected, test_header_date_is_not_overridden_by_later_footer_dates):
+    for fn in (test_japanese_date, test_iso_date_beats_template_date, test_slash_date, test_invalid_or_template_only_is_rejected, test_header_date_is_not_overridden_by_later_footer_dates, test_event_result_page_filter):
         fn()
     print("RIZIN_EVENT_DATE_PARSER: PASS")
+
+
+def test_event_result_page_filter():
+    assert _rizin_is_event_result_page("RIZIN.44 試合結果一覧 第10試合")
+    assert not _rizin_is_event_result_page("〖試合結果〗RIZIN.44 第10試合／クレベル・コイケ vs. 金原正徳")
