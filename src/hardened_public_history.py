@@ -396,12 +396,16 @@ def backfill_rizin(c, max_pages=150):
             GROUP BY substr(event_time_utc,1,10)
             ORDER BY event_date ASC"""
     ).fetchall()
-    name_rows = c.execute(
-        """SELECT name, substr(event_time_utc,1,10) AS event_date, COUNT(*) AS n
-             FROM event
-            WHERE sport='rizin' AND event_time_utc IS NOT NULL
-            GROUP BY name, substr(event_time_utc,1,10)
-            ORDER BY event_date ASC, name ASC
+    participant_rows = c.execute(
+        """SELECT e.event_id,
+                  substr(e.event_time_utc,1,10) AS event_date,
+                  group_concat(DISTINCT p.canonical_name) AS participants
+             FROM event e
+             LEFT JOIN event_participant ep ON ep.event_id=e.event_id
+             LEFT JOIN participant p ON p.participant_id=ep.participant_id
+            WHERE e.sport='rizin' AND e.event_time_utc IS NOT NULL
+            GROUP BY e.event_id, substr(e.event_time_utc,1,10)
+            ORDER BY event_date ASC, e.event_id ASC
             LIMIT 20"""
     ).fetchall()
     coverage = {
@@ -419,7 +423,10 @@ def backfill_rizin(c, max_pages=150):
         "paired_verified_events": int(paired_verified_events),
         "unique_event_dates": int(unique_event_dates),
         "event_date_counts": [{"date": str(d), "events": int(n)} for d, n in date_rows],
-        "sample_event_names": [{"name": str(nm), "date": str(d), "events": int(n)} for nm, d, n in name_rows],
+        "sample_event_participants": [
+            {"event_id": str(eid), "date": str(d), "participants": str(parts or "")}
+            for eid, d, parts in participant_rows
+        ],
         "reason": None if added > 0 else "official_rizin_result_archive_returned_no_parseable_result_records",
     }
     out = ROOT / "results" / "v45" / "rizin_coverage.json"
