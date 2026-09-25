@@ -1,4 +1,4 @@
-"""Regression test for strict prediction-cutoff PIT in future priors."""
+"""Regression tests for prediction-cutoff PIT in future priors."""
 from src.future_predictor import _prior_record
 
 class FakeResult:
@@ -22,9 +22,11 @@ def main():
     for sql,params in db.calls:
         assert "ss.event_time_utc=e.event_time_utc" in sql
         assert "datetime(ss.source_available_at_utc) <= datetime(?)" in sql
-        assert params[-2:] == (cutoff,cutoff)
+        assert "datetime(ss.retrieved_at_utc) <= datetime(?)" in sql
+        assert params[-4:] == (cutoff,cutoff,cutoff,cutoff)
         assert "e.event_time_utc < ?" in sql
-    print("future predictor PIT cutoff test: PASS")
+        assert "ss.source_available_at_utc IS NULL" in sql
+    print("future predictor PIT retrieval-time test: PASS")
 
 if __name__ == "__main__":
     main()
