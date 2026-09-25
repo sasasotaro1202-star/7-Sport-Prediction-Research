@@ -27,6 +27,9 @@ def main() -> None:
         # Inject a deterministic hard-case signal in the later folds so the
         # meta-risk pipeline gets non-degenerate error labels.
         ctx = rng.normal(size=(te - end, 33))
+        ctx[::7, 5] = np.nan
+        ctx[::11, 17] = np.nan
+        bp[::13, 1] = np.nan
         ctx[:, 3] = rng.normal(scale=0.5, size=te-end)
         preds = {n: bp[:, j] for j, n in enumerate(names)}
         folds.append({"end": end, "te": te, "preds": preds, "context": ctx})
