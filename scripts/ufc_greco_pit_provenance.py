@@ -88,7 +88,7 @@ def main() -> int:
             before_cutoff += 1
         else:
             at_or_after_cutoff += 1
-        if len(examples) < 10 and not seen_at < when:
+        if len(examples) < 10 and not seen_at < cutoff:
             examples.append({
                 "event": event,
                 "bout": _bout,
@@ -106,10 +106,10 @@ def main() -> int:
         ("history_end_commit", commits[-1]),
         ("unique_bouts_first_seen", total),
         ("bouts_with_parseable_event_date", with_event_date),
-        ("first_seen_before_event_date", before_event),
-        ("first_seen_at_or_after_event_date", at_or_after_event),
+        ("first_seen_before_conservative_cutoff", before_cutoff),
+        ("first_seen_at_or_after_conservative_cutoff", at_or_after_cutoff),
         ("event_date_unknown", unknown),
-        ("before_event_date_rate", (before_event / with_event_date) if with_event_date else None),
+        ("before_conservative_cutoff_rate", (before_cutoff / with_event_date) if with_event_date else None),
         ("non_pit_evidence_rate_upper_bound", (at_or_after_event / with_event_date) if with_event_date else None),
         ("pit_policy", "research_only; first Git appearance is a conservative upper bound on source availability"),
         ("prediction_cutoff_policy", "event_date_utc_minus_60_minutes; comparison is conservative because source exposes date but not fight start time"),
