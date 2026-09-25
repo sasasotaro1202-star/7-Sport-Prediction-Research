@@ -1,0 +1,33 @@
+name: F1 Pairwise Research Smoke
+
+on:
+  push:
+    paths:
+      - "src/f1_pairwise_oos.py"
+      - "scripts/test_f1_pairwise_oos.py"
+      - ".github/workflows/f1_pairwise_research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: f1-pairwise-research
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: .
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - run: python -m compileall -q src scripts
+      - run: python scripts/test_f1_pairwise_oos.py
