@@ -19,6 +19,20 @@ def utc():
  return datetime.now(timezone.utc).isoformat()
 def h(x):return hashlib.sha256(json.dumps(x,sort_keys=True,default=str).encode()).hexdigest()[:16]
 
+def _bounded_oos_fold_params(sel):
+    """Return a conservative chronological OOS fold count and step.
+    
+    The promotion contract requires at least six folds. The upper bound of eight
+    prevents the 14-model candidate pool from creating excessive repeated fits.
+    """
+    sel=int(sel)
+    if sel <= 0:
+        return 6, 10
+    target=min(8,max(6,sel//1000))
+    start=min(max(60,int(sel*f)) for f in (0.55,0.60,0.65))
+    step=max(10,int(np.ceil(max(1,sel-start)/target)))
+    return target,step
+
 def _json_safe(x):
  if isinstance(x,(float,np.floating)):
   return float(x) if np.isfinite(x) else None
@@ -525,8 +539,7 @@ def train(s):
      # but cap dense fold generation so the full 14-model research pool does not
      # multiply into hundreds of avoidable refits. Larger datasets get at most eight
      # folds; smaller datasets remain at the six-fold floor for temporal robustness.
-     target_oos_folds=min(8,max(6,sel//1000))
-     step=max(10,int(np.ceil(max(1,sel-start)/target_oos_folds))
+     target_oos_folds,step=_bounded_oos_fold_params(sel)
      oof_probs={name:[] for name in names}
      oof_y=[]
      oof_event_ids=[]
