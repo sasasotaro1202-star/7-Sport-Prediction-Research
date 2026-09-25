@@ -1,0 +1,29 @@
+name: Future Prior Retrieval PIT Smoke
+
+on:
+  push:
+    branches:
+      - autonomous/future-prior-retrieval-pit-main-20260926
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  future-prior-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Compile and run PIT fixture
+        run: |
+          python -m compileall -q src/future_predictor.py scripts/test_future_predictor_pit_cutoff.py
+          PYTHONPATH=. python scripts/test_future_predictor_pit_cutoff.py
