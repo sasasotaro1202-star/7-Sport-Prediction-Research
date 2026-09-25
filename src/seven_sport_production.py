@@ -280,7 +280,7 @@ def collect_wta_public(c,h,start_date,end_date):
     for page in range(8):
         try:
             raw,_,_=h.get(
-                f'{base}/tournaments?page={page}&pageSize=100'
+                f'{base}/tournaments/?page={page}&pageSize=100'
                 f'&from={query_from}&to={query_to}'
             )
             payload=json.loads(raw)
