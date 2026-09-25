@@ -195,8 +195,8 @@ def _rizin_event_date(plain):
     text = clean(plain)
     candidates = []
     patterns = (
-        r"(20\\d{2})\\s*[年/-]\\s*(\\d{1,2})\\s*[月/-]\\s*(\\d{1,2})",
-        r"(20\\d{2})\\s*[./-]\\s*(\\d{1,2})\\s*[./-]\\s*(\\d{1,2})",
+        r"(20\d{2})\s*[年/-]\s*(\d{1,2})\s*[月/-]\s*(\d{1,2})",
+        r"(20\d{2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{1,2})",
     )
     for pattern in patterns:
         for m in re.finditer(pattern, text):
