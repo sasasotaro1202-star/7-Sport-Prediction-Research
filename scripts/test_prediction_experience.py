@@ -1,0 +1,81 @@
+from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from src import prediction_experience as pe
+
+
+class PredictionExperienceTests(unittest.TestCase):
+    def test_binary_score_is_proper_and_identifies_wrong_overconfidence(self):
+        pred = {
+            "probability_side_a": 0.02,
+            "probability_side_b": 0.98,
+            "confidence": "HIGH",
+            "situation": {"quality": {"evidence_count": 4, "conflict_rate": 0.05}},
+            "strategy": "test",
+        }
+        row = pe._score_binary(pred, "A")
+        self.assertIsNotNone(row)
+        self.assertFalse(row["correct"])
+        self.assertEqual(row["experience_class"], "WRONG_OVERCONFIDENT")
+        self.assertAlmostEqual(row["brier"], 0.9604, places=6)
+
+    def test_f1_score_handles_missing_winner_as_surprise(self):
+        pred = {
+            "drivers": [
+                {"participant_id": "a", "probability": 0.7},
+                {"participant_id": "b", "probability": 0.3},
+            ],
+            "confidence": "HIGH",
+            "strategy": "safe_prior_multiclass",
+        }
+        row = pe._score_f1(pred, "c")
+        self.assertIsNotNone(row)
+        self.assertFalse(row["correct"])
+        self.assertGreater(row["logloss"], 10.0)
+
+    def test_probability_bucket_and_case_profile(self):
+        self.assertEqual(pe._bucket_probability(0.82), "0.80-0.90")
+        profile = pe._case_profile(
+            {
+                "confidence": "MEDIUM",
+                "action_state": "SECONDARY",
+                "strategy": "router",
+                "situation": {"quality": {"evidence_count": 7, "conflict_rate": 0.55, "freshness_score": 0.4}},
+            },
+            0.71,
+        )
+        self.assertEqual(profile["conflict_bucket"], "high")
+        self.assertEqual(profile["evidence_bucket"], "6+")
+        self.assertEqual(profile["freshness_bucket"], "low")
+
+    def test_archive_deduplicates_prediction_ids(self):
+        with tempfile.TemporaryDirectory() as td:
+            old_dir = pe.PREDICTIONS_DIR
+            try:
+                pe.PREDICTIONS_DIR = Path(td) / "predictions"
+                result = [
+                    {"sport": "basketball", "predictions": [{
+                        "prediction_id": "p1",
+                        "event_id": "e1",
+                        "event_time_utc": "2026-09-26T00:00:00+00:00",
+                        "prediction_cutoff_at_utc": "2026-09-25T23:00:00+00:00",
+                        "generated_at_utc": "2026-09-25T23:10:00+00:00",
+                        "probability_side_a": 0.4,
+                        "probability_side_b": 0.6,
+                    }]}
+                ]
+                self.assertEqual(pe.archive_predictions(result)["added"], 1)
+                self.assertEqual(pe.archive_predictions(result)["added"], 0)
+                rows = list(pe.PREDICTIONS_DIR.glob("*.jsonl"))
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(len(rows[0].read_text(encoding="utf-8").splitlines()), 1)
+            finally:
+                pe.PREDICTIONS_DIR = old_dir
+
+
+if __name__ == "__main__":
+    unittest.main()
