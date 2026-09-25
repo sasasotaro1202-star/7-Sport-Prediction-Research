@@ -97,14 +97,16 @@ def _participant_sides(c,event_id):
     return out.get('A'),out.get('B')
 
 
-def _prior_record(c,sport,participant_id,event_time):
-    """PIT-safe historical win-rate prior using only completed events before target time."""
+def _prior_record(c,sport,participant_id,prediction_cutoff):
+    """PIT-safe historical win-rate prior using only data available by prediction cutoff."""
     starts=c.execute(
         """SELECT COUNT(DISTINCT e.event_id)
              FROM event e
              JOIN event_participant ep ON ep.event_id=e.event_id
              JOIN event_outcome o ON o.event_id=e.event_id
-             JOIN source_snapshot ss ON ss.source_url=o.source_url
+             JOIN source_snapshot ss
+              ON ss.source_url=o.source_url
+             AND ss.event_time_utc=e.event_time_utc
             WHERE e.sport=? AND ep.participant_id=?
               AND e.event_time_utc < ?
               AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
@@ -112,14 +114,16 @@ def _prior_record(c,sport,participant_id,event_time):
               AND ss.availability_status='EXACT'
               AND ss.source_available_at_utc IS NOT NULL
               AND datetime(ss.source_available_at_utc) <= datetime(?)""",
-        (sport,participant_id,event_time,event_time),
+        (sport,participant_id,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     wins=c.execute(
         """SELECT COUNT(*)
              FROM event e
              JOIN event_participant ep ON ep.event_id=e.event_id
              JOIN event_outcome o ON o.event_id=e.event_id
-             JOIN source_snapshot ss ON ss.source_url=o.source_url
+             JOIN source_snapshot ss
+              ON ss.source_url=o.source_url
+             AND ss.event_time_utc=e.event_time_utc
             WHERE e.sport=? AND ep.participant_id=?
               AND e.event_time_utc < ?
               AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
@@ -128,7 +132,7 @@ def _prior_record(c,sport,participant_id,event_time):
               AND ss.availability_status='EXACT'
               AND ss.source_available_at_utc IS NOT NULL
               AND datetime(ss.source_available_at_utc) <= datetime(?)""",
-        (sport,participant_id,event_time,event_time),
+        (sport,participant_id,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     starts=int(starts or 0); wins=int(wins or 0)
     return starts,wins,(wins+1.0)/(starts+2.0)
@@ -144,11 +148,11 @@ def _safe_prior_binary(c,s,now):
         if not a or not b:
             continue
         event_time=meta['event_time_utc']
-        sa,wa,rate_a=_prior_record(c,s,a[0],event_time)
-        sb,wb,rate_b=_prior_record(c,s,b[0],event_time)
+        cutoff=(datetime.fromisoformat(str(event_time).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        sa,wa,rate_a=_prior_record(c,s,a[0],cutoff)
+        sb,wb,rate_b=_prior_record(c,s,b[0],cutoff)
         denom=max(rate_a+rate_b,1e-12)
         pb=float(np.clip(rate_b/denom,1e-6,1-1e-6))
-        cutoff=(datetime.fromisoformat(str(event_time).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
         features={
             'prior_starts_a':sa,'prior_wins_a':wa,'prior_win_rate_a':rate_a,
             'prior_starts_b':sb,'prior_wins_b':wb,'prior_win_rate_b':rate_b,
@@ -177,6 +181,7 @@ def _safe_prior_f1(c,now):
     outputs=[]
     for eid,meta in future.items():
         event_time=meta['event_time_utc']
+        cutoff=(datetime.fromisoformat(str(event_time).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
         drivers=c.execute(
             """SELECT DISTINCT ep.participant_id,p.canonical_name
                  FROM event_participant ep
@@ -198,7 +203,7 @@ def _safe_prior_f1(c,now):
                       AND ss.availability_status='EXACT'
                       AND ss.source_available_at_utc IS NOT NULL
                       AND datetime(ss.source_available_at_utc) <= datetime(?)""",
-                (pid,event_time,event_time),
+                (pid,cutoff,cutoff),
             ).fetchone()[0]
             wins=c.execute(
                 """SELECT COUNT(*)
@@ -210,7 +215,7 @@ def _safe_prior_f1(c,now):
                       AND ss.availability_status='EXACT'
                       AND ss.source_available_at_utc IS NOT NULL
                       AND datetime(ss.source_available_at_utc) <= datetime(?)""",
-                (pid,event_time,event_time),
+                (pid,cutoff,cutoff),
             ).fetchone()[0]
             scored.append((pid,name,int(starts or 0),int(wins or 0),(int(wins or 0)+1.0)/(int(starts or 0)+2.0)))
         total=sum(x[4] for x in scored)
@@ -218,7 +223,6 @@ def _safe_prior_f1(c,now):
             continue
         probs=[{'participant_id':pid,'name':name,'probability':float(score/total),'prior_starts':starts,'prior_wins':wins} for pid,name,starts,wins,score in scored]
         probs.sort(key=lambda x:(-x['probability'],x['participant_id']))
-        cutoff=(datetime.fromisoformat(str(event_time).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
         outputs.append({
             'event_id':eid,'event_time_utc':event_time,'prediction_cutoff_at_utc':cutoff,
             'market':'winner_multiclass','strategy':'safe_prior_multiclass','model_version':'safe-prior-f1-v1',
