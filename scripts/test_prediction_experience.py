@@ -100,6 +100,48 @@ class PredictionExperienceTests(unittest.TestCase):
                 pe.PREDICTIONS_DIR = old_dir
                 pe.PREDICTION_INDEX = old_idx
 
+    def test_archive_recovers_from_index_interruption_without_duplicate(self):
+        with tempfile.TemporaryDirectory() as td:
+            old_dir = pe.PREDICTIONS_DIR
+            old_idx = pe.PREDICTION_INDEX
+            try:
+                pe.PREDICTIONS_DIR = Path(td) / "predictions"
+                pe.PREDICTION_INDEX = Path(td) / "prediction_ids.txt"
+                result = [{
+                    "sport": "basketball",
+                    "predictions": [{
+                        "prediction_id": "p-recover",
+                        "event_id": "e-recover",
+                        "prediction_cutoff_at_utc": "2026-09-25T23:00:00+00:00",
+                        "generated_at_utc": "2026-09-25T23:10:00+00:00",
+                        "probability_side_a": 0.4,
+                        "probability_side_b": 0.6,
+                    }],
+                }]
+                self.assertEqual(pe.archive_predictions(result)["added"], 1)
+
+                # Simulate the crash window: the archive append succeeded but the
+                # index write did not happen.
+                archive_file = next(pe.PREDICTIONS_DIR.glob("*.jsonl"))
+                raw = json.loads(archive_file.read_text(encoding="utf-8").splitlines()[0])
+                raw["prediction_id"] = "p-crash-window"
+                with archive_file.open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(raw, ensure_ascii=False) + "\n")
+
+                self.assertEqual(pe.archive_predictions([{
+                    "sport": "basketball",
+                    "predictions": [{
+                        **raw,
+                        "event_id": "e-crash-window",
+                    }],
+                }])["added"], 0)
+                ids = set(pe.PREDICTION_INDEX.read_text(encoding="utf-8").splitlines())
+                self.assertIn("p-crash-window", ids)
+                self.assertEqual(len(archive_file.read_text(encoding="utf-8").splitlines()), 2)
+            finally:
+                pe.PREDICTIONS_DIR = old_dir
+                pe.PREDICTION_INDEX = old_idx
+
     def test_archive_deduplicates_prediction_ids(self):
         with tempfile.TemporaryDirectory() as td:
             old_dir = pe.PREDICTIONS_DIR

@@ -106,24 +106,31 @@ def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | N
     PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
     out = PREDICTIONS_DIR / f"{day}.jsonl"
 
-    existing_ids: set[str] = set()
+    # The index is only an acceleration structure; the append-only archive is
+    # the integrity source of truth. Re-scan archived records so an interruption
+    # between JSONL append and index update cannot create a duplicate prediction.
+    index_ids: set[str] = set()
     if PREDICTION_INDEX.exists():
         with PREDICTION_INDEX.open("r", encoding="utf-8") as fh:
-            existing_ids = {line.strip() for line in fh if line.strip()}
-    elif out.exists():
-        # Bootstrap the index once from the current day's archive.
-        with out.open("r", encoding="utf-8") as fh:
-            for raw in fh:
-                raw = raw.strip()
-                if not raw:
-                    continue
-                try:
-                    row = json.loads(raw)
-                except json.JSONDecodeError as exc:
-                    raise RuntimeError(f"INVALID_PREDICTION_ARCHIVE:{out}:{exc}") from exc
-                pid = row.get("prediction_id")
-                if pid:
-                    existing_ids.add(str(pid))
+            index_ids = {line.strip() for line in fh if line.strip()}
+
+    archive_rows = _load_jsonl_dir(PREDICTIONS_DIR)
+    archive_ids = {
+        str(row.get("prediction_id"))
+        for row in archive_rows
+        if row.get("prediction_id")
+    }
+    existing_ids = index_ids | archive_ids
+
+    # Repair any index entries that were lost after an earlier successful
+    # JSONL append. This is safe because every repaired id already exists in the
+    # durable archive; only new rows can still require the normal append path.
+    missing_index_ids = sorted(archive_ids - index_ids)
+    if missing_index_ids:
+        EXPERIENCE_DIR.mkdir(parents=True, exist_ok=True)
+        with PREDICTION_INDEX.open("a", encoding="utf-8") as fh:
+            for pid in missing_index_ids:
+                fh.write(pid + "\n")
 
     added = 0
     skipped = 0
