@@ -14,6 +14,7 @@ RESULTS = ROOT / "results"
 EXPERIENCE_DIR = RESULTS / "experience"
 PREDICTIONS_DIR = EXPERIENCE_DIR / "predictions"
 SUMMARY_OUT = RESULTS / "experience_summary.json"
+SETTLEMENTS_DIR = EXPERIENCE_DIR / "settlements"
 
 SPORTS = (
     "valorant",
@@ -64,6 +65,35 @@ def _load_jsonl_dir(path: Path) -> list[dict[str, Any]]:
                     rows.append(row)
     return rows
 
+
+def _append_settlements(rows: list[dict[str, Any]]) -> dict[str, int]:
+    if not rows:
+        return {"added": 0, "skipped_existing": 0}
+    SETTLEMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    known = {str(r.get("prediction_id")) for r in _load_jsonl_dir(SETTLEMENTS_DIR) if r.get("prediction_id")}
+    day = utc_now()[:10]
+    out = SETTLEMENTS_DIR / f"{day}.jsonl"
+    added = 0
+    skipped = 0
+    with out.open("a", encoding="utf-8") as fh:
+        for row in rows:
+            pid = str(row.get("prediction_id") or "")
+            if not pid or pid in known:
+                skipped += 1
+                continue
+            fh.write(_json(row) + "\n")
+            known.add(pid)
+            added += 1
+    return {"added": added, "skipped_existing": skipped}
+
+
+def _load_settlements() -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for row in _load_jsonl_dir(SETTLEMENTS_DIR):
+        pid = str(row.get("prediction_id") or "")
+        if pid:
+            out[pid] = row
+    return out
 
 def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | None = None) -> dict[str, int]:
     """
@@ -479,13 +509,21 @@ def _next_cycle_signals(scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def score_archive() -> dict[str, Any]:
     predictions = _load_jsonl_dir(PREDICTIONS_DIR)
     conns = _connect_dbs()
-    scored_rows: list[dict[str, Any]] = []
+    durable = _load_settlements()
+    newly_settled: list[dict[str, Any]] = []
     unresolved: Counter[str] = Counter()
+    scored_rows: list[dict[str, Any]] = []
 
     for pred in predictions:
+        pid = str(pred.get("prediction_id") or "")
+        if pid in durable:
+            scored_rows.append(durable[pid])
+            continue
+
         sport = str(pred.get("sport") or "")
         event_id = str(pred.get("event_id") or "")
         base = {
+            "experience_version": 1,
             "prediction_id": pred.get("prediction_id"),
             "sport": sport,
             "event_id": event_id,
@@ -505,72 +543,73 @@ def score_archive() -> dict[str, Any]:
         c = conns.get(sport)
         if c is None:
             unresolved["NO_DATABASE"] += 1
-            base["settlement_status"] = "UNRESOLVED"
-            base["unresolved_reason"] = "NO_DATABASE"
-            scored_rows.append(base)
             continue
 
         if sport == "f1":
-            winner_id, source = _f1_winner(c, event_id)
+            winner_id, source_out = _f1_winner(c, event_id)
             if not winner_id:
                 unresolved["F1_WINNER_NOT_RESOLVED"] += 1
-                base["settlement_status"] = "UNRESOLVED"
-                base["unresolved_reason"] = "F1_WINNER_NOT_RESOLVED"
-                scored_rows.append(base)
                 continue
             result = _score_f1(pred, winner_id)
             if result is None:
                 unresolved["F1_PREDICTION_SCHEMA_INVALID"] += 1
-                base["settlement_status"] = "UNRESOLVED"
-                base["unresolved_reason"] = "F1_PREDICTION_SCHEMA_INVALID"
-                scored_rows.append(base)
                 continue
-            source_out = source
         else:
             outcome, status, source_out = _binary_outcome(c, event_id)
             if outcome is None:
                 unresolved["OUTCOME_NOT_AVAILABLE"] += 1
-                base["settlement_status"] = "UNRESOLVED"
-                base["unresolved_reason"] = "OUTCOME_NOT_AVAILABLE"
-                scored_rows.append(base)
                 continue
             if status != "VERIFIED":
                 unresolved[f"OUTCOME_STATUS_{status or 'UNKNOWN'}"] += 1
-                base["settlement_status"] = "UNRESOLVED"
-                base["unresolved_reason"] = f"OUTCOME_STATUS_{status or 'UNKNOWN'}"
-                scored_rows.append(base)
                 continue
             if outcome in {"VOID", "DRAW"}:
-                unresolved[f"UNSCORABLE_{outcome}"] += 1
-                base["settlement_status"] = "UNSCORABLE"
-                base["unresolved_reason"] = f"UNSCORABLE_{outcome}"
-                scored_rows.append(base)
+                settled = dict(base)
+                settled.update({
+                    "settlement_status": "UNSCORABLE",
+                    "unresolved_reason": f"UNSCORABLE_{outcome}",
+                    "actual_outcome": outcome,
+                    "settlement_source": source_out,
+                    "settled_at_utc": utc_now(),
+                })
+                newly_settled.append(settled)
+                scored_rows.append(settled)
                 continue
             result = _score_binary(pred, outcome)
 
+        if result is None:
+            unresolved["PREDICTION_SCHEMA_INVALID"] += 1
+            continue
+
         max_p = float(result.get("max_probability") or 0.0)
         prof = _case_profile(pred, max_p)
-        base.update(result)
-        base.update(prof)
-        base["settlement_status"] = "SCORED"
-        base["settlement_source"] = source_out
-        base["settled_at_utc"] = utc_now()
-        base["case_id"] = _sha(
-            "experience-v1",
-            base["prediction_id"],
-            base["event_id"],
-            base.get("market"),
-        )
-        scored_rows.append(base)
+        settled = dict(base)
+        settled.update(result)
+        settled.update(prof)
+        settled.update({
+            "settlement_status": "SCORED",
+            "settlement_source": source_out,
+            "settled_at_utc": utc_now(),
+            "case_id": _sha("experience-v1", pid, event_id, result.get("market")),
+        })
+        newly_settled.append(settled)
+        scored_rows.append(settled)
 
     for c in conns.values():
         c.close()
 
-    summary = _summary(scored_rows, len(predictions), unresolved)
+    settlement_write = _append_settlements(newly_settled)
+    # Build a durable view from the settlement ledger plus unresolved current archive.
+    durable = _load_settlements()
+    durable_rows = list(durable.values())
+    unresolved_total = max(0, len(predictions) - len(durable_rows))
+    unresolved["NOT_YET_SETTLED"] = unresolved_total
+    summary = _summary(durable_rows, len(predictions), unresolved)
+    summary["settlement_ledger_total"] = len(durable_rows)
+    summary["new_settlements"] = settlement_write
+    summary["predictions_waiting_for_result"] = unresolved_total
     EXPERIENCE_DIR.mkdir(parents=True, exist_ok=True)
     SUMMARY_OUT.write_text(_json(summary) + "\n", encoding="utf-8")
     return summary
-
 
 def main() -> None:
     import argparse
