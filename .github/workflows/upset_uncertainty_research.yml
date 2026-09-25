@@ -54,9 +54,13 @@ jobs:
         run: PYTHONPATH=. python scripts/test_upset_uncertainty_oos.py
       - name: Run causal OOS upset-risk research
         run: PYTHONPATH=. python -m src.upset_uncertainty_oos --sport ${{ matrix.sport }}
+      - name: Run isolated chronological risk-threshold sweep
+        run: PYTHONPATH=. python scripts/sweep_upset_risk_threshold_oos.py --sport ${{ matrix.sport }}
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
           name: upset-uncertainty-${{ matrix.sport }}-${{ github.run_id }}
-          path: results/upset_uncertainty_oos.json
+          path: |
+            results/upset_uncertainty_oos.json
+            results/upset_threshold_sweep_${{ matrix.sport }}.json
           retention-days: 14
