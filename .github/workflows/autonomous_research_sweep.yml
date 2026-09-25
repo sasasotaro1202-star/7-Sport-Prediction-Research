@@ -35,3 +35,5 @@ jobs:
         run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
       - name: Production invariant contract
         run: PYTHONPATH=. python src/production_invariants.py
+      - name: Prediction experience regression
+        run: PYTHONPATH=. python scripts/test_prediction_experience.py
