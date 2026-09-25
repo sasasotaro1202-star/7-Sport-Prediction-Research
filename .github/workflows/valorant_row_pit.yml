@@ -1,0 +1,50 @@
+name: VALORANT Row-Level PIT Research
+
+on:
+  push:
+    paths:
+      - "src/valorant_git_row_pit.py"
+      - "scripts/test_valorant_git_row_pit.py"
+      - ".github/workflows/valorant_row_pit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: valorant-row-pit-research
+  cancel-in-progress: true
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - run: python -m compileall -q src scripts
+      - run: python scripts/test_valorant_git_row_pit.py
+      - name: Row-level PIT provenance
+        run: |
+          set -euo pipefail
+          python -m src.valorant_git_row_pit
+      - name: Strict replay
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=20s 1800s python -m src.pit_replay_builder
+      - name: Independent leakage audit
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=20s 900s python -m src.independent_leakage_audit
+      - name: VALORANT strict OOS benchmark
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport valorant
