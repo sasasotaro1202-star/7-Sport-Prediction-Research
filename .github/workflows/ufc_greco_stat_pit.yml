@@ -68,6 +68,26 @@ jobs:
           git clone --filter=blob:none --no-checkout https://github.com/Greco1899/scrape_ufc_stats.git /tmp/greco
           test -d /tmp/greco/.git
           git -C /tmp/greco rev-parse HEAD
+      - name: Reset experiment holdout registry to current research database
+        run: |
+          set -euo pipefail
+          rm -f results/research/ufc_frozen_holdout.json
+          rm -f results/ufc_before_greco.json results/ufc_greco_feature_comparison.json
+      - name: Baseline UFC research before Greco PIT enrichment
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=30s 1800s python -m src.research_cycle_strict --sport ufc
+          test -s results/research/ufc.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('results/research/ufc.json')
+          obj=json.loads(p.read_text(encoding='utf-8'))
+          if obj.get('status') != 'TRAINED':
+              raise SystemExit(f"BASELINE_NOT_TRAINED:{obj.get('status')}")
+          Path('results/ufc_before_greco.json').write_text(json.dumps(obj,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({'baseline_status':obj.get('status'),'baseline_training_rows':obj.get('training_rows'),'baseline_holdout_rows':obj.get('frozen_holdout_rows'),'baseline_holdout':obj.get('holdout_metrics')},ensure_ascii=False,indent=2))
+          PY
       - name: Backfill exact Git-history PIT stats
         run: PYTHONPATH=. python -m src.ufc_greco_stat_pit --db data/db/sports_v45.sqlite --upstream-dir /tmp/greco --output results/ufc_greco_stat_pit.json
       - name: Force strict PIT replay
@@ -99,35 +119,33 @@ jobs:
           p.write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
           print(json.dumps(r,ensure_ascii=False,indent=2))
           PY
-      - name: Snapshot pre-Greco UFC research result
-        run: |
-          set -euo pipefail
-          if [ -f results/ufc.json ]; then cp results/ufc.json results/ufc_before_greco.json; else printf '%s\\n' '{"status":"MISSING_BASELINE"}' > results/ufc_before_greco.json; fi
       - name: Re-run UFC research with Greco PIT stats (research-only)
         run: |
           set -euo pipefail
           timeout --signal=TERM --kill-after=30s 1800s python -m src.research_cycle_strict --sport ufc
-      - name: Compare Greco PIT candidate against pre-Greco baseline
+      - name: Compare Greco PIT candidate against identical frozen holdout baseline
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
           before=json.loads(Path('results/ufc_before_greco.json').read_text(encoding='utf-8'))
-          after=json.loads(Path('results/ufc.json').read_text(encoding='utf-8'))
-          def get(o,*keys):
-              for k in keys:
-                  o=o.get(k) if isinstance(o,dict) else None
-              return o
-          bm=get(before,'holdout_metrics') or {}
-          am=get(after,'holdout_metrics') or {}
+          after=json.loads(Path('results/research/ufc.json').read_text(encoding='utf-8'))
+          if before.get('status') != 'TRAINED' or after.get('status') != 'TRAINED':
+              raise SystemExit(f"RESEARCH_COMPARISON_REQUIRES_TRAINED:before={before.get('status')}:after={after.get('status')}")
+          bm=before.get('holdout_metrics') or {}
+          am=after.get('holdout_metrics') or {}
           out={
               'research_only': True,
               'production_model_changed': False,
               'before_status': before.get('status'),
               'after_status': after.get('status'),
-              'before_model': bm.get('model'),
-              'after_model': am.get('model'),
+              'before_model': bm.get('models') or bm.get('model'),
+              'after_model': am.get('models') or am.get('model'),
+              'before_training_rows': before.get('training_rows'),
+              'after_training_rows': after.get('training_rows'),
+              'before_holdout_rows': before.get('frozen_holdout_rows'),
+              'after_holdout_rows': after.get('frozen_holdout_rows'),
               'before_holdout_logloss': bm.get('logloss'),
               'after_holdout_logloss': am.get('logloss'),
               'holdout_logloss_improvement': (float(bm['logloss'])-float(am['logloss'])) if bm.get('logloss') is not None and am.get('logloss') is not None else None,
@@ -140,7 +158,12 @@ jobs:
               'after_holdout_ece': am.get('ece'),
               'after_case_risk_status': after.get('case_risk_status'),
               'after_dynamic_router_status': after.get('dynamic_router_status'),
+              'same_frozen_holdout_registry_hash': before.get('frozen_holdout_registry_hash') == after.get('frozen_holdout_registry_hash'),
+              'before_frozen_holdout_registry_hash': before.get('frozen_holdout_registry_hash'),
+              'after_frozen_holdout_registry_hash': after.get('frozen_holdout_registry_hash'),
           }
+          if not out['same_frozen_holdout_registry_hash']:
+              raise SystemExit('FROZEN_HOLDOUT_REGISTRY_CHANGED')
           Path('results/ufc_greco_feature_comparison.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8')
           print(json.dumps(out,ensure_ascii=False,indent=2))
           PY
