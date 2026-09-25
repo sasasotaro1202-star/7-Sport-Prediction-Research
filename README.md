@@ -1,17 +1,17 @@
 # 9-Sport-Prediction-Research
 
-Nine target-sport prediction/research lanes with a provenance-first data foundation. The research and prediction policies remain isolated by sport. Current production scope is five active sports: Basketball, Volleyball, UFC, RIZIN and VALORANT. Tennis, F1, Rugby and Boxing are currently deferred until their sport-specific PIT/OOS requirements are proven.
+Nine target-sport prediction/research lanes with a provenance-first data foundation. The research and prediction policies remain isolated by sport. **All nine sports are mandatory prediction lanes.** A sport-specific production model can remain gated while data/PIT/OOS evidence is incomplete, but the future-prediction layer must still attempt a safe, explicitly labeled prediction for all nine lanes whenever the required event and participant information is available.
 
 ## Target sports
 - VALORANT
 - Basketball
 - Volleyball
-- Tennis (currently deferred)
+- Tennis
 - UFC
 - RIZIN
-- F1 (currently deferred)
-- Rugby (currently deferred)
-- Boxing (currently deferred)
+- F1
+- Rugby
+- Boxing
 
 ## Non-negotiable rules
 1. Shared data foundation where appropriate; sport-specific research/prediction policies remain isolated.
@@ -48,7 +48,7 @@ The system does not assume that one provider is complete. Cross-source reconcili
 - Source-backed HTTP cache to avoid repeatedly downloading unchanged pages.
 - Checkpoint/resume state for long collectors.
 - Parallel detail-page retrieval inside a sport while keeping deterministic database writes.
-- Explicit nine-sport target scope; a sport can be PASS, DEFERRED, or blocked according to evidence, but no sport is silently omitted.
+- Explicit nine-sport prediction scope; every run reports all nine lanes. A production model can be PASS, research-only, or gated according to evidence, but no sport is silently omitted from prediction.
 
 ### Outcome reconstruction
 `src/outcome_backfill.py` reconstructs outcomes only when source evidence is sufficient. Missing or unverifiable outcomes remain deferred.
@@ -67,7 +67,7 @@ X data is isolated from the production model: collection → PIT storage → ind
 
 ## GitHub Actions
 ### Canonical production
-`.github/workflows/v4_5_15_production.yml` runs the five active sports independently; Tennis, F1, Rugby and Boxing are deferred by project scope, restores/saves per-sport run-scoped caches, validates collection, reconstructs outcomes, builds strict PIT replay, runs an independent leakage audit, performs frozen-holdout research, applies quality/release gates, and persists safe outputs.
+`.github/workflows/v4_5_15_production.yml` runs all nine sports independently. Tennis, F1, Rugby and Boxing may remain model-gated when their sport-specific PIT/OOS evidence is insufficient, but they are still collected and passed through the mandatory future-prediction lane.
 
 ### Rugby / Boxing coverage guards
 `.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby remains coverage-only until its sport-specific PIT/OOS/release path is proven.
@@ -77,12 +77,13 @@ X data is isolated from the production model: collection → PIT storage → ind
 Cache/PIT health and production invariant workflows provide independent safety checks. A release gate is fail-closed: unsafe models are never published, and a blocked gate must be visible as a non-zero Action rather than a false green success.
 
 ## Boxing integration status
-- Boxing is a formal target sport, but it remains `DEFERRED_PIT` until a free historical source can prove source availability before the prediction cutoff.
+- Boxing is a mandatory prediction lane.
+- Boxing model promotion remains `DEFERRED_PIT` until a free historical source can prove source availability before the prediction cutoff.
 - Candidate public sources are tracked separately from production data. Public availability or a current schedule is not treated as historical PIT evidence.
-- No Boxing model, feature, or future prediction is promoted until chronological OOS and frozen-holdout gates pass.
+- Until a gated Boxing model exists, future inference uses the explicitly labeled PIT-safe historical-prior fallback; no fabricated feature or result is introduced.
 
 ## Definition of done
-An active sport is production-ready only when it has reliable intended historical/current coverage, explicit provenance and PIT availability metadata, leakage-safe chronological OOS, calibrated probability evaluation, frozen-holdout acceptance, incumbent/challenger protection, production invariants, reproducible artifacts, and recovery from transient source/network failures.
+A sport is model-production-ready only when it has reliable intended historical/current coverage, explicit provenance and PIT availability metadata, leakage-safe chronological OOS, calibrated probability evaluation, frozen-holdout acceptance, incumbent/challenger protection, production invariants, reproducible artifacts, and recovery from transient source/network failures. Separately, every one of the nine sports must remain represented in future inference; a gated model is never a reason to silently omit a prediction lane.
 
 A successful GitHub Action is evidence that a run completed; it is not by itself evidence that a model is accurate, calibrated, leakage-free, or production-ready.
 
