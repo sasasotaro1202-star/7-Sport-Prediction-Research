@@ -76,9 +76,9 @@ def build_pairwise_rows(races):
 
     out = []
     for race in sorted(races, key=lambda r: (int(r.get("season", 0)), int(r.get("round", 0)))):
-        season = int(r.get("season", 0))
-        rnd = int(r.get("round", 0))
-        race_name = str(r.get("raceName") or "")
+        season = int(race.get("season", 0))
+        rnd = int(race.get("round", 0))
+        race_name = str(race.get("raceName") or "")
         circuit = str((race.get("Circuit") or {}).get("circuitId") or "")
         results = []
         for rr in race.get("Results") or []:
