@@ -115,8 +115,8 @@ def build_pairwise_rows(races):
                 (np.mean(ha[-5:]) if ha else np.nan) - (np.mean(hb[-5:]) if hb else np.nan),
                 (np.mean(fa) if fa else np.nan) - (np.mean(fb) if fb else np.nan),
                 (np.mean(ca) if ca else np.nan) - (np.mean(cb) if cb else np.nan),
-                (_num(a["grid"]) if np.isfinite(_num(a["grid"])) else np.nan)
-                  - (_num(b["grid"]) if np.isfinite(_num(b["grid"])) else np.nan),
+            # Grid is intentionally excluded: the historical source does not prove
+            # that qualifying-grid publication was available by the prediction cutoff.
             ]
             y = 1 if a["position"] < b["position"] else 0
             out.append({
@@ -237,7 +237,7 @@ def main() -> int:
         "selected_model": best,
         "holdout_metrics": holdout,
         "prediction_target": "driver_A_finishes_ahead_of_driver_B",
-        "pit_policy": "features derived only from races strictly before current race; current-race result never used as feature",
+        "pit_policy": "features derived only from races strictly before current race; current-race result never used as feature; qualifying grid excluded because historical publication availability is unproven",
         "production_changed": False,
         "production_promotion_allowed": False,
     }
