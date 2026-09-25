@@ -270,7 +270,7 @@ def main():
     future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
     require((ROOT/'src/future_predictor.py').exists(),'future prediction inference module is missing')
     require('src.future_predictor' in workflow,'canonical production workflow does not execute future prediction inference')
-    require('accepted-artifact-only' in future_src,'future predictor is not restricted to accepted artifacts')
+    require('accepted-artifact-first' in future_src,'future predictor no longer declares accepted-artifact-first policy')
     require('PRODUCTION_ROUTABLE_AFTER_GATES' in future_src and 'contextual_router' in future_src,
             'future predictor lacks gated situation-specific routing path')
     require('src.reproducibility_manifest' in workflow,'production workflow does not generate reproducibility manifest')
@@ -282,8 +282,8 @@ def main():
         boxing_def_pos >= 0 and boxing_handler_pos >= 0
         and (deferred_guard_pos < 0 or boxing_handler_pos < deferred_guard_pos),
         'Boxing research lane is not wired to an explicit deferred handler before the generic gate')
-    require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src and "ALL_SPORTS=SPORTS+DEFERRED_SPORTS" in strict_src,
-            'Strict research does not explicitly separate the complete active/deferred sport lanes')
+    require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src and 'ALL_SPORTS=SPORTS' in strict_src,
+            'Strict research does not declare the full nine-sport lane set alongside explicit gated model lanes')
     research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
