@@ -1,0 +1,55 @@
+name: UFC Greco PIT Probe
+
+on:
+  push:
+    branches:
+      - research/ufc-greco-pit-backfill-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ufc-greco-pit-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Probe upstream Git dataset
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT
+          git clone --filter=blob:none --no-checkout https://github.com/Greco1899/scrape_ufc_stats.git "$tmp/repo"
+          cd "$tmp/repo"
+          echo '--- HEAD ---'
+          git rev-parse HEAD
+          echo '--- FILES ---'
+          git ls-tree -r --name-only HEAD | grep -E 'ufc_.*\.csv$' | head -80
+          echo '--- STATS HEADER/SAMPLE ---'
+          git show HEAD:ufc_fight_stats.csv | head -n 6
+          echo '--- STATS SIZE ---'
+          git cat-file -s HEAD:ufc_fight_stats.csv
+          echo '--- HISTORY ---'
+          git log --format='%H %cI %s' --follow -- ufc_fight_stats.csv | head -40
+      - name: Clone parser source for reference
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('results/ufc_greco_probe.txt')
+          p.parent.mkdir(parents=True,exist_ok=True)
+          p.write_text('probe completed; upstream header/history are in job log\n',encoding='utf-8')
+          PY
+      - name: Upload probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufc-greco-pit-probe-${{ github.run_id }}
+          path: results/ufc_greco_probe.txt
+          retention-days: 7
