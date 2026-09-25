@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - ".github/workflows/all_sport_research.yml"
+      - "src/research_cycle_strict.py"
+      - "src/f1_pairwise_oos.py"
+      - "scripts/test_f1_pairwise_oos.py"
   workflow_dispatch:
   schedule:
     - cron: "11 */12 * * *"
