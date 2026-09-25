@@ -39,32 +39,38 @@ def parse_event_date(value: str) -> datetime | None:
     return None
 
 
-def first_seen_index(commits: list[str]) -> tuple[dict[str, datetime], dict[str, datetime]]:
+def first_seen_index(commits: list[str]) -> dict[str, datetime]:
+    # Use commit diffs instead of replaying the entire CSV at every snapshot.
+    # This preserves conservative first-seen semantics while reducing work from
+    # O(history * full-file-size) to O(history * changed-lines).
     first_bout: dict[str, datetime] = {}
-    first_event: dict[str, datetime] = {}
     for commit in commits:
         ts = parse_commit_time(commit)
-        results = parse_csv_at(commit, RESULTS_FILE)
-        for row in results:
-            event = (row.get("EVENT") or "").strip()
-            bout = (row.get("BOUT") or "").strip()
-            if not event or not bout:
+        diff = git(
+            "show", "--root", "--format=", "--unified=0",
+            "--diff-filter=AM", commit, "--", RESULTS_FILE
+        )
+        for raw in diff.splitlines():
+            if not raw.startswith("+") or raw.startswith("+++"):
                 continue
-            key = event + "\t" + bout
-            first_bout.setdefault(key, ts)
-        events = parse_csv_at(commit, EVENTS_FILE)
-        for row in events:
-            event = (row.get("EVENT") or "").strip()
-            if event:
-                first_event.setdefault(event, ts)
-    return first_bout, first_event
+            try:
+                row = next(csv.reader([raw[1:]]))
+            except csv.Error:
+                continue
+            if len(row) < 2 or row[0].strip() == "EVENT":
+                continue
+            event = row[0].strip()
+            bout = row[1].strip()
+            if event and bout:
+                first_bout.setdefault(event + "\t" + bout, ts)
+    return first_bout
 
 
 def main() -> int:
     commits = git("log", "--reverse", "--format=%H", "--follow", "--", RESULTS_FILE).splitlines()
     if not commits:
         raise SystemExit("no historical commits found")
-    first_bout, _first_event = first_seen_index(commits)
+    first_bout = first_seen_index(commits)
 
     current_events = parse_csv_at("HEAD", EVENTS_FILE)
     event_date = {
