@@ -8,15 +8,13 @@ on:
   workflow_run:
     workflows:
       - Nine-Sport Target v4.5.15 Production
-      - Cache and PIT Health
-      - Production Invariants
       - Production Safety Audit
       - Lightweight Regression and Safety Checks
-      - Autonomous Research Sweep
-      - Matchday Horizon Research
     types: [completed]
-  # The 5-minute schedule remains the primary heartbeat; low-frequency completion
-  # events provide a second recovery path without listening to validator churn.
+  # Keep completion-trigger recovery only for the canonical production run and
+  # the two direct production-dispatch gates. The 5-minute heartbeat still polls
+  # all validator state; excluding low-value research/health completions prevents
+  # rapid watchdog event storms from consuming Actions runner capacity.
 
 permissions:
   actions: write
