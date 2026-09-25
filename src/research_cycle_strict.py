@@ -459,10 +459,6 @@ def evaluate_recent_weighted_router_holdout_from_folds(
 def train(s):
  if s=='f1':
   return _write_result(s,f1())
- if s=='boxing':
-  return boxing()
- if s in ('tennis','rugby'):
-  return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'DEFERRED_BY_PROJECT_SCOPE','promotion_policy':'Do not train or publish until sport-specific PIT, chronological OOS and frozen-holdout requirements are enabled'})
  c=sqlite3.connect(DB)
  try:
   previous=_previous_result(s) or _previous_model_from_db(c,s)
@@ -1125,5 +1121,5 @@ def train(s):
  finally:c.close()
 def main():
  import argparse
- a=argparse.ArgumentParser();a.add_argument('--sport',choices=ALL_SPORTS);x=a.parse_args();print(json.dumps([train(s) for s in ([x.sport] if x.sport else ALL_SPORTS)],ensure_ascii=False,indent=2));return 0
+ a=argparse.ArgumentParser();a.add_argument('--sport',choices=ALL_SPORTS);x=a.parse_args();print(json.dumps([train(s) for s in ([x.sport] if x.sport else SPORTS)],ensure_ascii=False,indent=2));return 0
 if __name__=='__main__':raise SystemExit(main())
