@@ -17,6 +17,7 @@ concurrency:
 
 env:
   PYTHONUNBUFFERED: "1"
+  ULTIMATE_CONTROL_VERSION: "v13"
 
 jobs:
   research:
@@ -160,6 +161,7 @@ jobs:
           python -m compileall -q src scripts
           python scripts/test_case_risk_oos.py
           python scripts/test_ultimate_predictive_control.py
+          test "${ULTIMATE_CONTROL_VERSION}" = "v13"
 
       - name: Upload sport research evidence
         uses: actions/upload-artifact@v6
