@@ -464,6 +464,24 @@
         "https://volleybox.net/what-is-volleybox",
         "https://volleybox.net/players"
       ]
+    },
+    "ufc_stats_api_public_impl": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "A current public GitHub implementation exposes a free REST API built from UFCStats with 4,400+ fighters, 750+ events and 8,500+ fights, including round-by-round statistics, at an advertised 100 requests/day per IP. The live service could not be independently reached from the current web browser, so availability remains unverified.",
+      "references": [
+        "https://github.com/malichetty/ufc-stats-api"
+      ]
+    },
+    "tennis_api_atp_wta_itf": {
+      "current_web_evidence": "2026-09-27",
+      "status": "free_tier_research_candidate",
+      "note": "Current Tennis API documentation exposes ATP/WTA/ITF-inclusive fixtures, results, player profiles, rankings, H2H, tournament draws and historical data through RapidAPI. Free and paid tiers exist, but a RapidAPI key is mandatory; do not auto-create credentials. Historical availability is not equivalent to PIT availability and must be snapshotted.",
+      "references": [
+        "https://docs.tennis-api.com/",
+        "https://docs.tennis-api.com/results",
+        "https://docs.tennis-api.com/tournaments"
+      ]
     }
   },
   "source_classes": {
@@ -836,6 +854,15 @@
         "integrated": false,
         "pit": "dataset_regeneration_snapshot_required",
         "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "ufc_stats_api_public_impl",
+        "name": "UFCStats-derived public REST API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "live_service_snapshot_and_source_provenance_required",
+        "independence_family": "ufcstats_api_wrapper"
       }
     ],
     "rizin": [
@@ -1112,6 +1139,15 @@
         "integrated": false,
         "pit": "prediction_snapshot_required",
         "independence_family": "external_forecast"
+      },
+      {
+        "id": "tennis_api_atp_wta_itf",
+        "name": "Tennis API ATP/WTA/ITF",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "rapidapi_prediction_or_historical_snapshot_required",
+        "independence_family": "tennis_api_provider"
       }
     ],
     "f1": [
