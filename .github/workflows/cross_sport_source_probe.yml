@@ -47,7 +47,7 @@ jobs:
               assert 0 <= data["healthy_count"] <= data["probe_count"]
           print("CROSS_SPORT_PROBE_ARTIFACT=PASS")
           for source, data in o["sources"].items():
-              print(f"{source.upper()}_HEALTHY={data["healthy_count"]}/{data["probe_count"]}")
+              print(f"{source.upper()}_HEALTHY={data['healthy_count']}/{data['probe_count']}")
           PY
 
       - name: Upload probe evidence
