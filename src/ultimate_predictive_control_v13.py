@@ -865,6 +865,8 @@ def run_v13_research(
     meta_label = meta_label_oos(final_p, yv, meta_X)
 
     regime_future = regime_transition_oos(reg["code"])
+    ensemble_metrics = metrics(yv, fixed)
+    routed_metrics = metrics(yv, final_p)
     statistical_validation = block_bootstrap_delta(yv, fixed, final_p)
     ablation = {
         "baseline_fixed_ensemble": ensemble_metrics,
@@ -873,9 +875,6 @@ def run_v13_research(
         "final_policy_output": routed_metrics,
         "selection_is_outcome_free_at_prediction_time": True,
     }
-
-    ensemble_metrics = metrics(yv, fixed)
-    routed_metrics = metrics(yv, final_p)
     revision = revision_metrics(final_p, yv)
     err = error_correlation(dict(model_predictions), yv)
     robust = robustness(final_p, pm, yv)
@@ -932,7 +931,6 @@ def run_v13_research(
         "future_regime_transition": "EXECUTED" if regime_future.get("status") == "EVALUATED" else "INSUFFICIENT_OOS",
         "error_correlation": err.get("status", "INSUFFICIENT"),
         "current_regime": "EXECUTED",
-        "future_regime_transition": "DESIGNED_RESEARCH_ONLY",
         "drift_ood": "EXECUTED",
         "retrieval": "EXECUTED",
         "meta_label": "EXECUTED",
