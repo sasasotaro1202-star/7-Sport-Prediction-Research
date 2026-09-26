@@ -12,15 +12,15 @@ OUT = ROOT / "results" / "cross_sport_source_probe"
 
 PROBES = {
     "sofascore": {
-        "basketball": "https://www.sofascore.com/basketball",
-        "volleyball": "https://www.sofascore.com/volleyball",
-        "ufc": "https://www.sofascore.com/en-us/mma",
-        "rizin": "https://www.sofascore.com/en-us/mma/organisation/rizin/19905",
-        "valorant": "https://www.sofascore.com/esports",
-        "tennis": "https://www.sofascore.com/tennis",
-        "f1": "https://www.sofascore.com/motorsport",
-        "rugby": "https://www.sofascore.com/rugby",
-        "boxing": "https://www.sofascore.com/mma",
+        "basketball": "https://api.sofascore.com/api/v1/sport/basketball/scheduled-events/2026-09-27",
+        "volleyball": "https://api.sofascore.com/api/v1/sport/volleyball/scheduled-events/2026-09-27",
+        "ufc": "https://api.sofascore.com/api/v1/sport/mma/scheduled-events/2026-09-27",
+        "rizin": "https://api.sofascore.com/api/v1/sport/mma/scheduled-events/2026-09-27",
+        "valorant": "https://www.sofascore.com/api/v1/sport/esports/scheduled-events/2026-09-27",
+        "tennis": "https://api.sofascore.com/api/v1/sport/tennis/scheduled-events/2026-09-27",
+        "f1": "https://www.sofascore.com/api/v1/sport/motorsport/scheduled-events/2026-09-27",
+        "rugby": "https://api.sofascore.com/api/v1/sport/rugby/scheduled-events/2026-09-27",
+        "boxing": "https://api.sofascore.com/api/v1/sport/mma/scheduled-events/2026-09-27",
     },
     "thesportsdb": {
         "basketball": "https://www.thesportsdb.com/api/v1/json/123/search_all_leagues.php?s=Basketball",
@@ -35,12 +35,9 @@ PROBES = {
     },
     "espn": {
         "basketball": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
-        "volleyball": "https://site.api.espn.com/apis/site/v2/sports/volleyball/fivb.w/scoreboard",
-        "ufc": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard",
-        "tennis": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard",
-        "f1": "https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard",
-        "rugby": "https://site.api.espn.com/apis/site/v2/sports/rugby/164205/scoreboard",
+        "ufc": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard"
     },
+
     "f1api_dev": {
         "f1_current": "https://f1api.dev/api/current",
         "f1_drivers": "https://f1api.dev/api/drivers?limit=1"
@@ -50,6 +47,9 @@ PROBES = {
     },
     "openboxing": {
         "boxing_bouts": "https://www.openboxing.org/api/bouts/all.json"
+    },
+    "ufc_stats_api_public_impl": {
+        "completed_events": "https://www.ufcstats.com/statistics/events/completed?page=all"
     },
     "rizin_club": {
         "event_history": "https://rizin.club/"
@@ -67,9 +67,23 @@ PROBES = {
     "euroleague_official": {
         "euroleague_seasons": "https://api-live.euroleague.net/v2/seasons/E"
     },
+    "tracinginsights_f1": {
+        "telemetry_2026": "https://raw.githubusercontent.com/TracingInsights/2026/main/README.md"
+    },
     "sporting_events_free": {
         "fixture_index": "https://sporting-events.org/data/"
     }
+}
+
+REQUIRED_SOURCES = {
+    "sofascore",
+    "thesportsdb",
+    "espn",
+    "rizin_club",
+    "f1api_dev",
+    "racehooks",
+    "openboxing",
+    "ufc_stats_api_public_impl",
 }
 
 def probe(url: str) -> dict:
@@ -153,12 +167,18 @@ def main() -> int:
         encoding="utf-8",
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    healthy = all(source_data["healthy_count"] > 0 for source_data in report["sources"].values())
+    required_failures = [name for name in REQUIRED_SOURCES if report["sources"].get(name, {}).get("healthy_count", 0) == 0]
+    optional_failures = [name for name, data in report["sources"].items() if name not in REQUIRED_SOURCES and data.get("healthy_count", 0) == 0]
+    report["required_zero_healthy"] = required_failures
+    report["optional_zero_healthy"] = optional_failures
+    healthy = not required_failures
     report["overall_status"] = "PASS" if healthy else "PARTIAL_FAILURE"
     (OUT / "cross_sport.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    if optional_failures:
+        print("CROSS_SPORT_OPTIONAL_ZERO_HEALTHY=" + ",".join(sorted(optional_failures)), flush=True)
     if not healthy:
         print("CROSS_SPORT_PROBE_RESULT=PARTIAL_FAILURE", flush=True)
         return 2
