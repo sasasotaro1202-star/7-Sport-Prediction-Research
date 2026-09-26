@@ -330,6 +330,30 @@
         "https://the-odds-api.com/historical-odds-data/"
       ],
       "terms_note": "Free account/key required; no paid upgrade or credential creation is automated."
+    },
+    "tennis_pointbypoint_legacy": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Public GitHub archive contains sequential point-by-point ATP/WTA/Challenger/ITF match data split by tour/draw, useful for historical point-sequence modeling. Coverage is strongest for tour-level matches since ~2012/2013 and the repository documents omissions/errors. Treat as a derived research corpus; immutable snapshot and provenance are required.",
+      "references": [
+        "https://github.com/ppaulojr/tennis_pointbypoint"
+      ]
+    },
+    "tennis_match_charting_project": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Match Charting Project public GitHub data provides shot-by-shot professional tennis records for thousands of matches, including shot type/direction/depth and error information. CC BY-NC-SA 4.0; non-commercial. This can support shot-pattern/style features, but historical availability must not be inferred from current aggregates.",
+      "references": [
+        "https://github.com/SickleClaw/Tennis_MatchChartingProject"
+      ]
+    },
+    "tennis_visuals": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "TennisVisuals publishes CSV collections at basic, point-by-point and stats levels. It is a complementary corpus for tennis feature research; source overlap and historical provenance must be audited before using it as an independent validation source.",
+      "references": [
+        "https://github.com/TennisVisuals/tennis-match-data"
+      ]
     }
   },
   "source_classes": {
@@ -821,6 +845,30 @@
         "free": true,
         "integrated": false,
         "pit": "prediction_time_snapshot_required"
+      },
+      {
+        "id": "tennis_pointbypoint_legacy",
+        "name": "tennis_pointbypoint public corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required"
+      },
+      {
+        "id": "tennis_match_charting_project",
+        "name": "Match Charting Project",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required"
+      },
+      {
+        "id": "tennis_visuals",
+        "name": "TennisVisuals tennis-match-data",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required"
       }
     ],
     "f1": [
