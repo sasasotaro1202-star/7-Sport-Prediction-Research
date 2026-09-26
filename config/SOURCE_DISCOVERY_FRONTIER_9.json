@@ -465,6 +465,16 @@
       "access": "free_public_no_key_cc_by_4",
       "status": "research_candidate",
       "next": "snapshot current schedule/results -> compare with OpenF1/Jolpica -> PIT/replay where time-sensitive"
+    },
+    {
+      "id": "rizin_club",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rizin"
+      ],
+      "access": "public_web_database_no_key",
+      "status": "research_candidate",
+      "next": "snapshot event/fight pages -> compare against primary RIZIN history -> PIT/publication provenance -> OOS"
     }
   ]
 }
