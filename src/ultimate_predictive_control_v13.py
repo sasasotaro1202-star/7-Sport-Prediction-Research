@@ -780,6 +780,123 @@ def regime_transition_oos(regime_codes: np.ndarray) -> Dict:
     return _chronological_binary_oos(X, future_change, min_train=60)
 
 
+def selective_evaluation(
+    p: np.ndarray,
+    y: np.ndarray,
+    predictability: np.ndarray,
+    uncertainty: np.ndarray,
+) -> Dict:
+    rows = []
+    policies = [
+        ("none", np.ones(len(y), dtype=bool)),
+        ("predictability_075", predictability >= 0.75),
+        ("predictability_055", predictability >= 0.55),
+        ("uncertainty_040", uncertainty <= 0.40),
+        ("high_confidence", (predictability >= 0.70) & (uncertainty <= 0.35)),
+    ]
+    for name, mask in policies:
+        if int(mask.sum()) < 20 or len(np.unique(y[mask])) < 2:
+            rows.append({"policy": name, "status": "INSUFFICIENT", "coverage": float(mask.mean())})
+            continue
+        m = metrics(y[mask], p[mask])
+        rows.append({
+            "policy": name,
+            "status": "EVALUATED",
+            "coverage": float(mask.mean()),
+            "accuracy": m["accuracy"],
+            "logloss": m["logloss"],
+            "brier": m["brier"],
+            "ece": m["ece"],
+        })
+    return {
+        "status": "EVALUATED",
+        "policies": rows,
+        "selection_thresholds_fixed_ex_ante": True,
+    }
+
+
+def calibration_drift(p: np.ndarray, y: np.ndarray, window: int = 60) -> Dict:
+    p0 = _p(p)
+    yv = np.asarray(y, dtype=int)
+    n = len(yv)
+    mid = max(1, n // 2)
+    full = metrics(yv, p0)
+    first = metrics(yv[:mid], p0[:mid])
+    last = metrics(yv[mid:], p0[mid:])
+    latest = metrics(yv[-min(window, n):], p0[-min(window, n):])
+    return {
+        "status": "EVALUATED",
+        "ece_full": full["ece"],
+        "ece_first_half": first["ece"],
+        "ece_second_half": last["ece"],
+        "ece_latest_window": latest["ece"],
+        "ece_second_minus_first": _safe_float((last["ece"] or 0.0) - (first["ece"] or 0.0)),
+    }
+
+
+def worst_case_evaluation(
+    p: np.ndarray,
+    y: np.ndarray,
+    regime_code: np.ndarray,
+    ood: np.ndarray,
+    predictability: np.ndarray,
+    window: int = 30,
+) -> Dict:
+    p0 = _p(p)
+    yv = np.asarray(y, dtype=int)
+    worst_window = None
+    worst_ll = -1.0
+    for i in range(window, len(yv) + 1):
+        m = metrics(yv[i - window:i], p0[i - window:i])
+        if m["logloss"] is not None and m["logloss"] > worst_ll:
+            worst_ll = float(m["logloss"])
+            worst_window = {"start": i - window, "end_exclusive": i, **m}
+    regime_rows = {}
+    z = np.asarray(regime_code, dtype=int)
+    for code in sorted(set(z.tolist())):
+        mask = z == code
+        if int(mask.sum()) >= 10:
+            regime_rows[str(int(code))] = metrics(yv[mask], p0[mask])
+    q = np.quantile(ood, 0.75)
+    ood_mask = ood >= q
+    conf = predictability >= 0.75
+    return {
+        "status": "EVALUATED",
+        "worst_rolling_window": worst_window,
+        "regime_metrics": regime_rows,
+        "worst_ood_quartile": metrics(yv[ood_mask], p0[ood_mask]) if int(ood_mask.sum()) >= 10 else {},
+        "high_predictability_metrics": metrics(yv[conf], p0[conf]) if int(conf.sum()) >= 10 and len(np.unique(yv[conf])) >= 2 else {},
+    }
+
+
+def build_prediction_ledger(
+    p: np.ndarray,
+    predictability: np.ndarray,
+    disagreement: np.ndarray,
+    uncertainty: np.ndarray,
+    strategy: Sequence[str],
+    output_format: Sequence[str],
+    route_weights: Mapping[str, np.ndarray],
+    n_rows: int = 25,
+) -> List[Dict]:
+    start = max(0, len(p) - n_rows)
+    names = list(route_weights)
+    ledger = []
+    for i in range(start, len(p)):
+        ledger.append({
+            "row_index": int(i),
+            "prediction_probability": float(p[i]),
+            "direction": int(p[i] >= 0.5),
+            "predictability": float(predictability[i]),
+            "disagreement": float(disagreement[i]),
+            "uncertainty": float(uncertainty[i]),
+            "strategy": str(strategy[i]),
+            "output_format": str(output_format[i]),
+            "weights": {name: float(route_weights[name][i]) for name in names},
+        })
+    return ledger
+
+
 def run_v13_research(
     sport: str,
     model_predictions: Mapping[str, Sequence[float]],
@@ -878,6 +995,20 @@ def run_v13_research(
     revision = revision_metrics(final_p, yv)
     err = error_correlation(dict(model_predictions), yv)
     robust = robustness(final_p, pm, yv)
+    selective = selective_evaluation(final_p, yv, predfeat["predictability"], uncertainty)
+    calibration = calibration_drift(final_p, yv)
+    worst_case = worst_case_evaluation(
+        final_p, yv, reg["code"], shift["ood"], predfeat["predictability"]
+    )
+    prediction_ledger = build_prediction_ledger(
+        final_p,
+        predfeat["predictability"],
+        d["std"],
+        uncertainty,
+        combined["strategy"],
+        combined["output_format"],
+        route_weights,
+    )
 
     trajectory = prediction_trajectory(
         float(final_p[-1]),
@@ -1005,6 +1136,10 @@ def run_v13_research(
             "latest": _safe_float(latest_uncertainty),
             "mean": _safe_float(np.mean(uncertainty)),
         },
+        "selective_prediction": selective,
+        "calibration": calibration,
+        "worst_case": worst_case,
+        "prediction_ledger": prediction_ledger,
         "tta": {
             "status": "EXECUTED_PAST_ONLY",
             "baseline": metrics(yv, routed),
@@ -1031,6 +1166,12 @@ def run_v13_research(
         "forecast_contract": contract,
         "audit": audit,
         "states": states,
+        "safety_controls": {
+            "fallback": "INHERITED_PRODUCTION_FAIL_CLOSED",
+            "rollback": "INHERITED_PRODUCTION_PREVIOUS_VERIFIED",
+            "kill_switch": "INHERITED_PRODUCTION_CONTROL",
+            "research_layer_auto_promotion": False,
+        },
         "promotion": {
             "production": "HOLD",
             "reason": "research-only hardening layer; no automatic promotion",
