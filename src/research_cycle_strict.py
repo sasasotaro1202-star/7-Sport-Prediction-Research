@@ -940,6 +940,7 @@ def train(s):
        event_ids=oof_event_ids,
        dataset_hash=h([(str(r[0]), str(r[1]), int(r[2])) for r in train_rows]),
        feature_version='strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features',
+       feature_names=fs,
        metric=base.metric,
       )
      except Exception as exc:
