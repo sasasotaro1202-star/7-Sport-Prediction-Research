@@ -159,6 +159,7 @@ jobs:
           set -euo pipefail
           python -m compileall -q src scripts
           python scripts/test_case_risk_oos.py
+          python scripts/test_ultimate_predictive_control.py
 
       - name: Upload sport research evidence
         uses: actions/upload-artifact@v6
