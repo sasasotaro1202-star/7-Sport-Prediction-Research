@@ -598,7 +598,7 @@ def run_experiment(
 ) -> dict[str, Any]:
     if not v2.RESEARCH_ONLY:
         raise RuntimeError("MAX_FUTURE_V6_MUST_REMAIN_RESEARCH_ONLY")
-    parts_x, parts_y, parts_p, parts_ids = [], [], [], []
+    parts_x, parts_y, parts_p, parts_ids, parts_age = [], [], [], [], []
     for fold in oof_folds:
         end, te = int(fold["end"]), int(fold["te"])
         if te <= end:
@@ -607,16 +607,20 @@ def run_experiment(
         parts_y.append(np.asarray(y_train[end:te], dtype=int))
         parts_p.append(np.column_stack([np.asarray(fold["preds"][n], dtype=float) for n in names]))
         parts_ids.extend([str(z) for z in fold.get("event_ids", [])])
+        parts_age.append(np.arange(te - end, dtype=float))
     if not parts_x:
         return {"status": "INSUFFICIENT_OOS", "promotion": "HOLD", "production_changed": False}
     x = np.vstack(parts_x)
     y = np.concatenate(parts_y)
     bp = np.vstack(parts_p)
     ids = parts_ids
+    model_age = np.concatenate(parts_age) if parts_age else np.zeros(len(y), dtype=float)
     max_rows = int(max_oos_rows or os.getenv("MAX_FUTURE_V6_OOS_ROWS") or DEFAULT_MAX_OOS)
     mode = "FULL_OOS" if len(y) <= max_rows else "REDUCED_OOS"
     if len(y) > max_rows:
-        x, y, bp, ids = x[-max_rows:], y[-max_rows:], bp[-max_rows:], ids[-max_rows:]
+        x, y, bp, ids, model_age = (
+            x[-max_rows:], y[-max_rows:], bp[-max_rows:], ids[-max_rows:], model_age[-max_rows:]
+        )
     if len(y) < 240 or len(names) < 2:
         return {"status": "INSUFFICIENT_OOS", "oos_rows": int(len(y)), "promotion": "HOLD", "production_changed": False}
 
@@ -630,7 +634,7 @@ def run_experiment(
     meta_label, meta_meta = _meta_label_models(x, bp, y)
     uncertainty = _uncertainty_decomposition(x, bp, reliability["row_reliability"], drift)
     ttf_monitor = _tts_prediction_ttf(bp, y)
-    failure_features = np.column_stack([*v2._meta_features(x, bp)[0].T])
+    failure_features = v2._meta_features(x, bp)[0]
     ttf_pred, ttf_pred_meta = _time_to_failure_predictor(failure_features, bp, y)
     latent = _latent_state_proxy(x)
     baseline_w = np.asarray([float(baseline_weights.get(n, 0.0)) for n in names])
@@ -784,6 +788,11 @@ def run_experiment(
         },
         "error_correlation_matrix": dis_stats["pairwise_error_correlation"],
         "prediction_dynamics": {k: v for k, v in dyn.items() if not isinstance(v, np.ndarray)},
+        "model_age": {
+            "mean_rows_since_fold_retrain": float(np.mean(model_age)),
+            "p95_rows_since_fold_retrain": float(np.quantile(model_age, 0.95)),
+            "policy": "age is counted from each chronological base-model OOS fold start",
+        },
         "feature_reliability": {
             k: v for k, v in reliability.items() if not isinstance(v, np.ndarray)
         },
