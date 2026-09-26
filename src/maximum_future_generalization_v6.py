@@ -942,29 +942,49 @@ def run_experiment(
     weight_entropy = []
     weight_concentration = []
     previous_weights = routing_prior_w.copy()
-    age_scale = max(30.0, float(np.quantile(model_age, 0.75)) if len(model_age) else 30.0)
+    per_model_failure = np.nan_to_num(failure_risk, nan=0.5, posinf=0.5, neginf=0.5)
+    per_model_ttf = np.nan_to_num(np.nanmean(ttf_pred, axis=2), nan=0.5, posinf=0.5, neginf=0.5)
+    meta_model_reliability = np.nan_to_num(meta_label, nan=0.5, posinf=0.5, neginf=0.5)
+    source_score = np.asarray(
+        source_reliability.get("row_score", np.ones(len(y), dtype=float)),
+        dtype=float,
+    )
+    source_score = np.nan_to_num(source_score, nan=0.5, posinf=0.5, neginf=0.5)
+    uncertainty_row = np.mean(np.column_stack(list(uncertainty.values())), axis=1)
+    uncertainty_row = np.nan_to_num(uncertainty_row, nan=0.5, posinf=0.5, neginf=0.5)
+
     full = np.zeros(len(y))
     for i in range(len(y)):
         q = float(np.clip(pred_score[i], 0.0, 1.0))
-        fail_i = float(np.clip(failure_mean[i], 0.0, 1.0))
-        risk_factor = math.exp(-1.50 * fail_i)
-        ttf_factor = math.exp(-0.60 * float(ttf_risk_by_row[i]))
-        shift_factor = math.exp(-0.50 * max(0.0, float(drift[i, 0])))
-        transition_factor = float(np.clip(transition[i].max(), 0.25, 1.0))
-        retrieval_factor = math.exp(-0.50 * float(retrieval_fail[i]))
-        uncertainty_factor = math.exp(-0.30 * float(uncertainty_row[i]))
-        flip_factor = 0.90 if float(dyn["row_flip"][i]) > 0 else 1.0
-        age_factor = 0.80 + 0.20 * math.exp(-float(model_age[i]) / age_scale)
-        latent_factor = 0.85 + 0.15 * float(latent["latent_stress"][i])
-        raw_w = row_diversity[i] * (0.75 + 0.50 * q) * risk_factor
-        raw_w *= ttf_factor * shift_factor * transition_factor
-        raw_w *= retrieval_factor * uncertainty_factor * flip_factor * age_factor * latent_factor
-        if not np.isfinite(raw_w).all() or raw_w.sum() <= 0:
-            raw_w = routing_prior_w.copy()
+        fail_i = np.clip(per_model_failure[i], 0.0, 1.0)
+        ttf_i = np.clip(per_model_ttf[i], 0.0, 1.0)
+        meta_i = np.clip(meta_model_reliability[i], 0.05, 1.0)
+
+        # Model-specific utility changes the relative weights, while global state
+        # controls how much the challenger may deviate from the incumbent.
+        model_factor = (
+            np.exp(-1.50 * fail_i)
+            * np.exp(-0.60 * ttf_i)
+            * (0.60 + 0.40 * meta_i)
+        )
+        adaptive_raw = row_diversity[i] * model_factor
+        if not np.isfinite(adaptive_raw).all() or adaptive_raw.sum() <= 0:
+            adaptive_raw = routing_prior_w.copy()
+        adaptive_raw /= adaptive_raw.sum()
+
+        state_trust = 0.20 + 0.65 * q + 0.15 * source_score[i]
+        state_trust *= math.exp(-0.45 * max(0.0, float(drift[i, 0])))
+        state_trust *= float(np.clip(transition[i].max(), 0.25, 1.0))
+        state_trust *= math.exp(-0.35 * float(uncertainty_row[i]))
+        if float(dyn["row_flip"][i]) > 0:
+            state_trust *= 0.90
+        state_trust = float(np.clip(state_trust, 0.10, 0.90))
+
+        raw_w = (1.0 - state_trust) * routing_prior_w + state_trust * adaptive_raw
+        raw_w = np.maximum(raw_w, min(0.02 / len(names), 0.05))
         raw_w /= raw_w.sum()
         smoothed = 0.75 * previous_weights + 0.25 * raw_w
-        floor = min(0.02 / len(names), 0.05)
-        smoothed = np.maximum(smoothed, floor)
+        smoothed = np.maximum(smoothed, min(0.02 / len(names), 0.05))
         smoothed /= smoothed.sum()
         previous_weights = smoothed
         full[i] = float(np.clip(np.dot(smoothed, bp[i]), EPS, 1.0 - EPS))
@@ -974,25 +994,60 @@ def run_experiment(
 
 
     # A-J conceptual ablations plus v6 extended variants.
+    failure_scalar = np.clip(np.nanmean(failure_risk, axis=1), 0.0, 1.0)
+    disagreement_shrink = np.clip(1.0 - np.std(bp, axis=1), 0.0, 1.0)
     ablation = {
         "Baseline": _safe_metrics(y, baseline),
-        "+Disagreement": _safe_metrics(y, np.column_stack([baseline, np.mean(bp, axis=1)]).mean(axis=1)),
-        "+Predictability": _safe_metrics(y, np.clip(0.75 * baseline + 0.25 * pred_score, EPS, 1 - EPS)),
-        "+FutureFailure": _safe_metrics(y, np.clip(0.75 * baseline + 0.25 * (1 - np.nanmean(failure_risk, axis=1)), EPS, 1 - EPS)),
-        "Disagreement+Predictability": _safe_metrics(y, np.clip(0.55 * baseline + 0.25 * pred_score + 0.20 * np.mean(bp, axis=1), EPS, 1 - EPS)),
-        "Disagreement+FutureFailure": _safe_metrics(y, np.clip(0.60 * baseline + 0.40 * (1 - np.nanmean(failure_risk, axis=1)), EPS, 1 - EPS)),
-        "Predictability+FutureFailure": _safe_metrics(y, np.clip(0.65 * baseline + 0.20 * pred_score + 0.15 * (1 - np.nanmean(failure_risk, axis=1)), EPS, 1 - EPS)),
+        "+Disagreement": _safe_metrics(
+            y, np.clip(0.5 + (baseline - 0.5) * disagreement_shrink, EPS, 1.0 - EPS)
+        ),
+        "+Predictability": _safe_metrics(
+            y, np.clip(0.5 + (baseline - 0.5) * (0.70 + 0.30 * pred_score), EPS, 1.0 - EPS)
+        ),
+        "+FutureFailure": _safe_metrics(
+            y, np.clip(0.5 + (baseline - 0.5) * (1.0 - failure_scalar), EPS, 1.0 - EPS)
+        ),
+        "Disagreement+Predictability": _safe_metrics(
+            y, np.clip(
+                0.5 + (baseline - 0.5) * disagreement_shrink * (0.70 + 0.30 * pred_score),
+                EPS, 1.0 - EPS
+            )
+        ),
+        "Disagreement+FutureFailure": _safe_metrics(
+            y, np.clip(
+                0.5 + (baseline - 0.5) * disagreement_shrink * (1.0 - failure_scalar),
+                EPS, 1.0 - EPS
+            )
+        ),
+        "Predictability+FutureFailure": _safe_metrics(
+            y, np.clip(
+                0.5 + (baseline - 0.5) * (0.70 + 0.30 * pred_score) * (1.0 - failure_scalar),
+                EPS, 1.0 - EPS
+            )
+        ),
         "AllThree": _safe_metrics(y, full),
-        "AllThree+ErrorCorrelation": _safe_metrics(y, np.clip(0.70 * full + 0.30 * np.sum(row_diversity * bp, axis=1), EPS, 1 - EPS)),
-        "AllThree+RegimeTransition": _safe_metrics(y, np.clip(0.80 * full + 0.20 * transition.max(axis=1), EPS, 1 - EPS)),
-        "AllThree+FailureImminence": _safe_metrics(y, np.clip(0.80 * full + 0.20 * np.exp(-np.mean(np.nan_to_num(failure_risk, nan=0.5), axis=1)), EPS, 1 - EPS)),
-        "AllThree+Retrieval": _safe_metrics(y, raw[:, 2]),
+        "AllThree+ErrorCorrelation": _safe_metrics(
+            y, np.clip(0.5 + (full - 0.5) * (0.90 + 0.10 * disagreement_shrink), EPS, 1.0 - EPS)
+        ),
+        "AllThree+RegimeTransition": _safe_metrics(
+            y, np.clip(0.5 + (full - 0.5) * (0.80 + 0.20 * transition.max(axis=1)), EPS, 1.0 - EPS)
+        ),
+        "AllThree+FailureImminence": _safe_metrics(
+            y, np.clip(0.5 + (full - 0.5) * (1.0 - 0.20 * failure_scalar), EPS, 1.0 - EPS)
+        ),
+        "AllThree+Retrieval": _safe_metrics(
+            y, np.clip(0.5 + (full - 0.5) * (0.90 + 0.10 * retrieval_success), EPS, 1.0 - EPS)
+        ),
         "AllThree+TTA": tta_d,
         "FullArchitecture": _safe_metrics(y, full),
     }
+
     full_safe, safety = _safety_monitor(full, baseline, pred_score)
     safe_metrics = _safe_metrics(y, full_safe)
     stats = v2._block_bootstrap_delta(y, full_safe, baseline, blocks=6)
+    predictability_calibration = _predictability_calibration(
+        y, pred_score, horizon=v2.FAILURE_HORIZON
+    )
     coverage_score = np.clip(
         0.60 * pred_score
         + 0.20 * (1 - np.abs(full_safe - 0.5) * 2)
