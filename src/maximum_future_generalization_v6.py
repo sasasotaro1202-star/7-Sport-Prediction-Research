@@ -729,22 +729,48 @@ def run_experiment(
     conformal = _conformal_binary(y, baseline)
 
     finite_risk = np.asarray(failure_risk, dtype=float)
+    with np.errstate(invalid="ignore"):
+        uncertainty_row = np.mean(np.column_stack(list(uncertainty.values())), axis=1)
+        failure_mean = np.nanmean(failure_risk, axis=1)
+        ttf_risk_by_row = np.nanmean(ttf_pred, axis=(1, 2))
+    uncertainty_row = np.nan_to_num(uncertainty_row, nan=0.5, posinf=0.5, neginf=0.5)
+    failure_mean = np.nan_to_num(failure_mean, nan=0.5, posinf=0.5, neginf=0.5)
+    ttf_risk_by_row = np.nan_to_num(ttf_risk_by_row, nan=0.5, posinf=0.5, neginf=0.5)
+
+    weight_changes = []
+    weight_entropy = []
+    weight_concentration = []
+    previous_weights = baseline_w.copy()
+    age_scale = max(30.0, float(np.quantile(model_age, 0.75)) if len(model_age) else 30.0)
     full = np.zeros(len(y))
     for i in range(len(y)):
-        q = np.clip(pred_score[i], 0.0, 1.0)
-        fail_i = np.clip(np.nan_to_num(np.mean(failure_risk[i]), nan=0.5), 0.0, 1.0)
-        risk_factor = math.exp(-1.5 * fail_i)
+        q = float(np.clip(pred_score[i], 0.0, 1.0))
+        fail_i = float(np.clip(failure_mean[i], 0.0, 1.0))
+        risk_factor = math.exp(-1.50 * fail_i)
+        ttf_factor = math.exp(-0.60 * float(ttf_risk_by_row[i]))
         shift_factor = math.exp(-0.50 * max(0.0, float(drift[i, 0])))
-        trans_factor = float(np.clip(transition[i].max(), 0.25, 1.0))
-        ttf_risk = float(np.nanmean(ttf_pred[i])) if np.isfinite(ttf_pred[i]).any() else fail_i
-        ttf_factor = math.exp(-0.50 * np.clip(ttf_risk, 0.0, 1.0))
-        age_factor = math.exp(-0.002 * float(model_age[i] if 'model_age' in locals() else 0.0))
-        w = row_diversity[i] * (0.75 + 0.50 * q) * risk_factor * shift_factor * trans_factor * ttf_factor * age_factor
-        if not np.isfinite(w).all() or w.sum() <= 0:
-            w = baseline_w.copy()
-        w /= w.sum()
-        full[i] = float(np.dot(w, bp[i]))
-        full[i] = float(np.clip(full[i], EPS, 1 - EPS))
+        transition_factor = float(np.clip(transition[i].max(), 0.25, 1.0))
+        retrieval_factor = math.exp(-0.50 * float(retrieval_fail[i]))
+        uncertainty_factor = math.exp(-0.30 * float(uncertainty_row[i]))
+        flip_factor = 0.90 if float(dyn["row_flip"][i]) > 0 else 1.0
+        age_factor = 0.80 + 0.20 * math.exp(-float(model_age[i]) / age_scale)
+        latent_factor = 0.85 + 0.15 * float(latent["latent_stress"][i])
+        raw_w = row_diversity[i] * (0.75 + 0.50 * q) * risk_factor
+        raw_w *= ttf_factor * shift_factor * transition_factor
+        raw_w *= retrieval_factor * uncertainty_factor * flip_factor * age_factor * latent_factor
+        if not np.isfinite(raw_w).all() or raw_w.sum() <= 0:
+            raw_w = baseline_w.copy()
+        raw_w /= raw_w.sum()
+        smoothed = 0.75 * previous_weights + 0.25 * raw_w
+        floor = min(0.02 / len(names), 0.05)
+        smoothed = np.maximum(smoothed, floor)
+        smoothed /= smoothed.sum()
+        previous_weights = smoothed
+        full[i] = float(np.clip(np.dot(smoothed, bp[i]), EPS, 1.0 - EPS))
+        weight_changes.append(float(np.sum(np.abs(smoothed - baseline_w))))
+        weight_entropy.append(float(-np.sum(smoothed * np.log(np.clip(smoothed, EPS, 1.0)))))
+        weight_concentration.append(float(np.max(smoothed)))
+
 
     # A-J conceptual ablations plus v6 extended variants.
     ablation = {
