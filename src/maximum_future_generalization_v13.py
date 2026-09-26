@@ -213,7 +213,9 @@ def _revision_metrics(y, previous, current, actions):
     changed=np.asarray([a!="MAINTAIN" for a in actions])
     if not changed.any():
         return {"status":"NO_REVISIONS","revisions":0}
-    gain=-(y*np.log(cur)+(1-y)*np.log(1-cur))*(-1)+ (-(y*np.log(prev)+(1-y)*np.log(1-prev)))
+    cur_loss=-(y*np.log(cur)+(1-y)*np.log(1-cur))
+    prev_loss=-(y*np.log(prev)+(1-y)*np.log(1-prev))
+    gain=prev_loss-cur_loss
     gain=gain[changed]
     return {
         "status":"EVALUATED","revisions":int(changed.sum()),
