@@ -455,6 +455,15 @@
       "references": [
         "https://tipero.app/api-docs"
       ]
+    },
+    "volleybox": {
+      "current_web_evidence": "2026-09-27",
+      "status": "entity_context_research_candidate",
+      "note": "Volleybox is a large community volleyball database with player/club/league profiles, rosters, schedules, results, rankings and transfers. Current site reports 318k+ players, 41k+ clubs and 46k+ leagues/tournaments. No official public API was established in this review; use only for manually/snapshot-derived entity/context research, not automated production ingestion.",
+      "references": [
+        "https://volleybox.net/what-is-volleybox",
+        "https://volleybox.net/players"
+      ]
     }
   },
   "source_classes": {
@@ -699,6 +708,15 @@
         "integrated": false,
         "pit": "release_snapshot_required",
         "independence_family": "sportsdataverse_upstream"
+      },
+      {
+        "id": "volleybox",
+        "name": "Volleybox community database",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_and_publication_provenance_required",
+        "independence_family": "volleyball_community_db"
       }
     ],
     "ufc": [
