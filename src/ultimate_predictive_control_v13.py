@@ -546,8 +546,8 @@ def causal_tta_safety_gate(
     baseline: np.ndarray,
     candidate: np.ndarray,
     y: np.ndarray,
-    window: int = 120,
-    min_logloss_improvement: float = 0.002,
+    window: int = 200,
+    min_logloss_improvement: float = 0.010,
 ) -> Dict[str, np.ndarray]:
     """Use TTA only when its prior OOS loss beats the pre-TTA baseline.
 
@@ -700,8 +700,8 @@ def causal_prediction_safety_gate(
     baseline: np.ndarray,
     candidate: np.ndarray,
     y: np.ndarray,
-    window: int = 80,
-    min_logloss_improvement: float = 0.005,
+    window: int = 200,
+    min_logloss_improvement: float = 0.010,
 ) -> Dict[str, np.ndarray]:
     """Select candidate only when prior OOS evidence supports it.
 
