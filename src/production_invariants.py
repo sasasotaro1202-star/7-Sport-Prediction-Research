@@ -456,6 +456,28 @@ def main():
     require('temporal_recalibration' in uncertainty_src and 'research_only' in uncertainty_src,'uncertainty router lacks research-only temporal recalibration')
     require('recalibration_did_not_pass_temporal_bootstrap_gate' in uncertainty_src and '>= 0.90' in uncertainty_src,'temporal recalibration lacks the strengthened bootstrap acceptance gate')
     require('Uncertainty-aware router research-only regression' in lightweight_src,'uncertainty router regression is not wired into lightweight CI')
+    innovative_v2_src=(ROOT/'src/innovative_prediction_v2.py').read_text(encoding='utf-8')
+    innovative_test=(ROOT/'scripts/test_innovative_prediction_v2.py').read_text(encoding='utf-8')
+    require('RESEARCH_ONLY = True' in innovative_v2_src,
+            'innovative prediction v2 must be explicitly research-only')
+    require('frozen_holdout_used": False' in innovative_v2_src and 'promotion": "HOLD"' in innovative_v2_src,
+            'innovative prediction v2 lacks frozen-holdout/promotion safety boundary')
+    require('future_label_embargo_enforced' in innovative_v2_src and 'horizon=FAILURE_HORIZON' in innovative_v2_src,
+            'innovative prediction v2 failure predictor lacks explicit future-label embargo')
+    require('future_labels_as_features": False' in innovative_v2_src,
+            'innovative prediction v2 meta-leakage contract is missing')
+    require('set("ABCDEFGHIJ")' in innovative_test,
+            'innovative prediction v2 ablation regression coverage is missing')
+    require('selective_prediction' in innovative_v2_src and '100, 0.95, 0.90, 0.80, 0.70' in innovative_v2_src,
+            'innovative prediction v2 selective coverage curve is missing')
+    require('statistical_validation' in innovative_v2_src and 'ci95' in innovative_v2_src,
+            'innovative prediction v2 block-bootstrap statistical validation is missing')
+    require('stress_tests' in innovative_v2_src and 'counterfactual_stability' in innovative_v2_src,
+            'innovative prediction v2 stress/counterfactual diagnostics are missing')
+    require('Production Safety Audit' not in innovative_v2_src,
+            'innovative prediction v2 must not couple research control to production safety audit execution')
+    require('innovative_prediction_v2 as innovative_v2' in strict_src and 'innovative_v2.run_experiment(' in strict_src,
+            'strict research cycle does not execute the innovative v2 research layer')
     matchday_src=(ROOT/'src/matchday_intelligence_oos.py').read_text(encoding='utf-8')
     require('research_only' in matchday_src.lower() and 'cutoff_strict' in matchday_src,'matchday intelligence layer is missing explicit research/PIT policy')
     require('observed_at_utc' in matchday_src and 'effective_at_utc' in matchday_src,'matchday intelligence layer lacks dual timestamp gating')
