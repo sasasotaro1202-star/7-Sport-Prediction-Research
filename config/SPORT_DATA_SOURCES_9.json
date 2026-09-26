@@ -499,6 +499,32 @@
         "https://github.com/pseudo-r/Public-NBA-API"
       ],
       "license": "MIT"
+    },
+    "provolleyballr": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Active MIT R package that scrapes match statistics and player data from Athletes Unlimited, LOVB and Major League Volleyball websites. The package README provides team-match and player-level statistics with season data. This is a US women's professional volleyball enrichment source and does not replace FIVB VIS for international coverage.",
+      "references": [
+        "https://github.com/JeffreyRStevens/provolleyballr"
+      ],
+      "license": "MIT"
+    },
+    "valorant_omnic": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_license_scope_check",
+      "note": "MIT-licensed research repository containing ~30k rounds of professional Valorant gameplay from Omnic Data, organized as timestamped event time-series. Useful for round-state/behavioral feature research. Dataset-specific third-party usage rights must be validated separately from repository code license.",
+      "references": [
+        "https://github.com/sophiacofone/valorant_omnic"
+      ],
+      "license": "repository MIT; dataset rights unconfirmed"
+    },
+    "ufc_historical_mirror": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_license_hold",
+      "note": "Updated 2026 UFC historical mirror with events.csv, fights.csv and fighters.csv collected from UFCStats. Useful as a bulk reproducibility/cache source, but it is downstream of UFCStats and its dataset license is not established in the repository, so it must not count as an independent family or enter production.",
+      "references": [
+        "https://github.com/larissapavan/ufc-historical-fight-dataset"
+      ]
     }
   },
   "source_classes": {
@@ -761,6 +787,15 @@
         "integrated": false,
         "pit": "page_snapshot_and_publication_provenance_required",
         "independence_family": "volleyball_community_db"
+      },
+      {
+        "id": "provolleyballr",
+        "name": "provolleyballr AU/LOVB/MLV",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_and_publication_provenance_required",
+        "independence_family": "us_pro_volleyball_scraper"
       }
     ],
     "ufc": [
@@ -889,6 +924,15 @@
         "integrated": false,
         "pit": "live_service_snapshot_and_source_provenance_required",
         "independence_family": "ufcstats_api_wrapper"
+      },
+      {
+        "id": "ufc_historical_mirror",
+        "name": "UFC historical fight dataset mirror",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required_license_hold",
+        "independence_family": "ufcstats_downstream_mirror"
       }
     ],
     "rizin": [
@@ -1037,6 +1081,15 @@
         "integrated": false,
         "pit": "git_snapshot_required",
         "independence_family": "esports_public_web"
+      },
+      {
+        "id": "valorant_omnic",
+        "name": "Omnic professional round time-series corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_snapshot_and_timestamp_required",
+        "independence_family": "gameplay_computer_vision_corpus"
       }
     ],
     "tennis": [
