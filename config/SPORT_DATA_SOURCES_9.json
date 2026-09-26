@@ -127,6 +127,84 @@
       "references": [
         "https://github.com/lacausecrypto/mcp-sports-hub"
       ]
+    },
+    "api_sports": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "API-Sports currently advertises a permanent free plan with 100 requests/day for each API, no credit card, with dedicated APIs covering basketball, volleyball, MMA, Formula 1 and rugby. Registration/API key is required. Use as secondary redundancy only until exact historical availability, PIT timestamps and source terms are validated.",
+      "references": [
+        "https://api-sports.io/",
+        "https://api-sports.io/sports/basketball",
+        "https://api-sports.io/sports/mma",
+        "https://api-sports.io/sports/formula-1",
+        "https://api-sports.io/sports/rugby"
+      ]
+    },
+    "ufcstats": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "UFCStats exposes public UFC event/fight pages with detailed historical fight statistics. There is no official public API, so any scraper must be rate-limited, provenance-preserving and PIT-audited. Suitable as an independent UFC historical redundancy source, not a production feed by default.",
+      "references": [
+        "https://www.ufcstats.com/",
+        "https://github.com/DavesAnalytics/UFC-Analytics-Scraper"
+      ]
+    },
+    "openboxing": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Open Boxing publishes its underlying boxing data as GitHub CSV files and exposes a basic JSON API. The project itself warns it is early development with possible missing/error data, so it is a redundancy/research corpus pending quality, provenance and terms validation.",
+      "references": [
+        "https://www.openboxing.org/data/",
+        "https://www.openboxing.org/api/",
+        "https://github.com/boxingundefeated/open-boxing-data"
+      ]
+    },
+    "rugby_data_repository": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Rugby-Data is a public JSON/YAML corpus covering multiple professional rugby union competitions, with weekly automated updates; historical depth varies by competition. Use for redundancy/feature enrichment after snapshot and PIT validation.",
+      "references": [
+        "https://github.com/transientlunatic/Rugby-Data"
+      ]
+    },
+    "f1api_dev": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "F1API.dev is an independent free/no-key F1 REST API with current and historical structured race, qualifying, driver and constructor data. Useful as a third independent F1 redundancy layer beside OpenF1/Jolpica.",
+      "references": [
+        "https://f1api.dev/",
+        "https://github.com/Rafacv23/F1-api"
+      ]
+    },
+    "pandascore": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "PandaScore free plan provides fixtures, past/future schedules, tournament/team/player context and pre-match context for esports including Valorant. Detailed historical/post-match statistics require a paid historical plan, so the free tier is useful mainly for schedule/context/redundancy until a suitable free historical surface is proven.",
+      "references": [
+        "https://www.pandascore.co/pricing",
+        "https://developers.pandascore.co/docs/introduction",
+        "https://developers.pandascore.co/docs/plan-reference"
+      ]
+    },
+    "euroleague_basic_free": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Euroleague Advanced API exposes basic Euroleague/Eurocup endpoints without authentication; advanced analysis requires subscription. Useful for basketball competition-specific redundancy, especially schedule/standings/players/basic game data.",
+      "references": [
+        "https://euroleague-advanced-api.eu/docs",
+        "https://euroleague-advanced-api.eu/tutorial"
+      ]
+    },
+    "bigballsdata": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Big Balls Sports Data currently advertises no-card free tiers with API-key access and sport-specific surfaces including basketball, MMA and Formula 1. Coverage is changing and some deeper fields are paid or still in development; use only as a snapshot-tested secondary source.",
+      "references": [
+        "https://bigballsdata.com/basketball-api",
+        "https://bigballsdata.com/nba-api",
+        "https://bigballsdata.com/ufc-api",
+        "https://bigballsdata.com/formula-1-api"
+      ]
     }
   },
   "source_classes": {
@@ -183,6 +261,30 @@
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required"
+      },
+      {
+        "id": "euroleague_basic_free",
+        "name": "Euroleague Advanced API free endpoints",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required"
+      },
+      {
+        "id": "bigballsdata",
+        "name": "Big Balls Sports Data",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_snapshot_required"
       }
     ],
     "volleyball": [
@@ -217,6 +319,14 @@
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required"
       }
     ],
     "ufc": [
@@ -259,6 +369,22 @@
         "free": true,
         "integrated": false,
         "pit": "historical_availability_unknown"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required"
+      },
+      {
+        "id": "ufcstats",
+        "name": "UFCStats public pages",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_publication_snapshot_required"
       }
     ],
     "rizin": [
@@ -419,6 +545,30 @@
         "free": true,
         "integrated": false,
         "pit": "snapshot_provenance_required"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required"
+      },
+      {
+        "id": "f1api_dev",
+        "name": "F1API.dev",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required"
+      },
+      {
+        "id": "bigballsdata",
+        "name": "Big Balls Sports Data",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_snapshot_required"
       }
     ],
     "rugby": [
@@ -461,6 +611,22 @@
         "free": true,
         "integrated": false,
         "pit": "historical_scope_limited"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required"
+      },
+      {
+        "id": "rugby_data_repository",
+        "name": "Rugby-Data GitHub corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required"
       }
     ],
     "boxing": [
@@ -495,6 +661,14 @@
         "free": true,
         "integrated": false,
         "pit": "video_time_alignment_required"
+      },
+      {
+        "id": "openboxing",
+        "name": "Open Boxing",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required"
       }
     ]
   }
