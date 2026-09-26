@@ -413,21 +413,16 @@ def _latent_state_proxy(x: np.ndarray, window: int = 200) -> dict[str, np.ndarra
 
 
 def _source_reliability_proxy(x: np.ndarray, feature_names: list[str] | None = None) -> dict[str, Any]:
-    """Derive only a provenance-quality proxy from already PIT-safe feature fields."""
+    """Derive a PIT-safe row-level source/observation reliability proxy."""
     x = np.asarray(x, dtype=float)
     names = list(feature_names or [])
-    coverage_idx = [
-        i for i, n in enumerate(names)
-        if "stat_coverage" in n.lower()
-    ]
-    freshness_idx = [
-        i for i, n in enumerate(names)
-        if "stat_freshness_mean_days" in n.lower()
-    ]
+    coverage_idx = [i for i, n in enumerate(names) if "stat_coverage" in n.lower()]
+    freshness_idx = [i for i, n in enumerate(names) if "stat_freshness_mean_days" in n.lower()]
     if not coverage_idx:
         return {
             "status": "INPUT_UNAVAILABLE",
             "score": None,
+            "row_score": np.ones(len(x), dtype=float),
             "reason": "no PIT-safe source coverage fields were exposed to controller",
             "fail_closed_policy": True,
         }
@@ -436,7 +431,7 @@ def _source_reliability_proxy(x: np.ndarray, feature_names: list[str] | None = N
         freshness = np.nanmean(x[:, freshness_idx], axis=1)
         freshness_score = np.exp(-np.clip(np.nan_to_num(freshness, nan=30.0), 0.0, 365.0) / 30.0)
     else:
-        freshness_score = np.ones(len(x))
+        freshness_score = np.ones(len(x), dtype=float)
     score = np.clip(
         0.70 * np.nan_to_num(coverage, nan=0.0)
         + 0.30 * np.nan_to_num(freshness_score, nan=0.0),
@@ -446,7 +441,8 @@ def _source_reliability_proxy(x: np.ndarray, feature_names: list[str] | None = N
         "status": "PROXY",
         "mean": float(np.mean(score)),
         "p10": float(np.quantile(score, 0.10)),
-        "policy": "proxy only: derives reliability from PIT-safe observation coverage/freshness, never fabricated source identity quality",
+        "row_score": score,
+        "policy": "proxy only; derived from PIT-safe observation coverage/freshness",
     }
 
 
