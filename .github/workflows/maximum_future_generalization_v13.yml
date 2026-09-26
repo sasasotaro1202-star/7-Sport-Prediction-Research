@@ -1,0 +1,164 @@
+name: Maximum Future-Generalization v13 Research
+
+on:
+  push:
+    branches:
+      - research/innovative-prediction-v2-20260926
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maximum-future-generalization-v13-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Compile and verify sources
+        run: |
+          set -euo pipefail
+          python -m compileall -q src scripts
+          test -s src/maximum_future_generalization_v13.py
+          test -s scripts/test_maximum_future_generalization_v13.py
+          test -s scripts/e2e_maximum_future_generalization_v13.py
+          grep -q 'MAXIMUM_FUTURE_GENERALIZATION_V13_MUST_REMAIN_RESEARCH_ONLY' src/maximum_future_generalization_v13.py
+          echo "V13_PREFLIGHT=PASS"
+
+  tests:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: v13 regression
+        run: PYTHONPATH=. python scripts/test_maximum_future_generalization_v13.py
+      - name: Existing v6 regression
+        run: PYTHONPATH=. python scripts/test_maximum_future_generalization_v6.py
+
+  e2e:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Integrated v13 E2E
+        run: PYTHONPATH=. python scripts/e2e_maximum_future_generalization_v13.py
+      - name: Validate artifact
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/research/maximum_future_generalization_v13/e2e/e2e_report.json")
+          assert p.is_file() and p.stat().st_size > 0
+          x=json.loads(p.read_text())
+          assert x["status"] == "REDUCED_SYNTHETIC_V13_E2E_VERIFIED"
+          assert x["report"]["promotion"] == "HOLD"
+          assert x["report"]["production_changed"] is False
+          assert x["contracts"]["forecast_constraints"] == "PASS"
+          print("V13_E2E_ARTIFACT=PASS")
+          print("ACCURACY", x["metrics"]["accuracy"])
+          print("DELTA_ACCURACY", x["metrics"]["delta_accuracy"])
+          print("LOGLOSS", x["metrics"]["logloss"])
+          print("DELTA_LOGLOSS", x["metrics"]["delta_logloss"])
+          print("BRIER", x["metrics"]["brier"])
+          print("DELTA_BRIER", x["metrics"]["delta_brier"])
+          print("ECE", x["metrics"]["ece"])
+          print("DELTA_ECE", x["metrics"]["delta_ece"])
+          PY
+      - name: Upload v13 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: maximum-future-generalization-v13-e2e
+          retention-days: 7
+          path: results/research/maximum_future_generalization_v13/e2e/e2e_report.json
+
+  audit:
+    needs: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: v13 safety contract
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("src/maximum_future_generalization_v13.py").read_text()
+          assert "future labels are targets only with explicit embargo" in p
+          assert "current outcome excluded from current-row selection" in p
+          assert '"production_changed":False' in p.replace(" ", "")
+          assert '"promotion":"HOLD"' in p.replace(" ", "")
+          assert "no fabricated acquisition value" in p
+          assert "PARTIAL_PIT_TIMESTAMP_SCHEMA" in p
+          print("V13_SAFETY_CONTRACT=PASS")
+          PY
+      - name: Existing PIT/leakage/holdout checks
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/test_independent_leakage_audit.py
+          PYTHONPATH=. python scripts/test_feature_temporal_invariance.py
+          PYTHONPATH=. python scripts/test_research_cycle_strict_holdout.py
+      - name: Production invariants
+        run: PYTHONPATH=. python src/production_invariants.py
+
+  gate:
+    needs: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Research-only gate
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("src/maximum_future_generalization_v13.py").read_text()
+          assert '"production_changed":False' in p.replace(" ", "")
+          assert '"promotion":"HOLD"' in p.replace(" ", "")
+          assert "MAXIMUM_FUTURE_GENERALIZATION_V13_MUST_REMAIN_RESEARCH_ONLY" in p
+          print("V13_PROMOTION=HOLD")
+          PY
