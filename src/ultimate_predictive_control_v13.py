@@ -73,6 +73,28 @@ def _entropy(p: np.ndarray) -> np.ndarray:
     return -(pv * np.log2(pv) + (1.0 - pv) * np.log2(1.0 - pv))
 
 
+def confidence_metrics(y: Sequence[int], p: Sequence[float], threshold: float = 0.70) -> Dict[str, float | int | None]:
+    """Ex-ante confidence-band metrics for reporting.
+
+    Confidence is the normalized distance from 0.5. Coverage is the fraction
+    of rows with confidence >= threshold; accuracy is measured only on those
+    rows. The threshold is fixed before evaluation and is not tuned on the
+    evaluated outcomes.
+    """
+    yv = np.asarray(y, dtype=int)
+    pv = _p(p)
+    if len(yv) != len(pv) or len(yv) == 0:
+        return {"coverage": None, "high_confidence_accuracy": None, "high_confidence_n": 0}
+    confidence = np.abs(pv - 0.5) * 2.0
+    mask = confidence >= float(threshold)
+    return {
+        "coverage": float(np.mean(mask)),
+        "high_confidence_accuracy": _safe_float(np.mean(((pv[mask] >= 0.5) == yv[mask]))) if np.any(mask) else None,
+        "high_confidence_n": int(np.sum(mask)),
+        "threshold": float(threshold),
+    }
+
+
 def _rolling_mean(x: np.ndarray, window: int) -> np.ndarray:
     out = np.zeros(len(x), dtype=float)
     for i in range(len(x)):
@@ -1105,6 +1127,8 @@ def run_v13_research(
     regime_future = regime_transition_oos(reg["code"])
     ensemble_metrics = metrics(yv, fixed)
     routed_metrics = metrics(yv, final_p)
+    ensemble_confidence = confidence_metrics(yv, fixed)
+    routed_confidence = confidence_metrics(yv, final_p)
     statistical_validation = block_bootstrap_delta(yv, fixed, final_p)
     ablation = {
         "baseline_fixed_ensemble": ensemble_metrics,
@@ -1223,6 +1247,14 @@ def run_v13_research(
             key: _safe_float((routed_metrics.get(key) or 0.0) - (ensemble_metrics.get(key) or 0.0))
             for key in ("accuracy", "logloss", "brier", "ece")
         },
+        "confidence_metrics": {
+            "baseline": ensemble_confidence,
+            "new": routed_confidence,
+            "delta": {
+                "coverage": _safe_float((routed_confidence.get("coverage") or 0.0) - (ensemble_confidence.get("coverage") or 0.0)),
+                "high_confidence_accuracy": _safe_float((routed_confidence.get("high_confidence_accuracy") or 0.0) - (ensemble_confidence.get("high_confidence_accuracy") or 0.0)),
+            },
+        },
         "disagreement": {
             "mean": _safe_float(np.mean(d["std"])),
             "p95": _safe_float(np.quantile(d["std"], 0.95)),
@@ -1270,6 +1302,14 @@ def run_v13_research(
             "mean": _safe_float(np.mean(uncertainty)),
         },
         "selective_prediction": selective,
+        "confidence_metrics": {
+            "baseline": ensemble_confidence,
+            "new": routed_confidence,
+            "delta": {
+                "coverage": _safe_float((routed_confidence.get("coverage") or 0.0) - (ensemble_confidence.get("coverage") or 0.0)),
+                "high_confidence_accuracy": _safe_float((routed_confidence.get("high_confidence_accuracy") or 0.0) - (ensemble_confidence.get("high_confidence_accuracy") or 0.0)),
+            },
+        },
         "calibration": calibration,
         "worst_case": worst_case,
         "prediction_ledger": prediction_ledger,
