@@ -456,6 +456,28 @@ def main():
     require('temporal_recalibration' in uncertainty_src and 'research_only' in uncertainty_src,'uncertainty router lacks research-only temporal recalibration')
     require('recalibration_did_not_pass_temporal_bootstrap_gate' in uncertainty_src and '>= 0.90' in uncertainty_src,'temporal recalibration lacks the strengthened bootstrap acceptance gate')
     require('Uncertainty-aware router research-only regression' in lightweight_src,'uncertainty router regression is not wired into lightweight CI')
+    innovative_v2_src=(ROOT/'src/innovative_prediction_v2.py').read_text(encoding='utf-8')
+    innovative_test=(ROOT/'scripts/test_innovative_prediction_v2.py').read_text(encoding='utf-8')
+    require('RESEARCH_ONLY = True' in innovative_v2_src,
+            'innovative prediction v2 must be explicitly research-only')
+    require('frozen_holdout_used": False' in innovative_v2_src and 'promotion": "HOLD"' in innovative_v2_src,
+            'innovative prediction v2 lacks frozen-holdout/promotion safety boundary')
+    require('future_label_embargo_enforced' in innovative_v2_src and 'horizon=FAILURE_HORIZON' in innovative_v2_src,
+            'innovative prediction v2 failure predictor lacks explicit future-label embargo')
+    require('future_labels_as_features": False' in innovative_v2_src,
+            'innovative prediction v2 meta-leakage contract is missing')
+    require('set("ABCDEFGHIJ")' in innovative_test,
+            'innovative prediction v2 ablation regression coverage is missing')
+    require('selective_prediction' in innovative_v2_src and '100, 0.95, 0.90, 0.80, 0.70' in innovative_v2_src,
+            'innovative prediction v2 selective coverage curve is missing')
+    require('statistical_validation' in innovative_v2_src and 'ci95' in innovative_v2_src,
+            'innovative prediction v2 block-bootstrap statistical validation is missing')
+    require('stress_tests' in innovative_v2_src and 'counterfactual_stability' in innovative_v2_src,
+            'innovative prediction v2 stress/counterfactual diagnostics are missing')
+    require('Production Safety Audit' not in innovative_v2_src,
+            'innovative prediction v2 must not couple research control to production safety audit execution')
+    require('innovative_prediction_v2 as innovative_v2' in strict_src and 'innovative_v2.run_experiment(' in strict_src,
+            'strict research cycle does not execute the innovative v2 research layer')
     matchday_src=(ROOT/'src/matchday_intelligence_oos.py').read_text(encoding='utf-8')
     require('research_only' in matchday_src.lower() and 'cutoff_strict' in matchday_src,'matchday intelligence layer is missing explicit research/PIT policy')
     require('observed_at_utc' in matchday_src and 'effective_at_utc' in matchday_src,'matchday intelligence layer lacks dual timestamp gating')
@@ -578,6 +600,32 @@ def main():
     require((ROOT/'scripts/test_feature_temporal_invariance.py').exists(),'temporal feature immutability regression test is missing')
     require('validate_model_pipeline.py' in (ROOT/'.github/workflows/production_invariants.yml').read_text(encoding='utf-8'),'production invariants workflow does not execute model pipeline regression checks')
     require('src.cache_health' in workflow and '--repair' in workflow,'production workflow does not validate/repair restored cache before collection')
+    maximum_v6_src=(ROOT/'src/maximum_future_generalization_v6.py').read_text(encoding='utf-8')
+    maximum_v6_test=(ROOT/'scripts/test_maximum_future_generalization_v6.py').read_text(encoding='utf-8')
+    require('maximum_future_generalization_v6 as innovative_v6' in strict_src,
+            'strict research cycle does not execute maximum future-generalization v6')
+    f1_production_src=(ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8')
+    f1_role_test=(ROOT/'scripts/test_f1_event_status.py').read_text(encoding='utf-8')
+    require("upsert_ep(c,eid,pid,None,None,'driver'" in f1_production_src,
+            'F1 event_participant role contract must use driver rather than endpoint names')
+    require("participant's actual" in f1_production_src and 'event_participant role' in f1_production_src,
+            'F1 role normalization rationale is missing')
+    require('guard F1 participant role integrity' in f1_role_test or "upsert_ep(c,eid,pid,None,None,'driver'" in f1_role_test,
+            'F1 participant role regression test is missing')
+    require('production_changed": False' in maximum_v6_src and 'promotion": "HOLD"' in maximum_v6_src,
+            'maximum future-generalization v6 does not enforce research-only production safety')
+    require('meta_leakage_audit' in maximum_v6_src and 'future_labels_as_features' in maximum_v6_src,
+            'maximum future-generalization v6 lacks explicit meta-leakage audit')
+    require('retrieval_uses_current_or_future_rows": False' in maximum_v6_src,
+            'maximum future-generalization v6 retrieval lacks PIT-safe boundary')
+    require('future_label_embargo' in maximum_v6_src.lower(),
+            'maximum future-generalization v6 lacks future-label embargo evidence')
+    require('selective_prediction' in maximum_v6_src and '100, 0.95, 0.90, 0.80, 0.70' in maximum_v6_src,
+            'maximum future-generalization v6 lacks selective coverage evaluation')
+    require('conformal' in maximum_v6_src and 'ci95' in maximum_v6_src,
+            'maximum future-generalization v6 lacks conformal/statistical validation')
+    require('test_full_v6' in maximum_v6_test,
+            'maximum future-generalization v6 regression test is missing')
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
         for x in FAILURES: print(f'- {x}')
