@@ -1,5 +1,5 @@
 {
-  "version": "cross-sport-data-layer-v2.0",
+  "version": "cross-sport-data-layer-v2.1",
   "policy": {
     "free_only": true,
     "production_default_requires_pit": true,
@@ -39,7 +39,8 @@
         "https://odds-api.io/sports/rugby",
         "https://odds-api.io/sports/tennis",
         "https://odds-api.io/esports/valorant"
-      ]
+      ],
+      "terms_note": "Current free-tier page states free is for development/testing/personal projects; commercial production requires paid access. Keep out of commercial production unless terms permit."
     },
     "specialist_open_datasets": {
       "current_web_evidence": "2026-09-27",
@@ -109,6 +110,23 @@
           "reference": "https://www.wikidata.org/wiki/Wikidata:Data_access/en"
         }
       }
+    },
+    "sportscore": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Documented public REST API covering football, basketball, cricket and tennis; no API key for open-source/attribution use, with an advertised free quota. Useful as an independent redundancy source for basketball/tennis.",
+      "references": [
+        "https://sportscore.com/developers/",
+        "https://sportscore.com/developers/api/"
+      ]
+    },
+    "discovery_aggregator": {
+      "current_web_evidence": "2026-09-27",
+      "status": "discovery_only",
+      "note": "mcp-sports-hub aggregates 40+ providers and identifies no-key/free providers. It is used as a provider-discovery index only, not as a production data source.",
+      "references": [
+        "https://github.com/lacausecrypto/mcp-sports-hub"
+      ]
     }
   },
   "source_classes": {
@@ -129,6 +147,14 @@
       {
         "id": "thesportsdb",
         "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "sportscore",
+        "name": "SportScore",
         "class": "secondary",
         "free": true,
         "integrated": false,
@@ -315,6 +341,14 @@
       {
         "id": "thesportsdb",
         "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "sportscore",
+        "name": "SportScore",
         "class": "secondary",
         "free": true,
         "integrated": false,
