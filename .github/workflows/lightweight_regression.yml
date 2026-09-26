@@ -32,6 +32,8 @@ jobs:
         run: python -m compileall -q src
       - name: Active scope workflow consistency
         run: PYTHONPATH=. python scripts/test_active_scope_workflow.py
+      - name: Research checkpoint cache persistence
+        run: PYTHONPATH=. python scripts/test_research_checkpoint_cache.py
       - name: Release gate fail-closed exit regression
         run: PYTHONPATH=. python scripts/test_release_gate_fail_closed.py
       - name: Future predictor prediction-cutoff PIT test
