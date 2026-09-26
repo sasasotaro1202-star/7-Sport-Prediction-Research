@@ -271,7 +271,9 @@ def _failure_risk_crossfit(
             stacked.append(np.asarray(model_preds[str(j)], dtype=float))
     if stacked:
         arr = np.stack(stacked, axis=1).reshape(len(bp), bp.shape[1], len(targets))
-        risk = np.nanmean(arr, axis=2)
+        with np.errstate(invalid="ignore"):
+            risk = np.nanmean(arr, axis=2)
+        risk = np.where(np.isfinite(risk), risk, np.nan)
     return risk, {"targets": targets, "audits": audits}, per_target
 
 
@@ -679,13 +681,14 @@ def run_experiment(
         monitored = []
         for j in range(len(names)):
             pred = per_target[target_name][str(j)]
-            mask = valid & np.isfinite(pred) & np.isfinite(matrix[:, j])
+            target_vec = np.asarray(matrix[:, j], dtype=float)
+            mask = valid & np.isfinite(pred) & np.isfinite(target_vec)
             if int(mask.sum()) < 20:
                 continue
             monitored.append({
                 "model": names[j],
                 "rows": int(mask.sum()),
-                **_metrics(matrix[mask].astype(int), pred[mask]),
+                **_metrics(target_vec[mask].astype(int), pred[mask]),
             })
         failure_summary["self_monitor"][target_name] = monitored
     result = {
