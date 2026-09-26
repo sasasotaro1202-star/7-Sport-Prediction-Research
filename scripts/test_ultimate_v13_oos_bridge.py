@@ -52,6 +52,20 @@ def main() -> None:
     for name in oof:
         assert np.isclose(w0[name][-1], w1[name][-1]), name
 
+    # Future-failure risk must actually affect routing when supplied.
+    risk = {name: np.zeros(n, dtype=float) for name in oof}
+    risk["lr"][100] = 1.0  # consumed as prior-row risk at row 101
+    _, no_risk_w = causal_router(oof, y, d)
+    _, risk_w = causal_router(oof, y, d, failure_risk=risk)
+    assert risk_w["lr"][101] < no_risk_w["lr"][101]
+
+    # The same-row target is not a routing feature.
+    y_current_changed = y.copy()
+    y_current_changed[101] = 1 - y_current_changed[101]
+    _, risk_w_changed = causal_router(oof, y_current_changed, d, failure_risk=risk)
+    for name in oof:
+        assert np.isclose(risk_w[name][101], risk_w_changed[name][101]), name
+
     X = np.column_stack([oof["lr"], oof["tree"], oof["hgb"]])
     r0 = retrieval_features(X, y)
     r1 = retrieval_features(X, changed)
