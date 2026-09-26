@@ -34,6 +34,9 @@ jobs:
       - name: Audit nine-sport source coverage and independence
         run: python scripts/audit_source_coverage.py
 
+      - name: Audit nine-sport source coverage
+        run: python scripts/audit_cross_sport_source_coverage.py
+
       - name: Probe nine-sport cross-source reachability
         run: python -m src.cross_sport_source_probe
 
