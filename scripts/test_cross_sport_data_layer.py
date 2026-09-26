@@ -20,6 +20,10 @@ def main() -> int:
     assert cfg["policy"]["free_only"] is True
     assert cfg["policy"]["production_default_requires_pit"] is True
     assert cfg["policy"]["unknown_availability_is_fail_closed"] is True
+    context = cfg["evidence"]["cross_sport_context"]["sources"]
+    for required in ("gdelt", "open_meteo", "openstreetmap_overpass", "wikidata"):
+        assert required in context
+        assert context[required]["free"] is True
 
     for sport in SPORTS:
         rows = source_candidates(sport, research=True, free_only=True)
