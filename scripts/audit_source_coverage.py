@@ -45,12 +45,19 @@ def audit(data: dict[str, Any]) -> list[dict[str, Any]]:
             assert x.get("pit") not in (None, ""), (sport, x)
             assert x.get("independence_family") not in (None, "", "unknown_family"), (sport, x)
 
-        integrated = [x for x in rows if x["integrated"]]
-        families = sorted({x["independence_family"] for x in rows})
+        integrated = [
+            x for x in rows
+            if x["integrated"] and x["class"] not in {"market_source", "discovery_aggregator"}
+        ]
+        statistical_rows = [
+            x for x in rows
+            if x["class"] not in {"market_source", "discovery_aggregator"}
+        ]
+        families = sorted({x["independence_family"] for x in statistical_rows})
         if not integrated:
-            raise AssertionError(f"no_integrated_primary sport={sport}")
+            raise AssertionError(f"no_integrated_statistical_primary sport={sport}")
         if len(families) < 2:
-            raise AssertionError(f"insufficient_source_family_diversity sport={sport}")
+            raise AssertionError(f"insufficient_statistical_source_family_diversity sport={sport}")
 
         report.append({
             "sport": sport,
