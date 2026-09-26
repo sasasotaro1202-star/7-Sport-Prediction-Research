@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/all_sport_research.yml"
+      - "config/ACTIVE_SCOPE_9_SPORTS.json"
       - "src/ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
   workflow_dispatch:
@@ -22,22 +23,59 @@ env:
   ULTIMATE_CONTROL_VERSION: "v13"
 
 jobs:
+  scope:
+    name: Resolve active research scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sports: ${{ steps.scope.outputs.sports }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Resolve TARGET sports from canonical scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("config/ACTIVE_SCOPE_9_SPORTS.json")
+          cfg = json.loads(path.read_text(encoding="utf-8"))
+          active = []
+          for sport, entries in (cfg.get("active_scope") or {}).items():
+              if isinstance(entries, list) and any(str(e.get("status", "")).upper() == "TARGET" for e in entries if isinstance(e, dict)):
+                  active.append(str(sport))
+
+          deferred = set((cfg.get("deferred_scope") or {}).keys())
+          if not active:
+              raise SystemExit("canonical active scope resolved to zero TARGET sports")
+          if len(active) != len(set(active)):
+              raise SystemExit("canonical active scope contains duplicate sports")
+          overlap = sorted(set(active) & deferred)
+          if overlap:
+              raise SystemExit(f"sports are both TARGET and DEFERRED: {overlap}")
+
+          encoded = json.dumps(active, separators=(",", ":"), ensure_ascii=False)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"sports={encoded}\n")
+
+          print(f"ACTIVE_SPORTS={','.join(active)}")
+          print(f"DEFERRED_SPORTS={','.join(sorted(deferred))}")
+          PY
+
   research:
     name: Research ${{ matrix.sport }}
+    needs: scope
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
-        sport:
-          - valorant
-          - basketball
-          - volleyball
-          - tennis
-          - ufc
-          - rizin
-          - f1
-          - rugby
-          - boxing
+        sport: ${{ fromJSON(needs.scope.outputs.sports) }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
