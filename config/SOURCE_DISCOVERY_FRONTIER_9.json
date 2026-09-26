@@ -390,6 +390,29 @@
       "access": "public_web",
       "status": "research_candidate",
       "next": "snapshot pages -> validate history/coverage -> PIT -> OOS"
+    },
+    {
+      "id": "ufc_official_jsonapi",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "ufc"
+      ],
+      "access": "official_public_jsonapi_undocumented",
+      "status": "research_candidate",
+      "next": "probe public JSON:API -> rate-limit -> immutable snapshots -> PIT availability reconstruction -> OOS"
+    },
+    {
+      "id": "the_odds_api",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis",
+        "ufc",
+        "boxing"
+      ],
+      "access": "free_starter_requires_key_no_historical_free_tier",
+      "status": "research_candidate",
+      "next": "never auto-create key; capture live/pre-match snapshots only; enforce bookmaker last_update <= prediction_time; compare OOS"
     }
   ]
 }
