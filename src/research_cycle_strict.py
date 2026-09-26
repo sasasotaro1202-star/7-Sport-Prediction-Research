@@ -929,18 +929,28 @@ def train(s):
 
      # New v2 controller remains research-only: it consumes the already-generated
      # chronological OOF predictions and never touches production artifacts.
-     innovative_v2_eval = innovative_v2.run_experiment(
-      sport=s,
-      x_train=X,
-      y_train=y,
-      oof_folds=oof_folds,
-      names=list(dict.fromkeys(list(best) + rank[:min(4, len(rank))])),
-      baseline_weights=candidate_weights,
-      event_ids=oof_event_ids,
-      dataset_hash=h([(str(r[0]), str(r[1]), int(r[2])) for r in train_rows]),
-      feature_version='strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features',
-      metric=base.metric,
-     )
+     try:
+      innovative_v2_eval = innovative_v2.run_experiment(
+       sport=s,
+       x_train=X,
+       y_train=y,
+       oof_folds=oof_folds,
+       names=list(dict.fromkeys(list(best) + rank[:min(4, len(rank))])),
+       baseline_weights=candidate_weights,
+       event_ids=oof_event_ids,
+       dataset_hash=h([(str(r[0]), str(r[1]), int(r[2])) for r in train_rows]),
+       feature_version='strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features',
+       metric=base.metric,
+      )
+     except Exception as exc:
+      innovative_v2_eval = {
+       'sport':s,
+       'status':'RESEARCH_ERROR',
+       'reason':f'innovative_v2_exception:{type(exc).__name__}:{exc}',
+       'production_changed':False,
+       'promotion':'HOLD',
+      }
+      print(f'INNOVATIVE_V2_RESEARCH_ERROR sport={s} type={type(exc).__name__}',flush=True)
      final_pool=base.pool(fs, symmetric=symmetric_mode)
      models=[]
      for name in best:
