@@ -73,6 +73,36 @@ def _entropy(p: np.ndarray) -> np.ndarray:
     return -(pv * np.log2(pv) + (1.0 - pv) * np.log2(1.0 - pv))
 
 
+def confidence_metrics(y: Sequence[int], p: Sequence[float], threshold: float = 0.70) -> Dict[str, float | int | None]:
+    """Ex-ante confidence-band metrics for reporting.
+
+    Confidence is the normalized distance from 0.5. Coverage is the fraction
+    of rows with confidence >= threshold; accuracy is measured only on those
+    rows. The threshold is fixed before evaluation and is not tuned on the
+    evaluated outcomes.
+    """
+    yv = np.asarray(y, dtype=int)
+    pv = _p(p)
+    if len(yv) != len(pv) or len(yv) == 0:
+        return {"coverage": None, "high_confidence_accuracy": None, "high_confidence_n": 0}
+    confidence = np.abs(pv - 0.5) * 2.0
+    mask = confidence >= float(threshold)
+    return {
+        "coverage": float(np.mean(mask)),
+        "high_confidence_accuracy": _safe_float(np.mean(((pv[mask] >= 0.5) == yv[mask]))) if np.any(mask) else None,
+        "high_confidence_n": int(np.sum(mask)),
+        "threshold": float(threshold),
+    }
+
+
+def prediction_stability(p: Sequence[float]) -> float:
+    """Higher is more stable; 1.0 means no row-to-row probability movement."""
+    pv = _p(p)
+    if len(pv) < 2:
+        return 1.0
+    return float(np.clip(1.0 - np.mean(np.abs(np.diff(pv))), 0.0, 1.0))
+
+
 def _rolling_mean(x: np.ndarray, window: int) -> np.ndarray:
     out = np.zeros(len(x), dtype=float)
     for i in range(len(x)):
@@ -353,6 +383,7 @@ def future_failure_oos(
                 "rows": int(valid.sum()),
                 "metrics": metrics(y_eval, risk_pred[valid]),
                 "risk_latest": _safe_float(risk_pred[idx[-1]]),
+                "risk_predictions": [_safe_float(v) for v in risk_pred],
                 "folds": folds,
                 "failure_definition": "future_window_logloss_above_training_prefix_quantile",
                 "training_target_pit": "PASS",
@@ -511,6 +542,48 @@ def meta_label_oos(
     return out
 
 
+def causal_tta_safety_gate(
+    baseline: np.ndarray,
+    candidate: np.ndarray,
+    y: np.ndarray,
+    window: int = 120,
+    min_logloss_improvement: float = 0.002,
+) -> Dict[str, np.ndarray]:
+    """Use TTA only when its prior OOS loss beats the pre-TTA baseline.
+
+    The decision at row i reads only rows < i. This component-level gate
+    prevents a locally favorable TTA segment from contaminating the full
+    adaptive candidate when TTA is broadly unstable.
+    """
+    b = _p(baseline)
+    c = _p(candidate)
+    yv = np.asarray(y, dtype=int)
+    if len(b) != len(c) or len(b) != len(yv):
+        raise ValueError("baseline/candidate/y alignment mismatch")
+    out = np.array(b, copy=True)
+    used = np.zeros(len(yv), dtype=bool)
+    prior_delta = np.full(len(yv), np.nan, dtype=float)
+    for i in range(len(yv)):
+        start = max(0, i - int(window))
+        if i - start < 30:
+            continue
+        base_ll = logloss(yv[start:i], b[start:i])
+        cand_ll = logloss(yv[start:i], c[start:i])
+        delta = float(cand_ll - base_ll)
+        prior_delta[i] = delta
+        if np.isfinite(delta) and delta <= -float(min_logloss_improvement):
+            out[i] = c[i]
+            used[i] = True
+    return {
+        "probability": _p(out),
+        "used_candidate": used,
+        "prior_logloss_delta": prior_delta,
+        "fallback_count": int(np.sum(~used)),
+        "candidate_use_rate": float(np.mean(used)) if len(used) else 0.0,
+        "policy": "past_only_tta_component_logloss_gate",
+    }
+
+
 def tta_past_only(base_probability: np.ndarray, y: np.ndarray, window: int = 80) -> np.ndarray:
     """Past-outcome Platt TTA; current outcome is never part of the fit."""
     p0 = _p(base_probability)
@@ -623,6 +696,52 @@ def strategy_and_output(
     }
 
 
+def causal_prediction_safety_gate(
+    baseline: np.ndarray,
+    candidate: np.ndarray,
+    y: np.ndarray,
+    window: int = 80,
+    min_logloss_improvement: float = 0.005,
+) -> Dict[str, np.ndarray]:
+    """Select candidate only when prior OOS evidence supports it.
+
+    At prediction row i, the gate may inspect only rows strictly before i.
+    This is a fail-safe research layer: when adaptive evidence is weak or
+    adverse, the verified baseline is retained.
+    """
+    b = _p(baseline)
+    c = _p(candidate)
+    yv = np.asarray(y, dtype=int)
+    if len(b) != len(c) or len(b) != len(yv):
+        raise ValueError("baseline/candidate/y alignment mismatch")
+    out = np.array(b, copy=True)
+    used = np.zeros(len(yv), dtype=bool)
+    prior_delta = np.full(len(yv), np.nan, dtype=float)
+    for i in range(len(yv)):
+        start = max(0, i - int(window))
+        if i - start < 20:
+            continue
+        base_ll = logloss(yv[start:i], b[start:i])
+        cand_ll = logloss(yv[start:i], c[start:i])
+        delta = float(cand_ll - base_ll)
+        prior_delta[i] = delta
+        # Lower logloss is better. Require a real historical margin before
+        # allowing the more complex/adaptive candidate to replace baseline.
+        if np.isfinite(delta) and delta <= -float(min_logloss_improvement):
+            out[i] = c[i]
+            used[i] = True
+    return {
+        "probability": _p(out),
+        "used_candidate": used,
+        "prior_logloss_delta": prior_delta,
+        "fallback_count": int(np.sum(~used)),
+        "candidate_use_rate": float(np.mean(used)) if len(used) else 0.0,
+        "policy": "past_only_logloss_gate",
+        "window": int(window),
+        "min_logloss_improvement": float(min_logloss_improvement),
+    }
+
+
 def prediction_trajectory(current_p: float, slope: float, uncertainty: float, steps: Sequence[int] = (1, 2, 3, 5)) -> Dict:
     values = []
     for step in steps:
@@ -688,6 +807,108 @@ def _failure_risk_matrix(
     return out
 
 
+def active_information_value_oos(
+    model_predictions: Mapping[str, Sequence[float]],
+    y: Sequence[int],
+    min_train: int = 80,
+) -> Dict:
+    """Measure marginal information value of existing OOF model channels.
+
+    This is deliberately a research-only proxy for active information
+    acquisition. Each channel is scored as the incremental value of adding it
+    to the other OOF channels, using chronological OOS test blocks only.
+    The result never changes the prediction path or production artifact.
+    """
+    names = list(model_predictions)
+    yv = np.asarray(y, dtype=int)
+    if len(names) < 2 or len(yv) < max(120, min_train + 40):
+        return {
+            "status": "INSUFFICIENT_OOS",
+            "reason": "need_at_least_two_models_and_sufficient_oos_rows",
+            "selection_for_prediction": False,
+        }
+    pm = np.column_stack([_p(model_predictions[n]) for n in names])
+    if pm.shape[0] != len(yv) or not np.all(np.isfinite(pm)):
+        return {
+            "status": "BLOCKED",
+            "reason": "invalid_oos_alignment",
+            "selection_for_prediction": False,
+        }
+    blocks = _outer_blocks(
+        len(yv),
+        min_train=int(min_train),
+        test_size=max(20, len(yv) // 5),
+    )
+    if len(blocks) < 2:
+        return {
+            "status": "INSUFFICIENT_OOS",
+            "reason": "insufficient_chronological_test_blocks",
+            "selection_for_prediction": False,
+        }
+
+    per_source = {}
+    for j, name in enumerate(names):
+        block_results = []
+        for _, te in blocks:
+            if len(names) == 2:
+                without = pm[te, 1 - j]
+            else:
+                without = np.delete(pm[te], j, axis=1).mean(axis=1)
+            with_source = pm[te].mean(axis=1)
+            base_m = metrics(yv[te], without)
+            add_m = metrics(yv[te], with_source)
+            block_results.append({
+                "test_start": int(te.min()),
+                "test_end_exclusive": int(te.max() + 1),
+                "rows": int(len(te)),
+                "logloss_without_source": float(base_m["logloss"]),
+                "logloss_with_source": float(add_m["logloss"]),
+                "logloss_gain": float(base_m["logloss"] - add_m["logloss"]),
+                "brier_gain": float(base_m["brier"] - add_m["brier"]),
+                "accuracy_delta": float(add_m["accuracy"] - base_m["accuracy"]),
+                "ece_delta": float(add_m["ece"] - base_m["ece"]),
+            })
+        gains = np.asarray([b["logloss_gain"] for b in block_results], dtype=float)
+        per_source[name] = {
+            "chronological_blocks": block_results,
+            "mean_logloss_gain": _safe_float(np.mean(gains)),
+            "median_logloss_gain": _safe_float(np.median(gains)),
+            "std_logloss_gain": _safe_float(np.std(gains, ddof=1)) if len(gains) > 1 else 0.0,
+            "positive_gain_rate": _safe_float(np.mean(gains > 0.0)),
+            "latest_logloss_gain": _safe_float(gains[-1]),
+            "stable_positive_gain": bool(np.mean(gains > 0.0) >= 0.60 and np.mean(gains) > 0.0),
+        }
+
+    ranked = sorted(
+        names,
+        key=lambda n: (
+            float(per_source[n]["mean_logloss_gain"] or -np.inf),
+            float(per_source[n]["positive_gain_rate"] or 0.0),
+            -float(per_source[n]["std_logloss_gain"] or np.inf),
+        ),
+        reverse=True,
+    )
+    selected = ranked[0]
+    return {
+        "status": "EVALUATED",
+        "mode": "RESEARCH_ONLY_MEASURED_PROXY",
+        "proxy_definition": "marginal OOS information gain from adding one existing model channel to the remaining OOF ensemble",
+        "selection_for_prediction": False,
+        "source_candidates": names,
+        "ranked_sources": ranked,
+        "per_source": per_source,
+        "recommended_next_source": selected,
+        "recommended_source_mean_logloss_gain": per_source[selected]["mean_logloss_gain"],
+        "expected_value": {
+            "metric": "logloss_gain",
+            "estimate": per_source[selected]["mean_logloss_gain"],
+            "positive_gain_rate": per_source[selected]["positive_gain_rate"],
+            "stable_positive_gain": per_source[selected]["stable_positive_gain"],
+            "note": "Proxy only; no external source was acquired and no prediction was changed by this ranking.",
+        },
+    }
+
+
 def build_forecast_contract(
     sport: str,
     cutoff_utc: str,
@@ -749,14 +970,19 @@ def block_bootstrap_delta(
         idx = np.asarray(idx[: len(yv)])
         mb = metrics(yv[idx], b[idx])
         mn = metrics(yv[idx], n[idx])
+        mc_b = confidence_metrics(yv[idx], b[idx])
+        mc_n = confidence_metrics(yv[idx], n[idx])
         deltas.append([
             mn["accuracy"] - mb["accuracy"],
             mn["logloss"] - mb["logloss"],
             mn["brier"] - mb["brier"],
             mn["ece"] - mb["ece"],
+            (mc_n["coverage"] or 0.0) - (mc_b["coverage"] or 0.0),
+            (mc_n["high_confidence_accuracy"] or 0.0) - (mc_b["high_confidence_accuracy"] or 0.0),
+            prediction_stability(n[idx]) - prediction_stability(b[idx]),
         ])
     arr = np.asarray(deltas, dtype=float)
-    names = ["accuracy", "logloss", "brier", "ece"]
+    names = ["accuracy", "logloss", "brier", "ece", "coverage", "high_confidence_accuracy", "stability"]
     ci = {
         name: {
             "mean_delta": _safe_float(np.mean(arr[:, i])),
@@ -903,6 +1129,56 @@ def build_prediction_ledger(
     return ledger
 
 
+
+def run_v13_research_from_oof(
+    sport: str,
+    oof_predictions: Mapping[str, Sequence[float]],
+    oof_targets: Sequence[int],
+    cutoff_utc: str = "unknown",
+    artifact_path: str = "results/research/ultimate_v13.json",
+    data_quality: Sequence[float] | None = None,
+) -> Dict:
+    """Run v13 directly from chronological OOF predictions.
+
+    The caller must provide predictions produced by a prior-only chronological
+    OOS pipeline. This bridge performs alignment/shape checks and never fits
+    anything against the frozen holdout.
+    """
+    yv = np.asarray(oof_targets, dtype=int)
+    if yv.ndim != 1 or len(yv) == 0:
+        return {
+            "sport": sport,
+            "status": "BLOCKED",
+            "mode": "RESEARCH_ONLY",
+            "reason": "invalid_oof_targets",
+        }
+    aligned = {}
+    for name, values in oof_predictions.items():
+        arr = np.asarray(values, dtype=float)
+        if arr.ndim != 1 or len(arr) != len(yv) or not np.all(np.isfinite(arr)):
+            return {
+                "sport": sport,
+                "status": "BLOCKED",
+                "mode": "RESEARCH_ONLY",
+                "reason": f"invalid_oof_prediction_alignment:{name}",
+            }
+        aligned[str(name)] = arr
+    if len(aligned) < 2:
+        return {
+            "sport": sport,
+            "status": "BLOCKED",
+            "mode": "RESEARCH_ONLY",
+            "reason": "need_at_least_two_oof_models",
+        }
+    return run_v13_research(
+        sport=sport,
+        model_predictions=aligned,
+        y=yv,
+        cutoff_utc=cutoff_utc,
+        data_quality=data_quality,
+        artifact_path=artifact_path,
+    )
+
 def run_v13_research(
     sport: str,
     model_predictions: Mapping[str, Sequence[float]],
@@ -953,10 +1229,30 @@ def run_v13_research(
 
     failure = future_failure_oos(dict(model_predictions), yv, context[:, :4], horizon=5)
     ttf = time_to_failure_oos(dict(model_predictions), yv, context[:, :4])
-    # Never backfill a full-sample future-failure summary into historical
-    # routing rows. Doing so would be retrospective meta-leakage.
-    failure_risks = {name: np.zeros(len(yv), dtype=float) for name in names}
-    routed, route_weights = causal_router(dict(model_predictions), yv, d["std"], failure_risk=None)
+
+    # Only audited chronological OOS failure-risk predictions may influence
+    # routing. Missing/unscored rows remain neutral rather than being inferred.
+    failure_risks = {}
+    for name in names:
+        entry = failure.get("models", {}).get(name, {})
+        raw_risk = np.asarray(entry.get("risk_predictions") or [], dtype=float)
+        if raw_risk.shape != (len(yv),):
+            raw_risk = np.zeros(len(yv), dtype=float)
+        raw_risk = np.nan_to_num(raw_risk, nan=0.0, posinf=1.0, neginf=0.0)
+        failure_risks[name] = np.clip(raw_risk, 0.0, 1.0)
+
+    # Authoritative v13 route. causal_router uses loss/risk only through i-1,
+    # so the current target cannot influence the current routing weight.
+    routed, route_weights = causal_router(
+        dict(model_predictions),
+        yv,
+        d["std"],
+        failure_risk=failure_risks,
+    )
+
+    tta_raw = tta_past_only(routed, yv)
+    tta_gate = causal_tta_safety_gate(routed, tta_raw, yv)
+    tta = tta_gate["probability"]
 
     retrieval_vec = np.column_stack([
         fixed,
@@ -968,8 +1264,6 @@ def run_v13_research(
         shift["ood"],
     ])
     retrieval = retrieval_features(retrieval_vec, yv)
-    tta = tta_past_only(routed, yv)
-
     combined = strategy_and_output(
         routed=tta,
         predictability=predfeat["predictability"],
@@ -979,8 +1273,10 @@ def run_v13_research(
         retrieval_dispersion=retrieval["dispersion"],
     )
 
-    final_p = combined["probability"]
+    adaptive_candidate = combined["probability"]
     uncertainty = combined["uncertainty"]
+    safety_gate = causal_prediction_safety_gate(fixed, adaptive_candidate, yv)
+    final_p = safety_gate["probability"]
     meta_X = np.column_stack([
         d["std"], d["entropy"], d["speed"], reg["volatility"],
         shift["drift"], shift["ood"], predfeat["predictability"],
@@ -990,12 +1286,29 @@ def run_v13_research(
     regime_future = regime_transition_oos(reg["code"])
     ensemble_metrics = metrics(yv, fixed)
     routed_metrics = metrics(yv, final_p)
+    ensemble_confidence = confidence_metrics(yv, fixed)
+    routed_confidence = confidence_metrics(yv, final_p)
+    ensemble_stability = prediction_stability(fixed)
+    routed_stability = prediction_stability(final_p)
     statistical_validation = block_bootstrap_delta(yv, fixed, final_p)
     ablation = {
         "baseline_fixed_ensemble": ensemble_metrics,
         "causal_router_before_tta": metrics(yv, routed),
+        "raw_past_only_tta": metrics(yv, tta_raw),
         "past_only_tta": metrics(yv, tta),
-        "final_policy_output": routed_metrics,
+        "tta_component_gate": {
+            "candidate_use_rate": float(tta_gate["candidate_use_rate"]),
+            "fallback_count": int(tta_gate["fallback_count"]),
+            "policy": tta_gate["policy"],
+        },
+        "adaptive_candidate_before_safety_gate": metrics(yv, adaptive_candidate),
+        "safety_gated_final_output": routed_metrics,
+        "safety_gate": {
+            "candidate_use_rate": float(safety_gate["candidate_use_rate"]),
+            "fallback_count": int(safety_gate["fallback_count"]),
+            "policy": safety_gate["policy"],
+            "past_only": True,
+        },
         "selection_is_outcome_free_at_prediction_time": True,
     }
     revision = revision_metrics(final_p, yv)
@@ -1015,16 +1328,20 @@ def run_v13_research(
         combined["output_format"],
         route_weights,
     )
+    active_info = active_information_value_oos(dict(model_predictions), yv)
 
     trajectory = prediction_trajectory(
         float(final_p[-1]),
         float(_causal_slope(final_p, 8)[-1]),
         float(uncertainty[-1]),
     )
-    latest_strategy = str(combined["strategy"][-1])
-    latest_format = str(combined["output_format"][-1])
+    latest_candidate_used = bool(safety_gate["used_candidate"][-1])
+    latest_strategy = str(combined["strategy"][-1]) if latest_candidate_used else "fallback_verified_baseline"
+    latest_format = str(combined["output_format"][-1]) if latest_candidate_used else "single_probability"
+    latest_action = "adaptive_update" if latest_candidate_used else "maintain_verified_baseline"
     latest_predictability = float(predfeat["predictability"][-1])
     latest_disagreement = float(d["std"][-1])
+
     reported_failure = [
         float(v.get("risk_latest"))
         for v in failure.get("models", {}).values()
@@ -1057,6 +1374,8 @@ def run_v13_research(
         "future_label_training_rows_exclude_unmatured_horizon": True,
         "retrieval_index_is_past_only": True,
         "router_uses_prior_outcomes_only": True,
+        "prediction_safety_gate_uses_prior_outcomes_only": True,
+        "tta_component_gate_uses_prior_outcomes_only": True,
         "auto_promotion": False,
     }
 
@@ -1073,11 +1392,12 @@ def run_v13_research(
         "meta_label": "EXECUTED",
         "uncertainty": "EXECUTED",
         "dynamic_routing": "EXECUTED",
-        "tta": "EXECUTED_PAST_ONLY",
+        "tta": "EXECUTED_PAST_ONLY_COMPONENT_GATED",
         "prediction_policy": "EXECUTED",
         "prediction_output": "EXECUTED",
+        "prediction_safety_gate": "EXECUTED_PAST_ONLY",
         "prediction_trajectory": "EXECUTED_SCENARIO_PROJECTION",
-        "active_information": "DESIGNED_PROXY_ONLY",
+        "active_information": "MEASURED_PROXY_OOS" if active_info.get("status") == "EVALUATED" else active_info.get("status", "INSUFFICIENT_OOS"),
         "selective_prediction": "EXECUTED",
         "calibration": "EVALUATED_BASE_METRICS",
         "robustness": robust.get("status", "INSUFFICIENT"),
@@ -1095,6 +1415,20 @@ def run_v13_research(
         "delta": {
             key: _safe_float((routed_metrics.get(key) or 0.0) - (ensemble_metrics.get(key) or 0.0))
             for key in ("accuracy", "logloss", "brier", "ece")
+        },
+        "confidence_metrics": {
+            "baseline": ensemble_confidence,
+            "new": routed_confidence,
+            "delta": {
+                "coverage": _safe_float((routed_confidence.get("coverage") or 0.0) - (ensemble_confidence.get("coverage") or 0.0)),
+                "high_confidence_accuracy": _safe_float((routed_confidence.get("high_confidence_accuracy") or 0.0) - (ensemble_confidence.get("high_confidence_accuracy") or 0.0)),
+            },
+        },
+        "stability": {
+            "baseline": ensemble_stability,
+            "new": routed_stability,
+            "delta": _safe_float(routed_stability - ensemble_stability),
+            "interpretation": "higher_is_more_stable",
         },
         "disagreement": {
             "mean": _safe_float(np.mean(d["std"])),
@@ -1143,13 +1477,25 @@ def run_v13_research(
             "mean": _safe_float(np.mean(uncertainty)),
         },
         "selective_prediction": selective,
+        "confidence_metrics": {
+            "baseline": ensemble_confidence,
+            "new": routed_confidence,
+            "delta": {
+                "coverage": _safe_float((routed_confidence.get("coverage") or 0.0) - (ensemble_confidence.get("coverage") or 0.0)),
+                "high_confidence_accuracy": _safe_float((routed_confidence.get("high_confidence_accuracy") or 0.0) - (ensemble_confidence.get("high_confidence_accuracy") or 0.0)),
+            },
+        },
         "calibration": calibration,
         "worst_case": worst_case,
         "prediction_ledger": prediction_ledger,
         "tta": {
-            "status": "EXECUTED_PAST_ONLY",
+            "status": "EXECUTED_PAST_ONLY_COMPONENT_GATED",
             "baseline": metrics(yv, routed),
+            "raw": metrics(yv, tta_raw),
             "tta": metrics(yv, tta),
+            "candidate_use_rate": float(tta_gate["candidate_use_rate"]),
+            "fallback_count": int(tta_gate["fallback_count"]),
+            "prior_logloss_delta_latest": _safe_float(tta_gate["prior_logloss_delta"][-1]),
         },
         "prediction_policy": {
             "latest_strategy": latest_strategy,
@@ -1159,15 +1505,25 @@ def run_v13_research(
         "prediction_output": {
             "latest_format": latest_format,
             "format_counts": {s: int(np.sum(np.asarray(combined["output_format"]) == s)) for s in sorted(set(combined["output_format"]))},
+            "safety_gate": {
+                "latest_action": latest_action,
+                "latest_candidate_used": latest_candidate_used,
+                "candidate_use_rate": float(safety_gate["candidate_use_rate"]),
+                "fallback_count": int(safety_gate["fallback_count"]),
+            },
         },
         "prediction_trajectory": trajectory,
         "revision": revision,
+        "prediction_update": {
+            "latest_action": latest_action,
+            "candidate_use_rate": float(safety_gate["candidate_use_rate"]),
+            "fallback_count": int(safety_gate["fallback_count"]),
+            "policy": "past_only_logloss_gate",
+        },
         "robustness": robust,
-        "active_information": {
-            "status": "PROXY_ONLY",
-            "expected_value": "UNMEASURED",
-            "next_candidate": "sport_specific_data_group_ablation",
-            "note": "True external information acquisition requires source-specific PIT-safe adapters and incremental OOS measurement.",
+        "active_information": active_info | {
+            "external_acquisition": False,
+            "note": "Measured proxy only: existing OOF model channels are treated as information sources. True external acquisition still requires sport-specific PIT-safe adapters and incremental OOS measurement.",
         },
         "forecast_contract": contract,
         "audit": audit,
