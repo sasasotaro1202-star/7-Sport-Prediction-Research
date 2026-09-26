@@ -331,6 +331,45 @@
       "access": "free_public_no_auth",
       "status": "research_candidate",
       "next": "probe historical endpoints -> snapshot/provenance -> compare against existing F1 sources -> OOS"
+    },
+    {
+      "id": "sx_bet",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis",
+        "ufc",
+        "rizin",
+        "valorant",
+        "f1",
+        "rugby",
+        "boxing"
+      ],
+      "access": "public_read_no_key",
+      "status": "research_candidate",
+      "next": "probe sports/leagues/fixtures/markets -> timestamp archive feasibility -> PIT/OOS; never use write or wallet endpoints"
+    },
+    {
+      "id": "highlightly",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "rugby"
+      ],
+      "access": "free_basic_requires_signup_and_key",
+      "status": "research_candidate",
+      "next": "never auto-create credential; validate exact free-tier sport/endpoint scope -> snapshot -> PIT -> OOS"
+    },
+    {
+      "id": "sportsdataverse_volleyball",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "volleyball"
+      ],
+      "access": "public_github_release_ecosystem",
+      "status": "research_candidate",
+      "next": "identify current volleyball release assets -> source timestamp -> PIT reconstruction -> OOS"
     }
   ]
 }
