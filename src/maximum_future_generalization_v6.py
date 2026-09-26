@@ -1015,6 +1015,8 @@ def run_experiment(
     robustness = _robustness_matrix(y, bp, full_safe, baseline)
     regime_transition_metrics = _regime_transition_metrics(transition, x, bp)
     failure_detection = _failure_detection_metrics(y=y, bp=bp, failure_risk=failure_risk, horizon=v2.FAILURE_HORIZON)
+    period_regime = _period_regime_summary(y, full_safe, drift)
+    multiple_testing = _multiple_testing_control(y, baseline, ablation, blocks=6)
     pareto = _pareto_frontier(ablation)
 
     report = {
@@ -1156,6 +1158,8 @@ def run_experiment(
         },
         "ablation": ablation,
         "robustness_matrix": robustness,
+        "period_regime_evaluation": period_regime,
+        "multiple_testing_control": multiple_testing,
         "pareto_frontier": pareto,
         "tta": {"metrics": tta_d, "policy": "calibration-only; prior outcomes only"},
         "residual_model": {
@@ -1179,6 +1183,7 @@ def run_experiment(
         "high_confidence": high_confidence,
         "high_confidence_accuracy": high_confidence.get("accuracy") if isinstance(high_confidence, dict) else None,
         "high_confidence_coverage": high_confidence.get("coverage") if isinstance(high_confidence, dict) else None,
+        "feature_names_received": len(feature_names or []),
         "multi_horizon_consistency": {
             "status": "UNAVAILABLE",
             "reason": "strict OOS interface exposes one binary prediction horizon per run",
