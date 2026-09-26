@@ -490,6 +490,15 @@
       "references": [
         "https://github.com/TracingInsights/2026"
       ]
+    },
+    "public_nba_api": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Public-NBA-API documents the stats.nba.com public/undocumented surface with verified play-by-play v2/v3, traditional/advanced box scores, matchup/defensive stats, player logs and standings. Requires browser-like headers and can return 403/empty responses, so it is a redundancy candidate rather than a stable production source until runner retrieval is proven.",
+      "references": [
+        "https://github.com/pseudo-r/Public-NBA-API"
+      ],
+      "license": "MIT"
     }
   },
   "source_classes": {
@@ -651,6 +660,15 @@
         "integrated": false,
         "pit": "live_only_until_snapshotted",
         "independence_family": "nba_community_api"
+      },
+      {
+        "id": "public_nba_api",
+        "name": "Public-NBA-API / stats.nba.com",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_and_header_validated_replay_required",
+        "independence_family": "nba_public_undocumented_api"
       }
     ],
     "volleyball": [
