@@ -8,6 +8,7 @@ on:
       - "scripts/run_ultimate_predictive_control_v13_e2e.py"
       - ".github/workflows/ultimate_v13_e2e.yml"
   workflow_dispatch:
+  pull_request:
 
 permissions:
   contents: read
