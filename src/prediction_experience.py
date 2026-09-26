@@ -405,29 +405,46 @@ def _score_binary(pred: dict[str, Any], outcome: str) -> dict[str, Any] | None:
     }
 
 
+def _validate_f1_multiclass_probabilities(pred: dict[str, Any]) -> dict[str, float]:
+    """Fail closed on malformed F1 multiclass probability vectors."""
+    drivers = pred.get("drivers")
+    if not isinstance(drivers, list) or not drivers:
+        raise RuntimeError("INVALID_F1_PROBABILITIES:missing_or_not_list")
+
+    probs: dict[str, float] = {}
+    seen: set[str] = set()
+    for row in drivers:
+        if not isinstance(row, dict):
+            raise RuntimeError("INVALID_F1_PROBABILITIES:invalid_driver_row")
+        participant_id = row.get("participant_id")
+        if not participant_id:
+            raise RuntimeError("INVALID_F1_PROBABILITIES:missing_participant_id")
+        participant_id = str(participant_id)
+        if participant_id in seen:
+            raise RuntimeError("INVALID_F1_PROBABILITIES:duplicate_participant_id")
+        seen.add(participant_id)
+        try:
+            p = float(row.get("probability"))
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("INVALID_F1_PROBABILITIES:non_numeric") from exc
+        if not math.isfinite(p):
+            raise RuntimeError("INVALID_F1_PROBABILITIES:non_finite")
+        if p < 0.0 or p > 1.0:
+            raise RuntimeError("INVALID_F1_PROBABILITIES:out_of_range")
+        probs[participant_id] = p
+
+    total = sum(probs.values())
+    if not math.isfinite(total) or total <= 0.0:
+        raise RuntimeError("INVALID_F1_PROBABILITIES:invalid_sum")
+    if abs(total - 1.0) > 1e-6:
+        raise RuntimeError("INVALID_F1_PROBABILITIES:sum_not_one")
+    return probs
+
+
 def _score_f1(pred: dict[str, Any], winner_id: str | None) -> dict[str, Any] | None:
     if not winner_id:
         return None
-    drivers = pred.get("drivers") or []
-    if not isinstance(drivers, list):
-        return None
-    probs: dict[str, float] = {}
-    for row in drivers:
-        if not isinstance(row, dict) or not row.get("participant_id"):
-            continue
-        try:
-            p = float(row.get("probability"))
-        except (TypeError, ValueError):
-            continue
-        if not math.isfinite(p) or p < 0:
-            continue
-        probs[str(row["participant_id"])] = p
-    if not probs:
-        return None
-    total = sum(probs.values())
-    if total <= 0:
-        return None
-    probs = {k: v / total for k, v in probs.items()}
+    probs = _validate_f1_multiclass_probabilities(pred)
     true_p = min(1.0 - EPS, max(EPS, probs.get(winner_id, EPS)))
     max_pid, max_p = max(probs.items(), key=lambda kv: (kv[1], kv[0]))
     brier = sum((p - (1.0 if pid == winner_id else 0.0)) ** 2 for pid, p in probs.items())
