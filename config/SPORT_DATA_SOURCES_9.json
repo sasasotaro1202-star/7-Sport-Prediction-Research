@@ -423,6 +423,38 @@
         "https://riotesportsdata.com/en-us/valorant/",
         "https://grid.gg/get-valorant/"
       ]
+    },
+    "rugby_data_api_legacy": {
+      "current_web_evidence": "2026-09-27",
+      "status": "historical_research_candidate",
+      "note": "Archived MIT rugby-data-api exposes programmatic Rugby Union fixtures/results and league tables for Aviva/Pro12-era data. Repository is archived, so treat it strictly as historical redundancy and not a current feed.",
+      "references": [
+        "https://github.com/punkstar/rugby-data-api"
+      ]
+    },
+    "valorant_blitz_static": {
+      "current_web_evidence": "2026-09-27",
+      "status": "historical_research_candidate",
+      "note": "Public GitHub corpus scraped from blitz.gg contains Valorant agent/map/weapon aggregate statistics and map-level metrics. Last repository data refresh is old, so it is useful only for historical feature research and must not be treated as current.",
+      "references": [
+        "https://github.com/IronicNinja/valorant-stats"
+      ]
+    },
+    "nbaapi_stats": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Community NBA API exposes no-key JSON player season totals and advanced shooting/box-score metrics. It is an unofficial derived source; useful for NBA-specific feature redundancy, with currentness, provenance and terms requiring validation before use.",
+      "references": [
+        "https://bytetools.bytevancer.com/public-apis/sports/nbaapi-stats-api"
+      ]
+    },
+    "tipero_public": {
+      "current_web_evidence": "2026-09-27",
+      "status": "external_forecast_candidate",
+      "note": "TIPERO exposes free no-key public tennis prediction/results/stats endpoints. This is an external forecast/consensus signal rather than a raw statistical source; using it as a model feature requires prediction-time snapshotting and historical availability proof to avoid leakage.",
+      "references": [
+        "https://tipero.app/api-docs"
+      ]
     }
   },
   "source_classes": {
@@ -575,6 +607,15 @@
         "integrated": false,
         "pit": "dataset_regeneration_snapshot_required",
         "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "nbaapi_stats",
+        "name": "NBA API community stats",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "live_only_until_snapshotted",
+        "independence_family": "nba_community_api"
       }
     ],
     "volleyball": [
@@ -916,6 +957,15 @@
         "integrated": false,
         "pit": "historical_snapshot_and_access_terms_required",
         "independence_family": "official_esports_distributor"
+      },
+      {
+        "id": "valorant_blitz_static",
+        "name": "Valorant Blitz-derived GitHub corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required",
+        "independence_family": "esports_public_web"
       }
     ],
     "tennis": [
@@ -1035,6 +1085,15 @@
         "integrated": false,
         "pit": "dataset_regeneration_snapshot_required",
         "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "tipero_public",
+        "name": "TIPERO public tennis forecast API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_snapshot_required",
+        "independence_family": "external_forecast"
       }
     ],
     "f1": [
@@ -1255,6 +1314,15 @@
         "integrated": false,
         "pit": "dataset_regeneration_snapshot_required",
         "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "rugby_data_api_legacy",
+        "name": "Rugby Data API legacy",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "historical_snapshot_required",
+        "independence_family": "rugby_public_legacy"
       }
     ],
     "boxing": [
