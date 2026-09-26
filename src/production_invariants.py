@@ -600,6 +600,24 @@ def main():
     require((ROOT/'scripts/test_feature_temporal_invariance.py').exists(),'temporal feature immutability regression test is missing')
     require('validate_model_pipeline.py' in (ROOT/'.github/workflows/production_invariants.yml').read_text(encoding='utf-8'),'production invariants workflow does not execute model pipeline regression checks')
     require('src.cache_health' in workflow and '--repair' in workflow,'production workflow does not validate/repair restored cache before collection')
+    maximum_v6_src=(ROOT/'src/maximum_future_generalization_v6.py').read_text(encoding='utf-8')
+    maximum_v6_test=(ROOT/'scripts/test_maximum_future_generalization_v6.py').read_text(encoding='utf-8')
+    require('maximum_future_generalization_v6 as innovative_v6' in strict_src,
+            'strict research cycle does not execute maximum future-generalization v6')
+    require('production_changed": False' in maximum_v6_src and 'promotion": "HOLD"' in maximum_v6_src,
+            'maximum future-generalization v6 does not enforce research-only production safety')
+    require('meta_leakage_audit' in maximum_v6_src and 'future_labels_as_features' in maximum_v6_src,
+            'maximum future-generalization v6 lacks explicit meta-leakage audit')
+    require('retrieval_uses_current_or_future_rows": False' in maximum_v6_src,
+            'maximum future-generalization v6 retrieval lacks PIT-safe boundary')
+    require('future_label_embargo' in maximum_v6_src.lower(),
+            'maximum future-generalization v6 lacks future-label embargo evidence')
+    require('selective_prediction' in maximum_v6_src and '100, 0.95, 0.90, 0.80, 0.70' in maximum_v6_src,
+            'maximum future-generalization v6 lacks selective coverage evaluation')
+    require('conformal' in maximum_v6_src and 'ci95' in maximum_v6_src,
+            'maximum future-generalization v6 lacks conformal/statistical validation')
+    require('test_full_v6' in maximum_v6_test,
+            'maximum future-generalization v6 regression test is missing')
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
         for x in FAILURES: print(f'- {x}')
