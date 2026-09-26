@@ -765,6 +765,108 @@ def _failure_risk_matrix(
     return out
 
 
+def active_information_value_oos(
+    model_predictions: Mapping[str, Sequence[float]],
+    y: Sequence[int],
+    min_train: int = 80,
+) -> Dict:
+    """Measure marginal information value of existing OOF model channels.
+
+    This is deliberately a research-only proxy for active information
+    acquisition. Each channel is scored as the incremental value of adding it
+    to the other OOF channels, using chronological OOS test blocks only.
+    The result never changes the prediction path or production artifact.
+    """
+    names = list(model_predictions)
+    yv = np.asarray(y, dtype=int)
+    if len(names) < 2 or len(yv) < max(120, min_train + 40):
+        return {
+            "status": "INSUFFICIENT_OOS",
+            "reason": "need_at_least_two_models_and_sufficient_oos_rows",
+            "selection_for_prediction": False,
+        }
+    pm = np.column_stack([_p(model_predictions[n]) for n in names])
+    if pm.shape[0] != len(yv) or not np.all(np.isfinite(pm)):
+        return {
+            "status": "BLOCKED",
+            "reason": "invalid_oos_alignment",
+            "selection_for_prediction": False,
+        }
+    blocks = _outer_blocks(
+        len(yv),
+        min_train=int(min_train),
+        test_size=max(20, len(yv) // 5),
+    )
+    if len(blocks) < 2:
+        return {
+            "status": "INSUFFICIENT_OOS",
+            "reason": "insufficient_chronological_test_blocks",
+            "selection_for_prediction": False,
+        }
+
+    per_source = {}
+    for j, name in enumerate(names):
+        block_results = []
+        for _, te in blocks:
+            if len(names) == 2:
+                without = pm[te, 1 - j]
+            else:
+                without = np.delete(pm[te], j, axis=1).mean(axis=1)
+            with_source = pm[te].mean(axis=1)
+            base_m = metrics(yv[te], without)
+            add_m = metrics(yv[te], with_source)
+            block_results.append({
+                "test_start": int(te.min()),
+                "test_end_exclusive": int(te.max() + 1),
+                "rows": int(len(te)),
+                "logloss_without_source": float(base_m["logloss"]),
+                "logloss_with_source": float(add_m["logloss"]),
+                "logloss_gain": float(base_m["logloss"] - add_m["logloss"]),
+                "brier_gain": float(base_m["brier"] - add_m["brier"]),
+                "accuracy_delta": float(add_m["accuracy"] - base_m["accuracy"]),
+                "ece_delta": float(add_m["ece"] - base_m["ece"]),
+            })
+        gains = np.asarray([b["logloss_gain"] for b in block_results], dtype=float)
+        per_source[name] = {
+            "chronological_blocks": block_results,
+            "mean_logloss_gain": _safe_float(np.mean(gains)),
+            "median_logloss_gain": _safe_float(np.median(gains)),
+            "std_logloss_gain": _safe_float(np.std(gains, ddof=1)) if len(gains) > 1 else 0.0,
+            "positive_gain_rate": _safe_float(np.mean(gains > 0.0)),
+            "latest_logloss_gain": _safe_float(gains[-1]),
+            "stable_positive_gain": bool(np.mean(gains > 0.0) >= 0.60 and np.mean(gains) > 0.0),
+        }
+
+    ranked = sorted(
+        names,
+        key=lambda n: (
+            float(per_source[n]["mean_logloss_gain"] or -np.inf),
+            float(per_source[n]["positive_gain_rate"] or 0.0),
+            -float(per_source[n]["std_logloss_gain"] or np.inf),
+        ),
+        reverse=True,
+    )
+    selected = ranked[0]
+    return {
+        "status": "EVALUATED",
+        "mode": "RESEARCH_ONLY_MEASURED_PROXY",
+        "proxy_definition": "marginal OOS information gain from adding one existing model channel to the remaining OOF ensemble",
+        "selection_for_prediction": False,
+        "source_candidates": names,
+        "ranked_sources": ranked,
+        "per_source": per_source,
+        "recommended_next_source": selected,
+        "recommended_source_mean_logloss_gain": per_source[selected]["mean_logloss_gain"],
+        "expected_value": {
+            "metric": "logloss_gain",
+            "estimate": per_source[selected]["mean_logloss_gain"],
+            "positive_gain_rate": per_source[selected]["positive_gain_rate"],
+            "stable_positive_gain": per_source[selected]["stable_positive_gain"],
+            "note": "Proxy only; no external source was acquired and no prediction was changed by this ranking.",
+        },
+    }
+
+
 def build_forecast_contract(
     sport: str,
     cutoff_utc: str,
