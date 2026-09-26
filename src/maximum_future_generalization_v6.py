@@ -238,7 +238,7 @@ def _retrieval_features(
         cur_base = np.column_stack([
             np.nan_to_num(((cur_x - med) / scale_x))[None, :],
             [[float(np.mean(bp[i])), float(np.std(bp[i]))]],
-        ]
+        ])
         dim = min(base_ref.shape[1], cur_base.shape[1])
         ref = base_ref[:, :dim]
         cur = cur_base[:, :dim][0]
