@@ -1143,8 +1143,10 @@ def run_v13_research(
         float(_causal_slope(final_p, 8)[-1]),
         float(uncertainty[-1]),
     )
-    latest_strategy = str(combined["strategy"][-1])
-    latest_format = str(combined["output_format"][-1])
+    latest_candidate_used = bool(safety_gate["used_candidate"][-1])
+    latest_strategy = str(combined["strategy"][-1]) if latest_candidate_used else "fallback_verified_baseline"
+    latest_format = str(combined["output_format"][-1]) if latest_candidate_used else "single_probability"
+    latest_action = "adaptive_update" if latest_candidate_used else "maintain_verified_baseline"
     latest_predictability = float(predfeat["predictability"][-1])
     latest_disagreement = float(d["std"][-1])
 
@@ -1284,9 +1286,21 @@ def run_v13_research(
         "prediction_output": {
             "latest_format": latest_format,
             "format_counts": {s: int(np.sum(np.asarray(combined["output_format"]) == s)) for s in sorted(set(combined["output_format"]))},
+            "safety_gate": {
+                "latest_action": latest_action,
+                "latest_candidate_used": latest_candidate_used,
+                "candidate_use_rate": float(safety_gate["candidate_use_rate"]),
+                "fallback_count": int(safety_gate["fallback_count"]),
+            },
         },
         "prediction_trajectory": trajectory,
         "revision": revision,
+        "prediction_update": {
+            "latest_action": latest_action,
+            "candidate_use_rate": float(safety_gate["candidate_use_rate"]),
+            "fallback_count": int(safety_gate["fallback_count"]),
+            "policy": "past_only_logloss_gate",
+        },
         "robustness": robust,
         "active_information": {
             "status": "PROXY_ONLY",
