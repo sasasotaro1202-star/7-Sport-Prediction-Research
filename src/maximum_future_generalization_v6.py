@@ -33,7 +33,7 @@ def _safe_metrics(y: np.ndarray, p: np.ndarray) -> dict[str, Any]:
 
 
 def _error_correlation(bp: np.ndarray, y: np.ndarray) -> dict[str, Any]:
-    errors = ((np.asarray(bp) < 0.5).astype(int) != np.asarray(y)[:, None]).astype(float)
+    errors = ((np.asarray(bp) >= 0.5).astype(int) != np.asarray(y)[:, None]).astype(float)
     m = errors.shape[1]
     corr = np.eye(m)
     overlap = np.zeros((m, m), dtype=float)
