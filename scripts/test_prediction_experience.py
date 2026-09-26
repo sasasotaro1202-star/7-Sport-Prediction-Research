@@ -72,6 +72,50 @@ class PredictionExperienceTests(unittest.TestCase):
                 pe.SETTLEMENTS_DIR = old_sett
                 pe.SUMMARY_OUT = old_sum
 
+    def test_f1_score_rejects_out_of_range_probability(self):
+        pred = {
+            "drivers": [
+                {"participant_id": "a", "probability": 1.2},
+                {"participant_id": "b", "probability": -0.2},
+            ]
+        }
+        with self.assertRaisesRegex(RuntimeError, "INVALID_F1_PROBABILITIES:out_of_range"):
+            pe._score_f1(pred, "a")
+
+    def test_f1_score_rejects_non_unit_probability_sum(self):
+        pred = {
+            "drivers": [
+                {"participant_id": "a", "probability": 0.6},
+                {"participant_id": "b", "probability": 0.2},
+            ]
+        }
+        with self.assertRaisesRegex(RuntimeError, "INVALID_F1_PROBABILITIES:sum_not_one"):
+            pe._score_f1(pred, "a")
+
+    def test_f1_score_rejects_duplicate_participant_id(self):
+        pred = {
+            "drivers": [
+                {"participant_id": "a", "probability": 0.6},
+                {"participant_id": "a", "probability": 0.4},
+            ]
+        }
+        with self.assertRaisesRegex(RuntimeError, "INVALID_F1_PROBABILITIES:duplicate_participant_id"):
+            pe._score_f1(pred, "a")
+
+    def test_f1_score_accepts_valid_probability_vector(self):
+        row = pe._score_f1(
+            {
+                "drivers": [
+                    {"participant_id": "a", "probability": 0.6},
+                    {"participant_id": "b", "probability": 0.4},
+                ]
+            },
+            "a",
+        )
+        self.assertIsNotNone(row)
+        self.assertEqual(row["predicted_outcome_participant_id"], "a")
+        self.assertTrue(row["correct"])
+
     def test_score_binary_rejects_out_of_range_probability(self):
         pred = {"probability_side_a": 1.2, "probability_side_b": -0.2}
         with self.assertRaisesRegex(RuntimeError, "INVALID_BINARY_PROBABILITIES:out_of_range"):
