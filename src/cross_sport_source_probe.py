@@ -61,6 +61,15 @@ PROBES = {
     "statbunker_rugby": {
         "rugby_home": "https://rugby.statbunker.com/"
     }
+,    "wta_official": {
+        "wta_rankings": "https://api.wtatennis.com/tennis/players/ranked?type=rankSingles&metric=singles&pageSize=1"
+    },
+    "euroleague_official": {
+        "euroleague_seasons": "https://api-live.euroleague.net/v2/seasons/E"
+    },
+    "sporting_events_free": {
+        "fixture_index": "https://sporting-events.org/data/"
+    }
 }
 
 def probe(url: str) -> dict:
