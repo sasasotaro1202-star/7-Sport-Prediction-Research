@@ -313,30 +313,35 @@ def _tts_prediction_ttf(bp: np.ndarray, y: np.ndarray, max_horizon: int = 60) ->
     }
 
 
-def _sequential_tta(y: np.ndarray, p: np.ndarray, min_train: int = 60) -> np.ndarray:
+def _sequential_tta(y: np.ndarray, p: np.ndarray, min_train: int = 60, refit_interval: int = 10) -> np.ndarray:
     y = np.asarray(y, dtype=int)
     p = np.clip(np.asarray(p, dtype=float), EPS, 1 - EPS)
     out = p.copy()
+    model = None
     for i in range(len(p)):
         lo = max(0, i - 300)
         train_end = i
         if train_end - lo < min_train or len(np.unique(y[lo:train_end])) < 2:
             continue
-        z = np.log(p[lo:train_end] / (1 - p[lo:train_end])).reshape(-1, 1)
-        model = LogisticRegression(C=0.5, max_iter=500, random_state=SEED)
-        model.fit(z, y[lo:train_end])
+        if model is None or i % max(1, refit_interval) == 0:
+            z = np.log(p[lo:train_end] / (1 - p[lo:train_end])).reshape(-1, 1)
+            model = LogisticRegression(C=0.5, max_iter=500, random_state=SEED)
+            model.fit(z, y[lo:train_end])
         zi = np.log(p[i] / (1 - p[i])).reshape(1, -1)
         out[i] = float(np.clip(model.predict_proba(zi)[0, 1], EPS, 1 - EPS))
     return out
 
 
-def _residual_crossfit(x: np.ndarray, bp: np.ndarray, y: np.ndarray) -> np.ndarray:
+def _residual_crossfit(
+    x: np.ndarray, bp: np.ndarray, y: np.ndarray, refit_interval: int = 10
+) -> np.ndarray:
     feat = np.column_stack([
         np.mean(bp, axis=1),
         np.std(bp, axis=1),
         x[:, : min(10, x.shape[1])],
     ])
     pred = np.full(len(y), np.nan)
+    model = None
     for i in range(len(y)):
         if i < 120:
             continue
@@ -345,12 +350,15 @@ def _residual_crossfit(x: np.ndarray, bp: np.ndarray, y: np.ndarray) -> np.ndarr
         if len(np.unique(yy)) < 2:
             pred[i] = float(np.mean(yy))
             continue
-        model = Pipeline([
-            ("scale", StandardScaler()),
-            ("logit", LogisticRegression(C=0.25, max_iter=800, random_state=SEED)),
-        ])
-        model.fit(np.nan_to_num(feat[lo:i]), yy)
-        pred[i] = float(np.clip(model.predict_proba(np.nan_to_num(feat[i:i+1]))[0, 1], EPS, 1 - EPS))
+        if model is None or i % max(1, refit_interval) == 0:
+            model = Pipeline([
+                ("scale", StandardScaler()),
+                ("logit", LogisticRegression(C=0.25, max_iter=800, random_state=SEED)),
+            ])
+            model.fit(np.nan_to_num(feat[lo:i]), yy)
+        pred[i] = float(np.clip(
+            model.predict_proba(np.nan_to_num(feat[i:i + 1]))[0, 1], EPS, 1 - EPS
+        ))
     return pred
 
 
