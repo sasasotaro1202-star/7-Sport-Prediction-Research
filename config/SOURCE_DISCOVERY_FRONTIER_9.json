@@ -601,6 +601,36 @@
       "access": "public_git_no_key_apache2",
       "status": "research_candidate",
       "next": "pin season repo snapshot -> validate telemetry completeness/provenance -> separate pre-race available from post-session telemetry -> OOS"
+    },
+    {
+      "id": "provolleyballr",
+      "type": "data_scraper",
+      "confirmed_coverage": [
+        "volleyball"
+      ],
+      "access": "public_mit_r_package_scraper",
+      "status": "research_candidate",
+      "next": "snapshot AU/LOVB/MLV pages -> validate publication timing -> compare with FIVB/DataProject -> OOS"
+    },
+    {
+      "id": "valorant_omnic",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "valorant"
+      ],
+      "access": "public_git_mit_code_dataset_rights_unconfirmed",
+      "status": "research_candidate_license_scope_check",
+      "next": "pin git snapshot -> verify dataset rights -> inspect timestamp density -> no production until rights/PIT validated"
+    },
+    {
+      "id": "ufc_historical_mirror",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "ufc"
+      ],
+      "access": "public_git_downstream_ufcstats_license_unconfirmed",
+      "status": "research_candidate_license_hold",
+      "next": "pin snapshot -> license check -> duplicate-source audit -> use only as cache/reproducibility if cleared"
     }
   ]
 }
