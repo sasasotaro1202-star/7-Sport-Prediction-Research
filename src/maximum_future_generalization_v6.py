@@ -13,6 +13,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from src import innovative_prediction_v2 as v2
+from src import maximum_future_generalization_v13 as v13
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "research" / "maximum_future_generalization_v6"
@@ -1087,6 +1088,30 @@ def run_experiment(
     multiple_testing = _multiple_testing_control(y, baseline, ablation, blocks=6)
     pareto = _pareto_frontier(ablation)
 
+    v13_control = v13.run_control_layer(
+        sport=sport,
+        x=x,
+        y=y,
+        base_probabilities=bp,
+        baseline=baseline,
+        dynamic=full_safe,
+        retrieval_success=retrieval_success,
+        meta_reliability=meta_mean,
+        predictability=pred_score,
+        failure_risk=failure_risk,
+        uncertainty_matrix=uncertainty,
+        feature_reliability=reliability["row_reliability"],
+        source_reliability=source_score,
+        disagreement=np.std(bp, axis=1),
+        drift=drift,
+        event_ids=ids,
+        feature_names=feature_names,
+        model_names=names,
+        model_version=VERSION,
+        dataset_hash=dataset_hash,
+        feature_version=feature_version,
+    )
+
     report = {
         "experiment_id": f"{VERSION}-{sport}-{v2._sha({'dataset':dataset_hash,'feature_version':feature_version,'names':names,'rows':len(y)})}",
         "version": VERSION,
@@ -1278,6 +1303,7 @@ def run_experiment(
             "required_metrics_present": all(k in safe_metrics for k in ("accuracy", "logloss", "brier", "ece")),
             "production_artifact_changed": False,
         },
+        "v13_control": v13_control,
         "promotion_gate": {
             "pit": "INHERITED_FROM_STRICT_OOS",
             "leakage": "PENDING_EXTERNAL_AUDIT",
