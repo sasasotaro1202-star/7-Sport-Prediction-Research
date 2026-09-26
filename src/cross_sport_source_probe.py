@@ -51,6 +51,9 @@ PROBES = {
     "openboxing": {
         "boxing_bouts": "https://www.openboxing.org/api/bouts/all.json"
     },
+    "rizin_club": {
+        "event_history": "https://rizin.club/"
+    },
     "sx_bet": {
         "sports": "https://api.sx.bet/sports",
         "markets": "https://api.sx.bet/markets?limit=1"
