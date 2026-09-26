@@ -1,0 +1,250 @@
+{
+  "version": "cross-sport-data-layer-v1",
+  "policy": {
+    "free_only": true,
+    "production_default_requires_pit": true,
+    "unknown_availability_is_fail_closed": true,
+    "research_only_candidates_are_never_auto_promoted": true
+  },
+  "source_classes": {
+    "primary": "already integrated sport-specific source",
+    "secondary": "free/public cross-sport or specialist enrichment candidate",
+    "research_only": "candidate requiring additional PIT/data-quality validation"
+  },
+  "sports": {
+    "basketball": [
+      {
+        "id": "bleague_official",
+        "name": "B.LEAGUE official",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "api_sports_basketball",
+        "name": "API-Sports Basketball",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      }
+    ],
+    "volleyball": [
+      {
+        "id": "fivb_vis",
+        "name": "FIVB VIS / Volleyball World public data",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "api_sports_volleyball",
+        "name": "API-Sports Volleyball",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      }
+    ],
+    "ufc": [
+      {
+        "id": "ufc_api",
+        "name": "UFC API / public event history",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "api_sports_mma",
+        "name": "API-Sports MMA",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      }
+    ],
+    "rizin": [
+      {
+        "id": "rizin_public_history",
+        "name": "RIZIN public history",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "rizin_official",
+        "name": "RIZIN official public pages",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "explicit_publication_required"
+      }
+    ],
+    "valorant": [
+      {
+        "id": "public_vlr_dataset",
+        "name": "Public VLR-derived GitHub dataset",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "github_provenance"
+      },
+      {
+        "id": "pandascore",
+        "name": "PandaScore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "tier_and_timestamp_dependent"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      }
+    ],
+    "tennis": [
+      {
+        "id": "sackmann_archive",
+        "name": "Jeff Sackmann tennis archive",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "api_sports_tennis",
+        "name": "API-Sports Tennis",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      }
+    ],
+    "f1": [
+      {
+        "id": "openf1",
+        "name": "OpenF1",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "jolpica_ergast",
+        "name": "Jolpica / Ergast-compatible API",
+        "class": "secondary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      }
+    ],
+    "rugby": [
+      {
+        "id": "public_rugby_history",
+        "name": "Public rugby history pipeline",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "api_sports_rugby",
+        "name": "API-Sports Rugby",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      }
+    ],
+    "boxing": [
+      {
+        "id": "public_boxing_history",
+        "name": "Public boxing history pipeline",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "boxing_public_sources",
+        "name": "Other free public boxing sources",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "explicit_publication_required"
+      }
+    ]
+  }
+}
