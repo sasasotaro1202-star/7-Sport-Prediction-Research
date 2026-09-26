@@ -413,6 +413,36 @@
       "access": "free_starter_requires_key_no_historical_free_tier",
       "status": "research_candidate",
       "next": "never auto-create key; capture live/pre-match snapshots only; enforce bookmaker last_update <= prediction_time; compare OOS"
+    },
+    {
+      "id": "tennis_pointbypoint_legacy",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_git_csv",
+      "status": "research_candidate",
+      "next": "pin git snapshot -> audit completeness/source overlap -> PIT-safe feature construction -> OOS"
+    },
+    {
+      "id": "tennis_match_charting_project",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_git_cc_by_nc_sa",
+      "status": "research_candidate",
+      "next": "pin snapshot -> license compliance -> match-level/shot feature audit -> OOS"
+    },
+    {
+      "id": "tennis_visuals",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_git_csv",
+      "status": "research_candidate",
+      "next": "pin snapshot -> compare with Sackmann/other corpora -> duplicate/overlap audit -> OOS"
     }
   ]
 }
