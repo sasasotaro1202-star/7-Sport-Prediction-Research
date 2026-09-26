@@ -65,6 +65,7 @@ jobs:
               assert 0 <= data["healthy_count"] <= data["probe_count"]
           assert isinstance(o.get("required_zero_healthy"), list)
           assert isinstance(o.get("optional_zero_healthy"), list)
+          assert isinstance(o.get("required_zero_healthy"), list)
           print("CROSS_SPORT_PROBE_ARTIFACT=PASS")
           for source, data in o["sources"].items():
               print(f"{source.upper()}_HEALTHY={data['healthy_count']}/{data['probe_count']}")
