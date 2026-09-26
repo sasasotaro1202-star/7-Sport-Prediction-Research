@@ -591,6 +591,16 @@
       "access": "free_and_paid_rapidapi_requires_key",
       "status": "research_candidate",
       "next": "never auto-create key -> only use free tier if credential already exists -> snapshot -> PIT/OOS and quota audit"
+    },
+    {
+      "id": "tracinginsights_f1",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "public_git_no_key_apache2",
+      "status": "research_candidate",
+      "next": "pin season repo snapshot -> validate telemetry completeness/provenance -> separate pre-race available from post-session telemetry -> OOS"
     }
   ]
 }
