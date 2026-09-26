@@ -599,13 +599,14 @@ def _safety_monitor(p: np.ndarray, baseline: np.ndarray, score: np.ndarray) -> t
 
 
 def _failure_detection_metrics(
-    bp: np.ndarray, failure_risk: np.ndarray, horizon: int = 30
+    bp: np.ndarray, y: np.ndarray, failure_risk: np.ndarray, horizon: int = 30
 ) -> dict[str, Any]:
     """Evaluate early-warning quality without feeding future outcomes back into routing."""
     n, m = bp.shape
+    y = np.asarray(y, dtype=int)
     rows = []
     for j in range(m):
-        current_failure = ((bp[:, j] >= 0.5).astype(int) != 0).astype(int)
+        current_failure = ((bp[:, j] >= 0.5).astype(int) != y).astype(int)
         future_target = np.full(n, np.nan)
         for i in range(0, n - horizon):
             future_target[i] = float(np.any(current_failure[i + 1:i + horizon + 1] > 0))
@@ -900,6 +901,8 @@ def run_experiment(
         else {"status": "INSUFFICIENT", "rows": int(high_conf_mask.sum())}
     )
     robustness = _robustness_matrix(y, bp, full_safe, baseline)
+    regime_transition_metrics = _regime_transition_metrics(transition, x, bp)
+    failure_detection = _failure_detection_metrics(y=y, bp=bp, failure_risk=failure_risk, horizon=v2.FAILURE_HORIZON)
     pareto = _pareto_frontier(ablation)
 
     report = {
@@ -1004,8 +1007,12 @@ def run_experiment(
                 "false_alarm_rate": None,
                 "miss_rate": None,
             },
+            "early_warning": failure_detection,
         },
-        "regime_transition": transition_meta,
+        "regime_transition": {
+            **transition_meta,
+            "forecast_validation": regime_transition_metrics,
+        },
         "retrieval": retrieval_meta,
         "meta_label": {
             "mean_reliability_by_model": np.nanmean(meta_label, axis=0).tolist(),
