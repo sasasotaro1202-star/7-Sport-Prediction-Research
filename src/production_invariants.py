@@ -605,6 +605,13 @@ def main():
     maximum_v6_test=(ROOT/'scripts/test_maximum_future_generalization_v6.py').read_text(encoding='utf-8')
     require('maximum_future_generalization_v6 as innovative_v6' in strict_src,
             'strict research cycle does not execute maximum future-generalization v6')
+    v6_call_block = strict_src[strict_src.find('innovative_v6.run_experiment('):strict_src.find('final_pool=base.pool', strict_src.find('innovative_v6.run_experiment('))]
+    require('metric=base.metric' not in v6_call_block,
+            'strict v6 call passes an unsupported metric argument and would be isolated as RESEARCH_ERROR')
+    require('innovative_v6_eval' in v6_call_block,
+            'strict v6 result is not retained under the research evaluation variable')
+    require("'innovative_v6':innovative_v6_eval" in strict_src,
+            'strict research output does not persist the maximum future v6 evaluation')
     f1_production_src=(ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8')
     f1_role_test=(ROOT/'scripts/test_f1_event_status.py').read_text(encoding='utf-8')
     require("upsert_ep(c,eid,pid,None,None,'driver'" in f1_production_src,
