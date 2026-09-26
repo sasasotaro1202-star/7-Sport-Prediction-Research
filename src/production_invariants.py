@@ -220,7 +220,7 @@ def main():
             'production watchdog lacks first-run guard')
     require('DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION' in watchdog,
             'production watchdog validated dispatch path missing')
-    require('limit=14400' in watchdog and 'limit=8100' not in watchdog,
+    require('limit=19800' in watchdog and 'limit=8100' not in watchdog,
             'production watchdog production timeout is too short or not aligned with workflow budgets')
     require('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow,
             'strict research runtime budget is not aligned with the production watchdog window')
