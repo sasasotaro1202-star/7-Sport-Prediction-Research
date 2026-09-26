@@ -51,6 +51,45 @@ def main() -> None:
     assert saved["audit"]["retrieval_index_is_past_only"] is True
     assert saved["audit"]["future_label_training_rows_exclude_unmatured_horizon"] is True
 
+    report = Path("results/research/ultimate_v13_e2e_report.md")
+    report.write_text(
+        "\n".join([
+            "# ULTIMATE FINAL v13 — E2E Research Report",
+            "",
+            f"- Status: **{result['status']}**",
+            "- Mode: **RESEARCH_ONLY**",
+            "- Production promotion: **HOLD**",
+            "- PIT: **PASS (inherited from chronological OOS input)**",
+            "- Meta-Leakage: **PASS**",
+            f"- OOS rows: **{result['oos_rows']}**",
+            "",
+            "## Performance (synthetic E2E only)",
+            "",
+            "| Metric | Baseline | New | Δ |",
+            "|---|---:|---:|---:|",
+            f"| Accuracy | {result['baseline']['accuracy']:.6f} | {result['new']['accuracy']:.6f} | {result['delta']['accuracy']:+.6f} |",
+            f"| LogLoss | {result['baseline']['logloss']:.6f} | {result['new']['logloss']:.6f} | {result['delta']['logloss']:+.6f} |",
+            f"| Brier | {result['baseline']['brier']:.6f} | {result['new']['brier']:.6f} | {result['delta']['brier']:+.6f} |",
+            f"| ECE | {result['baseline']['ece']:.6f} | {result['new']['ece']:.6f} | {result['delta']['ece']:+.6f} |",
+            "",
+            "## Safety / Research State",
+            "",
+            f"- Router latest max weight: {result['routing']['weight_concentration_latest']:.6f}",
+            f"- Latest Predictability: {result['predictability']['latest']:.6f}",
+            f"- Latest Failure Risk: {result['forecast_contract']['uncertainty']['future_failure_risk']:.6f}",
+            f"- Latest Strategy: {result['prediction_policy']['latest_strategy']}",
+            f"- Latest Output Format: {result['prediction_output']['latest_format']}",
+            "- Active Information: PROXY_ONLY",
+            "- Performance success: **NOT CLAIMED**",
+            "",
+            "## Important",
+            "",
+            "This report is a synthetic integration/E2E validation artifact. It is not evidence of real-sport OOS performance or production readiness.",
+        ]) + "\n",
+        encoding="utf-8",
+    )
+    assert report.is_file() and report.stat().st_size > 0
+
     print("[ULTIMATE V13 E2E]")
     print("STATUS=PASS")
     print(f"OOS_ROWS={result['oos_rows']}")
