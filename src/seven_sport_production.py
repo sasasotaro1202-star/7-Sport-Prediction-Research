@@ -411,13 +411,25 @@ def collect_f1(c,h,years):
                     if not n.strip():
                         continue
                     pid=upsert_participant(c,'f1',n,'driver')
-                    upsert_ep(c,eid,pid,None,None,ep,'jolpica',baseurl)
+                    # event_participant.role describes the participant's actual
+                    # sport role, not the API endpoint used to obtain its stats.
+                    # Endpoint identity remains encoded in match_stats.stat_name.
+                    upsert_ep(c,eid,pid,None,None,'driver','jolpica',baseurl)
                     for k,v in z.items():
                         if isinstance(v,(str,int,float)):
                             try: num=float(v)
                             except Exception: num=None
                             add_stat(c,eid,pid,None,'f1',f'{ep}.{k}',num,str(v),'jolpica',baseurl)
             add_snapshot(c,'f1','jolpica',baseurl,utcnow(),et,None,'UNVERIFIABLE')
+        c.execute("""
+            UPDATE event_participant
+               SET role='driver'
+             WHERE event_id IN (SELECT event_id FROM event WHERE sport='f1')
+               AND participant_id IN (
+                   SELECT participant_id FROM participant
+                    WHERE sport='f1' AND participant_type='driver'
+               )
+        """)
         c.commit()
 
 
