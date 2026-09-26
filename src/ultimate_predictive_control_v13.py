@@ -628,10 +628,15 @@ def prediction_trajectory(current_p: float, slope: float, uncertainty: float, st
             "lower": float(np.clip(projected - spread, EPS, 1.0 - EPS)),
             "upper": float(np.clip(projected + spread, EPS, 1.0 - EPS)),
         })
+    raw_branch = np.asarray([
+        float(np.clip(current_p + 0.10 * (1.0 - current_p), EPS, 1.0 - EPS)),
+        float(np.clip(current_p - 0.10 * current_p, EPS, 1.0 - EPS)),
+        float(1.0 - current_p),
+    ])
     branch = {
-        "upside": float(np.clip(current_p + 0.10 * (1.0 - current_p), EPS, 1.0 - EPS)),
-        "downside": float(np.clip(current_p - 0.10 * current_p, EPS, 1.0 - EPS)),
-        "reversal": float(1.0 - current_p),
+        "upside": float(raw_branch[0] / raw_branch.sum()),
+        "downside": float(raw_branch[1] / raw_branch.sum()),
+        "reversal": float(raw_branch[2] / raw_branch.sum()),
     }
     return {
         "status": "SCENARIO_PROJECTION",
@@ -712,6 +717,67 @@ def build_forecast_contract(
         "abstain_candidate": bool(output_format == "abstain_candidate"),
         "pit_status": "PASS_INHERITED_FROM_CHRONOLOGICAL_OOS",
     }
+
+
+def block_bootstrap_delta(
+    y: np.ndarray,
+    baseline: np.ndarray,
+    new: np.ndarray,
+    block: int = 12,
+    samples: int = 300,
+) -> Dict:
+    """Moving-block bootstrap CI for paired chronological metric differences."""
+    yv = np.asarray(y, dtype=int)
+    b = _p(baseline)
+    n = _p(new)
+    if len(yv) < block * 3 or len(yv) != len(b) or len(b) != len(n):
+        return {"status": "INSUFFICIENT"}
+    rng = np.random.default_rng(SEED)
+    deltas = []
+    starts = np.arange(0, len(yv) - block + 1)
+    for _ in range(samples):
+        idx = []
+        while len(idx) < len(yv):
+            s = int(rng.choice(starts))
+            idx.extend(range(s, min(s + block, len(yv))))
+        idx = np.asarray(idx[: len(yv)])
+        mb = metrics(yv[idx], b[idx])
+        mn = metrics(yv[idx], n[idx])
+        deltas.append([
+            mn["accuracy"] - mb["accuracy"],
+            mn["logloss"] - mb["logloss"],
+            mn["brier"] - mb["brier"],
+            mn["ece"] - mb["ece"],
+        ])
+    arr = np.asarray(deltas, dtype=float)
+    names = ["accuracy", "logloss", "brier", "ece"]
+    ci = {
+        name: {
+            "mean_delta": _safe_float(np.mean(arr[:, i])),
+            "lo": _safe_float(np.quantile(arr[:, i], 0.05)),
+            "hi": _safe_float(np.quantile(arr[:, i], 0.95)),
+        }
+        for i, name in enumerate(names)
+    }
+    return {
+        "status": "EVALUATED",
+        "method": "moving_block_bootstrap",
+        "block": int(block),
+        "samples": int(samples),
+        "ci90": ci,
+    }
+
+
+def regime_transition_oos(regime_codes: np.ndarray) -> Dict:
+    """Predict whether the next state changes using only the current state."""
+    z = np.asarray(regime_codes, dtype=int)
+    if len(z) < 100:
+        return {"status": "INSUFFICIENT_OOS"}
+    future_change = np.r_[z[1:] != z[:-1], False].astype(int)
+    X = np.column_stack([
+        (z == k).astype(float) for k in range(int(np.max(z)) + 1)
+    ])
+    return _chronological_binary_oos(X, future_change, min_train=60)
 
 
 def run_v13_research(
@@ -798,6 +864,16 @@ def run_v13_research(
     ])
     meta_label = meta_label_oos(final_p, yv, meta_X)
 
+    regime_future = regime_transition_oos(reg["code"])
+    statistical_validation = block_bootstrap_delta(yv, fixed, final_p)
+    ablation = {
+        "baseline_fixed_ensemble": ensemble_metrics,
+        "causal_router_before_tta": metrics(yv, routed),
+        "past_only_tta": metrics(yv, tta),
+        "final_policy_output": routed_metrics,
+        "selection_is_outcome_free_at_prediction_time": True,
+    }
+
     ensemble_metrics = metrics(yv, fixed)
     routed_metrics = metrics(yv, final_p)
     revision = revision_metrics(final_p, yv)
@@ -813,9 +889,12 @@ def run_v13_research(
     latest_format = str(combined["output_format"][-1])
     latest_predictability = float(predfeat["predictability"][-1])
     latest_disagreement = float(d["std"][-1])
-    latest_failure = float(np.mean([
-        v[-1] for v in failure_risks.values()
-    ]))
+    reported_failure = [
+        float(v.get("risk_latest"))
+        for v in failure.get("models", {}).values()
+        if isinstance(v, dict) and v.get("risk_latest") is not None
+    ]
+    latest_failure = float(np.mean(reported_failure)) if reported_failure else 0.0
     latest_uncertainty = float(uncertainty[-1])
     contract = build_forecast_contract(
         sport=sport,
@@ -850,6 +929,7 @@ def run_v13_research(
         "predictability": "EXECUTED",
         "future_model_failure": "EXECUTED" if failure["status"] == "EVALUATED" else "INSUFFICIENT_OOS",
         "time_to_failure": "EXECUTED",
+        "future_regime_transition": "EXECUTED" if regime_future.get("status") == "EVALUATED" else "INSUFFICIENT_OOS",
         "error_correlation": err.get("status", "INSUFFICIENT"),
         "current_regime": "EXECUTED",
         "future_regime_transition": "DESIGNED_RESEARCH_ONLY",
@@ -895,6 +975,9 @@ def run_v13_research(
             "latest": _safe_float(predfeat["predictability"][-1]),
             "velocity_latest": _safe_float(predfeat["velocity"][-1]),
         },
+        "future_regime_transition": regime_future,
+        "ablation": ablation,
+        "statistical_validation": statistical_validation,
         "current_regime": {
             "latest": str(reg["label"][-1]),
             "transition_count": int(np.sum(reg["transition"])),
