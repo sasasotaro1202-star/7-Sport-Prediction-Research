@@ -49,7 +49,7 @@ jobs:
           assert o.get("research_only") is True
           assert o.get("production_model_touched") is False
           assert o.get("pit_status") == "NOT_ESTABLISHED"
-          assert set(o.get("sources", {})) == {"sofascore", "thesportsdb", "espn"}
+          assert set(o.get("sources", {})) == {"sofascore", "thesportsdb", "espn", "f1api_dev", "racehooks", "openboxing", "sx_bet", "statbunker_rugby"}
           for source, data in o["sources"].items():
               assert data["probe_count"] > 0
               assert 0 <= data["healthy_count"] <= data["probe_count"]
