@@ -59,10 +59,12 @@ jobs:
           assert o.get("research_only") is True
           assert o.get("production_model_touched") is False
           assert o.get("pit_status") == "NOT_ESTABLISHED"
-          assert set(o.get("sources", {})) == {"sofascore", "thesportsdb", "espn", "rizin_club", "f1api_dev", "racehooks", "openboxing", "sx_bet", "statbunker_rugby", "wta_official", "euroleague_official", "sporting_events_free", "ufc_stats_api_public_impl"}
+          assert set(o.get("sources", {})) == {"sofascore", "thesportsdb", "espn", "rizin_club", "f1api_dev", "racehooks", "openboxing", "sx_bet", "statbunker_rugby", "wta_official", "euroleague_official", "sporting_events_free", "ufc_stats_api_public_impl", "tracinginsights_f1"}
           for source, data in o["sources"].items():
               assert data["probe_count"] > 0
               assert 0 <= data["healthy_count"] <= data["probe_count"]
+          assert isinstance(o.get("required_zero_healthy"), list)
+          assert isinstance(o.get("optional_zero_healthy"), list)
           print("CROSS_SPORT_PROBE_ARTIFACT=PASS")
           for source, data in o["sources"].items():
               print(f"{source.upper()}_HEALTHY={data['healthy_count']}/{data['probe_count']}")
