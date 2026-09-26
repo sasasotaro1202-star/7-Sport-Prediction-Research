@@ -1,0 +1,76 @@
+name: Ultimate v13 Causal Hardening E2E
+
+on:
+  push:
+    paths:
+      - "src/ultimate_predictive_control_v13.py"
+      - "scripts/test_ultimate_predictive_control_v13.py"
+      - "scripts/run_ultimate_predictive_control_v13_e2e.py"
+      - ".github/workflows/ultimate_v13_e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ultimate-v13-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+
+      - name: Compile
+        run: python -m compileall -q src scripts
+
+      - name: Existing v13 regression
+        run: python scripts/test_ultimate_predictive_control.py
+
+      - name: Causal hardening regression
+        run: python scripts/test_ultimate_predictive_control_v13.py
+
+      - name: Full v13 E2E
+        run: python scripts/run_ultimate_predictive_control_v13_e2e.py
+
+      - name: Validate artifact integrity
+        run: |
+          set -euo pipefail
+          test -s results/research/ultimate_v13_e2e.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/research/ultimate_v13_e2e.json")
+          x=json.loads(p.read_text(encoding="utf-8"))
+          assert x["status"] == "EVALUATED"
+          assert x["audit"]["PIT"].startswith("PASS")
+          assert x["audit"]["meta_leakage"] == "PASS"
+          assert x["promotion"]["production"] == "HOLD"
+          assert x["statistical_validation"]["status"] == "EVALUATED"
+          print("ARTIFACT_INTEGRITY=PASS")
+          print("PROMOTION=HOLD")
+          PY
+
+      - name: Upload v13 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ultimate-v13-e2e-${{ github.run_id }}
+          path: results/research/ultimate_v13_e2e.json
+          if-no-files-found: error
+          retention-days: 14
