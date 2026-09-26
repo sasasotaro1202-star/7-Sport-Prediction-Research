@@ -927,7 +927,7 @@ def train(s):
        candidate_label='weighted_ensemble'
        candidate_weights=cand_weights
 
-     # New v2 controller remains research-only: it consumes the already-generated
+     # Maximum Future-Generalization v6 controller remains research-only: it consumes the already-generated
      # chronological OOF predictions and never touches production artifacts.
      try:
       innovative_v2_eval = innovative_v6.run_experiment(
@@ -950,7 +950,7 @@ def train(s):
        'production_changed':False,
        'promotion':'HOLD',
       }
-      print(f'INNOVATIVE_V2_RESEARCH_ERROR sport={s} type={type(exc).__name__}',flush=True)
+      print(f'MAXIMUM_FUTURE_V6_RESEARCH_ERROR sport={s} type={type(exc).__name__}',flush=True)
      final_pool=base.pool(fs, symmetric=symmetric_mode)
      models=[]
      for name in best:
