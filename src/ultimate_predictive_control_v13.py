@@ -465,6 +465,8 @@ def retrieval_features(
     distance = np.full(n, np.nan, dtype=float)
     dispersion = np.full(n, np.nan, dtype=float)
     count = np.zeros(n, dtype=int)
+    if X.ndim != 2 or n != len(yv):
+        raise ValueError("vectors must be 2-D and aligned with y")
     for i in range(n):
         if i < 10:
             continue
@@ -472,8 +474,12 @@ def retrieval_features(
         hist = X[a:i]
         mu = hist.mean(axis=0)
         sd = hist.std(axis=0) + 0.05
-        q = (X[i] - mu) / sd
-        d = np.sqrt(np.mean(q * q, axis=1))
+        current_z = (X[i] - mu) / sd
+        hist_z = (hist - mu) / sd
+        # Distance must be computed per historical case. The previous
+        # implementation accidentally reduced the query vector itself to a
+        # scalar and then indexed axis=1, causing the v13 E2E failure.
+        d = np.sqrt(np.mean((hist_z - current_z) ** 2, axis=1))
         idx = np.argsort(d)[: min(k, len(d))]
         if len(idx) == 0:
             continue
