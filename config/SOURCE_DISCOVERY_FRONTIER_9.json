@@ -443,6 +443,28 @@
       "access": "public_git_csv",
       "status": "research_candidate",
       "next": "pin snapshot -> compare with Sackmann/other corpora -> duplicate/overlap audit -> OOS"
+    },
+    {
+      "id": "fightforensics",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "ufc",
+        "rizin",
+        "mma_other"
+      ],
+      "access": "free_read_only_key_with_attribution",
+      "status": "research_candidate",
+      "next": "validate RIZIN coverage -> obtain no-cost key only if needed -> immutable snapshots -> PIT/OOS"
+    },
+    {
+      "id": "lights_out_f1_schedule",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "free_public_no_key_cc_by_4",
+      "status": "research_candidate",
+      "next": "snapshot current schedule/results -> compare with OpenF1/Jolpica -> PIT/replay where time-sensitive"
     }
   ]
 }
