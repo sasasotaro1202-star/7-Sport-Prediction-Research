@@ -412,6 +412,44 @@ def _latent_state_proxy(x: np.ndarray, window: int = 200) -> dict[str, np.ndarra
     return {"latent_state": state, "latent_stress": stress, "latent_momentum": momentum}
 
 
+def _source_reliability_proxy(x: np.ndarray, feature_names: list[str] | None = None) -> dict[str, Any]:
+    """Derive only a provenance-quality proxy from already PIT-safe feature fields."""
+    x = np.asarray(x, dtype=float)
+    names = list(feature_names or [])
+    coverage_idx = [
+        i for i, n in enumerate(names)
+        if "stat_coverage" in n.lower()
+    ]
+    freshness_idx = [
+        i for i, n in enumerate(names)
+        if "stat_freshness_mean_days" in n.lower()
+    ]
+    if not coverage_idx:
+        return {
+            "status": "INPUT_UNAVAILABLE",
+            "score": None,
+            "reason": "no PIT-safe source coverage fields were exposed to controller",
+            "fail_closed_policy": True,
+        }
+    coverage = np.nanmean(x[:, coverage_idx], axis=1)
+    if freshness_idx:
+        freshness = np.nanmean(x[:, freshness_idx], axis=1)
+        freshness_score = np.exp(-np.clip(np.nan_to_num(freshness, nan=30.0), 0.0, 365.0) / 30.0)
+    else:
+        freshness_score = np.ones(len(x))
+    score = np.clip(
+        0.70 * np.nan_to_num(coverage, nan=0.0)
+        + 0.30 * np.nan_to_num(freshness_score, nan=0.0),
+        0.0, 1.0,
+    )
+    return {
+        "status": "PROXY",
+        "mean": float(np.mean(score)),
+        "p10": float(np.quantile(score, 0.10)),
+        "policy": "proxy only: derives reliability from PIT-safe observation coverage/freshness, never fabricated source identity quality",
+    }
+
+
 def _source_reliability_contract() -> dict[str, Any]:
     return {
         "status": "INPUT_UNAVAILABLE",
@@ -653,6 +691,78 @@ def _failure_detection_metrics(
     }
 
 
+def _period_regime_summary(y: np.ndarray, p: np.ndarray, drift: np.ndarray) -> dict[str, Any]:
+    y = np.asarray(y, dtype=int)
+    p = np.asarray(p, dtype=float)
+    d = np.asarray(drift[:, 0], dtype=float)
+    idx_blocks = np.array_split(np.arange(len(y)), 3)
+    period = {
+        "early": _safe_metrics(y[idx_blocks[0]], p[idx_blocks[0]]),
+        "middle": _safe_metrics(y[idx_blocks[1]], p[idx_blocks[1]]),
+        "recent": _safe_metrics(y[idx_blocks[2]], p[idx_blocks[2]]),
+    }
+    states = np.zeros(len(y), dtype=int)
+    for i in range(len(y)):
+        hist = d[:i]
+        hist = hist[np.isfinite(hist)]
+        if len(hist) < 30:
+            continue
+        q70, q85, q95 = np.quantile(hist, [0.70, 0.85, 0.95])
+        states[i] = int(np.select([d[i] >= q95, d[i] >= q85, d[i] >= q70], [3, 2, 1], default=0))
+    regime = {}
+    for s in range(4):
+        m = states == s
+        regime[str(s)] = _safe_metrics(y[m], p[m]) if int(m.sum()) >= 20 else {"status": "INSUFFICIENT", "n": int(m.sum())}
+    valid_regimes = [v for v in regime.values() if v.get("status") != "INSUFFICIENT"]
+    return {
+        "status": "EVALUATED",
+        "periods": period,
+        "regimes": regime,
+        "recent_oos_accuracy": float(period["recent"]["accuracy"]),
+        "worst_regime_accuracy": float(min(v["accuracy"] for v in valid_regimes)) if valid_regimes else None,
+        "policy": "three non-overlapping chronological periods and prequential drift regimes",
+    }
+
+
+def _multiple_testing_control(
+    y: np.ndarray, baseline: np.ndarray, variants: dict[str, np.ndarray], blocks: int = 6
+) -> dict[str, Any]:
+    """Exact sign-flip resampling pseudo-p adjusted across the ablation family."""
+    idx = np.arange(len(y))
+    pieces = [z for z in np.array_split(idx, blocks) if len(z)]
+    sign_vectors = np.asarray([
+        [1 if (mask >> b) & 1 else -1 for b in range(len(pieces))]
+        for mask in range(1 << len(pieces))
+    ], dtype=float)
+    raw = {}
+    base_block = np.asarray([_safe_metrics(y[piece], baseline[piece])["logloss"] for piece in pieces])
+    for name, p in variants.items():
+        if name == "Baseline":
+            continue
+        cand_block = np.asarray([_safe_metrics(y[piece], p[piece])["logloss"] for piece in pieces])
+        delta = cand_block - base_block
+        observed = float(delta.mean())
+        perm_means = (sign_vectors * delta[None, :]).mean(axis=1)
+        # Lower LogLoss is better; left-tail pseudo-p value.
+        pvalue = float(np.mean(perm_means <= observed))
+        raw[name] = {"observed_mean_logloss_delta": observed, "resampling_pseudo_p": pvalue}
+    ordered = sorted(raw, key=lambda k: raw[k]["resampling_pseudo_p"])
+    m = max(1, len(ordered))
+    adjusted = {}
+    prev = 0.0
+    for rank, name in enumerate(ordered, start=1):
+        adj = min(1.0, raw[name]["resampling_pseudo_p"] * (m - rank + 1))
+        adj = max(prev, adj)
+        prev = adj
+        adjusted[name] = adj
+        raw[name]["holm_adjusted_pseudo_p"] = adj
+    return {
+        "status": "EVALUATED",
+        "method": "exact_block_sign_flip_logloss; Holm adjustment across ablations",
+        "results": raw,
+    }
+
+
 def _label_quality(y: np.ndarray, event_ids: list[str]) -> dict[str, Any]:
     y = np.asarray(y, dtype=float)
     duplicate_ids = len(event_ids) - len(set(event_ids))
@@ -713,6 +823,7 @@ def run_experiment(
     dataset_hash: str,
     feature_version: str,
     max_oos_rows: int | None = None,
+    feature_names: list[str] | None = None,
 ) -> dict[str, Any]:
     if not v2.RESEARCH_ONLY:
         raise RuntimeError("MAX_FUTURE_V6_MUST_REMAIN_RESEARCH_ONLY")
@@ -743,6 +854,7 @@ def run_experiment(
         return {"status": "INSUFFICIENT_OOS", "oos_rows": int(len(y)), "promotion": "HOLD", "production_changed": False}
 
     reliability = _feature_reliability(x)
+    source_reliability = _source_reliability_proxy(x, feature_names)
     dis_stats = _error_correlation(bp, y)
     dyn = _prediction_dynamics(bp)
     invariant = _invariant_feature_discovery(x, y)
@@ -957,7 +1069,10 @@ def run_experiment(
             "p95_rows_since_fold_retrain": float(np.quantile(model_age, 0.95)),
             "policy": "age is counted from each chronological base-model OOS fold start",
         },
-        "source_reliability": _source_reliability_contract(),
+        "source_reliability": {
+            **_source_reliability_contract(),
+            "proxy": source_reliability,
+        },
         "routing_weight_safety": {
             "mean_l1_change_vs_baseline": float(np.mean(weight_changes)) if weight_changes else 0.0,
             "p95_l1_change_vs_baseline": float(np.quantile(weight_changes, 0.95)) if weight_changes else 0.0,
