@@ -185,6 +185,34 @@ def _regime_transition(x: np.ndarray, bp: np.ndarray) -> tuple[np.ndarray, dict[
     }
 
 
+def _regime_transition_metrics(states_probs: np.ndarray, x: np.ndarray, bp: np.ndarray) -> dict[str, Any]:
+    drift = v2._drift_features(x, bp)[:, 0]
+    states = np.zeros(len(drift), dtype=int)
+    for i in range(len(drift)):
+        hist = drift[:i]
+        hist = hist[np.isfinite(hist)]
+        if len(hist) < 30:
+            continue
+        q70, q85, q95 = np.quantile(hist, [0.70, 0.85, 0.95])
+        states[i] = int(np.select([drift[i] >= q95, drift[i] >= q85, drift[i] >= q70], [3, 2, 1], default=0))
+    probs = np.asarray(states_probs, dtype=float)
+    valid = np.arange(max(0, len(states) - 1))
+    valid = valid[np.sum(probs[valid], axis=1) > 0]
+    if len(valid) < 30:
+        return {"status": "INSUFFICIENT"}
+    pred = np.clip(probs[valid], EPS, 1.0)
+    target = states[valid + 1]
+    pred_class = np.argmax(pred, axis=1)
+    return {
+        "status": "EVALUATED",
+        "rows": int(len(target)),
+        "accuracy": float(np.mean(pred_class == target)),
+        "logloss": float(-np.mean(np.log(np.clip(pred[np.arange(len(target)), target], EPS, 1.0)))),
+        "state_labels": ["Normal", "Watch", "Shift", "Severe Shift"],
+        "target_definition": "next prequential drift state",
+    }
+
+
 def _retrieval_features(
     x: np.ndarray, bp: np.ndarray, y: np.ndarray, k: int = 12, history_cap: int = 1200
 ) -> tuple[np.ndarray, dict[str, Any]]:
@@ -567,6 +595,60 @@ def _safety_monitor(p: np.ndarray, baseline: np.ndarray, score: np.ndarray) -> t
         "invalid_or_risky_rows": int(invalid.sum()),
         "fallback_rate": float(invalid.mean()),
         "policy": "research-only safety monitor; invalid/risky v6 output falls back to incumbent baseline",
+    }
+
+
+def _failure_detection_metrics(
+    bp: np.ndarray, failure_risk: np.ndarray, horizon: int = 30
+) -> dict[str, Any]:
+    """Evaluate early-warning quality without feeding future outcomes back into routing."""
+    n, m = bp.shape
+    rows = []
+    for j in range(m):
+        current_failure = ((bp[:, j] >= 0.5).astype(int) != 0).astype(int)
+        future_target = np.full(n, np.nan)
+        for i in range(0, n - horizon):
+            future_target[i] = float(np.any(current_failure[i + 1:i + horizon + 1] > 0))
+        risk = np.nan_to_num(failure_risk[:, j], nan=0.5, posinf=0.5, neginf=0.5)
+        detected = []
+        labels = []
+        leads = []
+        for i in range(n):
+            if not np.isfinite(future_target[i]):
+                continue
+            past = risk[:i]
+            if len(past) < 40:
+                continue
+            threshold = float(np.quantile(past, 0.80))
+            alarm = bool(risk[i] >= threshold)
+            label = bool(future_target[i] > 0.5)
+            detected.append(alarm)
+            labels.append(label)
+            if alarm and label:
+                next_fail = np.flatnonzero(current_failure[i + 1:i + horizon + 1] > 0)
+                if len(next_fail):
+                    leads.append(int(next_fail[0] + 1))
+        d = np.asarray(detected, dtype=bool)
+        l = np.asarray(labels, dtype=bool)
+        tp = int(np.sum(d & l))
+        fp = int(np.sum(d & ~l))
+        fn = int(np.sum(~d & l))
+        rows.append({
+            "model": int(j),
+            "rows": int(len(l)),
+            "precision": float(tp / max(1, tp + fp)),
+            "recall": float(tp / max(1, tp + fn)),
+            "false_alarm_rate": float(fp / max(1, fp + tp)),
+            "miss_rate": float(fn / max(1, fn + tp)),
+            "mean_detection_lead_rows": float(np.mean(leads)) if leads else None,
+            "detected_failure_events": int(len(leads)),
+        })
+    return {
+        "status": "EVALUATED",
+        "horizon": int(horizon),
+        "models": rows,
+        "threshold_policy": "row-wise q80 of strictly prior predicted risk",
+        "policy": "evaluation-only; future targets are never used as current routing inputs",
     }
 
 
