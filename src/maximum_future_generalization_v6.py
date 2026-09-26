@@ -798,7 +798,7 @@ def _rolling_diversity_weights(
     hist_y = np.asarray(y[lo:i], dtype=int)
     if len(hist_y) < 40 or len(base_w) < 2:
         return np.asarray(base_w, dtype=float)
-    errors = ((hist_p < 0.5).astype(int) != hist_y[:, None]).astype(float)
+    errors = ((hist_p >= 0.5).astype(int) != hist_y[:, None]).astype(float)
     m = hist_p.shape[1]
     corr = np.eye(m)
     for a in range(m):
