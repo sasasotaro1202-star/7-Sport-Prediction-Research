@@ -624,6 +624,52 @@ def strategy_and_output(
     }
 
 
+def causal_prediction_safety_gate(
+    baseline: np.ndarray,
+    candidate: np.ndarray,
+    y: np.ndarray,
+    window: int = 80,
+    min_logloss_improvement: float = 0.005,
+) -> Dict[str, np.ndarray]:
+    """Select candidate only when prior OOS evidence supports it.
+
+    At prediction row i, the gate may inspect only rows strictly before i.
+    This is a fail-safe research layer: when adaptive evidence is weak or
+    adverse, the verified baseline is retained.
+    """
+    b = _p(baseline)
+    c = _p(candidate)
+    yv = np.asarray(y, dtype=int)
+    if len(b) != len(c) or len(b) != len(yv):
+        raise ValueError("baseline/candidate/y alignment mismatch")
+    out = np.array(b, copy=True)
+    used = np.zeros(len(yv), dtype=bool)
+    prior_delta = np.full(len(yv), np.nan, dtype=float)
+    for i in range(len(yv)):
+        start = max(0, i - int(window))
+        if i - start < 20:
+            continue
+        base_ll = logloss(yv[start:i], b[start:i])
+        cand_ll = logloss(yv[start:i], c[start:i])
+        delta = float(cand_ll - base_ll)
+        prior_delta[i] = delta
+        # Lower logloss is better. Require a real historical margin before
+        # allowing the more complex/adaptive candidate to replace baseline.
+        if np.isfinite(delta) and delta <= -float(min_logloss_improvement):
+            out[i] = c[i]
+            used[i] = True
+    return {
+        "probability": _p(out),
+        "used_candidate": used,
+        "prior_logloss_delta": prior_delta,
+        "fallback_count": int(np.sum(~used)),
+        "candidate_use_rate": float(np.mean(used)) if len(used) else 0.0,
+        "policy": "past_only_logloss_gate",
+        "window": int(window),
+        "min_logloss_improvement": float(min_logloss_improvement),
+    }
+
+
 def prediction_trajectory(current_p: float, slope: float, uncertainty: float, steps: Sequence[int] = (1, 2, 3, 5)) -> Dict:
     values = []
     for step in steps:
@@ -1046,8 +1092,10 @@ def run_v13_research(
         retrieval_dispersion=retrieval["dispersion"],
     )
 
-    final_p = combined["probability"]
+    adaptive_candidate = combined["probability"]
     uncertainty = combined["uncertainty"]
+    safety_gate = causal_prediction_safety_gate(fixed, adaptive_candidate, yv)
+    final_p = safety_gate["probability"]
     meta_X = np.column_stack([
         d["std"], d["entropy"], d["speed"], reg["volatility"],
         shift["drift"], shift["ood"], predfeat["predictability"],
@@ -1062,7 +1110,14 @@ def run_v13_research(
         "baseline_fixed_ensemble": ensemble_metrics,
         "causal_router_before_tta": metrics(yv, routed),
         "past_only_tta": metrics(yv, tta),
-        "final_policy_output": routed_metrics,
+        "adaptive_candidate_before_safety_gate": metrics(yv, adaptive_candidate),
+        "safety_gated_final_output": routed_metrics,
+        "safety_gate": {
+            "candidate_use_rate": float(safety_gate["candidate_use_rate"]),
+            "fallback_count": int(safety_gate["fallback_count"]),
+            "policy": safety_gate["policy"],
+            "past_only": True,
+        },
         "selection_is_outcome_free_at_prediction_time": True,
     }
     revision = revision_metrics(final_p, yv)
@@ -1125,6 +1180,7 @@ def run_v13_research(
         "future_label_training_rows_exclude_unmatured_horizon": True,
         "retrieval_index_is_past_only": True,
         "router_uses_prior_outcomes_only": True,
+        "prediction_safety_gate_uses_prior_outcomes_only": True,
         "auto_promotion": False,
     }
 
@@ -1144,6 +1200,7 @@ def run_v13_research(
         "tta": "EXECUTED_PAST_ONLY",
         "prediction_policy": "EXECUTED",
         "prediction_output": "EXECUTED",
+        "prediction_safety_gate": "EXECUTED_PAST_ONLY",
         "prediction_trajectory": "EXECUTED_SCENARIO_PROJECTION",
         "active_information": "DESIGNED_PROXY_ONLY",
         "selective_prediction": "EXECUTED",
