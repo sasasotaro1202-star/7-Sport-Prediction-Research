@@ -521,6 +521,46 @@
       "access": "free_for_qualifying_noncommercial_access_requires_application",
       "status": "research_candidate",
       "next": "do not auto-apply; if manually authorized, probe official historical/live series API -> snapshot timestamps -> PIT/OOS -> compare with VLR-derived corpus"
+    },
+    {
+      "id": "rugby_data_api_legacy",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "rugby"
+      ],
+      "access": "public_archived_mit",
+      "status": "historical_research_candidate",
+      "next": "pin archived snapshot -> coverage audit -> use only historical redundancy -> no current-freshness assumption"
+    },
+    {
+      "id": "valorant_blitz_static",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "valorant"
+      ],
+      "access": "public_git_derived_blitz",
+      "status": "historical_research_candidate",
+      "next": "pin snapshot -> compare with VLR/GRID -> same-source-family overlap audit -> historical OOS"
+    },
+    {
+      "id": "nbaapi_stats",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "public_no_key_unofficial",
+      "status": "research_candidate",
+      "next": "probe current endpoint -> snapshot -> compare against B.LEAGUE/ESPN/SportsDataverse by competition -> PIT/OOS"
+    },
+    {
+      "id": "tipero_public",
+      "type": "external_forecast",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_no_key_read_only",
+      "status": "external_forecast_candidate",
+      "next": "capture forecasts at prediction time -> verify historical availability -> calibration/correlation/OOS before any ensemble use"
     }
   ]
 }
