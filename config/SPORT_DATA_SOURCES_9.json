@@ -1,49 +1,71 @@
 {
-  "version": "cross-sport-data-layer-v1.1",
+  "version": "cross-sport-data-layer-v2.0",
   "policy": {
     "free_only": true,
     "production_default_requires_pit": true,
     "unknown_availability_is_fail_closed": true,
-    "research_only_candidates_are_never_auto_promoted": true
+    "research_only_candidates_are_never_auto_promoted": true,
+    "credentials_never_auto_created": true
   },
   "evidence": {
-    "sofascore": {
+    "thesportsdb": {
       "current_web_evidence": "2026-09-27",
-      "status": "research_candidate",
-      "note": "Unofficial/undocumented API surface. Public pages demonstrate multi-sport coverage and detailed statistics. Historical availability must be snapshotted/replayed before model use.",
+      "status": "strong_research_candidate",
+      "note": "Free JSON API. Current public database pages show all nine target sports/competition families. Best suited to cross-sport event/participant/league/venue/standings enrichment rather than Opta-depth event statistics.",
       "references": [
-        "https://github.com/apdmatos/sofascore-api",
-        "https://github.com/nietonchique/Sofascore-API-Bundle",
-        "https://www.sofascore.com/en-us/mma",
-        "https://www.sofascore.com/en-us/mma/organisation/rizin/19905"
+        "https://www.thesportsdb.com/api.php",
+        "https://www.thesportsdb.com/sport.php",
+        "https://www.thesportsdb.com/season/4491-rizin-ff/2026",
+        "https://www.thesportsdb.com/league/5422-Valorant-Champions-Tour"
       ]
     },
-    "api_sports": {
+    "espn_public": {
       "current_web_evidence": "2026-09-27",
       "status": "research_candidate",
-      "note": "Provider currently advertises a free tier of 100 requests/day per API. Coverage, endpoint access and PIT suitability remain sport/endpoint specific.",
+      "note": "Public ESPN API documentation/implementations expose broad coverage across basketball, racing, tennis, MMA, rugby and volleyball, plus rosters, injuries, transactions, news and statistics. Treat the surface as public/undocumented and reconstruct availability conservatively.",
       "references": [
-        "https://api-sports.io/",
-        "https://api-sports.io/sports/basketball",
-        "https://api-sports.io/sports/volleyball",
-        "https://api-sports.io/sports/mma",
-        "https://api-sports.io/sports/rugby",
-        "https://api-sports.io/sports/formula-1"
+        "https://github.com/sejaldua/espn-api",
+        "https://github.com/sejaldua/espn-api/blob/main/references/endpoints.md"
       ]
     },
-    "pandascore": {
+    "odds_api_io": {
       "current_web_evidence": "2026-09-27",
       "status": "research_candidate",
-      "note": "Free tier provides schedules/results/context and is rate-limited; historical detailed statistics are paid, so it is not a free historical Opta substitute.",
+      "note": "Provider advertises a free tier of 100 requests/hour and 500/day across 34 sports. Direct pages confirm basketball, tennis, MMA including Rizin, boxing, rugby and Valorant/esports. Use only as market-signal enrichment; bookmaker publication timestamps are required for historical PIT.",
       "references": [
-        "https://www.pandascore.co/pricing"
+        "https://odds-api.io/sports",
+        "https://odds-api.io/sports/mma",
+        "https://odds-api.io/sports/boxing",
+        "https://odds-api.io/sports/rugby",
+        "https://odds-api.io/sports/tennis",
+        "https://odds-api.io/esports/valorant"
+      ]
+    },
+    "specialist_open_datasets": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Open datasets can add higher-granularity research features but often lack historical availability timestamps. Keep PIT-gated.",
+      "references": [
+        "https://github.com/livetennisapi/livetennisapi-data",
+        "https://github.com/komaksym/UFC-DataLab",
+        "https://github.com/serp-ai/boxing-punch-recognition-dataset",
+        "https://github.com/opensport/rugby.db",
+        "https://github.com/Veloruze/vlr-gg-api"
+      ]
+    },
+    "f1_community_dataset": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Community F1 dataset currently reports 1950-2026 coverage and CC0 licensing; use as redundancy/research corpus rather than replacing OpenF1/Jolpica.",
+      "references": [
+        "https://www.kaggle.com/general/734039"
       ]
     }
   },
   "source_classes": {
     "primary": "already integrated sport-specific source",
-    "secondary": "free/public cross-sport or specialist enrichment candidate",
-    "research_only": "candidate requiring additional PIT/data-quality validation"
+    "secondary": "free/public enrichment candidate with useful cross-sport or market coverage",
+    "research_only": "candidate requiring additional PIT/data-quality/license validation"
   },
   "sports": {
     "basketball": [
@@ -56,16 +78,32 @@
         "pit": "replay_required"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
         "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
       },
       {
-        "id": "api_sports_basketball",
-        "name": "API-Sports Basketball",
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
         "class": "research_only",
         "free": true,
         "integrated": false,
@@ -82,17 +120,25 @@
         "pit": "replay_required"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
         "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
       },
       {
-        "id": "api_sports_volleyball",
-        "name": "API-Sports Volleyball",
-        "class": "research_only",
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
@@ -108,20 +154,36 @@
         "pit": "replay_required"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
         "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
       },
       {
-        "id": "api_sports_mma",
-        "name": "API-Sports MMA",
-        "class": "research_only",
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required"
+      },
+      {
+        "id": "ufc_datalab",
+        "name": "UFC-DataLab open corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "historical_availability_unknown"
       }
     ],
     "rizin": [
@@ -134,20 +196,20 @@
         "pit": "replay_required"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
         "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
       },
       {
-        "id": "rizin_official",
-        "name": "RIZIN official public pages",
-        "class": "research_only",
+        "id": "odds_api_io",
+        "name": "Odds-API.io MMA/Rizin coverage",
+        "class": "secondary",
         "free": true,
         "integrated": false,
-        "pit": "explicit_publication_required"
+        "pit": "bookmaker_timestamp_required"
       }
     ],
     "valorant": [
@@ -160,6 +222,14 @@
         "pit": "github_provenance"
       },
       {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
         "id": "pandascore",
         "name": "PandaScore",
         "class": "research_only",
@@ -168,12 +238,20 @@
         "pit": "tier_and_timestamp_dependent"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
+        "id": "odds_api_io",
+        "name": "Odds-API.io Valorant",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required"
+      },
+      {
+        "id": "vlr_gg_api",
+        "name": "VLR.gg unofficial API",
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "unknown_until_snapshotted"
+        "pit": "live_retrieval_only_until_provenance"
       }
     ],
     "tennis": [
@@ -186,20 +264,36 @@
         "pit": "replay_required"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
         "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
       },
       {
-        "id": "api_sports_tennis",
-        "name": "API-Sports Tennis",
-        "class": "research_only",
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required"
+      },
+      {
+        "id": "livetennisapi",
+        "name": "Live Tennis API academic dataset",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "observed_layer_has_capture_timestamps"
       }
     ],
     "f1": [
@@ -220,12 +314,28 @@
         "pit": "replay_required"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
-        "class": "research_only",
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "espn_public",
+        "name": "ESPN public API surface (Racing)",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "f1_cc0_dataset",
+        "name": "Community F1 1950-2026 CC0 dataset",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required"
       }
     ],
     "rugby": [
@@ -238,20 +348,36 @@
         "pit": "replay_required"
       },
       {
-        "id": "api_sports_rugby",
-        "name": "API-Sports Rugby",
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
         "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
-        "class": "research_only",
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required"
+      },
+      {
+        "id": "rugby_db",
+        "name": "rugby.db public-domain corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "historical_scope_limited"
       }
     ],
     "boxing": [
@@ -264,20 +390,28 @@
         "pit": "replay_required"
       },
       {
-        "id": "sofascore",
-        "name": "Sofascore",
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
         "class": "secondary",
         "free": true,
         "integrated": false,
         "pit": "unknown_until_snapshotted"
       },
       {
-        "id": "boxing_public_sources",
-        "name": "Other free public boxing sources",
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required"
+      },
+      {
+        "id": "boxing_punch_dataset",
+        "name": "Boxing punch recognition dataset",
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "explicit_publication_required"
+        "pit": "video_time_alignment_required"
       }
     ]
   }
