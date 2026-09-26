@@ -77,7 +77,6 @@ PROBES = {
 
 REQUIRED_SOURCES = {
     "thesportsdb",
-    "espn",
     "rizin_club",
     "f1api_dev",
     "racehooks",
