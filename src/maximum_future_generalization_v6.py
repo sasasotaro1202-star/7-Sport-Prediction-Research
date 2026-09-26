@@ -85,39 +85,34 @@ def _prediction_dynamics(bp: np.ndarray) -> dict[str, Any]:
     }
 
 
-def _feature_reliability(x: np.ndarray) -> dict[str, Any]:
+def _feature_reliability(x: np.ndarray, window: int = 120) -> dict[str, Any]:
     x = np.asarray(x, dtype=float)
+    n, d = x.shape
     finite = np.isfinite(x)
-    completeness = finite.mean(axis=1) if x.shape[1] else np.ones(len(x))
-    per_feature = finite.mean(axis=0).tolist() if x.shape[1] else []
-    if len(x) >= 60:
-        thirds = np.array_split(x, 3)
-        stability = []
-        for j in range(x.shape[1]):
-            means = []
-            scales = []
-            for part in thirds:
-                vals = part[:, j][np.isfinite(part[:, j])]
-                means.append(float(np.mean(vals)) if len(vals) else np.nan)
-                scales.append(float(np.std(vals)) if len(vals) else np.nan)
-            finite_means = np.asarray([z for z in means if np.isfinite(z)], dtype=float)
-            finite_scales = np.asarray([z for z in scales if np.isfinite(z)], dtype=float)
-            stability.append(
-                float(1.0 / (1.0 + np.std(finite_means))) if len(finite_means) >= 2 else 0.0
-            )
-        global_stability = float(np.mean(stability)) if stability else 0.0
-    else:
-        stability = []
-        global_stability = 0.0
-    row_reliability = np.clip(
-        0.70 * completeness + 0.30 * global_stability, 0.0, 1.0
-    )
+    completeness = finite.mean(axis=1) if d else np.ones(n)
+    row_stability = np.zeros(n, dtype=float)
+    per_feature = finite.mean(axis=0).tolist() if d else []
+    for i in range(n):
+        lo = max(0, i - window)
+        if i - lo < 20 or d == 0:
+            row_stability[i] = 0.0
+            continue
+        ref = x[lo:i]
+        cur = x[i]
+        med = np.nanmedian(ref, axis=0)
+        mad = np.nanmedian(np.abs(ref - med), axis=0)
+        scale = np.where(np.isfinite(mad) & (mad > 1e-6), mad, 1.0)
+        comparable = np.isfinite(cur) & np.isfinite(med)
+        if comparable.any():
+            deviation = np.mean(np.abs(cur[comparable] - med[comparable]) / scale[comparable])
+            row_stability[i] = float(1.0 / (1.0 + min(8.0, deviation)))
+    row_reliability = np.clip(0.65 * completeness + 0.35 * row_stability, 0.0, 1.0)
     return {
         "row_reliability": row_reliability,
         "per_feature_completeness": per_feature,
-        "per_feature_stability": stability,
         "mean_completeness": float(completeness.mean()),
         "mean_reliability": float(row_reliability.mean()),
+        "policy": "strictly prequential feature completeness + prior-window robustness only",
     }
 
 
@@ -161,31 +156,31 @@ def _invariant_feature_discovery(x: np.ndarray, y: np.ndarray) -> dict[str, Any]
 
 def _regime_transition(x: np.ndarray, bp: np.ndarray) -> tuple[np.ndarray, dict[str, Any]]:
     drift = v2._drift_features(x, bp)
-    d = drift[:, 0]
-    hist = d[np.isfinite(d)]
-    if len(hist) < 30:
-        return np.full((len(x), 4), 0.25), {"status": "INSUFFICIENT"}
-    q70, q85, q95 = np.quantile(hist, [0.70, 0.85, 0.95])
-    states = np.select([d >= q95, d >= q85, d >= q70], [3, 2, 1], default=0).astype(int)
-    probs = np.zeros((len(x), 4), dtype=float)
-    base_counts = np.bincount(states, minlength=4).astype(float)
-    for i in range(len(x)):
-        prior = states[:i]
-        if len(prior) < 30:
-            probs[i] = (base_counts + 1.0) / (base_counts.sum() + 4.0)
+    d = np.asarray(drift[:, 0], dtype=float)
+    n = len(d)
+    probs = np.full((n, 4), 0.25, dtype=float)
+    states = np.zeros(n, dtype=int)
+    for i in range(n):
+        hist = d[:i]
+        hist = hist[np.isfinite(hist)]
+        if len(hist) < 30:
             continue
+        q70, q85, q95 = np.quantile(hist, [0.70, 0.85, 0.95])
+        states[i] = int(np.select([d[i] >= q95, d[i] >= q85, d[i] >= q70], [3, 2, 1], default=0))
+        prior_states = states[:i]
         counts = np.ones(4, dtype=float)
-        src = prior[:-1]
-        dst = prior[1:]
-        for a, b in zip(src[-5000:], dst[-5000:]):
-            if a == states[i]:
-                counts[b] += 1.0
+        if len(prior_states) >= 2:
+            src = prior_states[:-1]
+            dst = prior_states[1:]
+            mask = src == states[i]
+            for b in dst[mask][-5000:]:
+                counts[int(b)] += 1.0
         probs[i] = counts / counts.sum()
     return probs, {
         "status": "EVALUATED",
         "state_counts": {str(i): int((states == i).sum()) for i in range(4)},
         "labels": ["Normal", "Watch", "Shift", "Severe Shift"],
-        "thresholds": {"q70": float(q70), "q85": float(q85), "q95": float(q95)},
+        "threshold_policy": "q70/q85/q95 recomputed from rows strictly before each evaluation row",
         "transition_policy": "uses only transitions observed before each evaluation row",
     }
 
@@ -193,26 +188,33 @@ def _regime_transition(x: np.ndarray, bp: np.ndarray) -> tuple[np.ndarray, dict[
 def _retrieval_features(
     x: np.ndarray, bp: np.ndarray, y: np.ndarray, k: int = 12, history_cap: int = 1200
 ) -> tuple[np.ndarray, dict[str, Any]]:
-    x = _finite(x)
-    base = np.column_stack([
-        x[:, : min(x.shape[1], 16)],
-        np.mean(bp, axis=1),
-        np.std(bp, axis=1),
-        -(np.mean(bp, axis=1) * np.log(np.clip(np.mean(bp, axis=1), EPS, 1 - EPS))
-          + (1 - np.mean(bp, axis=1)) * np.log(np.clip(1 - np.mean(bp, axis=1), EPS, 1 - EPS))),
-    ])
-    scale = np.nanmedian(np.abs(base - np.nanmedian(base, axis=0)), axis=0)
-    scale = np.where(np.isfinite(scale) & (scale > 1e-6), scale, 1.0)
-    z = base / scale
+    x = np.asarray(x, dtype=float)
+    bp = np.asarray(bp, dtype=float)
     out = np.full((len(x), 5), np.nan)
     similarities = []
     for i in range(len(x)):
         start = max(0, i - history_cap)
-        if i - start < 30:
+        if i - start < 60:
             continue
-        ref = z[start:i]
-        dist = np.sqrt(np.mean((ref - z[i]) ** 2, axis=1))
-        take = np.argsort(dist)[: min(k, len(dist))]
+        ref_x = x[start:i]
+        cur_x = x[i]
+        med = np.nanmedian(ref_x, axis=0)
+        mad = np.nanmedian(np.abs(ref_x - med), axis=0)
+        scale_x = np.where(np.isfinite(mad) & (mad > 1e-6), mad, 1.0)
+        base_ref = np.column_stack([
+            np.nan_to_num((ref_x - med) / scale_x),
+            np.mean(bp[start:i], axis=1, keepdims=True),
+            np.std(bp[start:i], axis=1, keepdims=True),
+        ])
+        cur_base = np.column_stack([
+            np.nan_to_num(((cur_x - med) / scale_x))[None, :],
+            [[float(np.mean(bp[i])), float(np.std(bp[i]))]],
+        ]
+        dim = min(base_ref.shape[1], cur_base.shape[1])
+        ref = base_ref[:, :dim]
+        cur = cur_base[:, :dim][0]
+        dist = np.sqrt(np.mean((ref - cur) ** 2, axis=1))
+        take = np.argsort(dist)[:min(k, len(dist))]
         d = dist[take]
         w = 1.0 / (1.0 + d)
         yy = y[start:i][take]
@@ -235,7 +237,8 @@ def _retrieval_features(
             "historical_success_probability",
             "retrieval_coverage",
         ],
-        "mean_similarity": float(np.nanmean(similarities)) if similarities else None,
+        "mean_similarity": float(np.mean(similarities)) if similarities else None,
+        "policy": "retrieval reference and normalization are strictly prior-row only",
     }
 
 
@@ -412,18 +415,25 @@ def _pareto_frontier(metrics: dict[str, dict[str, Any]]) -> list[str]:
 
 
 def _adaptive_compute(score: np.ndarray) -> dict[str, Any]:
-    q = np.nanquantile(score[np.isfinite(score)], [0.30, 0.70]) if np.isfinite(score).sum() >= 20 else [0.3, 0.7]
-    tier = np.select([score < q[0], score > q[1]], ["HARD", "EASY"], default="MEDIUM")
+    score = np.asarray(score, dtype=float)
+    tier = np.full(len(score), "MEDIUM", dtype=object)
+    for i in range(len(score)):
+        hist = score[:i]
+        hist = hist[np.isfinite(hist)]
+        if len(hist) < 30:
+            continue
+        q30, q70 = np.quantile(hist, [0.30, 0.70])
+        tier[i] = "HARD" if score[i] < q30 else "EASY" if score[i] > q70 else "MEDIUM"
     unique, counts = np.unique(tier, return_counts=True)
     return {
         "status": "POLICY_ONLY",
-        "thresholds": {"easy_q70": float(q[1]), "hard_q30": float(q[0])},
         "tiers": {str(k): int(v) for k, v in zip(unique, counts)},
         "policy": {
             "EASY": "standard_base_or_ensemble",
             "MEDIUM": "ensemble_plus_retrieval",
             "HARD": "specialist_plus_stress_check",
         },
+        "threshold_policy": "rolling prior-score q30/q70; no future-score inspection",
     }
 
 
