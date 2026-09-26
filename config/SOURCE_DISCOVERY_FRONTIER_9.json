@@ -475,6 +475,42 @@
       "access": "public_web_database_no_key",
       "status": "research_candidate",
       "next": "snapshot event/fight pages -> compare against primary RIZIN history -> PIT/publication provenance -> OOS"
+    },
+    {
+      "id": "wta_official",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "official_public_no_key",
+      "status": "research_candidate",
+      "next": "probe current + historical tournament endpoints -> snapshot -> PIT/replay -> compare with Sackmann/LTA-type archives"
+    },
+    {
+      "id": "euroleague_official",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "official_public_no_key",
+      "status": "research_candidate",
+      "next": "probe seasons/games/boxscores -> establish historical depth -> snapshot/PIT -> OOS"
+    },
+    {
+      "id": "sporting_events_free",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis",
+        "rugby",
+        "f1",
+        "ufc",
+        "boxing",
+        "esports"
+      ],
+      "access": "public_csv_json_no_key_attribution",
+      "status": "research_candidate",
+      "next": "pin each regeneration snapshot -> verify covered events -> duplicate/overlap audit -> use only as schedule/context unless deeper fields are validated"
     }
   ]
 }
