@@ -30,3 +30,13 @@ Live Tennis API publishes a 2023-2026 point-by-point research dataset with an ob
 ## Current boundary
 
 Existing sport-specific collectors remain the primary research/production data path. The cross-sport sources are discovery/enrichment candidates until PIT, quality, licensing and chronological OOS evidence are established.
+## Cross-sport context sources
+
+These are not Opta replacements, but they can add information available across multiple sports:
+
+- GDELT: public news/event information for information shocks and external context. The GDELT project states its database is free and open; current GDELT Cloud also exposes structured stories/events with explicit coverage/provenance metadata.
+- Open-Meteo: free weather/historical forecast data without an API key for non-commercial use. Archived forecast runs are particularly useful for PIT-safe weather features because the forecast run time can be preserved.
+- OpenStreetMap Overpass: free public geospatial data for venue coordinates, travel distance and venue context.
+- Wikidata: free SPARQL access for entity resolution and stable biographical/geographic metadata.
+
+These context sources should be joined after event identity is established and before prediction features are materialized. Each source keeps its own observation/snapshot timestamp and PIT status.
