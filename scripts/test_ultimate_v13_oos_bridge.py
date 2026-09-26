@@ -38,6 +38,10 @@ def main() -> None:
     assert result["states"]["prediction_policy"] == "EXECUTED"
     assert result["states"]["prediction_output"] == "EXECUTED"
     assert result["statistical_validation"]["status"] == "EVALUATED"
+    assert "confidence_metrics" in result
+    assert "coverage" in result["confidence_metrics"]["delta"]
+    assert "high_confidence_accuracy" in result["confidence_metrics"]["delta"]
+    assert result["audit"]["prediction_safety_gate_uses_prior_outcomes_only"] is True
     assert path.is_file() and path.stat().st_size > 0
 
     # Direct adversarial causal check: changing y[i] cannot change the
@@ -98,6 +102,9 @@ def main() -> None:
     print(f"LOGLOSS_DELTA={result['delta']['logloss']:+.6f}")
     print(f"BRIER_DELTA={result['delta']['brier']:+.6f}")
     print(f"ECE_DELTA={result['delta']['ece']:+.6f}")
+    print(f"COVERAGE_DELTA={result['confidence_metrics']['delta']['coverage']:+.6f}")
+    hca=result['confidence_metrics']['delta']['high_confidence_accuracy']
+    print(f"HIGH_CONFIDENCE_ACCURACY_DELTA={float(hca):+.6f}")
 
 
 if __name__ == "__main__":
