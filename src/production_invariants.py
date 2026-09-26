@@ -604,6 +604,14 @@ def main():
     maximum_v6_test=(ROOT/'scripts/test_maximum_future_generalization_v6.py').read_text(encoding='utf-8')
     require('maximum_future_generalization_v6 as innovative_v6' in strict_src,
             'strict research cycle does not execute maximum future-generalization v6')
+    f1_production_src=(ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8')
+    f1_role_test=(ROOT/'scripts/test_f1_event_status.py').read_text(encoding='utf-8')
+    require("upsert_ep(c,eid,pid,None,None,'driver'" in f1_production_src,
+            'F1 event_participant role contract must use driver rather than endpoint names')
+    require("participant's actual" in f1_production_src and 'event_participant role' in f1_production_src,
+            'F1 role normalization rationale is missing')
+    require('guard F1 participant role integrity' in f1_role_test or "upsert_ep(c,eid,pid,None,None,'driver'" in f1_role_test,
+            'F1 participant role regression test is missing')
     require('production_changed": False' in maximum_v6_src and 'promotion": "HOLD"' in maximum_v6_src,
             'maximum future-generalization v6 does not enforce research-only production safety')
     require('meta_leakage_audit' in maximum_v6_src and 'future_labels_as_features' in maximum_v6_src,
