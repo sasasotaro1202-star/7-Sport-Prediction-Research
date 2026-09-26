@@ -37,3 +37,7 @@ jobs:
         run: PYTHONPATH=. python src/production_invariants.py
       - name: Prediction experience regression
         run: PYTHONPATH=. python scripts/test_prediction_experience.py
+      - name: Innovative prediction control v2 regression
+        run: PYTHONPATH=. python scripts/test_innovative_prediction_v2.py
+      - name: Maximum Future-Generalization v6 regression
+        run: PYTHONPATH=. python scripts/test_maximum_future_generalization_v6.py
