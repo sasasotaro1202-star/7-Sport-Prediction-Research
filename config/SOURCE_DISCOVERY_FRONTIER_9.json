@@ -268,6 +268,69 @@
       "access": "free_trial_only_then_paid",
       "status": "blocked_by_free_only_policy",
       "next": "do not use trial as an ongoing source; retain as discovery-only reference"
+    },
+    {
+      "id": "sportsdataverse_data",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball"
+      ],
+      "access": "public_github_release_assets",
+      "status": "research_candidate",
+      "next": "pin release + timestamp.json -> validate upstream/source terms -> PIT replay -> OOS"
+    },
+    {
+      "id": "volleystats_dataproject",
+      "type": "data_scraper",
+      "confirmed_coverage": [
+        "volleyball"
+      ],
+      "access": "open_source_scraper_public_web",
+      "status": "research_candidate",
+      "next": "map Data Project federations -> immutable page snapshots -> publication/PIT evidence -> quality/OOS"
+    },
+    {
+      "id": "mma_global_database",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "ufc",
+        "rizin",
+        "mma_other"
+      ],
+      "access": "public_github_and_kaggle",
+      "status": "research_candidate",
+      "next": "pin snapshot -> inspect license/field provenance -> separate after-the-fact stats -> PIT-safe feature construction"
+    },
+    {
+      "id": "boxing_data_api",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "free_basic_tier_requires_key",
+      "status": "research_candidate_low_volume",
+      "next": "never auto-create key; use only 100 req/month free allowance if credential supplied; validate PIT/history"
+    },
+    {
+      "id": "racinghub",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "free_public_no_key_mit",
+      "status": "research_candidate",
+      "next": "probe endpoints -> snapshot -> compare with OpenF1/Jolpica/RaceHooks -> OOS"
+    },
+    {
+      "id": "racehooks",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "free_public_no_auth",
+      "status": "research_candidate",
+      "next": "probe historical endpoints -> snapshot/provenance -> compare against existing F1 sources -> OOS"
     }
   ]
 }
