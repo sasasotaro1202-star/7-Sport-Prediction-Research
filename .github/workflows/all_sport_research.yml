@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/all_sport_research.yml"
       - "src/ultimate_predictive_control_v13.py"
+      - "src/research_cycle_strict.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_v13_oos_bridge.py"
   workflow_dispatch:
