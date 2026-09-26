@@ -285,6 +285,30 @@
         "https://github.com/austra/sportsdataverse",
         "https://github.com/sportsdataverse/sportsdataverse-data/"
       ]
+    },
+    "tennis_data_uk": {
+      "current_web_evidence": "2026-09-27",
+      "status": "blocked_by_project_training_policy",
+      "note": "Tennis-Data provides 26 years of free computer-ready ATP/WTA results and betting odds, but its current terms explicitly state the files are not for commercial or data-training products using automated bots/scrapers/AI. Therefore useful as discovery evidence of available data, but excluded from model-training ingestion.",
+      "references": [
+        "https://www.tennis-data.co.uk/data.php"
+      ]
+    },
+    "balldontlie": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_low_priority",
+      "note": "BALLDONTLIE currently provides a free NBA API tier requiring an API key, with teams/players/games available while player game stats, box scores, odds and advanced endpoints are paid. Useful only for schedule/entity redundancy on this project unless future free-tier scope changes.",
+      "references": [
+        "https://docs.balldontlie.io/"
+      ]
+    },
+    "statbunker_rugby": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "StatBunker publicly exposes regularly updated rugby-union player/team statistics and historical competition pages. There is no validated historical availability timestamp layer yet, so use only after immutable snapshots and PIT reconstruction.",
+      "references": [
+        "https://rugby.statbunker.com/"
+      ]
     }
   },
   "source_classes": {
@@ -401,6 +425,15 @@
         "integrated": false,
         "pit": "account_snapshot_and_timestamp_required",
         "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "balldontlie",
+        "name": "BALLDONTLIE NBA API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_timestamp_required",
+        "independence_family": "basketball_api_provider"
       }
     ],
     "volleyball": [
@@ -919,6 +952,15 @@
         "integrated": false,
         "pit": "account_snapshot_and_timestamp_required",
         "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "statbunker_rugby",
+        "name": "StatBunker Rugby",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required",
+        "independence_family": "public_stats_web"
       }
     ],
     "boxing": [
