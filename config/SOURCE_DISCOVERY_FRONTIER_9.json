@@ -561,6 +561,16 @@
       "access": "public_no_key_read_only",
       "status": "external_forecast_candidate",
       "next": "capture forecasts at prediction time -> verify historical availability -> calibration/correlation/OOS before any ensemble use"
+    },
+    {
+      "id": "volleybox",
+      "type": "entity_context_source",
+      "confirmed_coverage": [
+        "volleyball"
+      ],
+      "access": "public_web_free_registration",
+      "status": "entity_context_research_candidate",
+      "next": "snapshot player/club/transfer context -> entity-resolution audit -> publication-time/PIT validation -> no automatic production scraping by default"
     }
   ]
 }
