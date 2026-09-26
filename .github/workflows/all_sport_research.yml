@@ -5,10 +5,13 @@ on:
     paths:
       - ".github/workflows/all_sport_research.yml"
       - "config/ACTIVE_SCOPE_9_SPORTS.json"
+      - "config/SPORT_DATA_SOURCES_9.json"
       - "src/ultimate_predictive_control_v13.py"
       - "src/research_cycle_strict.py"
+      - "src/cross_sport_data_layer.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_v13_oos_bridge.py"
+      - "scripts/test_cross_sport_data_layer.py"
   workflow_dispatch:
   schedule:
     - cron: "11 */12 * * *"
@@ -96,6 +99,9 @@ jobs:
 
       - name: Install dependencies
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+
+      - name: Validate nine-sport cross-source registry
+        run: python scripts/test_cross_sport_data_layer.py
 
       - name: Initialize research directories
         run: |
