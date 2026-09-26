@@ -77,21 +77,45 @@ def probe(url: str) -> dict:
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "NineSportResearchEngine/1.1",
+            "User-Agent": "NineSportResearchEngine/1.2",
             "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.8",
         },
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
-            body = response.read(8192)
-            return {
+            body = response.read(16384)
+            result = {
                 "ok": 200 <= response.status < 400 and bool(body),
                 "status_code": int(response.status),
                 "bytes_sampled": len(body),
                 "elapsed_sec": round(time.monotonic() - started, 3),
                 "final_url": response.geturl(),
             }
+            try:
+                payload = json.loads(body.decode("utf-8"))
+                result["json_parseable"] = True
+                result["body_shape"] = type(payload).__name__
+                if payload in ({}, [], None):
+                    result["error_signal"] = "empty_json_payload"
+                    result["ok"] = False
+                elif isinstance(payload, dict):
+                    errors = payload.get("errors")
+                    if errors not in (None, {}, [], ""):
+                        result["error_signal"] = "json_errors"
+                        result["ok"] = False
+                    elif payload.get("error") not in (None, {}, [], ""):
+                        result["error_signal"] = "json_error"
+                        result["ok"] = False
+                    elif str(payload.get("status", "")).lower() in {"failure", "failed", "error"}:
+                        result["error_signal"] = "json_failure_status"
+                        result["ok"] = False
+                    elif str(payload.get("message", "")).lower() in {"invalid api key", "application not found"}:
+                        result["error_signal"] = "json_failure_message"
+                        result["ok"] = False
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                result["json_parseable"] = False
+            return result
     except urllib.error.HTTPError as exc:
         return {
             "ok": False,
