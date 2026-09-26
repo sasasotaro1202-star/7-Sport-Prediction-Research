@@ -542,6 +542,48 @@ def meta_label_oos(
     return out
 
 
+def causal_tta_safety_gate(
+    baseline: np.ndarray,
+    candidate: np.ndarray,
+    y: np.ndarray,
+    window: int = 120,
+    min_logloss_improvement: float = 0.002,
+) -> Dict[str, np.ndarray]:
+    """Use TTA only when its prior OOS loss beats the pre-TTA baseline.
+
+    The decision at row i reads only rows < i. This component-level gate
+    prevents a locally favorable TTA segment from contaminating the full
+    adaptive candidate when TTA is broadly unstable.
+    """
+    b = _p(baseline)
+    c = _p(candidate)
+    yv = np.asarray(y, dtype=int)
+    if len(b) != len(c) or len(b) != len(yv):
+        raise ValueError("baseline/candidate/y alignment mismatch")
+    out = np.array(b, copy=True)
+    used = np.zeros(len(yv), dtype=bool)
+    prior_delta = np.full(len(yv), np.nan, dtype=float)
+    for i in range(len(yv)):
+        start = max(0, i - int(window))
+        if i - start < 30:
+            continue
+        base_ll = logloss(yv[start:i], b[start:i])
+        cand_ll = logloss(yv[start:i], c[start:i])
+        delta = float(cand_ll - base_ll)
+        prior_delta[i] = delta
+        if np.isfinite(delta) and delta <= -float(min_logloss_improvement):
+            out[i] = c[i]
+            used[i] = True
+    return {
+        "probability": _p(out),
+        "used_candidate": used,
+        "prior_logloss_delta": prior_delta,
+        "fallback_count": int(np.sum(~used)),
+        "candidate_use_rate": float(np.mean(used)) if len(used) else 0.0,
+        "policy": "past_only_tta_component_logloss_gate",
+    }
+
+
 def tta_past_only(base_probability: np.ndarray, y: np.ndarray, window: int = 80) -> np.ndarray:
     """Past-outcome Platt TTA; current outcome is never part of the fit."""
     p0 = _p(base_probability)
@@ -1208,6 +1250,10 @@ def run_v13_research(
         failure_risk=failure_risks,
     )
 
+    tta_raw = tta_past_only(routed, yv)
+    tta_gate = causal_tta_safety_gate(routed, tta_raw, yv)
+    tta = tta_gate["probability"]
+
     retrieval_vec = np.column_stack([
         fixed,
         d["std"],
@@ -1218,8 +1264,6 @@ def run_v13_research(
         shift["ood"],
     ])
     retrieval = retrieval_features(retrieval_vec, yv)
-    tta = tta_past_only(routed, yv)
-
     combined = strategy_and_output(
         routed=tta,
         predictability=predfeat["predictability"],
@@ -1250,7 +1294,13 @@ def run_v13_research(
     ablation = {
         "baseline_fixed_ensemble": ensemble_metrics,
         "causal_router_before_tta": metrics(yv, routed),
+        "raw_past_only_tta": metrics(yv, tta_raw),
         "past_only_tta": metrics(yv, tta),
+        "tta_component_gate": {
+            "candidate_use_rate": float(tta_gate["candidate_use_rate"]),
+            "fallback_count": int(tta_gate["fallback_count"]),
+            "policy": tta_gate["policy"],
+        },
         "adaptive_candidate_before_safety_gate": metrics(yv, adaptive_candidate),
         "safety_gated_final_output": routed_metrics,
         "safety_gate": {
@@ -1325,6 +1375,7 @@ def run_v13_research(
         "retrieval_index_is_past_only": True,
         "router_uses_prior_outcomes_only": True,
         "prediction_safety_gate_uses_prior_outcomes_only": True,
+        "tta_component_gate_uses_prior_outcomes_only": True,
         "auto_promotion": False,
     }
 
@@ -1341,7 +1392,7 @@ def run_v13_research(
         "meta_label": "EXECUTED",
         "uncertainty": "EXECUTED",
         "dynamic_routing": "EXECUTED",
-        "tta": "EXECUTED_PAST_ONLY",
+        "tta": "EXECUTED_PAST_ONLY_COMPONENT_GATED",
         "prediction_policy": "EXECUTED",
         "prediction_output": "EXECUTED",
         "prediction_safety_gate": "EXECUTED_PAST_ONLY",
@@ -1438,9 +1489,13 @@ def run_v13_research(
         "worst_case": worst_case,
         "prediction_ledger": prediction_ledger,
         "tta": {
-            "status": "EXECUTED_PAST_ONLY",
+            "status": "EXECUTED_PAST_ONLY_COMPONENT_GATED",
             "baseline": metrics(yv, routed),
+            "raw": metrics(yv, tta_raw),
             "tta": metrics(yv, tta),
+            "candidate_use_rate": float(tta_gate["candidate_use_rate"]),
+            "fallback_count": int(tta_gate["fallback_count"]),
+            "prior_logloss_delta_latest": _safe_float(tta_gate["prior_logloss_delta"][-1]),
         },
         "prediction_policy": {
             "latest_strategy": latest_strategy,
