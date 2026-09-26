@@ -178,8 +178,9 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
-          sport = "${SPORT}"
+          sport = os.environ["SPORT"]
           result = json.loads(Path(f"results/research/{sport}.json").read_text(encoding="utf-8"))
           print(f"ACTUAL_SPORT={sport} STATUS={result.get('status')}")
           p = Path(f"results/research/{sport}_ultimate_v13.json")
