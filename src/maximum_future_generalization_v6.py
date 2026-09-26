@@ -463,6 +463,42 @@ def _label_quality(y: np.ndarray, event_ids: list[str]) -> dict[str, Any]:
     }
 
 
+def _rolling_diversity_weights(
+    bp: np.ndarray, y: np.ndarray, i: int, base_w: np.ndarray, window: int = 200
+) -> np.ndarray:
+    lo = max(0, i - window)
+    hist_p = np.asarray(bp[lo:i], dtype=float)
+    hist_y = np.asarray(y[lo:i], dtype=int)
+    if len(hist_y) < 40 or len(base_w) < 2:
+        return np.asarray(base_w, dtype=float)
+    errors = ((hist_p < 0.5).astype(int) != hist_y[:, None]).astype(float)
+    m = hist_p.shape[1]
+    corr = np.eye(m)
+    for a in range(m):
+        for b in range(a + 1, m):
+            if np.std(errors[:, a]) > 1e-9 and np.std(errors[:, b]) > 1e-9:
+                r = float(np.corrcoef(errors[:, a], errors[:, b])[0, 1])
+            else:
+                r = 0.0
+            corr[a, b] = corr[b, a] = r
+    quality = []
+    for j in range(m):
+        p = np.clip(hist_p[:, j], EPS, 1 - EPS)
+        ll = -np.mean(hist_y * np.log(p) + (1 - hist_y) * np.log(1 - p))
+        quality.append(math.exp(-float(ll)))
+    quality = np.asarray(quality, dtype=float)
+    quality /= quality.sum() if quality.sum() > 0 else 1.0
+    penalty = np.asarray([
+        max(0.0, float(np.mean(np.delete(corr[j], j)))) if m > 1 else 0.0
+        for j in range(m)
+    ])
+    raw = np.asarray(base_w, dtype=float) * (1.0 - 0.40 * np.clip(penalty, 0, 1))
+    raw *= 0.50 + 0.50 * (quality / max(float(np.max(quality)), EPS))
+    if not np.isfinite(raw).all() or raw.sum() <= 0:
+        raw = np.asarray(base_w, dtype=float)
+    return raw / raw.sum()
+
+
 def run_experiment(
     sport: str,
     x_train: np.ndarray,
@@ -515,22 +551,22 @@ def run_experiment(
     baseline_w /= baseline_w.sum()
     baseline = bp @ baseline_w
 
-    # A prequential failure-risk signal from the existing v2 layer.
-    v2_eval = v2.run_experiment(
-        sport=sport,
-        x_train=x_train if len(x_train) == len(y_train) else x_train[-len(y_train):],
-        y_train=y_train,
-        oof_folds=oof_folds,
-        names=names,
-        baseline_weights=baseline_weights,
-        event_ids=event_ids,
-        dataset_hash=dataset_hash,
-        feature_version=feature_version,
-        metric=None,
+    meta_features, _, _ = v2._meta_features(x, bp)
+    failure_risk, failure_info, per_target = v2._failure_risk_crossfit(
+        meta_features, bp, y, drift, v2.FAILURE_HORIZON
     )
-    v2_failure = np.full(len(y), 0.5)
-    if isinstance(v2_eval, dict) and v2_eval.get("status") == "EVALUATED":
-        v2_failure[:] = float(v2_eval.get("future_failure_predictor", {}).get("mean_risk_by_target", {}).get("future_failure", 0.5))
+    v2_eval = {
+        "status": "ROW_LEVEL_PREQUENTIAL_FAILURE_RISK",
+        "future_failure_predictor": {
+            "mean_risk_by_target": {
+                target_name: float(np.nanmean(np.column_stack([
+                    per_target[target_name][str(j)] for j in range(len(names))
+                ])))
+                for target_name in per_target
+            },
+            "audits": failure_info.get("audits", {}),
+        },
+    }
 
     meta_mean = np.nanmean(meta_label, axis=1)
     retrieval_fail = retrieval[:, 1]
@@ -543,14 +579,11 @@ def run_experiment(
         0.0,
         1.0,
     )
-    error_penalty = np.zeros(len(names))
     corr = np.asarray(dis_stats["pairwise_error_correlation"], dtype=float)
-    if len(names) > 1:
-        for j in range(len(names)):
-            error_penalty[j] = max(0.0, np.mean(np.delete(corr[j], j)))
-    historical_quality = np.exp(-np.nanmean(-(y[:, None] * np.log(np.clip(bp, EPS, 1 - EPS)) + (1 - y[:, None]) * np.log(np.clip(1 - bp, EPS, 1 - EPS))), axis=0))
-    historical_quality /= np.sum(historical_quality)
-    diversity_weights = historical_quality * (1.0 - 0.40 * np.clip(error_penalty, 0, 1))
+    row_diversity = np.vstack([
+        _rolling_diversity_weights(bp, y, i, baseline_w)
+        for i in range(len(y))
+    ])
 
     raw = np.column_stack([
         baseline,
@@ -564,15 +597,15 @@ def run_experiment(
     tta_d = _safe_metrics(y, tta)
     conformal = _conformal_binary(y, baseline)
 
+    finite_risk = np.asarray(failure_risk, dtype=float)
     full = np.zeros(len(y))
     for i in range(len(y)):
         q = np.clip(pred_score[i], 0.0, 1.0)
-        fail_i = np.clip(np.nan_to_num(meta_mean[i], nan=0.5), 0.0, 1.0)
-        div_factor = np.clip(1.0 - np.std(bp[i]), 0.55, 1.0)
+        fail_i = np.clip(np.nan_to_num(np.mean(failure_risk[i]), nan=0.5), 0.0, 1.0)
         risk_factor = math.exp(-1.5 * fail_i)
         shift_factor = math.exp(-0.50 * max(0.0, float(drift[i, 0])))
         trans_factor = float(np.clip(transition[i].max(), 0.25, 1.0))
-        w = diversity_weights * (0.75 + 0.50 * q) * risk_factor * shift_factor * trans_factor
+        w = row_diversity[i] * (0.75 + 0.50 * q) * risk_factor * shift_factor * trans_factor
         if not np.isfinite(w).all() or w.sum() <= 0:
             w = baseline_w.copy()
         w /= w.sum()
@@ -584,14 +617,14 @@ def run_experiment(
         "Baseline": _safe_metrics(y, baseline),
         "+Disagreement": _safe_metrics(y, np.column_stack([baseline, np.mean(bp, axis=1)]).mean(axis=1)),
         "+Predictability": _safe_metrics(y, np.clip(0.75 * baseline + 0.25 * pred_score, EPS, 1 - EPS)),
-        "+FutureFailure": _safe_metrics(y, np.clip(0.75 * baseline + 0.25 * (1 - v2_failure), EPS, 1 - EPS)),
+        "+FutureFailure": _safe_metrics(y, np.clip(0.75 * baseline + 0.25 * (1 - np.nanmean(failure_risk, axis=1)), EPS, 1 - EPS)),
         "Disagreement+Predictability": _safe_metrics(y, np.clip(0.55 * baseline + 0.25 * pred_score + 0.20 * np.mean(bp, axis=1), EPS, 1 - EPS)),
-        "Disagreement+FutureFailure": _safe_metrics(y, np.clip(0.60 * baseline + 0.40 * (1 - v2_failure), EPS, 1 - EPS)),
-        "Predictability+FutureFailure": _safe_metrics(y, np.clip(0.65 * baseline + 0.20 * pred_score + 0.15 * (1 - v2_failure), EPS, 1 - EPS)),
+        "Disagreement+FutureFailure": _safe_metrics(y, np.clip(0.60 * baseline + 0.40 * (1 - np.nanmean(failure_risk, axis=1)), EPS, 1 - EPS)),
+        "Predictability+FutureFailure": _safe_metrics(y, np.clip(0.65 * baseline + 0.20 * pred_score + 0.15 * (1 - np.nanmean(failure_risk, axis=1)), EPS, 1 - EPS)),
         "AllThree": _safe_metrics(y, full),
-        "AllThree+ErrorCorrelation": _safe_metrics(y, np.clip(0.70 * full + 0.30 * float(np.dot(diversity_weights, bp.mean(axis=0))), EPS, 1 - EPS)),
+        "AllThree+ErrorCorrelation": _safe_metrics(y, np.clip(0.70 * full + 0.30 * np.sum(row_diversity * bp, axis=1), EPS, 1 - EPS)),
         "AllThree+RegimeTransition": _safe_metrics(y, np.clip(0.80 * full + 0.20 * transition.max(axis=1), EPS, 1 - EPS)),
-        "AllThree+TimeToFailure": _safe_metrics(y, np.clip(0.80 * full + 0.20 * np.exp(-np.nanmean(ttf_monitor["mean_hazard_by_model"])), EPS, 1 - EPS)),
+        "AllThree+FailureImminence": _safe_metrics(y, np.clip(0.80 * full + 0.20 * np.exp(-np.mean(np.nan_to_num(failure_risk, nan=0.5), axis=1)), EPS, 1 - EPS)),
         "AllThree+Retrieval": _safe_metrics(y, raw[:, 2]),
         "AllThree+TTA": tta_d,
         "FullArchitecture": _safe_metrics(y, full),
@@ -602,8 +635,8 @@ def run_experiment(
     coverage_score = np.clip(
         0.60 * pred_score
         + 0.20 * (1 - np.abs(full_safe - 0.5) * 2)
-        + 0.20 * (1 - np.nanmean([u for u in uncertainty["distribution_shift_uncertainty"]]))
-        , 0.0, 1.0
+        + 0.20 * (1 - uncertainty["distribution_shift_uncertainty"]),
+        0.0, 1.0
     )
     selective = v2._selective_curve(y, full_safe, coverage_score)
     adaptive_compute = _adaptive_compute(coverage_score)
