@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - ".github/workflows/all_sport_research.yml"
+      - "src/ultimate_predictive_control_v13.py"
+      - "scripts/test_ultimate_predictive_control_v13.py"
   workflow_dispatch:
   schedule:
     - cron: "11 */12 * * *"
@@ -161,6 +163,7 @@ jobs:
           python -m compileall -q src scripts
           python scripts/test_case_risk_oos.py
           python scripts/test_ultimate_predictive_control.py
+          python scripts/test_ultimate_predictive_control_v13.py
           test "${ULTIMATE_CONTROL_VERSION}" = "v13"
 
       - name: Upload sport research evidence
