@@ -38,6 +38,8 @@ def main() -> None:
     assert result["states"]["prediction_policy"] == "EXECUTED"
     assert result["states"]["prediction_output"] == "EXECUTED"
     assert result["statistical_validation"]["status"] == "EVALUATED"
+    assert "stability" in result
+    assert "stability" in result["statistical_validation"]["ci90"]
     assert "confidence_metrics" in result
     assert "coverage" in result["confidence_metrics"]["delta"]
     assert "high_confidence_accuracy" in result["confidence_metrics"]["delta"]
@@ -105,6 +107,7 @@ def main() -> None:
     print(f"COVERAGE_DELTA={result['confidence_metrics']['delta']['coverage']:+.6f}")
     hca=result['confidence_metrics']['delta']['high_confidence_accuracy']
     print(f"HIGH_CONFIDENCE_ACCURACY_DELTA={float(hca):+.6f}")
+    print(f"STABILITY_DELTA={result['stability']['delta']:+.6f}")
 
 
 if __name__ == "__main__":
