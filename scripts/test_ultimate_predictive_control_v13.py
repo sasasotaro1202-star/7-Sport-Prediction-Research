@@ -8,6 +8,7 @@ import numpy as np
 from src.ultimate_predictive_control_v13 import (
     active_information_value_oos,
     causal_router,
+    causal_tta_safety_gate,
     retrieval_features,
     run_v13_research,
 )
@@ -46,6 +47,9 @@ def main():
     assert r["audit"]["future_failure_threshold_fit_on_training_prefix_only"] is True
     assert r["retrieval"]["pit"] == "PASS_PAST_ONLY"
     assert r["states"]["dynamic_routing"] == "EXECUTED"
+    assert r["states"]["tta"] == "EXECUTED_PAST_ONLY_COMPONENT_GATED"
+    assert r["audit"]["tta_component_gate_uses_prior_outcomes_only"] is True
+    assert r["ablation"]["tta_component_gate"]["fallback_count"] >= 0
     assert r["states"]["prediction_output"] == "EXECUTED"
     assert r["states"]["prediction_trajectory"] == "EXECUTED_SCENARIO_PROJECTION"
     assert r["states"]["active_information"] == "MEASURED_PROXY_OOS"
@@ -57,6 +61,18 @@ def main():
     assert info["expected_value"]["metric"] == "logloss_gain"
     assert r["promotion"]["production"] == "HOLD"
     assert result_path.is_file() and result_path.stat().st_size > 0
+
+    # TTA component gate is causal: changing y[i] must not change the
+    # gate decision or weight at row i.
+    rng = np.random.default_rng(20260926)
+    base = np.clip(rng.uniform(0.2, 0.8, len(y)), 0.01, 0.99)
+    cand = np.clip(base + rng.normal(0.0, 0.08, len(y)), 0.01, 0.99)
+    _, gate0 = causal_tta_safety_gate(base, cand, y)
+    y_changed_for_gate = y.copy()
+    y_changed_for_gate[-1] = 1 - y_changed_for_gate[-1]
+    _, gate1 = causal_tta_safety_gate(base, cand, y_changed_for_gate)
+    assert np.isclose(gate0["candidate_use_rate"], gate1["candidate_use_rate"])
+    assert np.isclose(gate0["prior_logloss_delta"][-1], gate1["prior_logloss_delta"][-1])
 
     # Direct causal-router adversarial test:
     # changing y[i] must not change the routing weights at row i.
