@@ -800,6 +800,13 @@ def run_experiment(
     )
     selective = v2._selective_curve(y, full_safe, coverage_score)
     adaptive_compute = _adaptive_compute(coverage_score)
+    high_conf_mask = np.isfinite(full_safe) & (pred_score >= 0.80)
+    high_confidence = (
+        {**_safe_metrics(y[high_conf_mask], full_safe[high_conf_mask]),
+         "coverage": float(high_conf_mask.mean())}
+        if int(high_conf_mask.sum()) >= 20
+        else {"status": "INSUFFICIENT", "rows": int(high_conf_mask.sum())}
+    )
     robustness = _robustness_matrix(y, bp, full_safe, baseline)
     pareto = _pareto_frontier(ablation)
 
@@ -878,6 +885,20 @@ def run_experiment(
         },
         "future_failure": {
             "v2_summary": v2_eval.get("future_failure_predictor") if isinstance(v2_eval, dict) else None,
+            "self_monitor": {
+                target_name: [
+                    {
+                        "model": names[j],
+                        **_safe_metrics(
+                            np.asarray(failure_info["targets"][target_name][:, j])[np.isfinite(per_target[target_name][str(j)])],
+                            np.asarray(per_target[target_name][str(j)])[np.isfinite(per_target[target_name][str(j)])],
+                        ),
+                    }
+                    for j in range(len(names))
+                    if np.isfinite(per_target[target_name][str(j)]).sum() >= 20
+                ]
+                for target_name in failure_info.get("targets", {})
+            },
             "time_to_failure": ttf_monitor,
             "predicted_time_to_failure": {
                 "median_by_model": np.nanmedian(ttf_pred, axis=(0, 2)).tolist(),
@@ -940,7 +961,9 @@ def run_experiment(
             "brier": float(safe_metrics["brier"] - _safe_metrics(y, baseline)["brier"]),
             "ece": float(safe_metrics["ece"] - _safe_metrics(y, baseline)["ece"]),
         },
-        "high_confidence_accuracy": selective.get("curve", {}).get("70", {}).get("accuracy"),
+        "high_confidence": high_confidence,
+        "high_confidence_accuracy": high_confidence.get("accuracy") if isinstance(high_confidence, dict) else None,
+        "high_confidence_coverage": high_confidence.get("coverage") if isinstance(high_confidence, dict) else None,
         "multi_horizon_consistency": {
             "status": "UNAVAILABLE",
             "reason": "strict OOS interface exposes one binary prediction horizon per run",
