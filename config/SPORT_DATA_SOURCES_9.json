@@ -309,6 +309,27 @@
       "references": [
         "https://rugby.statbunker.com/"
       ]
+    },
+    "ufc_official_jsonapi": {
+      "current_web_evidence": "2026-09-27",
+      "status": "strong_research_candidate",
+      "note": "UFC.com exposes a public JSON:API surface documented by a current open-source sports-data integration. It includes event/card resources, athlete profiles, FightMetric career statistics and records, with fighter/event history reaching UFC 1. Treat official site retrieval as public but undocumented: rate-limit and snapshot every retrieval; do not infer historical availability from today's response.",
+      "references": [
+        "https://ufc.com/",
+        "https://github.com/DanielTomaro13/sportsdata-mcp",
+        "https://glama.ai/mcp/servers/DanielTomaro13/sportsdata-mcp/tools/ufc_jsonapi_index"
+      ]
+    },
+    "the_odds_api": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "The Odds API advertises a free Starter plan with 500 credits/month and live/upcoming odds across available sports. Current sports pages explicitly include basketball, boxing, MMA and extensive tennis; the free plan excludes historical odds, so use it as prediction-time market context or future-capture source, not as free historical backtest data.",
+      "references": [
+        "https://the-odds-api.com/",
+        "https://the-odds-api.com/sports-odds-data/sports-apis.html",
+        "https://the-odds-api.com/historical-odds-data/"
+      ],
+      "terms_note": "Free account/key required; no paid upgrade or credential creation is automated."
     }
   },
   "source_classes": {
@@ -434,6 +455,14 @@
         "integrated": false,
         "pit": "api_timestamp_required",
         "independence_family": "basketball_api_provider"
+      },
+      {
+        "id": "the_odds_api",
+        "name": "The Odds API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_time_snapshot_required"
       }
     ],
     "volleyball": [
@@ -600,6 +629,22 @@
         "integrated": false,
         "pit": "market_timestamp_archive_required",
         "independence_family": "prediction_market"
+      },
+      {
+        "id": "ufc_official_jsonapi",
+        "name": "UFC.com official JSON:API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_and_publication_provenance_required"
+      },
+      {
+        "id": "the_odds_api",
+        "name": "The Odds API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_time_snapshot_required"
       }
     ],
     "rizin": [
@@ -768,6 +813,14 @@
         "integrated": false,
         "pit": "market_timestamp_archive_required",
         "independence_family": "prediction_market"
+      },
+      {
+        "id": "the_odds_api",
+        "name": "The Odds API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_time_snapshot_required"
       }
     ],
     "f1": [
@@ -1026,6 +1079,14 @@
         "integrated": false,
         "pit": "market_timestamp_archive_required",
         "independence_family": "prediction_market"
+      },
+      {
+        "id": "the_odds_api",
+        "name": "The Odds API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_time_snapshot_required"
       }
     ]
   },
