@@ -357,7 +357,7 @@ def _route_variants(
         f_factor = np.exp(-2.0 * risk)
         d_factor = np.full(len(bp[i]), 0.70 + 0.30 * math.exp(-0.75 * d))
         specs = {
-            "A": quality,
+            "A": None,
             "B": quality * agreement,
             "C": quality * p_factor,
             "D": quality * f_factor,
@@ -369,6 +369,9 @@ def _route_variants(
             "J": quality * agreement * p_factor * f_factor * d_factor,
         }
         for key, raw in specs.items():
+            if key == "A":
+                variants[key][i] = float(np.dot(base_weights, bp[i]))
+                continue
             raw = np.clip(np.asarray(raw, dtype=float), EPS, None)
             raw /= raw.sum()
             smoothed = 0.75 * prev[key] + 0.25 * raw if i else raw
@@ -472,7 +475,14 @@ def _counterfactual_and_stress(
     if len(idx) < 30:
         return {"status": "INSUFFICIENT"}
     mean = bp[idx].mean(axis=1, keepdims=True)
-    stressed_bp = np.clip(mean + 1.50 * (bp[idx] - mean), EPS, 1 - EPS)
+    stressed_bp = bp[idx].copy()
+    row_ids = np.arange(len(idx))
+    top_model = np.argmax(np.abs(stressed_bp - mean), axis=1)
+    top_value = stressed_bp[row_ids, top_model]
+    direction = np.where(top_value >= mean[:, 0], 1.0, -1.0)
+    stressed_bp[row_ids, top_model] = np.clip(
+        top_value + 0.08 * direction, EPS, 1 - EPS
+    )
     counter_delta = np.abs(np.mean(stressed_bp, axis=1) - np.mean(bp[idx], axis=1))
     stress_variants = {}
     for name, p in (("disagreement_spike", np.mean(stressed_bp, axis=1)),
@@ -635,12 +645,27 @@ def run_experiment(
             names[j]: float(np.mean(finite_risk[:, j])) for j in range(len(names))
         },
         "mean_risk_by_target": {
-            target_name: float(np.nanmean(np.column_stack([per_target[target_name][str(j)][valid] for j in range(len(names))]))
-            )
+            target_name: float(np.nanmean(np.column_stack([
+                per_target[target_name][str(j)][valid] for j in range(len(names))
+            ])))
             for target_name in per_target
         },
+        "self_monitor": {},
         "meta_training_audit": failure_info["audits"],
     }
+    for target_name, matrix in failure_info["targets"].items():
+        monitored = []
+        for j in range(len(names)):
+            pred = per_target[target_name][str(j)]
+            mask = valid & np.isfinite(pred) & np.isfinite(matrix[:, j])
+            if int(mask.sum()) < 20:
+                continue
+            monitored.append({
+                "model": names[j],
+                "rows": int(mask.sum()),
+                **_metrics(matrix[mask].astype(int), pred[mask]),
+            })
+        failure_summary["self_monitor"][target_name] = monitored
     result = {
         "experiment_id": _sha({
             "version": VERSION, "sport": sport, "dataset_hash": dataset_hash,
