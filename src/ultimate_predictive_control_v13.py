@@ -95,6 +95,14 @@ def confidence_metrics(y: Sequence[int], p: Sequence[float], threshold: float = 
     }
 
 
+def prediction_stability(p: Sequence[float]) -> float:
+    """Higher is more stable; 1.0 means no row-to-row probability movement."""
+    pv = _p(p)
+    if len(pv) < 2:
+        return 1.0
+    return float(np.clip(1.0 - np.mean(np.abs(np.diff(pv))), 0.0, 1.0))
+
+
 def _rolling_mean(x: np.ndarray, window: int) -> np.ndarray:
     out = np.zeros(len(x), dtype=float)
     for i in range(len(x)):
@@ -818,14 +826,19 @@ def block_bootstrap_delta(
         idx = np.asarray(idx[: len(yv)])
         mb = metrics(yv[idx], b[idx])
         mn = metrics(yv[idx], n[idx])
+        mc_b = confidence_metrics(yv[idx], b[idx])
+        mc_n = confidence_metrics(yv[idx], n[idx])
         deltas.append([
             mn["accuracy"] - mb["accuracy"],
             mn["logloss"] - mb["logloss"],
             mn["brier"] - mb["brier"],
             mn["ece"] - mb["ece"],
+            (mc_n["coverage"] or 0.0) - (mc_b["coverage"] or 0.0),
+            (mc_n["high_confidence_accuracy"] or 0.0) - (mc_b["high_confidence_accuracy"] or 0.0),
+            prediction_stability(n[idx]) - prediction_stability(b[idx]),
         ])
     arr = np.asarray(deltas, dtype=float)
-    names = ["accuracy", "logloss", "brier", "ece"]
+    names = ["accuracy", "logloss", "brier", "ece", "coverage", "high_confidence_accuracy", "stability"]
     ci = {
         name: {
             "mean_delta": _safe_float(np.mean(arr[:, i])),
@@ -1129,6 +1142,8 @@ def run_v13_research(
     routed_metrics = metrics(yv, final_p)
     ensemble_confidence = confidence_metrics(yv, fixed)
     routed_confidence = confidence_metrics(yv, final_p)
+    ensemble_stability = prediction_stability(fixed)
+    routed_stability = prediction_stability(final_p)
     statistical_validation = block_bootstrap_delta(yv, fixed, final_p)
     ablation = {
         "baseline_fixed_ensemble": ensemble_metrics,
@@ -1254,6 +1269,12 @@ def run_v13_research(
                 "coverage": _safe_float((routed_confidence.get("coverage") or 0.0) - (ensemble_confidence.get("coverage") or 0.0)),
                 "high_confidence_accuracy": _safe_float((routed_confidence.get("high_confidence_accuracy") or 0.0) - (ensemble_confidence.get("high_confidence_accuracy") or 0.0)),
             },
+        },
+        "stability": {
+            "baseline": ensemble_stability,
+            "new": routed_stability,
+            "delta": _safe_float(routed_stability - ensemble_stability),
+            "interpretation": "higher_is_more_stable",
         },
         "disagreement": {
             "mean": _safe_float(np.mean(d["std"])),
