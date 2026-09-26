@@ -104,11 +104,18 @@ jobs:
   contract_audit:
     needs: reduced_e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - name: PIT and meta-leakage contract
         run: |
           set -euo pipefail
@@ -122,8 +129,20 @@ jobs:
           assert 'future_label_embargo' in src.lower()
           assert 'maximum_future_generalization_v6 as innovative_v6' in strict
           assert '"promotion": "HOLD"' in src
+          assert 'def _failure_detection_metrics' in src
+          assert 'def _regime_transition_metrics' in src
+          assert 'previous_weights' in src
+          assert 'minimum model floor' in src
           print("PIT_META_LEAKAGE_CONTRACT=PASS")
           PY
+      - name: Independent leakage audit regression
+        run: PYTHONPATH=. python scripts/test_independent_leakage_audit.py
+      - name: Feature temporal invariance regression
+        run: PYTHONPATH=. python scripts/test_feature_temporal_invariance.py
+      - name: Frozen holdout regression
+        run: PYTHONPATH=. python scripts/test_research_cycle_strict_holdout.py
+      - name: Production invariants
+        run: PYTHONPATH=. python src/production_invariants.py
       - name: Source artifact schema audit
         run: |
           set -euo pipefail
