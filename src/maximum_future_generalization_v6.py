@@ -676,6 +676,16 @@ def run_experiment(
     if not np.isfinite(baseline_w).all() or baseline_w.sum() <= 0:
         baseline_w = np.full(len(names), 1.0 / len(names))
     baseline_w /= baseline_w.sum()
+    # Champion/Challenger routing prior: preserve exact incumbent baseline for
+    # comparison, while reserving a small PIT-safe prior for research challengers.
+    routing_prior_w = baseline_w.copy()
+    zero_idx = np.flatnonzero(routing_prior_w <= 0.0)
+    if len(zero_idx):
+        reserve = min(0.08, 0.02 * len(zero_idx))
+        positive = routing_prior_w > 0.0
+        routing_prior_w[zero_idx] = reserve / max(1, len(zero_idx))
+        routing_prior_w[positive] *= max(0.0, 1.0 - reserve)
+    routing_prior_w /= routing_prior_w.sum()
     baseline = bp @ baseline_w
 
     meta_features, _, _ = v2._meta_features(x, bp)
@@ -711,7 +721,7 @@ def run_experiment(
     )
     corr = np.asarray(dis_stats["pairwise_error_correlation"], dtype=float)
     row_diversity = np.vstack([
-        _rolling_diversity_weights(bp, y, i, baseline_w)
+        _rolling_diversity_weights(bp, y, i, routing_prior_w)
         for i in range(len(y))
     ])
 
@@ -740,7 +750,7 @@ def run_experiment(
     weight_changes = []
     weight_entropy = []
     weight_concentration = []
-    previous_weights = baseline_w.copy()
+    previous_weights = routing_prior_w.copy()
     age_scale = max(30.0, float(np.quantile(model_age, 0.75)) if len(model_age) else 30.0)
     full = np.zeros(len(y))
     for i in range(len(y)):
@@ -759,7 +769,7 @@ def run_experiment(
         raw_w *= ttf_factor * shift_factor * transition_factor
         raw_w *= retrieval_factor * uncertainty_factor * flip_factor * age_factor * latent_factor
         if not np.isfinite(raw_w).all() or raw_w.sum() <= 0:
-            raw_w = baseline_w.copy()
+            raw_w = routing_prior_w.copy()
         raw_w /= raw_w.sum()
         smoothed = 0.75 * previous_weights + 0.25 * raw_w
         floor = min(0.02 / len(names), 0.05)
@@ -870,6 +880,7 @@ def run_experiment(
             "mean_concentration": float(np.mean(weight_concentration)) if weight_concentration else 0.0,
             "collapse_rate": float(np.mean(np.asarray(weight_concentration) >= 0.95)) if weight_concentration else 0.0,
             "policy": "0.75 previous + 0.25 current raw weight smoothing; minimum model floor; no hard switching",
+            "routing_prior": routing_prior_w.tolist(),
         },
         "feature_reliability": {
             k: v for k, v in reliability.items() if not isinstance(v, np.ndarray)
@@ -981,8 +992,9 @@ def run_experiment(
             "future_labels_as_features": False,
             "frozen_holdout_used_for_fitting": False,
             "retrieval_uses_current_or_future_rows": False,
+            "routing_prior_is_not_used_as_baseline_metric": True,
             "meta_models_crossfit_chronologically": True,
-            "ttf_label_used_only_as_monitoring": True,
+            "ttf_labels_are_targets_only": True,
         },
         "artifact_integrity": {
             "schema_version": VERSION,
