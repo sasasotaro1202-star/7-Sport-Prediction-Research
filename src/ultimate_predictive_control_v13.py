@@ -903,6 +903,56 @@ def build_prediction_ledger(
     return ledger
 
 
+
+def run_v13_research_from_oof(
+    sport: str,
+    oof_predictions: Mapping[str, Sequence[float]],
+    oof_targets: Sequence[int],
+    cutoff_utc: str = "unknown",
+    artifact_path: str = "results/research/ultimate_v13.json",
+    data_quality: Sequence[float] | None = None,
+) -> Dict:
+    """Run v13 directly from chronological OOF predictions.
+
+    The caller must provide predictions produced by a prior-only chronological
+    OOS pipeline. This bridge performs alignment/shape checks and never fits
+    anything against the frozen holdout.
+    """
+    yv = np.asarray(oof_targets, dtype=int)
+    if yv.ndim != 1 or len(yv) == 0:
+        return {
+            "sport": sport,
+            "status": "BLOCKED",
+            "mode": "RESEARCH_ONLY",
+            "reason": "invalid_oof_targets",
+        }
+    aligned = {}
+    for name, values in oof_predictions.items():
+        arr = np.asarray(values, dtype=float)
+        if arr.ndim != 1 or len(arr) != len(yv) or not np.all(np.isfinite(arr)):
+            return {
+                "sport": sport,
+                "status": "BLOCKED",
+                "mode": "RESEARCH_ONLY",
+                "reason": f"invalid_oof_prediction_alignment:{name}",
+            }
+        aligned[str(name)] = arr
+    if len(aligned) < 2:
+        return {
+            "sport": sport,
+            "status": "BLOCKED",
+            "mode": "RESEARCH_ONLY",
+            "reason": "need_at_least_two_oof_models",
+        }
+    return run_v13_research(
+        sport=sport,
+        model_predictions=aligned,
+        y=yv,
+        cutoff_utc=cutoff_utc,
+        data_quality=data_quality,
+        artifact_path=artifact_path,
+    )
+
 def run_v13_research(
     sport: str,
     model_predictions: Mapping[str, Sequence[float]],
