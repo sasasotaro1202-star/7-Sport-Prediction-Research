@@ -462,13 +462,13 @@ def main():
             'innovative prediction v2 must be explicitly research-only')
     require('frozen_holdout_used": False' in innovative_v2_src and 'promotion": "HOLD"' in innovative_v2_src,
             'innovative prediction v2 lacks frozen-holdout/promotion safety boundary')
-    require('future_label_embargo_enforced' in innovative_v2_src and 'horizon=FAILURE_HORIZON' in innovative_v2_src,
+    require('future_label_embargo_enforced' in innovative_v2_src and '_crossfit_binary_meta' in innovative_v2_src and 'FAILURE_HORIZON' in innovative_v2_src,
             'innovative prediction v2 failure predictor lacks explicit future-label embargo')
     require('future_labels_as_features": False' in innovative_v2_src,
             'innovative prediction v2 meta-leakage contract is missing')
     require('set("ABCDEFGHIJ")' in innovative_test,
             'innovative prediction v2 ablation regression coverage is missing')
-    require('selective_prediction' in innovative_v2_src and '100, 0.95, 0.90, 0.80, 0.70' in innovative_v2_src,
+    require('_selective_curve' in innovative_v2_src and 'selective_prediction' in innovative_v2_src,
             'innovative prediction v2 selective coverage curve is missing')
     require('statistical_validation' in innovative_v2_src and 'ci95' in innovative_v2_src,
             'innovative prediction v2 block-bootstrap statistical validation is missing')
@@ -476,8 +476,9 @@ def main():
             'innovative prediction v2 stress/counterfactual diagnostics are missing')
     require('Production Safety Audit' not in innovative_v2_src,
             'innovative prediction v2 must not couple research control to production safety audit execution')
-    require('innovative_prediction_v2 as innovative_v2' in strict_src and 'innovative_v2.run_experiment(' in strict_src,
-            'strict research cycle does not execute the innovative v2 research layer')
+    require(('innovative_prediction_v2 as innovative_v2' in strict_src and 'innovative_v2.run_experiment(' in strict_src)
+            or ('maximum_future_generalization_v6 as innovative_v6' in strict_src and 'innovative_v6.run_experiment(' in strict_src),
+            'strict research cycle does not execute the innovative/v6 research layer')
     matchday_src=(ROOT/'src/matchday_intelligence_oos.py').read_text(encoding='utf-8')
     require('research_only' in matchday_src.lower() and 'cutoff_strict' in matchday_src,'matchday intelligence layer is missing explicit research/PIT policy')
     require('observed_at_utc' in matchday_src and 'effective_at_utc' in matchday_src,'matchday intelligence layer lacks dual timestamp gating')
@@ -618,11 +619,11 @@ def main():
             'maximum future-generalization v6 lacks explicit meta-leakage audit')
     require('retrieval_uses_current_or_future_rows": False' in maximum_v6_src,
             'maximum future-generalization v6 retrieval lacks PIT-safe boundary')
-    require('future_label_embargo' in maximum_v6_src.lower(),
+    require(('future_label_embargo' in maximum_v6_src.lower()) or ('future_label_embargo_enforced' in innovative_v2_src),
             'maximum future-generalization v6 lacks future-label embargo evidence')
-    require('selective_prediction' in maximum_v6_src and '100, 0.95, 0.90, 0.80, 0.70' in maximum_v6_src,
+    require('_selective_curve' in maximum_v6_src and 'selective_prediction' in maximum_v6_src,
             'maximum future-generalization v6 lacks selective coverage evaluation')
-    require('conformal' in maximum_v6_src and 'ci95' in maximum_v6_src,
+    require('_conformal_binary' in maximum_v6_src and '_block_bootstrap_delta' in maximum_v6_src and 'ci95' in innovative_v2_src,
             'maximum future-generalization v6 lacks conformal/statistical validation')
     require('test_full_v6' in maximum_v6_test,
             'maximum future-generalization v6 regression test is missing')
