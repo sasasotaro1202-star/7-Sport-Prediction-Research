@@ -10,8 +10,8 @@
   "evidence": {
     "thesportsdb": {
       "current_web_evidence": "2026-09-27",
-      "status": "strong_research_candidate",
-      "note": "Free JSON API. Current public database pages show all nine target sports/competition families. Best suited to cross-sport event/participant/league/venue/standings enrichment rather than Opta-depth event statistics.",
+      "status": "conditional_research_candidate",
+      "note": "Free JSON API. Current public database pages show all nine target sports/competition families. Best suited to cross-sport event/participant/league/venue/standings enrichment rather than Opta-depth event statistics. A current independent 2026 implementation reports silently truncated free-tier responses (for example, partial league tables) in some cases; therefore every response must be completeness-checked against expected counts or independent sources before feature use.",
       "references": [
         "https://www.thesportsdb.com/api.php",
         "https://www.thesportsdb.com/sport.php",
@@ -379,6 +379,32 @@
       "references": [
         "https://rizin.club/"
       ]
+    },
+    "wta_official": {
+      "current_web_evidence": "2026-09-27",
+      "status": "strong_research_candidate",
+      "note": "Official WTA public Spring REST API, no auth/key/Origin-Referer gate. Exposes rankings, player catalogue/profile/match history, tournaments and tournament-edition matches/entry lists. Current public implementation reports live CI probes. Time-sensitive fields must still be snapshotted for PIT replay.",
+      "references": [
+        "https://api.wtatennis.com/tennis/players/ranked",
+        "https://github.com/DanielTomaro13/sportsdata-mcp/blob/main/documentation/WTA.md"
+      ]
+    },
+    "euroleague_official": {
+      "current_web_evidence": "2026-09-27",
+      "status": "strong_research_candidate",
+      "note": "Official EuroLeague live API at api-live.euroleague.net/v2. No key/no signup. Provides seasons, clubs, people, rounds, games and per-game box scores. Historical depth must be established from returned seasons; standings/statistics/PBP are on separate backends.",
+      "references": [
+        "https://api-live.euroleague.net/v2",
+        "https://github.com/DanielTomaro13/sportsdata-mcp/blob/main/documentation/EuroLeague.md"
+      ]
+    },
+    "sporting_events_free": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Free CSV/JSON fixture datasets with no API key or signup, automatically regenerated, covering basketball, tennis, rugby union, motorsport/F1, MMA, boxing and esports. Commercial use is allowed with attribution. Useful mainly as schedule/context redundancy, not deep player-event statistics.",
+      "references": [
+        "https://sporting-events.org/data/"
+      ]
     }
   },
   "source_classes": {
@@ -512,6 +538,22 @@
         "free": true,
         "integrated": false,
         "pit": "prediction_time_snapshot_required"
+      },
+      {
+        "id": "euroleague_official",
+        "name": "EuroLeague official API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required"
       }
     ],
     "volleyball": [
@@ -702,6 +744,14 @@
         "free": true,
         "integrated": false,
         "pit": "snapshot_and_publication_provenance_required"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required"
       }
     ],
     "rizin": [
@@ -821,6 +871,14 @@
         "integrated": false,
         "pit": "market_timestamp_archive_required",
         "independence_family": "prediction_market"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required"
       }
     ],
     "tennis": [
@@ -918,6 +976,22 @@
         "free": true,
         "integrated": false,
         "pit": "git_snapshot_required"
+      },
+      {
+        "id": "wta_official",
+        "name": "WTA official public API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required"
       }
     ],
     "f1": [
@@ -1027,6 +1101,14 @@
         "free": true,
         "integrated": false,
         "pit": "fetch_snapshot_time_required"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required"
       }
     ],
     "rugby": [
@@ -1119,6 +1201,14 @@
         "integrated": false,
         "pit": "page_snapshot_required",
         "independence_family": "public_stats_web"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required"
       }
     ],
     "boxing": [
@@ -1192,6 +1282,14 @@
         "free": true,
         "integrated": false,
         "pit": "prediction_time_snapshot_required"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required"
       }
     ]
   },
