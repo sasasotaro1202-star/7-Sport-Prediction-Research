@@ -382,5 +382,6 @@ def run_control_layer(
             "timestamp_note":"strict OOS controller interface exposes event ids but not authoritative event/publication/available_at timestamps",
         },
         "model_portfolio":{"base_model_count":int(bp.shape[1]),"model_names":models,"candidate_strategies":list(pool),"selection_level":"STRATEGY"},
+        "prediction_ledger_summary":{"rows":len(ledger),"wrong_rows":int(wrong.sum()),"successful_rows":int((~wrong).sum()),"selected_metrics":selected_metrics,"baseline_metrics":baseline_metrics},
         "meta_monitor":{"router_failure_guard":"PASS","policy_selector_status":"EVALUATED","future_trajectory_status":"PASS","active_information_status":"RESEARCH_PROXY_NO_EXTERNAL_CALL","self_failure_monitoring":"POST_OUTCOME_ONLY"},
     }
