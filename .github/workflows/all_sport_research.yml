@@ -6,6 +6,7 @@ on:
       - ".github/workflows/all_sport_research.yml"
       - "src/ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
+      - "scripts/test_ultimate_v13_oos_bridge.py"
   workflow_dispatch:
   schedule:
     - cron: "11 */12 * * *"
@@ -164,6 +165,7 @@ jobs:
           python scripts/test_case_risk_oos.py
           python scripts/test_ultimate_predictive_control.py
           python scripts/test_ultimate_predictive_control_v13.py
+          python scripts/test_ultimate_v13_oos_bridge.py
           test "${ULTIMATE_CONTROL_VERSION}" = "v13"
 
       - name: Upload sport research evidence
@@ -172,6 +174,8 @@ jobs:
           name: all-sport-research-${{ matrix.sport }}-${{ github.run_id }}
           path: |
             results/research/${{ matrix.sport }}.json
+            results/research/${{ matrix.sport }}_ultimate_intelligence.json
+            results/research/${{ matrix.sport }}_ultimate_v13.json
             results/*.json
             results/v45/*.json
           if-no-files-found: warn
