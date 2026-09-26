@@ -60,8 +60,8 @@ PROBES = {
     },
     "statbunker_rugby": {
         "rugby_home": "https://rugby.statbunker.com/"
-    }
-,    "wta_official": {
+    },
+    "wta_official": {
         "wta_rankings": "https://api.wtatennis.com/tennis/players/ranked?type=rankSingles&metric=singles&pageSize=1"
     },
     "euroleague_official": {
@@ -153,9 +153,17 @@ def main() -> int:
         encoding="utf-8",
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    # The probe itself is diagnostic. Source outage must be visible but must not
-    # be converted into a false-success CI result.
-    return 0 if all(source_data["healthy_count"] > 0 for source_data in report["sources"].values()) else 2
+    healthy = all(source_data["healthy_count"] > 0 for source_data in report["sources"].values())
+    report["overall_status"] = "PASS" if healthy else "PARTIAL_FAILURE"
+    (OUT / "cross_sport.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    if not healthy:
+        print("CROSS_SPORT_PROBE_RESULT=PARTIAL_FAILURE", flush=True)
+        return 2
+    print("CROSS_SPORT_PROBE_RESULT=PASS", flush=True)
+    return 0
 
 if __name__ == "__main__":
     raise SystemExit(main())
