@@ -146,6 +146,27 @@ jobs:
           PY
       - name: Router incumbent baseline alignment regression
         run: PYTHONPATH=. python scripts/test_router_baseline_alignment.py
+
+      - name: ULTIMATE v13 causal hardening E2E
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/test_ultimate_predictive_control_v13.py
+          PYTHONPATH=. python scripts/run_ultimate_predictive_control_v13_e2e.py
+          test -s results/research/ultimate_v13_e2e.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/research/ultimate_v13_e2e.json")
+          x=json.loads(p.read_text(encoding="utf-8"))
+          assert x["status"] == "EVALUATED"
+          assert x["audit"]["PIT"].startswith("PASS")
+          assert x["audit"]["meta_leakage"] == "PASS"
+          assert x["promotion"]["production"] == "HOLD"
+          print("ULTIMATE_V13_E2E_ARTIFACT=PASS")
+          print(f"ULTIMATE_V13_LOGLOSS_DELTA={x['delta']['logloss']:+.6f}")
+          print(f"ULTIMATE_V13_BRIER_DELTA={x['delta']['brier']:+.6f}")
+          print(f"ULTIMATE_V13_ECE_DELTA={x['delta']['ece']:+.6f}")
+          PY
       - name: Uncertainty-aware router research-only regression
         run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
       - name: Selective case-risk research-only regression
