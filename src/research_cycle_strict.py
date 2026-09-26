@@ -930,7 +930,7 @@ def train(s):
      # Maximum Future-Generalization v6 controller remains research-only: it consumes the already-generated
      # chronological OOF predictions and never touches production artifacts.
      try:
-      innovative_v2_eval = innovative_v6.run_experiment(
+      innovative_v6_eval = innovative_v6.run_experiment(
        sport=s,
        x_train=X,
        y_train=y,
@@ -941,10 +941,9 @@ def train(s):
        dataset_hash=h([(str(r[0]), str(r[1]), int(r[2])) for r in train_rows]),
        feature_version='strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features',
        feature_names=fs,
-       metric=base.metric,
       )
      except Exception as exc:
-      innovative_v2_eval = {
+      innovative_v6_eval = {
        'sport':s,
        'status':'RESEARCH_ERROR',
        'reason':f'innovative_v6_exception:{type(exc).__name__}:{exc}',
