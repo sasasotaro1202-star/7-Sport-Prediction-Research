@@ -158,7 +158,7 @@ jobs:
     # DEGRADATION states; cancellation must never be treated as usable coverage.
     if: needs.collect.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 225
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -335,7 +335,7 @@ jobs:
       - name: Research with frozen holdout
         run: |
           set -euo pipefail
-          timeout --signal=TERM --kill-after=30s 18000s python -m src.research_cycle_strict
+          timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict
 
       # Preserve partial strict-research outputs even when the research step times out.
       # These are diagnostics only; they never publish model artifacts.
