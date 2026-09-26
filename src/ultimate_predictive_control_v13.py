@@ -1004,10 +1004,26 @@ def run_v13_research(
 
     failure = future_failure_oos(dict(model_predictions), yv, context[:, :4], horizon=5)
     ttf = time_to_failure_oos(dict(model_predictions), yv, context[:, :4])
-    # Never backfill a full-sample future-failure summary into historical
-    # routing rows. Doing so would be retrospective meta-leakage.
-    failure_risks = {name: np.zeros(len(yv), dtype=float) for name in names}
-    routed, route_weights = causal_router(dict(model_predictions), yv, d["std"], failure_risk=None)
+
+    # Only audited chronological OOS failure-risk predictions may influence
+    # routing. Missing/unscored rows remain neutral rather than being inferred.
+    failure_risks = {}
+    for name in names:
+        entry = failure.get("models", {}).get(name, {})
+        raw_risk = np.asarray(entry.get("risk_predictions") or [], dtype=float)
+        if raw_risk.shape != (len(yv),):
+            raw_risk = np.zeros(len(yv), dtype=float)
+        raw_risk = np.nan_to_num(raw_risk, nan=0.0, posinf=1.0, neginf=0.0)
+        failure_risks[name] = np.clip(raw_risk, 0.0, 1.0)
+
+    # Authoritative v13 route. causal_router uses loss/risk only through i-1,
+    # so the current target cannot influence the current routing weight.
+    routed, route_weights = causal_router(
+        dict(model_predictions),
+        yv,
+        d["std"],
+        failure_risk=failure_risks,
+    )
 
     retrieval_vec = np.column_stack([
         fixed,
@@ -1076,21 +1092,6 @@ def run_v13_research(
     latest_format = str(combined["output_format"][-1])
     latest_predictability = float(predfeat["predictability"][-1])
     latest_disagreement = float(d["std"][-1])
-    failure_risks = {}
-    for name in names:
-        entry = failure.get("models", {}).get(name, {})
-        raw_risk = np.asarray(entry.get("risk_predictions") or [], dtype=float)
-        if raw_risk.shape != (len(yv),):
-            raw_risk = np.zeros(len(yv), dtype=float)
-        raw_risk = np.nan_to_num(raw_risk, nan=0.0, posinf=1.0, neginf=0.0)
-        failure_risks[name] = np.clip(raw_risk, 0.0, 1.0)
-
-    routed, route_weights = causal_router(
-        dict(model_predictions),
-        yv,
-        d["std"],
-        failure_risk=failure_risks,
-    )
 
     reported_failure = [
         float(v.get("risk_latest"))
