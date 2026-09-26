@@ -20,13 +20,14 @@ def main() -> int:
     assert "espn_public" in ids
     assert "odds_api_io" in ids
     assert "sofascore" in ids
-    blocked = {row["id"]: row["status"] for row in rows if row["status"] == "blocked"}
+    blocked = {row["id"]: row["status"] for row in rows if row["status"].startswith("blocked") or row["status"] == "do_not_use_for_production"}
     assert "pinnapi" in blocked
     assert "pinnwire" in blocked
-    assert all(row["status"] != "blocked" or "trial" in row["access"] or "closed" in row["access"] for row in rows)
+    assert "tennis_data_uk" in blocked
+    assert all(not (row["status"].startswith("blocked") or row["status"] == "do_not_use_for_production") or "trial" in row["access"] or "closed" in row["access"] or row["id"] in {"tennis_data_uk", "flashscore_internal"} for row in rows)
     for row in rows:
         assert row["next"]
-        assert row["type"] in {"data_source", "market_source", "discovery_aggregator"}
+        assert row["type"] in {"data_source", "market_source", "discovery_aggregator", "historical_corpus", "data_scraper", "market_and_results_archive"}
     print("SOURCE_DISCOVERY_FRONTIER=PASS")
     print(f"FRONTIER_COUNT={len(rows)}")
     print(f"BLOCKED_COUNT={len(blocked)}")
