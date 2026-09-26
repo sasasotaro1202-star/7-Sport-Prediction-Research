@@ -353,6 +353,7 @@ def future_failure_oos(
                 "rows": int(valid.sum()),
                 "metrics": metrics(y_eval, risk_pred[valid]),
                 "risk_latest": _safe_float(risk_pred[idx[-1]]),
+                "risk_predictions": [_safe_float(v) for v in risk_pred],
                 "folds": folds,
                 "failure_definition": "future_window_logloss_above_training_prefix_quantile",
                 "training_target_pit": "PASS",
@@ -1075,6 +1076,22 @@ def run_v13_research(
     latest_format = str(combined["output_format"][-1])
     latest_predictability = float(predfeat["predictability"][-1])
     latest_disagreement = float(d["std"][-1])
+    failure_risks = {}
+    for name in names:
+        entry = failure.get("models", {}).get(name, {})
+        raw_risk = np.asarray(entry.get("risk_predictions") or [], dtype=float)
+        if raw_risk.shape != (len(yv),):
+            raw_risk = np.zeros(len(yv), dtype=float)
+        raw_risk = np.nan_to_num(raw_risk, nan=0.0, posinf=1.0, neginf=0.0)
+        failure_risks[name] = np.clip(raw_risk, 0.0, 1.0)
+
+    routed, route_weights = causal_router(
+        dict(model_predictions),
+        yv,
+        d["std"],
+        failure_risk=failure_risks,
+    )
+
     reported_failure = [
         float(v.get("risk_latest"))
         for v in failure.get("models", {}).values()
