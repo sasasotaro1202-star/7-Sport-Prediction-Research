@@ -354,6 +354,23 @@
       "references": [
         "https://github.com/TennisVisuals/tennis-match-data"
       ]
+    },
+    "fightforensics": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Fight Forensics currently exposes a free read-only MMA JSON API covering large cross-promotion fight history, fighters, events, promotions and venues. API keys are issued for free after repeated bulk-scrape prevention and visible attribution. It can provide cross-promotion fighter-history/entity features; availability snapshots and exact RIZIN coverage must still be verified before use.",
+      "references": [
+        "https://fightforensics.com/",
+        "https://fightforensics.com/api/v1"
+      ]
+    },
+    "lights_out_f1_schedule": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Lights Out provides a free, no-registration 2026 F1 schedule/results JSON feed under CC BY 4.0. It is intentionally narrow and is useful as an independent current-season calendar/session/result redundancy layer, not as a telemetry replacement.",
+      "references": [
+        "https://whenstherace.com/f1-schedule-json/"
+      ]
     }
   },
   "source_classes": {
@@ -669,6 +686,14 @@
         "free": true,
         "integrated": false,
         "pit": "prediction_time_snapshot_required"
+      },
+      {
+        "id": "fightforensics",
+        "name": "Fight Forensics MMA API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_and_publication_provenance_required"
       }
     ],
     "rizin": [
@@ -716,6 +741,14 @@
         "integrated": false,
         "pit": "market_timestamp_archive_required",
         "independence_family": "prediction_market"
+      },
+      {
+        "id": "fightforensics",
+        "name": "Fight Forensics MMA API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "exact_rizin_coverage_and_snapshot_required"
       }
     ],
     "valorant": [
@@ -970,6 +1003,14 @@
         "integrated": false,
         "pit": "market_timestamp_archive_required",
         "independence_family": "prediction_market"
+      },
+      {
+        "id": "lights_out_f1_schedule",
+        "name": "Lights Out F1 schedule/results JSON",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "fetch_snapshot_time_required"
       }
     ],
     "rugby": [
