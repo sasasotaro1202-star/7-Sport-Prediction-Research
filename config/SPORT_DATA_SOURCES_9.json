@@ -413,6 +413,16 @@
       "references": [
         "https://github.com/DanielTomaro13/sportsdata-mcp"
       ]
+    },
+    "grid_valorant_open_access": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "GRID Open Access offers free official esports data and an esports data API for qualifying non-commercial users including researchers, students and independent developers. GRID is Riot's official VALORANT data distribution partner; official Riot pages state community live/fixture data is currently distributed via GRID. Access requires application/account and is not auto-created.",
+      "references": [
+        "https://grid.gg/open-access/",
+        "https://riotesportsdata.com/en-us/valorant/",
+        "https://grid.gg/get-valorant/"
+      ]
     }
   },
   "source_classes": {
@@ -897,6 +907,15 @@
         "integrated": false,
         "pit": "dataset_regeneration_snapshot_required",
         "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "grid_valorant_open_access",
+        "name": "GRID VALORANT Open Access",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "historical_snapshot_and_access_terms_required",
+        "independence_family": "official_esports_distributor"
       }
     ],
     "tennis": [
