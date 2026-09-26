@@ -1278,6 +1278,7 @@ def run_v13_research(
         combined["output_format"],
         route_weights,
     )
+    active_info = active_information_value_oos(dict(model_predictions), yv)
 
     trajectory = prediction_trajectory(
         float(final_p[-1]),
@@ -1345,7 +1346,7 @@ def run_v13_research(
         "prediction_output": "EXECUTED",
         "prediction_safety_gate": "EXECUTED_PAST_ONLY",
         "prediction_trajectory": "EXECUTED_SCENARIO_PROJECTION",
-        "active_information": "DESIGNED_PROXY_ONLY",
+        "active_information": "MEASURED_PROXY_OOS" if active_info.get("status") == "EVALUATED" else active_info.get("status", "INSUFFICIENT_OOS"),
         "selective_prediction": "EXECUTED",
         "calibration": "EVALUATED_BASE_METRICS",
         "robustness": robust.get("status", "INSUFFICIENT"),
@@ -1465,11 +1466,9 @@ def run_v13_research(
             "policy": "past_only_logloss_gate",
         },
         "robustness": robust,
-        "active_information": {
-            "status": "PROXY_ONLY",
-            "expected_value": "UNMEASURED",
-            "next_candidate": "sport_specific_data_group_ablation",
-            "note": "True external information acquisition requires source-specific PIT-safe adapters and incremental OOS measurement.",
+        "active_information": active_info | {
+            "external_acquisition": False,
+            "note": "Measured proxy only: existing OOF model channels are treated as information sources. True external acquisition still requires sport-specific PIT-safe adapters and incremental OOS measurement.",
         },
         "forecast_contract": contract,
         "audit": audit,
