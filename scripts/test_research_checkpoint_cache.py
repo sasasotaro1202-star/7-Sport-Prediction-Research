@@ -18,10 +18,13 @@ def main() -> int:
     research_key = "nine-sport-research-db-v4-${{ matrix.sport }}-"
     pit_key = "nine-sport-target-db-v4-${{ matrix.sport }}-pit-"
     target_key = "nine-sport-target-db-v4-${{ matrix.sport }}-"
-    assert research_key in restore
-    assert pit_key in restore
-    assert target_key in restore
-    assert restore.index(research_key) < restore.index(pit_key) < restore.index(target_key), (
+    restore_lines = [line.strip() for line in restore.splitlines() if line.strip()]
+    restore_keys_start = restore_lines.index("restore-keys: |") + 1
+    restore_keys = restore_lines[restore_keys_start:]
+    assert research_key in restore_keys
+    assert pit_key in restore_keys
+    assert target_key in restore_keys
+    assert restore_keys.index(research_key) < restore_keys.index(pit_key) < restore_keys.index(target_key), (
         "persistent research checkpoint must outrank production cache fallbacks"
     )
 
