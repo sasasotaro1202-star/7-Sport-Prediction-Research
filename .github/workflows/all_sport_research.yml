@@ -170,6 +170,14 @@ jobs:
           else
             echo "V13_ARTIFACT_NOT_REQUIRED status=$status"
           fi
+      - name: Report actual sport OOS/v13 metrics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c 'import json; from pathlib import Path; sport="${{ matrix.sport }}"; r=json.loads(Path(f"results/research/{sport}.json").read_text(encoding="utf-8")); print(f"ACTUAL_SPORT={sport} STATUS={r.get(\"status\")}")'
+          python -c 'import json; from pathlib import Path; sport="${{ matrix.sport }}"; p=Path(f"results/research/{sport}_ultimate_v13.json"); r=json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}; d=r.get("delta") or {}; cm=(r.get("confidence_metrics") or {}).get("delta") or {}; st=(r.get("stability") or {}).get("delta"); print(f"ACTUAL_V13_METRICS sport={sport} rows={r.get(\"oos_rows\")} accuracy_delta={d.get(\"accuracy\")} logloss_delta={d.get(\"logloss\")} brier_delta={d.get(\"brier\")} ece_delta={d.get(\"ece\")} coverage_delta={cm.get(\"coverage\")} high_confidence_accuracy_delta={cm.get(\"high_confidence_accuracy\")} stability_delta={st}")'
+          python -c 'import json; from pathlib import Path; sport="${{ matrix.sport }}"; p=Path(f"results/research/{sport}_ultimate_v13.json"); r=json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}; ai=r.get("active_information") or {}; ev=ai.get("expected_value") or {}; print(f"ACTIVE_INFO_ACTUAL sport={sport} status={ai.get(\"status\")} source={ai.get(\"recommended_next_source\")} mean_logloss_gain={ai.get(\"recommended_source_mean_logloss_gain\")} stable={ev.get(\"stable_positive_gain\")}")'
+
       - name: Compile and unit regression
         run: |
           set -euo pipefail
