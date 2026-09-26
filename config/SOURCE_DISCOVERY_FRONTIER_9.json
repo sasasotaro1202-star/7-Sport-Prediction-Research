@@ -511,6 +511,16 @@
       "access": "public_csv_json_no_key_attribution",
       "status": "research_candidate",
       "next": "pin each regeneration snapshot -> verify covered events -> duplicate/overlap audit -> use only as schedule/context unless deeper fields are validated"
+    },
+    {
+      "id": "grid_valorant_open_access",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "valorant"
+      ],
+      "access": "free_for_qualifying_noncommercial_access_requires_application",
+      "status": "research_candidate",
+      "next": "do not auto-apply; if manually authorized, probe official historical/live series API -> snapshot timestamps -> PIT/OOS -> compare with VLR-derived corpus"
     }
   ]
 }
