@@ -17,6 +17,10 @@ from src.maximum_future_generalization_v6 import (
     _time_to_failure_predictor,
     _latent_state_proxy,
     _robustness_matrix,
+    _source_reliability_proxy,
+    _multiple_testing_control,
+    _period_regime_summary,
+    _failure_detection_metrics,
     run_experiment,
 )
 
@@ -96,6 +100,22 @@ class MaximumFutureGeneralizationV6Tests(unittest.TestCase):
             "Feature_Drift", "Prediction_Shock", "Model_Failure",
         }
         self.assertEqual(set(robust["scenarios"]), expected)
+
+    def test_v6_validation_layers_are_defined(self):
+        src_proxy = _source_reliability_proxy(
+            self.x,
+            [f"f{i}" for i in range(self.x.shape[1])],
+        )
+        self.assertIn(src_proxy["status"], {"INPUT_UNAVAILABLE", "PROXY"})
+        baseline = self.bp @ np.array([0.5, 0.3, 0.2])
+        ablation = {"A": baseline, "B": np.clip(0.95 * baseline + 0.05 * self.bp[:, 0], 0.01, 0.99)}
+        mt = _multiple_testing_control(self.y, baseline, ablation)
+        self.assertEqual(mt["status"], "EVALUATED")
+        period = _period_regime_summary(self.y, baseline, np.zeros((self.n, 4)))
+        self.assertIn("recent_oos_accuracy", period)
+        risk = np.full_like(self.bp, 0.5)
+        det = _failure_detection_metrics(self.bp, self.y, risk, horizon=30)
+        self.assertEqual(det["status"], "EVALUATED")
 
     def test_full_v6_is_research_only(self):
         result = run_experiment(
