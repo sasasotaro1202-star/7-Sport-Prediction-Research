@@ -14,6 +14,9 @@ from src.maximum_future_generalization_v6 import (
     _conformal_binary,
     _adaptive_compute,
     _rolling_diversity_weights,
+    _time_to_failure_predictor,
+    _latent_state_proxy,
+    _robustness_matrix,
     run_experiment,
 )
 
@@ -74,6 +77,25 @@ class MaximumFutureGeneralizationV6Tests(unittest.TestCase):
         w = _rolling_diversity_weights(self.bp, self.y, 200, np.array([0.5, 0.3, 0.2]))
         self.assertTrue(np.isclose(w.sum(), 1.0))
         self.assertTrue((w >= 0).all())
+
+    def test_time_to_failure_and_latent_state_are_prequential(self):
+        features = np.column_stack([self.x, self.bp])
+        ttf, meta = _time_to_failure_predictor(features, self.bp, self.y, horizons=(10, 20, 30))
+        self.assertEqual(ttf.shape, (self.n, 3, 3))
+        self.assertEqual(meta["status"], "EVALUATED")
+        latent = _latent_state_proxy(self.x)
+        self.assertEqual(latent["latent_state"].shape, (self.n,))
+        self.assertTrue(np.isfinite(latent["latent_stress"]).all())
+
+    def test_robustness_matrix_contains_required_scenarios(self):
+        baseline = self.bp @ np.array([0.5, 0.3, 0.2])
+        robust = _robustness_matrix(self.y, self.bp, baseline, baseline)
+        expected = {
+            "Normal", "High_Volatility", "Low_Volatility", "Regime_Shift",
+            "Information_Shock", "Missing_Data", "Source_Conflict",
+            "Feature_Drift", "Prediction_Shock", "Model_Failure",
+        }
+        self.assertEqual(set(robust["scenarios"]), expected)
 
     def test_full_v6_is_research_only(self):
         result = run_experiment(
