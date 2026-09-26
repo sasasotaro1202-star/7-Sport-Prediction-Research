@@ -4,24 +4,19 @@
 
 Research-only. No production model or production prediction artifact is changed by this layer.
 
-The repository already uses sport-specific public/official collectors. This layer adds a registry for additional free/public enrichment candidates and a fail-closed PIT decision function.
+## Newly discovered sources
 
-## Cross-sport candidates
+### TheSportsDB
+Free JSON API with broad sports metadata. Current public pages show the nine target sports: basketball, volleyball, UFC, RIZIN FF, Valorant Champions Tour, tennis, Formula 1, rugby and boxing. The strongest use is cross-sport event, participant, league, venue and schedule/standings enrichment; it should not be assumed to have Opta-depth event statistics.
 
-### SofaScore
-Current public evidence shows broad multi-sport coverage and detailed match/fighter statistics. Public/third-party documentation also describes an undocumented API surface. It is therefore a research candidate, not an automatically trusted production source.
+### ESPN public API surface
+A current public GitHub implementation documents ESPN public endpoints across 17 sports, including basketball, racing, tennis, MMA, rugby and volleyball. Useful endpoint families include scores/schedules, teams/rosters, athletes, injuries, transactions, news and statistics. Treat the API surface as public/undocumented and reconstruct historical availability conservatively.
 
-Useful potential enrichment includes event metadata, fixtures, participant/team information, match statistics, odds and, for MMA/boxing pages, fight statistics.
+### Odds-API.io
+The provider currently advertises a free tier of 100 requests/hour and 500/day across 34 sports. Direct current pages confirm basketball, tennis, MMA including Rizin, boxing, rugby and Valorant/esports coverage. Odds are a useful market-state feature, but bookmaker publication/capture time must be retained for PIT.
 
-Historical availability is not assumed from retrieval time. A source snapshot must establish when a fact became observable before it can enter PIT-valid features.
-
-### API-Sports
-The provider currently advertises a free tier of 100 requests/day per API. Current official pages document basketball, volleyball, MMA, rugby and Formula 1 APIs among others. Coverage is endpoint/competition specific, so each sport/endpoint still requires its own data-quality and PIT validation.
-
-A free key must never be silently introduced into the repository. Any future authenticated integration remains disabled unless credentials are explicitly supplied by the user.
-
-### PandaScore
-The current free tier provides schedules, results and context with a request limit. Historical/post-match detailed statistics are paid. It is therefore kept as a research candidate for prospective context, not treated as a free historical Opta substitute.
+### Specialist open datasets
+Live Tennis API publishes a 2023-2026 point-by-point research dataset with an observed layer carrying real UTC capture timestamps; access to the full dataset is restricted to non-commercial academic research. UFC-DataLab provides a maintained UFC historical corpus with fight stats and scorecards. An open boxing punch-recognition dataset supports future video-derived feature research. rugby.db provides a public-domain historical rugby corpus with limited tournament scope. VLR.gg unofficial API projects expose match, team and player statistics.
 
 ## PIT rule
 
@@ -29,10 +24,9 @@ The current free tier provides schedules, results and context with a request lim
 - available_at > prediction_time is a PIT failure.
 - missing/unparseable available_at is UNKNOWN_FAIL_CLOSED.
 - retrieval time is never substituted for historical availability evidence.
+- market odds must retain bookmaker/source observation time.
 - candidate-source data cannot auto-promote a production model.
 
-## Current production boundary
+## Current boundary
 
-Existing sport-specific collectors remain the production/research data path. The new registry is a discovery and evaluation layer only.
-
-Promotion requires the normal chronological OOS, leakage audit, calibration, frozen holdout and release-gate evidence already enforced by the repository.
+Existing sport-specific collectors remain the primary research/production data path. The cross-sport sources are discovery/enrichment candidates until PIT, quality, licensing and chronological OOS evidence are established.
