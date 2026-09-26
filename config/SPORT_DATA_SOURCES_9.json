@@ -60,6 +60,55 @@
       "references": [
         "https://www.kaggle.com/general/734039"
       ]
+    },
+    "cross_sport_context": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Non-sport-specific context sources can improve venue conditions, travel/rest context, entity resolution and external-information awareness across multiple target sports. They remain separate from direct match-stat feeds.",
+      "sources": {
+        "gdelt": {
+          "free": true,
+          "pit": "publication/capture provenance required",
+          "use": [
+            "news",
+            "event context",
+            "information shocks"
+          ],
+          "reference": "https://www.gdelt.org/"
+        },
+        "open_meteo": {
+          "free": true,
+          "pit": "forecast-run timestamp required for prediction replay",
+          "use": [
+            "weather",
+            "wind",
+            "temperature",
+            "precipitation",
+            "air quality"
+          ],
+          "reference": "https://github.com/open-meteo/open-meteo"
+        },
+        "openstreetmap_overpass": {
+          "free": true,
+          "pit": "static/geographic data snapshot provenance required",
+          "use": [
+            "venue location",
+            "travel distance",
+            "surface/venue context"
+          ],
+          "reference": "https://wiki.openstreetmap.org/wiki/Overpass_API"
+        },
+        "wikidata": {
+          "free": true,
+          "pit": "entity snapshot/version provenance required",
+          "use": [
+            "athlete/team/entity resolution",
+            "country",
+            "biographical metadata"
+          ],
+          "reference": "https://www.wikidata.org/wiki/Wikidata:Data_access/en"
+        }
+      }
     }
   },
   "source_classes": {
