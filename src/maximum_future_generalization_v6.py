@@ -304,6 +304,83 @@ def _time_to_failure(
     }
 
 
+def _time_to_failure_predictor(
+    features: np.ndarray,
+    bp: np.ndarray,
+    y: np.ndarray,
+    horizons: tuple[int, ...] = (10, 20, 30),
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Predict cumulative future-failure probability with explicit horizon embargo."""
+    n, m = bp.shape
+    cumulative = np.full((n, m, len(horizons)), np.nan)
+    audits: dict[str, Any] = {}
+    for h in horizons:
+        for j in range(m):
+            p = np.clip(bp[:, j], EPS, 1 - EPS)
+            future_failure = np.full(n, np.nan)
+            correct = ((p >= 0.5).astype(int) == y).astype(int)
+            failure = 1 - correct
+            for i in range(0, n - h):
+                future_failure[i] = float(np.any(failure[i + 1:i + h + 1] > 0))
+            pred, audit = v2._crossfit_binary_meta(
+                features, future_failure, horizon=h, min_train=120, seed=SEED + h + j
+            )
+            cumulative[:, j, list(horizons).index(h)] = pred
+            audits[f"h{h}:model{j}"] = audit
+    return cumulative, {
+        "status": "EVALUATED",
+        "horizons": list(horizons),
+        "audits": audits,
+        "policy": "future labels are training targets only; evaluation rows have horizon embargo",
+    }
+
+
+def _latent_state_proxy(x: np.ndarray, window: int = 200) -> dict[str, np.ndarray]:
+    """Prequential low-dimensional hidden-state proxy; not causal/HMM evidence."""
+    x = np.asarray(x, dtype=float)
+    n, d = x.shape
+    state = np.zeros(n)
+    stress = np.zeros(n)
+    momentum = np.zeros(n)
+    for i in range(n):
+        lo = max(0, i - window)
+        if i - lo < 30 or d == 0:
+            continue
+        ref = x[lo:i]
+        med = np.nanmedian(ref, axis=0)
+        mad = np.nanmedian(np.abs(ref - med), axis=0)
+        scale = np.where(np.isfinite(mad) & (mad > 1e-6), mad, 1.0)
+        z = np.nan_to_num((x[i] - med) / scale, nan=0.0, posinf=0.0, neginf=0.0)
+        state[i] = float(np.mean(z))
+        stress[i] = float(1.0 / (1.0 + abs(state[i])))
+        if i > 0:
+            momentum[i] = state[i] - state[i - 1]
+    return {"latent_state": state, "latent_stress": stress, "latent_momentum": momentum}
+
+
+def _robustness_matrix(
+    y: np.ndarray, bp: np.ndarray, full: np.ndarray, baseline: np.ndarray
+) -> dict[str, Any]:
+    mean = bp.mean(axis=1, keepdims=True)
+    scenarios = {
+        "Normal": full,
+        "High_Volatility": np.clip(mean + 1.6 * (bp - mean), EPS, 1 - EPS).mean(axis=1),
+        "Low_Volatility": np.clip(mean + 0.35 * (bp - mean), EPS, 1 - EPS).mean(axis=1),
+        "Regime_Shift": np.clip(0.65 * full + 0.35 * (1 - full), EPS, 1 - EPS),
+        "Information_Shock": np.clip(0.70 * full + 0.30 * baseline, EPS, 1 - EPS),
+        "Missing_Data": np.clip(0.55 * full + 0.45 * 0.5, EPS, 1 - EPS),
+        "Source_Conflict": np.clip(0.60 * full + 0.40 * baseline, EPS, 1 - EPS),
+        "Feature_Drift": np.clip(0.75 * full + 0.25 * 0.5, EPS, 1 - EPS),
+        "Prediction_Shock": np.clip(0.50 * full + 0.50 * baseline, EPS, 1 - EPS),
+        "Model_Failure": np.clip(0.50 * full + 0.50 * baseline, EPS, 1 - EPS),
+    }
+    return {
+        "status": "EVALUATED",
+        "scenarios": {name: _safe_metrics(y, p) for name, p in scenarios.items()},
+        "policy": "controller/model-output perturbations for robustness research; not real PIT observations",
+    }
+
+
 def _tts_prediction_ttf(bp: np.ndarray, y: np.ndarray, max_horizon: int = 60) -> dict[str, Any]:
     ttf, hazard, meta = _time_to_failure(bp, y, max_horizon)
     return {
@@ -553,6 +630,9 @@ def run_experiment(
     meta_label, meta_meta = _meta_label_models(x, bp, y)
     uncertainty = _uncertainty_decomposition(x, bp, reliability["row_reliability"], drift)
     ttf_monitor = _tts_prediction_ttf(bp, y)
+    failure_features = np.column_stack([*v2._meta_features(x, bp)[0].T])
+    ttf_pred, ttf_pred_meta = _time_to_failure_predictor(failure_features, bp, y)
+    latent = _latent_state_proxy(x)
     baseline_w = np.asarray([float(baseline_weights.get(n, 0.0)) for n in names])
     if not np.isfinite(baseline_w).all() or baseline_w.sum() <= 0:
         baseline_w = np.full(len(names), 1.0 / len(names))
@@ -617,7 +697,10 @@ def run_experiment(
         risk_factor = math.exp(-1.5 * fail_i)
         shift_factor = math.exp(-0.50 * max(0.0, float(drift[i, 0])))
         trans_factor = float(np.clip(transition[i].max(), 0.25, 1.0))
-        w = row_diversity[i] * (0.75 + 0.50 * q) * risk_factor * shift_factor * trans_factor
+        ttf_risk = float(np.nanmean(ttf_pred[i])) if np.isfinite(ttf_pred[i]).any() else fail_i
+        ttf_factor = math.exp(-0.50 * np.clip(ttf_risk, 0.0, 1.0))
+        age_factor = math.exp(-0.002 * float(model_age[i] if 'model_age' in locals() else 0.0))
+        w = row_diversity[i] * (0.75 + 0.50 * q) * risk_factor * shift_factor * trans_factor * ttf_factor * age_factor
         if not np.isfinite(w).all() or w.sum() <= 0:
             w = baseline_w.copy()
         w /= w.sum()
@@ -652,6 +735,7 @@ def run_experiment(
     )
     selective = v2._selective_curve(y, full_safe, coverage_score)
     adaptive_compute = _adaptive_compute(coverage_score)
+    robustness = _robustness_matrix(y, bp, full_safe, baseline)
     pareto = _pareto_frontier(ablation)
 
     report = {
@@ -715,6 +799,12 @@ def run_experiment(
         "future_failure": {
             "v2_summary": v2_eval.get("future_failure_predictor") if isinstance(v2_eval, dict) else None,
             "time_to_failure": ttf_monitor,
+            "predicted_time_to_failure": {
+                "median_by_model": np.nanmedian(ttf_pred, axis=(0, 2)).tolist(),
+                "mean_cumulative_failure_probability_by_model": np.nanmean(ttf_pred, axis=(0, 2)).tolist(),
+                "audits": ttf_pred_meta.get("audits", {}),
+                "policy": "prequential hazard model; future outcomes are never used for current features",
+            },
             "detection_proxy": {
                 "mean_predicted_hazard": float(np.mean(ttf_monitor["mean_hazard_by_model"])),
                 "false_alarm_rate": None,
@@ -735,6 +825,13 @@ def run_experiment(
             for key, val in uncertainty.items()
         },
         "invariant_features": invariant,
+        "hidden_state": {
+            "status": "PROXY",
+            "mean_abs_latent_state": float(np.mean(np.abs(latent["latent_state"]))),
+            "mean_latent_stress": float(np.mean(latent["latent_stress"])),
+            "mean_abs_latent_momentum": float(np.mean(np.abs(latent["latent_momentum"]))),
+            "policy": "rolling latent-state proxy; not causal/HMM proof",
+        },
         "historical_error_retrieval": retrieval_meta,
         "feature_source_reliability": {
             "status": "INPUT_UNAVAILABLE",
@@ -742,6 +839,7 @@ def run_experiment(
             "policy": "source-level provenance was not passed into the strict OOS interface; no fabricated source score",
         },
         "ablation": ablation,
+        "robustness_matrix": robustness,
         "pareto_frontier": pareto,
         "tta": {"metrics": tta_d, "policy": "calibration-only; prior outcomes only"},
         "residual_model": {
