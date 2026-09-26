@@ -576,8 +576,11 @@ def run_experiment(
         },
     }
 
-    meta_mean = np.nanmean(meta_label, axis=1)
-    retrieval_fail = retrieval[:, 1]
+    with np.errstate(invalid="ignore"):
+        meta_mean = np.nanmean(meta_label, axis=1)
+        retrieval_fail = retrieval[:, 1]
+    meta_mean = np.nan_to_num(meta_mean, nan=0.5, posinf=0.5, neginf=0.5)
+    retrieval_fail = np.nan_to_num(retrieval_fail, nan=0.5, posinf=0.5, neginf=0.5)
     pred_score = np.clip(
         0.25 * reliability["row_reliability"]
         + 0.20 * (1 - np.std(bp, axis=1))
@@ -593,11 +596,12 @@ def run_experiment(
         for i in range(len(y))
     ])
 
+    retrieval_success = np.nan_to_num(retrieval[:, 3], nan=0.5, posinf=0.5, neginf=0.5)
     raw = np.column_stack([
         baseline,
         np.mean(bp, axis=1),
-        np.clip(0.75 * baseline + 0.25 * np.nan_to_num(retrieval[:, 3], nan=0.5), EPS, 1 - EPS),
-        np.clip(0.75 * baseline + 0.25 * np.nan_to_num(meta_mean, nan=0.5), EPS, 1 - EPS),
+        np.clip(0.75 * baseline + 0.25 * retrieval_success, EPS, 1 - EPS),
+        np.clip(0.75 * baseline + 0.25 * meta_mean, EPS, 1 - EPS),
     ])
     tta = _sequential_tta(y, baseline)
     residual = _residual_crossfit(x, bp, y)
