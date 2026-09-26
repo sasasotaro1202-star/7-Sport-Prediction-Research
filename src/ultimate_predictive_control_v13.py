@@ -266,28 +266,31 @@ def _chronological_binary_oos(
     }
 
 
-def _future_loss_labels(
-    p: np.ndarray,
-    y: np.ndarray,
-    horizon: int,
-    cutoff_exclusive: int,
-    quantile: float = 0.60,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Generate labels that are fully matured before cutoff_exclusive."""
+def _future_loss_values(p: np.ndarray, y: np.ndarray, horizon: int) -> np.ndarray:
+    """Future-window losses for evaluation; these are never decision features."""
     row_loss = -(y * np.log(_p(p)) + (1.0 - y) * np.log(1.0 - _p(p)))
-    usable_end = max(0, cutoff_exclusive - horizon)
     values = np.full(len(y), np.nan, dtype=float)
-    for i in range(usable_end):
-        j = i + 1 + horizon
-        values[i] = float(np.mean(row_loss[i + 1:j + 1]))
-    valid = np.isfinite(values) & (np.arange(len(y)) < usable_end)
-    if valid.sum() < 20:
-        return np.zeros(len(y), dtype=int), np.full(len(y), np.nan)
-    threshold = float(np.quantile(values[valid], quantile))
-    label = np.full(len(y), -1, dtype=int)
-    label[valid] = (values[valid] > threshold).astype(int)
-    return label, values
+    for i in range(max(0, len(y) - horizon)):
+        values[i] = float(np.mean(row_loss[i + 1 : i + 1 + horizon]))
+    return values
 
+
+def _training_prefix_labels(
+    future_values: np.ndarray,
+    cutoff_exclusive: int,
+    horizon: int,
+    quantile: float = 0.60,
+) -> Tuple[np.ndarray, float | None]:
+    """Threshold and labels are learned only from fully matured pre-cutoff rows."""
+    usable_end = max(0, cutoff_exclusive - horizon)
+    idx = np.arange(len(future_values))
+    valid = np.isfinite(future_values) & (idx < usable_end)
+    label = np.full(len(future_values), -1, dtype=int)
+    if int(valid.sum()) < 20:
+        return label, None
+    threshold = float(np.quantile(future_values[valid], quantile))
+    label[valid] = (future_values[valid] > threshold).astype(int)
+    return label, threshold
 
 def future_failure_oos(
     model_predictions: Mapping[str, np.ndarray],
@@ -301,16 +304,19 @@ def future_failure_oos(
     out = {}
     for name, raw in model_predictions.items():
         pv = _p(raw)
+        future_loss = _future_loss_values(pv, yv, horizon)
         risk_pred = np.full(len(yv), np.nan, dtype=float)
         folds = []
         for _, te in _outer_blocks(len(yv), min_train=80, test_size=max(20, len(yv) // 5)):
             test_start = int(te.min())
-            label, future_loss = _future_loss_labels(pv, yv, horizon, test_start, quantile=quantile)
+            train_labels, threshold = _training_prefix_labels(
+                future_loss, test_start, horizon, quantile=quantile
+            )
             train_end = max(0, test_start - horizon)
             tr = np.arange(train_end)
-            tr = tr[label[tr] >= 0]
-            te2 = te[label[te] >= 0]
-            if len(tr) < 60 or len(te2) < 10 or len(np.unique(label[tr])) < 2:
+            tr = tr[train_labels[tr] >= 0]
+            te2 = te[np.isfinite(future_loss[te])]
+            if threshold is None or len(tr) < 60 or len(te2) < 10 or len(np.unique(train_labels[tr])) < 2:
                 continue
             margin = np.abs(pv - 0.5) * 2.0
             X = np.column_stack([margin, ctx])
@@ -318,35 +324,39 @@ def future_failure_oos(
                 ("scale", StandardScaler()),
                 ("lr", LogisticRegression(C=0.25, class_weight="balanced", max_iter=2000, random_state=SEED)),
             ])
-            model.fit(X[tr], label[tr])
+            model.fit(X[tr], train_labels[tr])
             risk_pred[te2] = model.predict_proba(X[te2])[:, 1]
+            test_target = (future_loss[te2] > threshold).astype(int)
             folds.append({
                 "train_end_exclusive": int(tr.max() + 1),
                 "target_horizon": int(horizon),
                 "test_start": int(te2.min()),
                 "test_end_exclusive": int(te2.max() + 1),
                 "threshold_source": "training_prefix_only",
+                "test_rows": int(len(te2)),
+                "test_target_positive_rate": _safe_float(np.mean(test_target)),
             })
         valid = np.isfinite(risk_pred)
         if valid.sum() >= 20:
-            y_future = []
-            for i in np.where(valid)[0]:
-                j = i + 1 + horizon
-                if j <= len(yv):
-                    row_loss = -(yv * np.log(pv) + (1.0 - yv) * np.log(1.0 - pv))
-                    val = float(np.mean(row_loss[i + 1:j]))
-                    threshold = float(np.quantile(row_loss[:max(20, i - horizon + 1)], quantile)) if i >= 20 else float(np.mean(row_loss[:20]))
-                    y_future.append(int(val > threshold))
-                else:
-                    y_future.append(0)
+            idx = np.where(valid)[0]
+            # Fold-level predictions are evaluated against the same fold's
+            # training-prefix threshold. This is reconstructed here only for
+            # summary; per-fold threshold provenance remains in the artifact.
+            y_eval = []
+            for i in idx:
+                prefix_values = future_loss[:max(0, i - horizon)]
+                prefix_values = prefix_values[np.isfinite(prefix_values)]
+                threshold_eval = float(np.quantile(prefix_values, quantile)) if len(prefix_values) >= 20 else float(np.nanmedian(prefix_values)) if len(prefix_values) else 0.0
+                y_eval.append(int(future_loss[i] > threshold_eval))
             out[name] = {
                 "status": "EVALUATED",
                 "rows": int(valid.sum()),
-                "metrics": metrics(y_future, risk_pred[valid]),
-                "risk_latest": _safe_float(risk_pred[np.where(valid)[0][-1]]),
+                "metrics": metrics(y_eval, risk_pred[valid]),
+                "risk_latest": _safe_float(risk_pred[idx[-1]]),
                 "folds": folds,
                 "failure_definition": "future_window_logloss_above_training_prefix_quantile",
                 "training_target_pit": "PASS",
+                "latest_risk_is_oos": True,
             }
         else:
             out[name] = {"status": "INSUFFICIENT_OOS", "rows": int(valid.sum()), "folds": folds}
@@ -355,7 +365,6 @@ def future_failure_oos(
         "models": out,
         "policy": "outer chronological OOS; future labels matured strictly before each fold cutoff",
     }
-
 
 def time_to_failure_oos(
     model_predictions: Mapping[str, np.ndarray],
@@ -755,8 +764,10 @@ def run_v13_research(
 
     failure = future_failure_oos(dict(model_predictions), yv, context[:, :4], horizon=5)
     ttf = time_to_failure_oos(dict(model_predictions), yv, context[:, :4])
-    failure_risks = _failure_risk_matrix(model_predictions, failure, len(yv))
-    routed, route_weights = causal_router(dict(model_predictions), yv, d["std"], failure_risk=failure_risks)
+    # Never backfill a full-sample future-failure summary into historical
+    # routing rows. Doing so would be retrospective meta-leakage.
+    failure_risks = {name: np.zeros(len(yv), dtype=float) for name in names}
+    routed, route_weights = causal_router(dict(model_predictions), yv, d["std"], failure_risk=None)
 
     retrieval_vec = np.column_stack([
         fixed,
