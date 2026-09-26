@@ -108,6 +108,7 @@ jobs:
           path: data/db
           key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
           restore-keys: |
+            nine-sport-research-db-v4-${{ matrix.sport }}-
             nine-sport-target-db-v4-${{ matrix.sport }}-pit-
             nine-sport-target-db-v4-${{ matrix.sport }}-
 
@@ -259,6 +260,13 @@ jobs:
           python scripts/test_ultimate_predictive_control_v13.py
           python scripts/test_ultimate_v13_oos_bridge.py
           test "${ULTIMATE_CONTROL_VERSION}" = "v13"
+
+      - name: Persist research database checkpoint
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: nine-sport-research-db-v4-${{ matrix.sport }}-${{ github.run_id }}
 
       - name: Upload sport research evidence
         uses: actions/upload-artifact@v6
