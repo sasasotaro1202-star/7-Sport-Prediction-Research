@@ -67,10 +67,10 @@ def main():
     rng = np.random.default_rng(20260926)
     base = np.clip(rng.uniform(0.2, 0.8, len(y)), 0.01, 0.99)
     cand = np.clip(base + rng.normal(0.0, 0.08, len(y)), 0.01, 0.99)
-    _, gate0 = causal_tta_safety_gate(base, cand, y)
+    gate0 = causal_tta_safety_gate(base, cand, y)
     y_changed_for_gate = y.copy()
     y_changed_for_gate[-1] = 1 - y_changed_for_gate[-1]
-    _, gate1 = causal_tta_safety_gate(base, cand, y_changed_for_gate)
+    gate1 = causal_tta_safety_gate(base, cand, y_changed_for_gate)
     assert np.isclose(gate0["candidate_use_rate"], gate1["candidate_use_rate"])
     assert np.isclose(gate0["prior_logloss_delta"][-1], gate1["prior_logloss_delta"][-1])
 
