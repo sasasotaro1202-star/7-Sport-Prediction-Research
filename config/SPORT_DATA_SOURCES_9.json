@@ -371,6 +371,14 @@
       "references": [
         "https://whenstherace.com/f1-schedule-json/"
       ]
+    },
+    "rizin_club": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "RIZIN.club is a public unofficial RIZIN database covering events, fights, fighter records and decision methods from the 2015 launch through current events, with links to official YouTube videos. Useful as an independent RIZIN redundancy/entity-resolution source; page publication timing must be snapshotted for PIT.",
+      "references": [
+        "https://rizin.club/"
+      ]
     }
   },
   "source_classes": {
@@ -749,6 +757,14 @@
         "free": true,
         "integrated": false,
         "pit": "exact_rizin_coverage_and_snapshot_required"
+      },
+      {
+        "id": "rizin_club",
+        "name": "RIZIN.club public database",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required"
       }
     ],
     "valorant": [
