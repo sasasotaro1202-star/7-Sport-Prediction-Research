@@ -1,0 +1,56 @@
+name: Cross-Sport Source Probe
+
+on:
+  push:
+    paths:
+      - "src/cross_sport_source_probe.py"
+      - "config/SPORT_DATA_SOURCES_9.json"
+      - ".github/workflows/cross_sport_source_probe.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Probe nine-sport cross-source reachability
+        run: python -m src.cross_sport_source_probe
+
+      - name: Validate probe artifact safety
+        run: |
+          set -euo pipefail
+          test -s results/cross_sport_source_probe/sofascore.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("results/cross_sport_source_probe/sofascore.json")
+          o = json.loads(p.read_text(encoding="utf-8"))
+          assert o.get("research_only") is True
+          assert o.get("production_model_touched") is False
+          assert o.get("pit_status") == "NOT_ESTABLISHED"
+          assert o.get("sport_count") == 9
+          assert isinstance(o.get("sports"), dict)
+          assert len(o["sports"]) == 9
+          print("CROSS_SPORT_PROBE_ARTIFACT=PASS")
+          print(f"HEALTHY_COUNT={o.get("healthy_count")}/9")
+          PY
+
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: cross-sport-source-probe-${{ github.run_id }}
+          path: results/cross_sport_source_probe/sofascore.json
+          retention-days: 14
