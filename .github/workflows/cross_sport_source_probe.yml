@@ -45,6 +45,7 @@ jobs:
         run: python -m src.cross_sport_source_probe
 
       - name: Validate probe artifact safety
+        if: always()
         run: |
           set -euo pipefail
           test -s results/cross_sport_source_probe/cross_sport.json
@@ -65,7 +66,26 @@ jobs:
               print(f"{source.upper()}_HEALTHY={data['healthy_count']}/{data['probe_count']}")
           PY
 
+      - name: Evaluate probe outcome
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("results/cross_sport_source_probe/cross_sport.json")
+          o = json.loads(p.read_text(encoding="utf-8"))
+          status = o.get("overall_status")
+          print(f"CROSS_SPORT_PROBE_OVERALL={status}")
+          if status != "PASS":
+              for source, data in o.get("sources", {}).items():
+                  if data.get("healthy_count", 0) == 0:
+                      print(f"SOURCE_ZERO_HEALTHY={source}")
+              raise SystemExit(2)
+          PY
+
       - name: Upload probe evidence
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: cross-sport-source-probe-${{ github.run_id }}
