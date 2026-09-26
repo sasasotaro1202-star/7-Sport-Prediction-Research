@@ -405,6 +405,14 @@
       "references": [
         "https://sporting-events.org/data/"
       ]
+    },
+    "response_integrity": {
+      "current_web_evidence": "2026-09-27",
+      "status": "required_guard",
+      "note": "A successful HTTP status is not sufficient evidence of a healthy sports-data response. Current external provider research documents APIs that return HTTP 200 with structured error objects or silently partial data. Probe/ingest paths must inspect body-level error signals, emptiness and completeness where an expected cardinality exists.",
+      "references": [
+        "https://github.com/DanielTomaro13/sportsdata-mcp"
+      ]
     }
   },
   "source_classes": {
@@ -453,7 +461,7 @@
       {
         "id": "odds_api_io",
         "name": "Odds-API.io",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "bookmaker_timestamp_required",
@@ -507,7 +515,7 @@
       {
         "id": "sx_bet",
         "name": "SX Bet public market data",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "market_timestamp_archive_required",
@@ -534,10 +542,11 @@
       {
         "id": "the_odds_api",
         "name": "The Odds API",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
-        "pit": "prediction_time_snapshot_required"
+        "pit": "prediction_time_snapshot_required",
+        "independence_family": "bookmaker_odds_aggregator"
       },
       {
         "id": "euroleague_official",
@@ -545,7 +554,8 @@
         "class": "secondary",
         "free": true,
         "integrated": false,
-        "pit": "replay_required"
+        "pit": "replay_required",
+        "independence_family": "euroleague_official"
       },
       {
         "id": "sporting_events_free",
@@ -553,7 +563,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "dataset_regeneration_snapshot_required"
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
       }
     ],
     "volleyball": [
@@ -670,7 +681,7 @@
       {
         "id": "odds_api_io",
         "name": "Odds-API.io",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "bookmaker_timestamp_required",
@@ -715,7 +726,7 @@
       {
         "id": "sx_bet",
         "name": "SX Bet public market data",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "market_timestamp_archive_required",
@@ -727,15 +738,17 @@
         "class": "secondary",
         "free": true,
         "integrated": false,
-        "pit": "snapshot_and_publication_provenance_required"
+        "pit": "snapshot_and_publication_provenance_required",
+        "independence_family": "ufc_official"
       },
       {
         "id": "the_odds_api",
         "name": "The Odds API",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
-        "pit": "prediction_time_snapshot_required"
+        "pit": "prediction_time_snapshot_required",
+        "independence_family": "bookmaker_odds_aggregator"
       },
       {
         "id": "fightforensics",
@@ -743,7 +756,8 @@
         "class": "secondary",
         "free": true,
         "integrated": false,
-        "pit": "snapshot_and_publication_provenance_required"
+        "pit": "snapshot_and_publication_provenance_required",
+        "independence_family": "mma_independent"
       },
       {
         "id": "sporting_events_free",
@@ -751,7 +765,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "dataset_regeneration_snapshot_required"
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
       }
     ],
     "rizin": [
@@ -776,7 +791,7 @@
       {
         "id": "odds_api_io",
         "name": "Odds-API.io MMA/Rizin coverage",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "bookmaker_timestamp_required",
@@ -794,7 +809,7 @@
       {
         "id": "sx_bet",
         "name": "SX Bet public market data",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "market_timestamp_archive_required",
@@ -806,7 +821,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "exact_rizin_coverage_and_snapshot_required"
+        "pit": "exact_rizin_coverage_and_snapshot_required",
+        "independence_family": "mma_independent"
       },
       {
         "id": "rizin_club",
@@ -814,7 +830,8 @@
         "class": "secondary",
         "free": true,
         "integrated": false,
-        "pit": "page_snapshot_required"
+        "pit": "page_snapshot_required",
+        "independence_family": "rizin_public_web"
       }
     ],
     "valorant": [
@@ -848,7 +865,7 @@
       {
         "id": "odds_api_io",
         "name": "Odds-API.io Valorant",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "bookmaker_timestamp_required",
@@ -866,7 +883,7 @@
       {
         "id": "sx_bet",
         "name": "SX Bet public market data",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "market_timestamp_archive_required",
@@ -878,7 +895,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "dataset_regeneration_snapshot_required"
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
       }
     ],
     "tennis": [
@@ -921,7 +939,7 @@
       {
         "id": "odds_api_io",
         "name": "Odds-API.io",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "bookmaker_timestamp_required",
@@ -939,7 +957,7 @@
       {
         "id": "sx_bet",
         "name": "SX Bet public market data",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "market_timestamp_archive_required",
@@ -948,10 +966,11 @@
       {
         "id": "the_odds_api",
         "name": "The Odds API",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
-        "pit": "prediction_time_snapshot_required"
+        "pit": "prediction_time_snapshot_required",
+        "independence_family": "bookmaker_odds_aggregator"
       },
       {
         "id": "tennis_pointbypoint_legacy",
@@ -959,7 +978,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "git_snapshot_required"
+        "pit": "git_snapshot_required",
+        "independence_family": "tennis_point_sequence_corpus"
       },
       {
         "id": "tennis_match_charting_project",
@@ -967,7 +987,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "git_snapshot_required"
+        "pit": "git_snapshot_required",
+        "independence_family": "tennis_match_charting_corpus"
       },
       {
         "id": "tennis_visuals",
@@ -975,7 +996,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "git_snapshot_required"
+        "pit": "git_snapshot_required",
+        "independence_family": "tennis_public_corpus"
       },
       {
         "id": "wta_official",
@@ -983,7 +1005,8 @@
         "class": "secondary",
         "free": true,
         "integrated": false,
-        "pit": "replay_required"
+        "pit": "replay_required",
+        "independence_family": "wta_official"
       },
       {
         "id": "sporting_events_free",
@@ -991,7 +1014,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "dataset_regeneration_snapshot_required"
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
       }
     ],
     "f1": [
@@ -1088,7 +1112,7 @@
       {
         "id": "sx_bet",
         "name": "SX Bet public market data",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "market_timestamp_archive_required",
@@ -1100,7 +1124,8 @@
         "class": "secondary",
         "free": true,
         "integrated": false,
-        "pit": "fetch_snapshot_time_required"
+        "pit": "fetch_snapshot_time_required",
+        "independence_family": "f1_schedule_json"
       },
       {
         "id": "sporting_events_free",
@@ -1108,7 +1133,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "dataset_regeneration_snapshot_required"
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
       }
     ],
     "rugby": [
@@ -1142,7 +1168,7 @@
       {
         "id": "odds_api_io",
         "name": "Odds-API.io",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "bookmaker_timestamp_required",
@@ -1178,7 +1204,7 @@
       {
         "id": "sx_bet",
         "name": "SX Bet public market data",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "market_timestamp_archive_required",
@@ -1208,7 +1234,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "dataset_regeneration_snapshot_required"
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
       }
     ],
     "boxing": [
@@ -1233,7 +1260,7 @@
       {
         "id": "odds_api_io",
         "name": "Odds-API.io",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "bookmaker_timestamp_required",
@@ -1269,7 +1296,7 @@
       {
         "id": "sx_bet",
         "name": "SX Bet public market data",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
         "pit": "market_timestamp_archive_required",
@@ -1278,10 +1305,11 @@
       {
         "id": "the_odds_api",
         "name": "The Odds API",
-        "class": "secondary",
+        "class": "market_source",
         "free": true,
         "integrated": false,
-        "pit": "prediction_time_snapshot_required"
+        "pit": "prediction_time_snapshot_required",
+        "independence_family": "bookmaker_odds_aggregator"
       },
       {
         "id": "sporting_events_free",
@@ -1289,7 +1317,8 @@
         "class": "research_only",
         "free": true,
         "integrated": false,
-        "pit": "dataset_regeneration_snapshot_required"
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
       }
     ]
   },
