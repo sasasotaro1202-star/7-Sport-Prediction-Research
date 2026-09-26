@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from src.ultimate_predictive_control_v13 import (
+    active_information_value_oos,
     causal_router,
     retrieval_features,
     run_v13_research,
@@ -47,6 +48,13 @@ def main():
     assert r["states"]["dynamic_routing"] == "EXECUTED"
     assert r["states"]["prediction_output"] == "EXECUTED"
     assert r["states"]["prediction_trajectory"] == "EXECUTED_SCENARIO_PROJECTION"
+    assert r["states"]["active_information"] == "MEASURED_PROXY_OOS"
+    info = r["active_information"]
+    assert info["status"] == "EVALUATED"
+    assert info["mode"] == "RESEARCH_ONLY_MEASURED_PROXY"
+    assert info["selection_for_prediction"] is False
+    assert len(info["ranked_sources"]) == len(models)
+    assert info["expected_value"]["metric"] == "logloss_gain"
     assert r["promotion"]["production"] == "HOLD"
     assert result_path.is_file() and result_path.stat().st_size > 0
 
@@ -60,6 +68,11 @@ def main():
     _, w1 = causal_router(pm, y_changed, d)
     for name in pm:
         assert np.isclose(w0[name][-1], w1[name][-1]), name
+
+    # Active-information ranking is an OOS research measurement only.
+    info_direct = active_information_value_oos(models, y)
+    assert info_direct["status"] == "EVALUATED"
+    assert info_direct["selection_for_prediction"] is False
 
     # Retrieval itself is past-only: changing the current outcome must not
     # change the current row's retrieved probability.
@@ -81,6 +94,8 @@ def main():
     print(f"BASELINE_ECE={r['baseline']['ece']:.6f}")
     print(f"NEW_ECE={r['new']['ece']:.6f}")
     print(f"ECE_DELTA={r['delta']['ece']:+.6f}")
+    print(f"ACTIVE_INFO_TOP={r['active_information']['recommended_next_source']}")
+    print(f"ACTIVE_INFO_LOGLOSS_GAIN={r['active_information']['recommended_source_mean_logloss_gain']:+.6f}")
 
 
 if __name__ == "__main__":
