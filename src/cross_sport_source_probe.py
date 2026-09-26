@@ -41,6 +41,23 @@ PROBES = {
         "f1": "https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard",
         "rugby": "https://site.api.espn.com/apis/site/v2/sports/rugby/164205/scoreboard",
     },
+    "f1api_dev": {
+        "f1_current": "https://f1api.dev/api/current",
+        "f1_drivers": "https://f1api.dev/api/drivers?limit=1"
+    },
+    "racehooks": {
+        "f1_seasons": "https://api.racehooks.io/v1/historical/seasons"
+    },
+    "openboxing": {
+        "boxing_bouts": "https://www.openboxing.org/api/bouts/all.json"
+    },
+    "sx_bet": {
+        "sports": "https://api.sx.bet/sports",
+        "markets": "https://api.sx.bet/markets?limit=1"
+    },
+    "statbunker_rugby": {
+        "rugby_home": "https://rugby.statbunker.com/"
+    }
 }
 
 def probe(url: str) -> dict:
