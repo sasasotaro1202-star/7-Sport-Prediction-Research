@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: all-sport-research-matrix
+  group: all-sport-research-matrix-${{ github.ref }}
   cancel-in-progress: true
 
 env:
