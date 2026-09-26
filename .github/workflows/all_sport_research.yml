@@ -162,32 +162,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          status="$(python - <<'PY'
-          import json
-          from pathlib import Path
-          p=Path("results/research/${{ matrix.sport }}.json")
-          print(json.loads(p.read_text(encoding="utf-8")).get("status",""))
-          PY
-          )"
+          status="$(python -c 'import json; from pathlib import Path; print(json.loads(Path("results/research/${{ matrix.sport }}.json").read_text(encoding="utf-8")).get("status",""))')"
           if [ "$status" = "TRAINED" ]; then
             test -s "results/research/${{ matrix.sport }}_ultimate_v13.json"
-            python - <<'PY'
-            import json
-            from pathlib import Path
-            sport="${{ matrix.sport }}"
-            p=Path(f"results/research/{sport}_ultimate_v13.json")
-            o=json.loads(p.read_text(encoding="utf-8"))
-            assert o.get("sport")==sport
-            assert o.get("status")=="EVALUATED"
-            assert o.get("mode")=="RESEARCH_ONLY"
-            assert (o.get("promotion") or {}).get("production")=="HOLD"
-            assert (o.get("audit") or {}).get("meta_leakage")=="PASS"
-            print(f"V13_ARTIFACT={p} STATUS=EVALUATED MODE=RESEARCH_ONLY PROMOTION=HOLD")
-            PY
+            python -c 'import json; from pathlib import Path; sport="${{ matrix.sport }}"; o=json.loads(Path(f"results/research/{sport}_ultimate_v13.json").read_text(encoding="utf-8")); assert o.get("sport")==sport; assert o.get("status")=="EVALUATED"; assert o.get("mode")=="RESEARCH_ONLY"; assert (o.get("promotion") or {}).get("production")=="HOLD"; assert (o.get("audit") or {}).get("meta_leakage")=="PASS"; print(f"V13_ARTIFACT={sport} STATUS=EVALUATED MODE=RESEARCH_ONLY PROMOTION=HOLD")'
           else
             echo "V13_ARTIFACT_NOT_REQUIRED status=$status"
           fi
-
       - name: Compile and unit regression
         run: |
           set -euo pipefail
