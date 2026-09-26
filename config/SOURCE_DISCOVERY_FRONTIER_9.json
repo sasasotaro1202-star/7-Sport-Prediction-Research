@@ -1,0 +1,155 @@
+{
+  "version": "source-discovery-frontier-2026-09-27",
+  "policy": {
+    "free_only": true,
+    "no_trial_auto_use": true,
+    "no_billing_risk": true,
+    "blocked_sources_must_not_enter_production": true,
+    "research_sources_require_pit": true
+  },
+  "frontier": [
+    {
+      "id": "thesportsdb",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "ufc",
+        "rizin",
+        "valorant",
+        "tennis",
+        "f1",
+        "rugby",
+        "boxing"
+      ],
+      "access": "free_public_api",
+      "status": "research_candidate",
+      "next": "probe endpoints -> snapshot -> PIT -> quality -> OOS"
+    },
+    {
+      "id": "espn_public",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "ufc",
+        "tennis",
+        "f1",
+        "rugby"
+      ],
+      "access": "public_undocumented_api",
+      "status": "research_candidate",
+      "next": "probe endpoints -> snapshot -> PIT -> entity mapping -> OOS"
+    },
+    {
+      "id": "odds_api_io",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis",
+        "ufc",
+        "rizin",
+        "rugby",
+        "valorant",
+        "boxing"
+      ],
+      "access": "free_tier_requires_key",
+      "status": "research_candidate",
+      "next": "never auto-create key; only test with explicitly supplied credential; bookmaker timestamp PIT"
+    },
+    {
+      "id": "sportscore",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis"
+      ],
+      "access": "free_public_api_with_attribution",
+      "status": "research_candidate",
+      "next": "redundancy/OOS comparison after terms review"
+    },
+    {
+      "id": "sofascore",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "ufc",
+        "rizin",
+        "valorant",
+        "tennis",
+        "f1",
+        "rugby",
+        "boxing"
+      ],
+      "access": "public_web_unofficial_api_surface",
+      "status": "research_candidate",
+      "next": "do not treat retrieval time as historical availability; snapshot/PIT"
+    },
+    {
+      "id": "flashscore_internal",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "tennis",
+        "ufc",
+        "rugby",
+        "boxing"
+      ],
+      "access": "internal_undocumented_endpoint",
+      "status": "do_not_use_for_production",
+      "next": "avoid unless license/official API and PIT evidence becomes available"
+    },
+    {
+      "id": "sports_hub_mcp",
+      "type": "discovery_aggregator",
+      "confirmed_coverage": [
+        "70_plus_sports"
+      ],
+      "access": "open_source_index",
+      "status": "discovery_only",
+      "next": "use provider catalog to discover new free candidates"
+    },
+    {
+      "id": "sportsapi365",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "browser_demo_free_calls",
+      "status": "research_candidate_low_priority",
+      "next": "use only for redundant basketball validation"
+    },
+    {
+      "id": "pinnacle_official_api",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "multi_sport"
+      ],
+      "access": "closed_general_public_since_2025_07_23",
+      "status": "blocked",
+      "next": "no automatic access request"
+    },
+    {
+      "id": "pinnapi",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "multi_sport"
+      ],
+      "access": "third_party_free_trial",
+      "status": "blocked_by_free_only_policy",
+      "next": "do not use trials or paid upgrade paths"
+    },
+    {
+      "id": "pinnwire",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "13_sports"
+      ],
+      "access": "third_party_trial",
+      "status": "blocked_by_free_only_policy",
+      "next": "do not use trials or paid upgrade paths"
+    }
+  ]
+}
