@@ -1,10 +1,44 @@
 {
-  "version": "cross-sport-data-layer-v1",
+  "version": "cross-sport-data-layer-v1.1",
   "policy": {
     "free_only": true,
     "production_default_requires_pit": true,
     "unknown_availability_is_fail_closed": true,
     "research_only_candidates_are_never_auto_promoted": true
+  },
+  "evidence": {
+    "sofascore": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Unofficial/undocumented API surface. Public pages demonstrate multi-sport coverage and detailed statistics. Historical availability must be snapshotted/replayed before model use.",
+      "references": [
+        "https://github.com/apdmatos/sofascore-api",
+        "https://github.com/nietonchique/Sofascore-API-Bundle",
+        "https://www.sofascore.com/en-us/mma",
+        "https://www.sofascore.com/en-us/mma/organisation/rizin/19905"
+      ]
+    },
+    "api_sports": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Provider currently advertises a free tier of 100 requests/day per API. Coverage, endpoint access and PIT suitability remain sport/endpoint specific.",
+      "references": [
+        "https://api-sports.io/",
+        "https://api-sports.io/sports/basketball",
+        "https://api-sports.io/sports/volleyball",
+        "https://api-sports.io/sports/mma",
+        "https://api-sports.io/sports/rugby",
+        "https://api-sports.io/sports/formula-1"
+      ]
+    },
+    "pandascore": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Free tier provides schedules/results/context and is rate-limited; historical detailed statistics are paid, so it is not a free historical Opta substitute.",
+      "references": [
+        "https://www.pandascore.co/pricing"
+      ]
+    }
   },
   "source_classes": {
     "primary": "already integrated sport-specific source",
@@ -128,7 +162,7 @@
       {
         "id": "pandascore",
         "name": "PandaScore",
-        "class": "secondary",
+        "class": "research_only",
         "free": true,
         "integrated": false,
         "pit": "tier_and_timestamp_dependent"
