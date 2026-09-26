@@ -1014,7 +1014,7 @@ def run_experiment(
     # A-J conceptual ablations plus v6 extended variants.
     failure_scalar = np.clip(np.nanmean(failure_risk, axis=1), 0.0, 1.0)
     disagreement_shrink = np.clip(1.0 - np.std(bp, axis=1), 0.0, 1.0)
-    ablation = {
+    ablation_predictions = {
         "Baseline": _safe_metrics(y, baseline),
         "+Disagreement": _safe_metrics(
             y, np.clip(0.5 + (baseline - 0.5) * disagreement_shrink, EPS, 1.0 - EPS)
@@ -1060,6 +1060,7 @@ def run_experiment(
         "FullArchitecture": _safe_metrics(y, full),
     }
 
+    ablation = {k: _safe_metrics(y, p) for k, p in ablation_predictions.items()}
     full_safe, safety = _safety_monitor(full, baseline, pred_score)
     safe_metrics = _safe_metrics(y, full_safe)
     stats = v2._block_bootstrap_delta(y, full_safe, baseline, blocks=6)
@@ -1085,7 +1086,7 @@ def run_experiment(
     regime_transition_metrics = _regime_transition_metrics(transition, x, bp)
     failure_detection = _failure_detection_metrics(y=y, bp=bp, failure_risk=failure_risk, horizon=v2.FAILURE_HORIZON)
     period_regime = _period_regime_summary(y, full_safe, drift)
-    multiple_testing = _multiple_testing_control(y, baseline, ablation, blocks=6)
+    multiple_testing = _multiple_testing_control(y, baseline, ablation_predictions, blocks=6)
     pareto = _pareto_frontier(ablation)
 
     v13_control = v13.run_control_layer(
