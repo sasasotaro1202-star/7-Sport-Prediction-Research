@@ -254,6 +254,32 @@ def _meta_label_models(x: np.ndarray, bp: np.ndarray, y: np.ndarray) -> tuple[np
     return out, {"status": "EVALUATED", "audits": audits}
 
 
+def _predictability_calibration(y: np.ndarray, score: np.ndarray) -> dict[str, Any]:
+    """Chronological calibration of predictability against subsequent observed correctness."""
+    y = np.asarray(y, dtype=int)
+    p = np.clip(np.asarray(score, dtype=float), EPS, 1.0 - EPS)
+    mask = np.isfinite(p)
+    idx = np.flatnonzero(mask)
+    if len(idx) < 120:
+        return {"status": "INSUFFICIENT"}
+    cut = len(idx) // 2
+    fit_idx, eval_idx = idx[:cut], idx[cut:]
+    z_fit = np.log(p[fit_idx] / (1.0 - p[fit_idx])).reshape(-1, 1)
+    model = LogisticRegression(C=0.25, max_iter=800, random_state=SEED)
+    model.fit(z_fit, y[fit_idx])
+    z_eval = np.log(p[eval_idx] / (1.0 - p[eval_idx])).reshape(-1, 1)
+    cal = np.clip(model.predict_proba(z_eval)[:, 1], EPS, 1.0 - EPS)
+    raw_m = _safe_metrics(y[eval_idx], p[eval_idx])
+    cal_m = _safe_metrics(y[eval_idx], cal)
+    return {
+        "status": "EVALUATED",
+        "raw": raw_m,
+        "calibrated": cal_m,
+        "delta": {k: float(cal_m[k] - raw_m[k]) for k in ("accuracy","logloss","brier","ece")},
+        "policy": "predictability score calibration is chronological and uses later labels only as training/evaluation targets",
+    }
+
+
 def _uncertainty_decomposition(
     x: np.ndarray, bp: np.ndarray, reliability: np.ndarray, drift: np.ndarray
 ) -> dict[str, np.ndarray]:
@@ -356,6 +382,15 @@ def _latent_state_proxy(x: np.ndarray, window: int = 200) -> dict[str, np.ndarra
         if i > 0:
             momentum[i] = state[i] - state[i - 1]
     return {"latent_state": state, "latent_stress": stress, "latent_momentum": momentum}
+
+
+def _source_reliability_contract() -> dict[str, Any]:
+    return {
+        "status": "INPUT_UNAVAILABLE",
+        "score": None,
+        "reason": "strict OOS controller interface does not expose source-level provenance rows",
+        "fail_closed_policy": True,
+    }
 
 
 def _robustness_matrix(
