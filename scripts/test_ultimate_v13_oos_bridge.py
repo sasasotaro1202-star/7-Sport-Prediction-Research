@@ -42,7 +42,26 @@ def main() -> None:
 
     # Direct adversarial causal check: changing y[i] cannot change the
     # routing weight or retrieved probability at the same prediction row.
-    from src.ultimate_predictive_control_v13 import causal_router, retrieval_features
+    from src.ultimate_predictive_control_v13 import causal_router, retrieval_features, causal_prediction_safety_gate
+
+    gate = causal_prediction_safety_gate(
+        baseline=np.full(n, 0.5),
+        candidate=oof["lr"],
+        y=y,
+        window=40,
+        min_logloss_improvement=0.001,
+    )
+    changed_gate_y = y.copy()
+    changed_gate_y[-1] = 1 - changed_gate_y[-1]
+    gate_changed = causal_prediction_safety_gate(
+        baseline=np.full(n, 0.5),
+        candidate=oof["lr"],
+        y=changed_gate_y,
+        window=40,
+        min_logloss_improvement=0.001,
+    )
+    assert np.isclose(gate["probability"][-1], gate_changed["probability"][-1])
+    assert gate["policy"] == "past_only_logloss_gate"
 
     d = np.zeros(n)
     _, w0 = causal_router(oof, y, d)
