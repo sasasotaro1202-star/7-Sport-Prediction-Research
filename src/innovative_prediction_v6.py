@@ -209,17 +209,21 @@ def _historical_retrieval(
 def _meta_label_prequential(features: np.ndarray, y: np.ndarray, base_p: np.ndarray) -> np.ndarray:
     target = ((base_p >= 0.5).astype(int) == y).astype(int)
     out = np.full(len(y), np.nan)
-    for i in range(MIN_TRAIN, len(y)):
-        tr = np.arange(max(0, i - MIN_TRAIN * 4), i)
+    # Refit at bounded chronological blocks rather than every row. Each block
+    # is predicted only from outcomes strictly before that block.
+    block = 25
+    for start in range(MIN_TRAIN, len(y), block):
+        stop = min(len(y), start + block)
+        tr = np.arange(max(0, start - MIN_TRAIN * 4), start)
         if len(np.unique(target[tr])) < 2:
-            out[i] = float(np.mean(target[tr]))
+            out[start:stop] = float(np.mean(target[tr]))
             continue
         model = Pipeline([
             ("scale", StandardScaler()),
             ("logit", LogisticRegression(C=0.25, max_iter=1000, random_state=SEED)),
         ])
         model.fit(features[tr], target[tr])
-        out[i] = float(model.predict_proba(features[i:i + 1])[:, 1][0])
+        out[start:stop] = model.predict_proba(features[start:stop])[:, 1]
     return out
 
 
@@ -294,23 +298,24 @@ def _tta_recent_prior(y: np.ndarray, p: np.ndarray, lookback: int = 30) -> np.nd
 
 
 def _residual_prequential(features: np.ndarray, y: np.ndarray, base_p: np.ndarray) -> np.ndarray:
-    """Prequential residual/logit correction; model sees only prior realized residuals."""
+    """Prequential residual/logit correction; model sees only prior realized outcomes."""
     y = np.asarray(y, dtype=int)
     base_p = np.clip(np.asarray(base_p, dtype=float), EPS, 1.0 - EPS)
     logit = _safe_logit(base_p)
     out = base_p.copy()
-    residual = y - base_p
-    for i in range(MIN_TRAIN, len(y)):
-        tr = np.arange(max(0, i - MIN_TRAIN * 3), i)
+    z = np.column_stack([features, logit])
+    block = 25
+    for start in range(MIN_TRAIN, len(y), block):
+        stop = min(len(y), start + block)
+        tr = np.arange(max(0, start - MIN_TRAIN * 3), start)
         if len(np.unique(y[tr])) < 2:
             continue
         model = Pipeline([
             ("scale", StandardScaler()),
             ("logit", LogisticRegression(C=0.10, max_iter=1000, random_state=SEED)),
         ])
-        z = np.column_stack([features, logit])
         model.fit(z[tr], y[tr])
-        out[i] = float(model.predict_proba(z[i:i + 1])[:, 1][0])
+        out[start:stop] = model.predict_proba(z[start:stop])[:, 1]
     return np.clip(out, EPS, 1.0 - EPS)
 
 
