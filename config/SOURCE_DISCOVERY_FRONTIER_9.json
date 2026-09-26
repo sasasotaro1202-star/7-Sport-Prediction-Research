@@ -370,6 +370,26 @@
       "access": "public_github_release_ecosystem",
       "status": "research_candidate",
       "next": "identify current volleyball release assets -> source timestamp -> PIT reconstruction -> OOS"
+    },
+    {
+      "id": "balldontlie",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "free_key_required_basic_endpoints",
+      "status": "research_candidate_low_priority",
+      "next": "never auto-create key; validate free endpoint scope and snapshot/PIT"
+    },
+    {
+      "id": "statbunker_rugby",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rugby"
+      ],
+      "access": "public_web",
+      "status": "research_candidate",
+      "next": "snapshot pages -> validate history/coverage -> PIT -> OOS"
     }
   ]
 }
