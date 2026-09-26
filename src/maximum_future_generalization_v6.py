@@ -234,14 +234,13 @@ def _retrieval_features(
             np.mean(bp[start:i], axis=1, keepdims=True),
             np.std(bp[start:i], axis=1, keepdims=True),
         ])
-        cur_base = np.column_stack([
+        cur_base = np.asarray([
             np.r_[
                 np.nan_to_num(((cur_x - med) / scale_x)),
                 float(np.mean(bp[i])),
                 float(np.std(bp[i])),
             ]
-        )
-]
+        ], dtype=float)
         dim = min(base_ref.shape[1], cur_base.shape[1])
         ref = base_ref[:, :dim]
         cur = cur_base[:, :dim][0]
