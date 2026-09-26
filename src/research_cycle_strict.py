@@ -11,7 +11,7 @@ from src import dynamic_model_router as router
 from src import uncertainty_dynamic_router_oos as uncertainty_router
 from src import matchday_intelligence_oos as matchday_intelligence
 from src import case_risk_oos as case_risk
-from src import innovative_prediction_v2 as innovative_v2
+from src import maximum_future_generalization_v6 as innovative_v6
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
@@ -930,7 +930,7 @@ def train(s):
      # New v2 controller remains research-only: it consumes the already-generated
      # chronological OOF predictions and never touches production artifacts.
      try:
-      innovative_v2_eval = innovative_v2.run_experiment(
+      innovative_v2_eval = innovative_v6.run_experiment(
        sport=s,
        x_train=X,
        y_train=y,
@@ -946,7 +946,7 @@ def train(s):
       innovative_v2_eval = {
        'sport':s,
        'status':'RESEARCH_ERROR',
-       'reason':f'innovative_v2_exception:{type(exc).__name__}:{exc}',
+       'reason':f'innovative_v6_exception:{type(exc).__name__}:{exc}',
        'production_changed':False,
        'promotion':'HOLD',
       }
