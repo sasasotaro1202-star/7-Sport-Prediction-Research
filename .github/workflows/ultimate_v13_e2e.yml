@@ -3,6 +3,7 @@ name: Ultimate v13 Causal Hardening E2E
 on:
   push:
     paths:
+      - "src/research_cycle_strict.py"
       - "src/ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/run_ultimate_predictive_control_v13_e2e.py"
@@ -46,6 +47,9 @@ jobs:
 
       - name: Causal hardening regression
         run: python scripts/test_ultimate_predictive_control_v13.py
+
+      - name: Chronological OOS bridge regression
+        run: python scripts/test_ultimate_v13_oos_bridge.py
 
       - name: Full v13 E2E
         run: python scripts/run_ultimate_predictive_control_v13_e2e.py

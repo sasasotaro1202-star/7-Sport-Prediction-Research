@@ -6,7 +6,9 @@ on:
       - ".github/workflows/all_sport_research.yml"
       - "config/ACTIVE_SCOPE_9_SPORTS.json"
       - "src/ultimate_predictive_control_v13.py"
+      - "src/research_cycle_strict.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
+      - "scripts/test_ultimate_v13_oos_bridge.py"
   workflow_dispatch:
   schedule:
     - cron: "11 */12 * * *"
@@ -15,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: all-sport-research-matrix
+  group: all-sport-research-matrix-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -195,6 +197,59 @@ jobs:
           print(f"PRODUCTION_CHANGED={o.get('production_changed', False)}")
           PY
 
+      - name: Verify v13 bridge artifact contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(python -c 'import json; from pathlib import Path; print(json.loads(Path("results/research/${{ matrix.sport }}.json").read_text(encoding="utf-8")).get("status",""))')"
+          if [ "$status" = "TRAINED" ]; then
+            test -s "results/research/${{ matrix.sport }}_ultimate_v13.json"
+            python -c 'import json; from pathlib import Path; sport="${{ matrix.sport }}"; o=json.loads(Path(f"results/research/{sport}_ultimate_v13.json").read_text(encoding="utf-8")); assert o.get("sport")==sport; assert o.get("status")=="EVALUATED"; assert o.get("mode")=="RESEARCH_ONLY"; assert (o.get("promotion") or {}).get("production")=="HOLD"; assert (o.get("audit") or {}).get("meta_leakage")=="PASS"; print(f"V13_ARTIFACT={sport} STATUS=EVALUATED MODE=RESEARCH_ONLY PROMOTION=HOLD")'
+          else
+            echo "V13_ARTIFACT_NOT_REQUIRED status=$status"
+          fi
+      - name: Report actual sport OOS/v13 metrics
+        shell: bash
+        env:
+          SPORT: ${{ matrix.sport }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          sport = os.environ["SPORT"]
+          result = json.loads(Path(f"results/research/{sport}.json").read_text(encoding="utf-8"))
+          print(f"ACTUAL_SPORT={sport} STATUS={result.get('status')}")
+          p = Path(f"results/research/{sport}_ultimate_v13.json")
+          if p.exists():
+              r = json.loads(p.read_text(encoding="utf-8"))
+              d = r.get("delta") or {}
+              cm = (r.get("confidence_metrics") or {}).get("delta") or {}
+              st = (r.get("stability") or {}).get("delta")
+              print(
+                  "ACTUAL_V13_METRICS "
+                  f"sport={sport} rows={r.get('oos_rows')} "
+                  f"accuracy_delta={d.get('accuracy')} "
+                  f"logloss_delta={d.get('logloss')} "
+                  f"brier_delta={d.get('brier')} "
+                  f"ece_delta={d.get('ece')} "
+                  f"coverage_delta={cm.get('coverage')} "
+                  f"high_confidence_accuracy_delta={cm.get('high_confidence_accuracy')} "
+                  f"stability_delta={st}"
+              )
+              ai = r.get("active_information") or {}
+              ev = ai.get("expected_value") or {}
+              print(
+                  "ACTIVE_INFO_ACTUAL "
+                  f"sport={sport} status={ai.get('status')} "
+                  f"source={ai.get('recommended_next_source')} "
+                  f"mean_logloss_gain={ai.get('recommended_source_mean_logloss_gain')} "
+                  f"stable={ev.get('stable_positive_gain')}"
+              )
+          else:
+              print(f"ACTUAL_V13_METRICS sport={sport} unavailable=no_v13_artifact")
+          PY
       - name: Compile and unit regression
         run: |
           set -euo pipefail
@@ -202,6 +257,7 @@ jobs:
           python scripts/test_case_risk_oos.py
           python scripts/test_ultimate_predictive_control.py
           python scripts/test_ultimate_predictive_control_v13.py
+          python scripts/test_ultimate_v13_oos_bridge.py
           test "${ULTIMATE_CONTROL_VERSION}" = "v13"
 
       - name: Upload sport research evidence
@@ -210,6 +266,8 @@ jobs:
           name: all-sport-research-${{ matrix.sport }}-${{ github.run_id }}
           path: |
             results/research/${{ matrix.sport }}.json
+            results/research/${{ matrix.sport }}_ultimate_intelligence.json
+            results/research/${{ matrix.sport }}_ultimate_v13.json
             results/*.json
             results/v45/*.json
           if-no-files-found: warn
