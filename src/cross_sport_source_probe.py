@@ -16,9 +16,9 @@ PROBES = {
         "volleyball": "https://api.sofascore.com/api/v1/sport/volleyball/scheduled-events/2026-09-27",
         "ufc": "https://api.sofascore.com/api/v1/sport/mma/scheduled-events/2026-09-27",
         "rizin": "https://api.sofascore.com/api/v1/sport/mma/scheduled-events/2026-09-27",
-        "valorant": "https://www.sofascore.com/api/v1/sport/esports/scheduled-events/2026-09-27",
+        "valorant": "https://api.sofascore.com/api/v1/sport/esports/scheduled-events/2026-09-27",
         "tennis": "https://api.sofascore.com/api/v1/sport/tennis/scheduled-events/2026-09-27",
-        "f1": "https://www.sofascore.com/api/v1/sport/motorsport/scheduled-events/2026-09-27",
+        "f1": "https://api.sofascore.com/api/v1/sport/motorsport/scheduled-events/2026-09-27",
         "rugby": "https://api.sofascore.com/api/v1/sport/rugby/scheduled-events/2026-09-27",
         "boxing": "https://api.sofascore.com/api/v1/sport/mma/scheduled-events/2026-09-27",
     },
@@ -76,14 +76,12 @@ PROBES = {
 }
 
 REQUIRED_SOURCES = {
-    "sofascore",
     "thesportsdb",
     "espn",
     "rizin_club",
     "f1api_dev",
     "racehooks",
     "openboxing",
-    "ufc_stats_api_public_impl",
 }
 
 def probe(url: str) -> dict:
