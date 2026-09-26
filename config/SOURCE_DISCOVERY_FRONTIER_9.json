@@ -571,6 +571,26 @@
       "access": "public_web_free_registration",
       "status": "entity_context_research_candidate",
       "next": "snapshot player/club/transfer context -> entity-resolution audit -> publication-time/PIT validation -> no automatic production scraping by default"
+    },
+    {
+      "id": "ufc_stats_api_public_impl",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "ufc"
+      ],
+      "access": "public_free_api_no_signup_claim_not_live_verified",
+      "status": "research_candidate",
+      "next": "probe live service in runner -> immutable snapshots -> compare against UFCStats/official UFC -> PIT/OOS"
+    },
+    {
+      "id": "tennis_api_atp_wta_itf",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "free_and_paid_rapidapi_requires_key",
+      "status": "research_candidate",
+      "next": "never auto-create key -> only use free tier if credential already exists -> snapshot -> PIT/OOS and quota audit"
     }
   ]
 }
