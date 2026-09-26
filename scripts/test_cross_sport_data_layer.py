@@ -24,6 +24,10 @@ def main() -> int:
     for required in ("gdelt", "open_meteo", "openstreetmap_overpass", "wikidata"):
         assert required in context
         assert context[required]["free"] is True
+    assert cfg["evidence"]["sportscore"]["status"] == "research_candidate"
+    assert cfg["sports"]["basketball"][2]["id"] == "sportscore"
+    assert cfg["sports"]["tennis"][2]["id"] == "sportscore"
+    assert cfg["evidence"]["discovery_aggregator"]["status"] == "discovery_only"
 
     for sport in SPORTS:
         rows = source_candidates(sport, research=True, free_only=True)
