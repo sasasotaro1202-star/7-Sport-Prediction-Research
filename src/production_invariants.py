@@ -168,7 +168,7 @@ def main():
             'PIT History Expansion lacks stale-workflow SHA fail-closed guard')
     require('timeout --signal=TERM 2700s python -m src.pit_replay_builder' in workflow,
             'strict PIT replay lacks a bounded runtime budget')
-    require('timeout --signal=TERM --kill-after=30s 4500s python -m src.research_cycle_strict' in workflow,
+    require('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow,
             'strict research cycle lacks a bounded runtime budget')
     require('timeout --signal=TERM 900s python -m src.independent_leakage_audit' in workflow,
             'independent leakage audit lacks a bounded runtime budget')
@@ -220,8 +220,12 @@ def main():
             'production watchdog lacks first-run guard')
     require('DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION' in watchdog,
             'production watchdog validated dispatch path missing')
-    require('limit=14400' in watchdog and 'limit=8100' not in watchdog,
+    require('limit=19800' in watchdog and 'limit=8100' not in watchdog,
             'production watchdog production timeout is too short or not aligned with workflow budgets')
+    require('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow,
+            'strict research runtime budget is not aligned with the production watchdog window')
+    require('timeout-minutes: 225' in workflow,
+            'production merge job timeout is not aligned with the research runtime budget')
     require('v4_5_15_production.yml' in watchdog and 'pit_history_expansion.yml' in watchdog,
             'production watchdog does not monitor both heavy workflows')
     require('select(.event=="push" and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))' in watchdog,

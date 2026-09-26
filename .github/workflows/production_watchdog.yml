@@ -319,7 +319,7 @@ jobs:
               created_ts=$(date -u -d "$created_at" +%s)
               now=$(date -u +%s)
               age=$((now-created_ts))
-              limit=14400
+              limit=19800
               if [ "$workflow" = "pit_history_expansion.yml" ]; then limit=2700; fi
               if [ "$age" -ge "$limit" ]; then
                 echo "OVERTIME_HEAVY_RUN run_id=$run_id age=${age}s workflow=$workflow event=$event sha=$head_sha"
