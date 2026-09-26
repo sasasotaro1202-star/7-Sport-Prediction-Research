@@ -205,6 +205,58 @@
         "https://bigballsdata.com/ufc-api",
         "https://bigballsdata.com/formula-1-api"
       ]
+    },
+    "sportsdataverse_data": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "SportsDataverse publishes refreshed GitHub release assets with timestamp.json provenance. Current release catalog includes NBA, WNBA, men's/women's college basketball play-by-play/box scores/rosters/schedules and NCAA volleyball through its ESPN/NCAA ecosystem. Useful as a reproducible historical research corpus and redundancy layer; source-level PIT must still be reconstructed.",
+      "references": [
+        "https://github.com/sportsdataverse/sportsdataverse-data",
+        "https://github.com/sportsdataverse/sportsdataverse-js"
+      ]
+    },
+    "volleystats_dataproject": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Open-source VolleyStats scrapes Data Project Web Competition pages across many volleyball federations and exports competition/match statistics including serves, receptions, attacks, blocks, errors, coaches and venue. It is not affiliated with Genius Sports; data rights and historical publication timing must be validated before model use.",
+      "references": [
+        "https://github.com/claromes/volleystats"
+      ]
+    },
+    "mma_global_database": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Public DuckDB/Kaggle corpus reports 129,285 MMA fights from 1993-2026 across 4,300+ organizations, including UFC and Rizin, with 28,118 fights containing technical statistics. Useful for cross-promotion fighter-history features and Rizin/UFC redundancy; snapshot/license/PIT availability remain required.",
+      "references": [
+        "https://github.com/LeandroIber/Database-complete-mma",
+        "https://www.kaggle.com/datasets/leandroiber/mmastats"
+      ]
+    },
+    "boxing_data_api": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Boxing Data API currently advertises a free Basic tier of 100 requests/month with essential fighter/fight data. Key/signup is required and deeper historical coverage is paid. Use only as low-volume independent boxing redundancy until PIT/history/terms are validated.",
+      "references": [
+        "https://boxing-data.com/",
+        "https://boxing-data.com/pricing/"
+      ]
+    },
+    "racinghub": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "RacingHub advertises a free MIT-licensed, no-key F1 REST API built on F1DB, with race/driver/constructor history back to 1950. Useful for F1 static-history redundancy and entity enrichment; prediction-time availability for changing fields must still be separated from static historical facts.",
+      "references": [
+        "https://racinghub.net/api/v1",
+        "https://github.com/ahmadmuhammadmusa/racinghub"
+      ]
+    },
+    "racehooks": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "RaceHooks documents public no-auth F1 historical REST endpoints for results, standings, lap times, tyre stints, pit stops and qualifying laps. Useful as an independent historical F1 redundancy layer; provenance and PIT snapshotting required.",
+      "references": [
+        "https://racehooks.io/docs/historical"
+      ]
     }
   },
   "source_classes": {
@@ -285,6 +337,14 @@
         "free": true,
         "integrated": false,
         "pit": "api_key_and_snapshot_required"
+      },
+      {
+        "id": "sportsdataverse_data",
+        "name": "SportsDataverse release corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "timestamp_snapshot_required"
       }
     ],
     "volleyball": [
@@ -327,6 +387,22 @@
         "free": true,
         "integrated": false,
         "pit": "api_key_and_historical_availability_required"
+      },
+      {
+        "id": "sportsdataverse_data",
+        "name": "SportsDataverse release corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "timestamp_snapshot_required"
+      },
+      {
+        "id": "volleystats_dataproject",
+        "name": "VolleyStats / Data Project Web Competition",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required"
       }
     ],
     "ufc": [
@@ -385,6 +461,14 @@
         "free": true,
         "integrated": false,
         "pit": "page_publication_snapshot_required"
+      },
+      {
+        "id": "mma_global_database",
+        "name": "MMA Global Database",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required"
       }
     ],
     "rizin": [
@@ -411,6 +495,14 @@
         "free": true,
         "integrated": false,
         "pit": "bookmaker_timestamp_required"
+      },
+      {
+        "id": "mma_global_database",
+        "name": "MMA Global Database",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required"
       }
     ],
     "valorant": [
@@ -569,6 +661,22 @@
         "free": true,
         "integrated": false,
         "pit": "api_key_and_snapshot_required"
+      },
+      {
+        "id": "racinghub",
+        "name": "RacingHub",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required"
+      },
+      {
+        "id": "racehooks",
+        "name": "RaceHooks historical API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required"
       }
     ],
     "rugby": [
@@ -669,6 +777,14 @@
         "free": true,
         "integrated": false,
         "pit": "snapshot_provenance_required"
+      },
+      {
+        "id": "boxing_data_api",
+        "name": "Boxing Data API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_timestamp_and_key_required"
       }
     ]
   }
