@@ -1230,15 +1230,41 @@ def train(s):
      # probabilities already generated above. The frozen holdout remains score-only.
      # This is research-only and never changes the production artifact or gate.
      try:
-      v13_oof_predictions={name:np.asarray(oof_probs[name],dtype=float) for name in best}
-      ultimate_v13_result=ultimate_v13_module.run_v13_research_from_oof(
-       sport=s,
-       oof_predictions=v13_oof_predictions,
-       oof_targets=oof_y,
-       cutoff_utc=rows[sel-1][1],
-       artifact_path=str(RESULTS/f"{s}_ultimate_v13.json"),
-      )
-      if ultimate_v13_result.get('status')!='EVALUATED':
+      # v13 requires model disagreement. If the production incumbent is a
+      # single model, use the top two pre-holdout OOS-ranked models only for
+      # this research layer. This does not alter production selection.
+      v13_models=list(best)
+      v13_source="production_selected_models"
+      if len(v13_models)<2:
+       v13_models=list(top_rank[:2])
+       v13_source="top_preholdout_oos_models_research_fallback"
+      if len(v13_models)<2:
+       ultimate_v13_result={
+        "sport":s,"status":"BLOCKED","mode":"RESEARCH_ONLY",
+        "reason":"fewer_than_two_valid_oos_models_available",
+        "model_source":v13_source,
+        "promotion":{"production":"HOLD"},
+       }
+       RESULTS.mkdir(parents=True,exist_ok=True)
+       (RESULTS/f"{s}_ultimate_v13.json").write_text(
+        _json_dump(ultimate_v13_result,indent=2),encoding="utf-8"
+       )
+      else:
+       v13_oof_predictions={name:np.asarray(oof_probs[name],dtype=float) for name in v13_models}
+       ultimate_v13_result=ultimate_v13_module.run_v13_research_from_oof(
+        sport=s,
+        oof_predictions=v13_oof_predictions,
+        oof_targets=oof_y,
+        cutoff_utc=rows[sel-1][1],
+        artifact_path=str(RESULTS/f"{s}_ultimate_v13.json"),
+       )
+       ultimate_v13_result["model_source"]=v13_source
+       ultimate_v13_result["v13_models"]=v13_models
+       RESULTS.mkdir(parents=True,exist_ok=True)
+       (RESULTS/f"{s}_ultimate_v13.json").write_text(
+        _json_dump(ultimate_v13_result,indent=2),encoding="utf-8"
+       )
+      if ultimate_v13_result.get('status') not in ('EVALUATED','BLOCKED'):
        raise RuntimeError(f"ultimate_v13_status={ultimate_v13_result.get('status')}:{ultimate_v13_result.get('reason','unknown')}")
      except Exception as exc:
       failure_payload={
