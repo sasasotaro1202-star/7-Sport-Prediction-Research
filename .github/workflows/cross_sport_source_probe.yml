@@ -31,6 +31,9 @@ jobs:
       - name: Validate source discovery safety frontier
         run: python scripts/test_source_discovery_frontier.py
 
+      - name: Audit nine-sport source coverage and independence
+        run: python scripts/audit_source_coverage.py
+
       - name: Probe nine-sport cross-source reachability
         run: python -m src.cross_sport_source_probe
 
