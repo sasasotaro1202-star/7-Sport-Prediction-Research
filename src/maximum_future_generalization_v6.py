@@ -282,29 +282,46 @@ def _meta_label_models(x: np.ndarray, bp: np.ndarray, y: np.ndarray) -> tuple[np
     return out, {"status": "EVALUATED", "audits": audits}
 
 
-def _predictability_calibration(y: np.ndarray, score: np.ndarray) -> dict[str, Any]:
-    """Chronological calibration of predictability against subsequent observed correctness."""
+def _predictability_calibration(y: np.ndarray, score: np.ndarray, horizon: int = 30) -> dict[str, Any]:
+    """Calibrate predictability against a strictly future difficulty target."""
     y = np.asarray(y, dtype=int)
-    p = np.clip(np.asarray(score, dtype=float), EPS, 1.0 - EPS)
-    mask = np.isfinite(p)
-    idx = np.flatnonzero(mask)
-    if len(idx) < 120:
-        return {"status": "INSUFFICIENT"}
-    cut = len(idx) // 2
-    fit_idx, eval_idx = idx[:cut], idx[cut:]
-    z_fit = np.log(p[fit_idx] / (1.0 - p[fit_idx])).reshape(-1, 1)
-    model = LogisticRegression(C=0.25, max_iter=800, random_state=SEED)
-    model.fit(z_fit, y[fit_idx])
-    z_eval = np.log(p[eval_idx] / (1.0 - p[eval_idx])).reshape(-1, 1)
-    cal = np.clip(model.predict_proba(z_eval)[:, 1], EPS, 1.0 - EPS)
-    raw_m = _safe_metrics(y[eval_idx], p[eval_idx])
-    cal_m = _safe_metrics(y[eval_idx], cal)
+    score = np.clip(np.asarray(score, dtype=float), EPS, 1.0 - EPS)
+    difficulty = np.full(len(y), np.nan)
+    baseline_failure = ((score >= 0.5).astype(int) != y).astype(int)
+    for i in range(0, len(y) - horizon):
+        difficulty[i] = float(np.mean(baseline_failure[i + 1:i + horizon + 1]) >= 0.50)
+    meta_features = score.reshape(-1, 1)
+    pred, audit = v2._crossfit_binary_meta(
+        meta_features,
+        difficulty,
+        horizon=horizon,
+        min_train=120,
+        seed=SEED + 1000,
+    )
+    mask = np.isfinite(pred) & np.isfinite(difficulty)
+    if int(mask.sum()) < 60:
+        return {
+            "status": "INSUFFICIENT",
+            "evaluation_rows": int(mask.sum()),
+            "target": "future_baseline_difficulty_ge_50pct_error",
+            "audit": audit,
+        }
+    raw = _safe_metrics(difficulty[mask].astype(int), score[mask])
+    calibrated = _safe_metrics(
+        difficulty[mask].astype(int),
+        np.clip(pred[mask], EPS, 1.0 - EPS),
+    )
     return {
         "status": "EVALUATED",
-        "raw": raw_m,
-        "calibrated": cal_m,
-        "delta": {k: float(cal_m[k] - raw_m[k]) for k in ("accuracy","logloss","brier","ece")},
-        "policy": "predictability score calibration is chronological and uses later labels only as training/evaluation targets",
+        "target": "future_baseline_difficulty_ge_50pct_error",
+        "raw": raw,
+        "calibrated": calibrated,
+        "delta": {
+            k: float(calibrated[k] - raw[k])
+            for k in ("accuracy", "logloss", "brier", "ece")
+        },
+        "audit": audit,
+        "policy": "future difficulty is target-only with horizon embargo; no future target enters current routing features",
     }
 
 
