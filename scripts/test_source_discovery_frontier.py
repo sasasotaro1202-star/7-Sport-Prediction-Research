@@ -54,6 +54,8 @@ def main() -> int:
             "historical_corpus",
             "data_scraper",
             "market_and_results_archive",
+            "external_forecast",
+            "entity_context_source",
         }
 
     print("SOURCE_DISCOVERY_FRONTIER=PASS")
