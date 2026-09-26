@@ -482,6 +482,14 @@
         "https://docs.tennis-api.com/results",
         "https://docs.tennis-api.com/tournaments"
       ]
+    },
+    "tracinginsights_f1": {
+      "current_web_evidence": "2026-09-27",
+      "status": "strong_research_candidate",
+      "note": "TracingInsights publishes free public F1 telemetry repositories including 2026 session data, with lap times, weather, race control, driver and circuit/corner JSON plus historical seasons. No API key is required; repositories are Apache-2.0. This is a high-granularity research redundancy source, subject to snapshot/PIT validation for prediction-time fields.",
+      "references": [
+        "https://github.com/TracingInsights/2026"
+      ]
     }
   },
   "source_classes": {
@@ -1267,6 +1275,15 @@
         "integrated": false,
         "pit": "dataset_regeneration_snapshot_required",
         "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "tracinginsights_f1",
+        "name": "TracingInsights F1 public telemetry",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required",
+        "independence_family": "f1_community_telemetry"
       }
     ],
     "rugby": [
