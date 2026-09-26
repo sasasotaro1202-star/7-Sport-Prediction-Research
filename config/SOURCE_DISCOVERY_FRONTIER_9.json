@@ -243,7 +243,7 @@
       "confirmed_coverage": [
         "tennis"
       ],
-      "access": "free_public_download",
+      "access": "public_download_restricted_training_terms",
       "status": "blocked_by_project_training_terms",
       "next": "do not ingest into model training; source explicitly restricts AI/data-training or commercial use"
     },
