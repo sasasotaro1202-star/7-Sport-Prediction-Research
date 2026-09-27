@@ -279,6 +279,10 @@ def audit(
     shadow = _load_shadow(shadow_path)
     evidence = registry.get("evidence") or {}
     shadow_rows = shadow.get("sources") if isinstance(shadow, dict) else []
+    # A partially-written/legacy manifest may contain null or malformed sources.
+    # Treat that as no captured shadow rows rather than allowing the audit to crash.
+    if not isinstance(shadow_rows, list):
+        shadow_rows = []
     shadow_by_source = {str(x.get("source")): x for x in shadow_rows if isinstance(x, dict)}
 
     db = _query_db(db_path, sport, policy)
