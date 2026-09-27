@@ -1,0 +1,127 @@
+name: Cross-Sport Source Probe
+
+on:
+  push:
+    paths:
+      - "src/cross_sport_source_probe.py"
+      - "config/SPORT_DATA_SOURCES_9.json"
+      - "config/SOURCE_DISCOVERY_FRONTIER_9.json"
+      - "scripts/test_source_discovery_frontier.py"
+      - "scripts/audit_source_coverage.py"
+      - "scripts/audit_cross_sport_source_coverage.py"
+      - ".github/workflows/cross_sport_source_probe.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-sport-source-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Validate source discovery safety frontier
+        run: python scripts/test_source_discovery_frontier.py
+
+      - name: Audit nine-sport source coverage and independence
+        run: python scripts/audit_source_coverage.py
+
+      - name: Audit nine-sport source coverage
+        run: python scripts/audit_cross_sport_source_coverage.py
+
+      - name: Probe nine-sport cross-source reachability
+        run: python -m src.cross_sport_source_probe
+
+      - name: Validate probe artifact safety
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s results/cross_sport_source_probe/cross_sport.json
+          test -s results/cross_sport_shadow/shadow_sources.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/cross_sport_shadow/shadow_sources.json")
+          o=json.loads(p.read_text(encoding="utf-8"))
+          assert o.get("research_only") is True
+          assert o.get("production_model_touched") is False
+          assert o.get("historical_pit_status") == "UNPROVEN"
+          assert o.get("source_count") == 6
+          for row in o.get("sources", []):
+              assert row.get("requested_url","").startswith("https://")
+              assert row.get("research_only") is True
+              assert row.get("production_model_touched") is False
+              assert row.get("historical_pit_status") == "UNPROVEN"
+          print("CROSS_SPORT_SHADOW_ARTIFACT=PASS")
+          PY
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("results/cross_sport_source_probe/cross_sport.json")
+          o = json.loads(p.read_text(encoding="utf-8"))
+          assert o.get("research_only") is True
+          assert o.get("production_model_touched") is False
+          assert o.get("pit_status") == "NOT_ESTABLISHED"
+          required_probe_sources = {
+              "thesportsdb",
+              "rizin_club",
+              "f1api_dev",
+              "racehooks",
+              "openboxing",
+              "wta_official",
+              "sporting_events_free",
+          }
+          assert required_probe_sources.issubset(set(o.get("sources", {})))
+          for source, data in o["sources"].items():
+              assert data["probe_count"] > 0
+              assert 0 <= data["healthy_count"] <= data["probe_count"]
+          assert isinstance(o.get("required_zero_healthy"), list)
+          assert isinstance(o.get("optional_zero_healthy"), list)
+          assert isinstance(o.get("required_zero_healthy"), list)
+          print("CROSS_SPORT_PROBE_ARTIFACT=PASS")
+          for source, data in o["sources"].items():
+              print(f"{source.upper()}_HEALTHY={data['healthy_count']}/{data['probe_count']}")
+          PY
+
+      - name: Evaluate probe outcome
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("results/cross_sport_source_probe/cross_sport.json")
+          o = json.loads(p.read_text(encoding="utf-8"))
+          status = o.get("overall_status")
+          print(f"CROSS_SPORT_PROBE_OVERALL={status}")
+          if status != "PASS":
+              for source, data in o.get("sources", {}).items():
+                  if data.get("healthy_count", 0) == 0:
+                      print(f"SOURCE_ZERO_HEALTHY={source}")
+              raise SystemExit(2)
+          PY
+
+      - name: Upload probe evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cross-sport-source-probe-${{ github.run_id }}
+          path: |
+            results/cross_sport_source_probe/cross_sport.json
+            results/cross_sport_shadow/shadow_sources.json
+            data/raw/cross_sport_shadow/**
+          retention-days: 14

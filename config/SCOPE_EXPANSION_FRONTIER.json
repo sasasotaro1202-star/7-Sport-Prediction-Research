@@ -1,0 +1,354 @@
+{
+  "version": "scope-expansion-frontier-2026-09-28-v5",
+  "policy": {
+    "free_only": true,
+    "credentials_never_auto_created": true,
+    "paid_or_trial_sources_never_auto_used": true,
+    "discovery_is_not_prediction_eligibility": true,
+    "historical_pit_unknown_is_fail_closed": true,
+    "production_model_changes": false,
+    "excluded_sports_never_discover": [
+      "baseball",
+      "soccer"
+    ]
+  },
+  "excluded_sports": [
+    "baseball",
+    "soccer"
+  ],
+  "current_supported_sports": [
+    "valorant",
+    "basketball",
+    "volleyball",
+    "tennis",
+    "ufc",
+    "rizin",
+    "f1",
+    "rugby",
+    "boxing"
+  ],
+  "expansion_candidates": [
+    {
+      "sport": "hockey",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Current public ESPN API documentation lists multiple hockey leagues and a broad event surface.",
+      "provider": "nhl_official"
+    },
+    {
+      "sport": "cricket",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Current public ESPN documentation exposes cricket league/event endpoints and active-series discovery.",
+      "provider": "cricsheet"
+    },
+    {
+      "sport": "golf",
+      "espn_slug": "golf",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Public ESPN endpoints cover multiple golf tours and event/leaderboard data.",
+      "provider": "espn"
+    },
+    {
+      "sport": "field-hockey",
+      "espn_slug": "field-hockey",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Explicitly represented in the current public ESPN sport catalog."
+    },
+    {
+      "sport": "lacrosse",
+      "espn_slug": "lacrosse",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Explicitly represented in the current public ESPN sport catalog."
+    },
+    {
+      "sport": "water-polo",
+      "espn_slug": "water-polo",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Explicitly represented in the current public ESPN sport catalog."
+    },
+    {
+      "sport": "australian-football",
+      "espn_slug": "australian-football",
+      "priority": 3,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Explicitly represented in the current public ESPN sport catalog."
+    },
+    {
+      "sport": "rugby-league",
+      "espn_slug": "rugby-league",
+      "priority": 3,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Kept separate from rugby union to avoid blind pooling across materially different competition structures."
+    },
+    {
+      "sport": "american-football",
+      "espn_slug": "football",
+      "provider": "espn",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Public ESPN Core endpoints expose event detail, play-by-play, game situation and related data."
+    },
+    {
+      "sport": "handball",
+      "provider": "open_corpus",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Open handball research corpus demonstrates lineup-efficiency data from EHF competition reports; live breadth remains to be established."
+    },
+    {
+      "sport": "snooker",
+      "provider": "snooker_org",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Snooker.org provides event, match, player, ranking, upcoming and result APIs; non-commercial access is free with an approved header."
+    },
+    {
+      "sport": "cycling",
+      "provider": "open_cycling",
+      "priority": 3,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Open cycling data ecosystems exist, but race-event prediction suitability and competition coverage must be established separately."
+    },
+    {
+      "sport": "dota-2",
+      "provider": "opendota",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "OpenDota provides public match/player/hero data and derived analytics."
+    },
+    {
+      "sport": "league-of-legends",
+      "provider": "oracle_elixir",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Oracle's Elixir provides long-run professional LoL match/player datasets."
+    },
+    {
+      "sport": "counter-strike-2",
+      "provider": "hltv_reference",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "HLTV-derived implementations expose match/team/player statistics; terms and PIT require validation."
+    },
+    {
+      "sport": "wec",
+      "provider": "openwec",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "OpenWEC exposes free public WEC series/event/session result resources."
+    },
+    {
+      "sport": "rugby-union-events",
+      "provider": "radl_reference",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "integration": "existing_rugby_extension",
+      "reason": "RADL supplies an action-level rugby event schema for normalization research."
+    },
+    {
+      "sport": "badminton",
+      "provider": "racket_sports_dataset",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Open racket-sports corpus includes BWF match records and standardized winner/date/player fields."
+    },
+    {
+      "sport": "table-tennis",
+      "provider": "racket_sports_dataset",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Open racket-sports corpus includes WTT match records with standardized winner/date/player fields."
+    }
+  ],
+  "promotion_stages": [
+    "DISCOVERED",
+    "SOURCE_PROBED",
+    "DATA_ACQUIRED",
+    "PIT_VALIDATED",
+    "SHADOW",
+    "CHRONOLOGICAL_OOS",
+    "ROBUSTNESS",
+    "LIMITED_PRODUCTION"
+  ],
+  "stop_conditions": [
+    "license_or_terms_unclear",
+    "source_availability_unknown",
+    "duplicate_source_family_without_incremental_information",
+    "insufficient_event_coverage",
+    "persistent_schema_or_entity_mapping_failure",
+    "material_oos_regression"
+  ],
+  "notes": [
+    "baseball and soccer are hard exclusions and must never be added to automatic discovery",
+    "new sports remain Discovery-only until coverage, licensing, PIT, entity mapping, chronological OOS and robustness gates pass",
+    "provider independence must be tracked; multiple wrappers of one upstream do not count as independent evidence",
+    "provider-specific discovery probes are research-only; retrieval timestamps never establish historical PIT",
+    "baseball and soccer are permanent discovery exclusions",
+    "provider wrappers are not counted as independent upstream evidence",
+    "public retrieval is never treated as historical PIT without availability provenance"
+  ],
+  "source_probe_candidates": [
+    {
+      "id": "nhl_official_api",
+      "sport": "hockey",
+      "provider": "nhl_official",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "cricsheet",
+      "sport": "cricket",
+      "provider": "cricsheet",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "espn_golf_public",
+      "sport": "golf",
+      "provider": "espn",
+      "espn_slug": "golf",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "espn_american_football_public",
+      "sport": "american-football",
+      "provider": "espn",
+      "espn_slug": "football",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "snooker_org_api",
+      "sport": "snooker",
+      "provider": "snooker_org",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "handball_open_lineup_corpus",
+      "sport": "handball",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/nmjohnson/handball-rapm"
+    },
+    {
+      "id": "tennis_match_data_v3",
+      "sport": "tennis",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/ryantjx/tennis-match-data"
+    },
+    {
+      "id": "vlrdevapi",
+      "sport": "valorant",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/Vanshbordia/vlrdevapi"
+    },
+    {
+      "id": "ufc_stats_api_public_impl",
+      "sport": "ufc",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/malichetty/ufc-stats-api"
+    },
+    {
+      "id": "fastf1_open_source",
+      "sport": "f1",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/theOehrly/Fast-F1"
+    },
+    {
+      "id": "nflverse_pbp",
+      "sport": "american-football",
+      "provider": "reference_only",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/nflverse/nflverse-pbp"
+    },
+    {
+      "id": "opendota",
+      "sport": "dota-2",
+      "provider": "opendota",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "oracle_elixir",
+      "sport": "league-of-legends",
+      "provider": "reference_only",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://oracleselixir.com/tools/downloads"
+    },
+    {
+      "id": "hltv_cs_reference",
+      "sport": "counter-strike-2",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/JuhoNieminen/HLTV-API"
+    },
+    {
+      "id": "openwec",
+      "sport": "wec",
+      "provider": "openwec",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "radl",
+      "sport": "rugby-union-events",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/JFrusher/RADL"
+    },
+    {
+      "id": "racket_sports_dataset_badminton",
+      "sport": "badminton",
+      "provider": "reference_only",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/Li02003121/racket-sports-dataset"
+    },
+    {
+      "id": "racket_sports_dataset_table_tennis",
+      "sport": "table-tennis",
+      "provider": "reference_only",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/Li02003121/racket-sports-dataset"
+    }
+  ]
+}

@@ -1,0 +1,1821 @@
+{
+  "version": "cross-sport-data-layer-v2.3",
+  "policy": {
+    "free_only": true,
+    "production_default_requires_pit": true,
+    "unknown_availability_is_fail_closed": true,
+    "research_only_candidates_are_never_auto_promoted": true,
+    "credentials_never_auto_created": true
+  },
+  "evidence": {
+    "thesportsdb": {
+      "current_web_evidence": "2026-09-27",
+      "status": "conditional_research_candidate",
+      "note": "Free JSON API. Current public database pages show all nine target sports/competition families. Best suited to cross-sport event/participant/league/venue/standings enrichment rather than Opta-depth event statistics. A current independent 2026 implementation reports silently truncated free-tier responses (for example, partial league tables) in some cases; therefore every response must be completeness-checked against expected counts or independent sources before feature use.",
+      "references": [
+        "https://www.thesportsdb.com/api.php",
+        "https://www.thesportsdb.com/sport.php",
+        "https://www.thesportsdb.com/season/4491-rizin-ff/2026",
+        "https://www.thesportsdb.com/league/5422-Valorant-Champions-Tour"
+      ]
+    },
+    "espn_public": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Public ESPN API documentation/implementations expose broad coverage across basketball, racing, tennis, MMA, rugby and volleyball, plus rosters, injuries, transactions, news and statistics. Treat the surface as public/undocumented and reconstruct availability conservatively.",
+      "references": [
+        "https://github.com/sejaldua/espn-api",
+        "https://github.com/sejaldua/espn-api/blob/main/references/endpoints.md"
+      ]
+    },
+    "odds_api_io": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Provider advertises a free tier of 100 requests/hour and 500/day across 34 sports. Direct pages confirm basketball, tennis, MMA including Rizin, boxing, rugby and Valorant/esports. Use only as market-signal enrichment; bookmaker publication timestamps are required for historical PIT.",
+      "references": [
+        "https://odds-api.io/sports",
+        "https://odds-api.io/sports/mma",
+        "https://odds-api.io/sports/boxing",
+        "https://odds-api.io/sports/rugby",
+        "https://odds-api.io/sports/tennis",
+        "https://odds-api.io/esports/valorant"
+      ],
+      "terms_note": "Current free-tier page states free is for development/testing/personal projects; commercial production requires paid access. Keep out of commercial production unless terms permit."
+    },
+    "specialist_open_datasets": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Open datasets can add higher-granularity research features but often lack historical availability timestamps. Keep PIT-gated.",
+      "references": [
+        "https://github.com/livetennisapi/livetennisapi-data",
+        "https://github.com/komaksym/UFC-DataLab",
+        "https://github.com/serp-ai/boxing-punch-recognition-dataset",
+        "https://github.com/opensport/rugby.db",
+        "https://github.com/Veloruze/vlr-gg-api"
+      ]
+    },
+    "f1_community_dataset": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Community F1 dataset currently reports 1950-2026 coverage and CC0 licensing; use as redundancy/research corpus rather than replacing OpenF1/Jolpica.",
+      "references": [
+        "https://www.kaggle.com/general/734039"
+      ]
+    },
+    "cross_sport_context": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Non-sport-specific context sources can improve venue conditions, travel/rest context, entity resolution and external-information awareness across multiple target sports. They remain separate from direct match-stat feeds.",
+      "sources": {
+        "gdelt": {
+          "free": true,
+          "pit": "publication/capture provenance required",
+          "use": [
+            "news",
+            "event context",
+            "information shocks"
+          ],
+          "reference": "https://www.gdelt.org/"
+        },
+        "open_meteo": {
+          "free": true,
+          "pit": "forecast-run timestamp required for prediction replay",
+          "use": [
+            "weather",
+            "wind",
+            "temperature",
+            "precipitation",
+            "air quality"
+          ],
+          "reference": "https://github.com/open-meteo/open-meteo"
+        },
+        "openstreetmap_overpass": {
+          "free": true,
+          "pit": "static/geographic data snapshot provenance required",
+          "use": [
+            "venue location",
+            "travel distance",
+            "surface/venue context"
+          ],
+          "reference": "https://wiki.openstreetmap.org/wiki/Overpass_API"
+        },
+        "wikidata": {
+          "free": true,
+          "pit": "entity snapshot/version provenance required",
+          "use": [
+            "athlete/team/entity resolution",
+            "country",
+            "biographical metadata"
+          ],
+          "reference": "https://www.wikidata.org/wiki/Wikidata:Data_access/en"
+        }
+      }
+    },
+    "sportscore": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Documented public REST API covering football, basketball, cricket and tennis; no API key for open-source/attribution use, with an advertised free quota. Useful as an independent redundancy source for basketball/tennis.",
+      "references": [
+        "https://sportscore.com/developers/",
+        "https://sportscore.com/developers/api/"
+      ]
+    },
+    "discovery_aggregator": {
+      "current_web_evidence": "2026-09-27",
+      "status": "discovery_only",
+      "note": "mcp-sports-hub aggregates 40+ providers and identifies no-key/free providers. It is used as a provider-discovery index only, not as a production data source.",
+      "references": [
+        "https://github.com/lacausecrypto/mcp-sports-hub"
+      ]
+    },
+    "api_sports": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "API-Sports currently advertises a permanent free plan with 100 requests/day for each API, no credit card, with dedicated APIs covering basketball, volleyball, MMA, Formula 1 and rugby. Registration/API key is required. Use as secondary redundancy only until exact historical availability, PIT timestamps and source terms are validated.",
+      "references": [
+        "https://api-sports.io/",
+        "https://api-sports.io/sports/basketball",
+        "https://api-sports.io/sports/mma",
+        "https://api-sports.io/sports/formula-1",
+        "https://api-sports.io/sports/rugby"
+      ]
+    },
+    "ufcstats": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "UFCStats exposes public UFC event/fight pages with detailed historical fight statistics. There is no official public API, so any scraper must be rate-limited, provenance-preserving and PIT-audited. Suitable as an independent UFC historical redundancy source, not a production feed by default.",
+      "references": [
+        "https://www.ufcstats.com/",
+        "https://github.com/DavesAnalytics/UFC-Analytics-Scraper"
+      ]
+    },
+    "openboxing": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Open Boxing publishes its underlying boxing data as GitHub CSV files and exposes a basic JSON API. The project itself warns it is early development with possible missing/error data, so it is a redundancy/research corpus pending quality, provenance and terms validation.",
+      "references": [
+        "https://www.openboxing.org/data/",
+        "https://www.openboxing.org/api/",
+        "https://github.com/boxingundefeated/open-boxing-data"
+      ]
+    },
+    "rugby_data_repository": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Rugby-Data is a public JSON/YAML corpus covering multiple professional rugby union competitions, with weekly automated updates; historical depth varies by competition. Use for redundancy/feature enrichment after snapshot and PIT validation.",
+      "references": [
+        "https://github.com/transientlunatic/Rugby-Data"
+      ]
+    },
+    "f1api_dev": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "F1API.dev is an independent free/no-key F1 REST API with current and historical structured race, qualifying, driver and constructor data. Useful as a third independent F1 redundancy layer beside OpenF1/Jolpica.",
+      "references": [
+        "https://f1api.dev/",
+        "https://github.com/Rafacv23/F1-api"
+      ]
+    },
+    "pandascore": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "PandaScore free plan provides fixtures, past/future schedules, tournament/team/player context and pre-match context for esports including Valorant. Detailed historical/post-match statistics require a paid historical plan, so the free tier is useful mainly for schedule/context/redundancy until a suitable free historical surface is proven.",
+      "references": [
+        "https://www.pandascore.co/pricing",
+        "https://developers.pandascore.co/docs/introduction",
+        "https://developers.pandascore.co/docs/plan-reference"
+      ]
+    },
+    "euroleague_basic_free": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Euroleague Advanced API exposes basic Euroleague/Eurocup endpoints without authentication; advanced analysis requires subscription. Useful for basketball competition-specific redundancy, especially schedule/standings/players/basic game data.",
+      "references": [
+        "https://euroleague-advanced-api.eu/docs",
+        "https://euroleague-advanced-api.eu/tutorial"
+      ]
+    },
+    "bigballsdata": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Big Balls Sports Data currently advertises no-card free tiers with API-key access and sport-specific surfaces including basketball, MMA and Formula 1. Coverage is changing and some deeper fields are paid or still in development; use only as a snapshot-tested secondary source.",
+      "references": [
+        "https://bigballsdata.com/basketball-api",
+        "https://bigballsdata.com/nba-api",
+        "https://bigballsdata.com/ufc-api",
+        "https://bigballsdata.com/formula-1-api"
+      ]
+    },
+    "sportsdataverse_data": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "SportsDataverse publishes refreshed GitHub release assets with timestamp.json provenance. Current release catalog includes NBA, WNBA, men's/women's college basketball play-by-play/box scores/rosters/schedules and NCAA volleyball through its ESPN/NCAA ecosystem. Useful as a reproducible historical research corpus and redundancy layer; source-level PIT must still be reconstructed.",
+      "references": [
+        "https://github.com/sportsdataverse/sportsdataverse-data",
+        "https://github.com/sportsdataverse/sportsdataverse-js"
+      ]
+    },
+    "volleystats_dataproject": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Open-source VolleyStats scrapes Data Project Web Competition pages across many volleyball federations and exports competition/match statistics including serves, receptions, attacks, blocks, errors, coaches and venue. It is not affiliated with Genius Sports; data rights and historical publication timing must be validated before model use.",
+      "references": [
+        "https://github.com/claromes/volleystats"
+      ]
+    },
+    "mma_global_database": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Public DuckDB/Kaggle corpus reports 129,285 MMA fights from 1993-2026 across 4,300+ organizations, including UFC and Rizin, with 28,118 fights containing technical statistics. Useful for cross-promotion fighter-history features and Rizin/UFC redundancy; snapshot/license/PIT availability remain required.",
+      "references": [
+        "https://github.com/LeandroIber/Database-complete-mma",
+        "https://www.kaggle.com/datasets/leandroiber/mmastats"
+      ]
+    },
+    "boxing_data_api": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Boxing Data API currently advertises a free Basic tier of 100 requests/month with essential fighter/fight data. Key/signup is required and deeper historical coverage is paid. Use only as low-volume independent boxing redundancy until PIT/history/terms are validated.",
+      "references": [
+        "https://boxing-data.com/",
+        "https://boxing-data.com/pricing/"
+      ]
+    },
+    "racinghub": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "RacingHub advertises a free MIT-licensed, no-key F1 REST API built on F1DB, with race/driver/constructor history back to 1950. Useful for F1 static-history redundancy and entity enrichment; prediction-time availability for changing fields must still be separated from static historical facts.",
+      "references": [
+        "https://racinghub.net/api/v1",
+        "https://github.com/ahmadmuhammadmusa/racinghub"
+      ]
+    },
+    "racehooks": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "RaceHooks documents public no-auth F1 historical REST endpoints for results, standings, lap times, tyre stints, pit stops and qualifying laps. Useful as an independent historical F1 redundancy layer; provenance and PIT snapshotting required.",
+      "references": [
+        "https://racehooks.io/docs/historical"
+      ]
+    },
+    "sx_bet": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_market",
+      "note": "SX Bet exposes public read-only market/fixture/league/team/live-score/best-odds data without API key for reads. Current rules cover basketball, tennis, rugby, MMA, esports, boxing and auto racing among relevant families. Do not use wallet/write endpoints. Historical PIT requires archived market/trade timestamps; current retrieval alone is not historical availability evidence.",
+      "references": [
+        "https://blog.sx.bet/developers/tutorials/fetch-live-odds-5-minutes/",
+        "https://blog.sx.bet/developers/tutorials/building-on-sx-bet-api-websocket-mcp/",
+        "https://help.sx.bet/en/collections/2864899-betting-rules"
+      ]
+    },
+    "highlightly": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Highlightly advertises a free Basic tier of 100 requests/day with no credit card, covering basketball, rugby and volleyball among the project sports. Account/API key registration is required; odds are paid regardless of sport. Treat free data as a research redundancy layer and never auto-create credentials.",
+      "references": [
+        "https://highlightly.net/",
+        "https://highlightly.net/blogs/how-to-get-free-sports-data-with-an-api"
+      ]
+    },
+    "sportsdataverse_volleyball": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "SportsDataverse documents NCAA volleyball among NCAA team-sport coverage and supports public data tooling. This is a useful volleyball historical/research route, but exact release coverage and availability timestamps must be validated before PIT/OOS use.",
+      "references": [
+        "https://github.com/austra/sportsdataverse",
+        "https://github.com/sportsdataverse/sportsdataverse-data/"
+      ]
+    },
+    "tennis_data_uk": {
+      "current_web_evidence": "2026-09-27",
+      "status": "blocked_by_project_training_policy",
+      "note": "Tennis-Data provides 26 years of free computer-ready ATP/WTA results and betting odds, but its current terms explicitly state the files are not for commercial or data-training products using automated bots/scrapers/AI. Therefore useful as discovery evidence of available data, but excluded from model-training ingestion.",
+      "references": [
+        "https://www.tennis-data.co.uk/data.php"
+      ]
+    },
+    "balldontlie": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_low_priority",
+      "note": "BALLDONTLIE currently provides a free NBA API tier requiring an API key, with teams/players/games available while player game stats, box scores, odds and advanced endpoints are paid. Useful only for schedule/entity redundancy on this project unless future free-tier scope changes.",
+      "references": [
+        "https://docs.balldontlie.io/"
+      ]
+    },
+    "statbunker_rugby": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "StatBunker publicly exposes regularly updated rugby-union player/team statistics and historical competition pages. There is no validated historical availability timestamp layer yet, so use only after immutable snapshots and PIT reconstruction.",
+      "references": [
+        "https://rugby.statbunker.com/"
+      ]
+    },
+    "ufc_official_jsonapi": {
+      "current_web_evidence": "2026-09-27",
+      "status": "strong_research_candidate",
+      "note": "UFC.com exposes a public JSON:API surface documented by a current open-source sports-data integration. It includes event/card resources, athlete profiles, FightMetric career statistics and records, with fighter/event history reaching UFC 1. Treat official site retrieval as public but undocumented: rate-limit and snapshot every retrieval; do not infer historical availability from today's response.",
+      "references": [
+        "https://ufc.com/",
+        "https://github.com/DanielTomaro13/sportsdata-mcp",
+        "https://glama.ai/mcp/servers/DanielTomaro13/sportsdata-mcp/tools/ufc_jsonapi_index"
+      ]
+    },
+    "the_odds_api": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "The Odds API advertises a free Starter plan with 500 credits/month and live/upcoming odds across available sports. Current sports pages explicitly include basketball, boxing, MMA and extensive tennis; the free plan excludes historical odds, so use it as prediction-time market context or future-capture source, not as free historical backtest data.",
+      "references": [
+        "https://the-odds-api.com/",
+        "https://the-odds-api.com/sports-odds-data/sports-apis.html",
+        "https://the-odds-api.com/historical-odds-data/"
+      ],
+      "terms_note": "Free account/key required; no paid upgrade or credential creation is automated."
+    },
+    "tennis_pointbypoint_legacy": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Public GitHub archive contains sequential point-by-point ATP/WTA/Challenger/ITF match data split by tour/draw, useful for historical point-sequence modeling. Coverage is strongest for tour-level matches since ~2012/2013 and the repository documents omissions/errors. Treat as a derived research corpus; immutable snapshot and provenance are required.",
+      "references": [
+        "https://github.com/ppaulojr/tennis_pointbypoint"
+      ]
+    },
+    "tennis_match_charting_project": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Match Charting Project public GitHub data provides shot-by-shot professional tennis records for thousands of matches, including shot type/direction/depth and error information. CC BY-NC-SA 4.0; non-commercial. This can support shot-pattern/style features, but historical availability must not be inferred from current aggregates.",
+      "references": [
+        "https://github.com/SickleClaw/Tennis_MatchChartingProject"
+      ]
+    },
+    "tennis_visuals": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "TennisVisuals publishes CSV collections at basic, point-by-point and stats levels. It is a complementary corpus for tennis feature research; source overlap and historical provenance must be audited before using it as an independent validation source.",
+      "references": [
+        "https://github.com/TennisVisuals/tennis-match-data"
+      ]
+    },
+    "fightforensics": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Fight Forensics currently exposes a free read-only MMA JSON API covering large cross-promotion fight history, fighters, events, promotions and venues. API keys are issued for free after repeated bulk-scrape prevention and visible attribution. It can provide cross-promotion fighter-history/entity features; availability snapshots and exact RIZIN coverage must still be verified before use.",
+      "references": [
+        "https://fightforensics.com/",
+        "https://fightforensics.com/api/v1"
+      ]
+    },
+    "lights_out_f1_schedule": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Lights Out provides a free, no-registration 2026 F1 schedule/results JSON feed under CC BY 4.0. It is intentionally narrow and is useful as an independent current-season calendar/session/result redundancy layer, not as a telemetry replacement.",
+      "references": [
+        "https://whenstherace.com/f1-schedule-json/"
+      ]
+    },
+    "rizin_club": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "RIZIN.club is a public unofficial RIZIN database covering events, fights, fighter records and decision methods from the 2015 launch through current events, with links to official YouTube videos. Useful as an independent RIZIN redundancy/entity-resolution source; page publication timing must be snapshotted for PIT.",
+      "references": [
+        "https://rizin.club/"
+      ]
+    },
+    "wta_official": {
+      "current_web_evidence": "2026-09-27",
+      "status": "strong_research_candidate",
+      "note": "Official WTA public Spring REST API, no auth/key/Origin-Referer gate. Exposes rankings, player catalogue/profile/match history, tournaments and tournament-edition matches/entry lists. Current public implementation reports live CI probes. Time-sensitive fields must still be snapshotted for PIT replay.",
+      "references": [
+        "https://api.wtatennis.com/tennis/players/ranked",
+        "https://github.com/DanielTomaro13/sportsdata-mcp/blob/main/documentation/WTA.md"
+      ]
+    },
+    "euroleague_official": {
+      "current_web_evidence": "2026-09-27",
+      "status": "strong_research_candidate",
+      "note": "Official EuroLeague live API at api-live.euroleague.net/v2. No key/no signup. Provides seasons, clubs, people, rounds, games and per-game box scores. Historical depth must be established from returned seasons; standings/statistics/PBP are on separate backends.",
+      "references": [
+        "https://api-live.euroleague.net/v2",
+        "https://github.com/DanielTomaro13/sportsdata-mcp/blob/main/documentation/EuroLeague.md"
+      ]
+    },
+    "sporting_events_free": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Free CSV/JSON fixture datasets with no API key or signup, automatically regenerated, covering basketball, tennis, rugby union, motorsport/F1, MMA, boxing and esports. Commercial use is allowed with attribution. Useful mainly as schedule/context redundancy, not deep player-event statistics.",
+      "references": [
+        "https://sporting-events.org/data/"
+      ]
+    },
+    "response_integrity": {
+      "current_web_evidence": "2026-09-27",
+      "status": "required_guard",
+      "note": "A successful HTTP status is not sufficient evidence of a healthy sports-data response. Current external provider research documents APIs that return HTTP 200 with structured error objects or silently partial data. Probe/ingest paths must inspect body-level error signals, emptiness and completeness where an expected cardinality exists.",
+      "references": [
+        "https://github.com/DanielTomaro13/sportsdata-mcp"
+      ]
+    },
+    "grid_valorant_open_access": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "GRID Open Access offers free official esports data and an esports data API for qualifying non-commercial users including researchers, students and independent developers. GRID is Riot's official VALORANT data distribution partner; official Riot pages state community live/fixture data is currently distributed via GRID. Access requires application/account and is not auto-created.",
+      "references": [
+        "https://grid.gg/open-access/",
+        "https://riotesportsdata.com/en-us/valorant/",
+        "https://grid.gg/get-valorant/"
+      ]
+    },
+    "rugby_data_api_legacy": {
+      "current_web_evidence": "2026-09-27",
+      "status": "historical_research_candidate",
+      "note": "Archived MIT rugby-data-api exposes programmatic Rugby Union fixtures/results and league tables for Aviva/Pro12-era data. Repository is archived, so treat it strictly as historical redundancy and not a current feed.",
+      "references": [
+        "https://github.com/punkstar/rugby-data-api"
+      ]
+    },
+    "valorant_blitz_static": {
+      "current_web_evidence": "2026-09-27",
+      "status": "historical_research_candidate",
+      "note": "Public GitHub corpus scraped from blitz.gg contains Valorant agent/map/weapon aggregate statistics and map-level metrics. Last repository data refresh is old, so it is useful only for historical feature research and must not be treated as current.",
+      "references": [
+        "https://github.com/IronicNinja/valorant-stats"
+      ]
+    },
+    "nbaapi_stats": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Community NBA API exposes no-key JSON player season totals and advanced shooting/box-score metrics. It is an unofficial derived source; useful for NBA-specific feature redundancy, with currentness, provenance and terms requiring validation before use.",
+      "references": [
+        "https://bytetools.bytevancer.com/public-apis/sports/nbaapi-stats-api"
+      ]
+    },
+    "tipero_public": {
+      "current_web_evidence": "2026-09-27",
+      "status": "external_forecast_candidate",
+      "note": "TIPERO exposes free no-key public tennis prediction/results/stats endpoints. This is an external forecast/consensus signal rather than a raw statistical source; using it as a model feature requires prediction-time snapshotting and historical availability proof to avoid leakage.",
+      "references": [
+        "https://tipero.app/api-docs"
+      ]
+    },
+    "volleybox": {
+      "current_web_evidence": "2026-09-27",
+      "status": "entity_context_research_candidate",
+      "note": "Volleybox is a large community volleyball database with player/club/league profiles, rosters, schedules, results, rankings and transfers. Current site reports 318k+ players, 41k+ clubs and 46k+ leagues/tournaments. No official public API was established in this review; use only for manually/snapshot-derived entity/context research, not automated production ingestion.",
+      "references": [
+        "https://volleybox.net/what-is-volleybox",
+        "https://volleybox.net/players"
+      ]
+    },
+    "ufc_stats_api_public_impl": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "A current public GitHub implementation exposes a free REST API built from UFCStats with 4,400+ fighters, 750+ events and 8,500+ fights, including round-by-round statistics, at an advertised 100 requests/day per IP. The live service could not be independently reached from the current web browser, so availability remains unverified.",
+      "references": [
+        "https://github.com/malichetty/ufc-stats-api"
+      ]
+    },
+    "tennis_api_atp_wta_itf": {
+      "current_web_evidence": "2026-09-27",
+      "status": "free_tier_research_candidate",
+      "note": "Current Tennis API documentation exposes ATP/WTA/ITF-inclusive fixtures, results, player profiles, rankings, H2H, tournament draws and historical data through RapidAPI. Free and paid tiers exist, but a RapidAPI key is mandatory; do not auto-create credentials. Historical availability is not equivalent to PIT availability and must be snapshotted.",
+      "references": [
+        "https://docs.tennis-api.com/",
+        "https://docs.tennis-api.com/results",
+        "https://docs.tennis-api.com/tournaments"
+      ]
+    },
+    "tracinginsights_f1": {
+      "current_web_evidence": "2026-09-27",
+      "status": "strong_research_candidate",
+      "note": "TracingInsights publishes free public F1 telemetry repositories including 2026 session data, with lap times, weather, race control, driver and circuit/corner JSON plus historical seasons. No API key is required; repositories are Apache-2.0. This is a high-granularity research redundancy source, subject to snapshot/PIT validation for prediction-time fields.",
+      "references": [
+        "https://github.com/TracingInsights/2026"
+      ]
+    },
+    "public_nba_api": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Public-NBA-API documents the stats.nba.com public/undocumented surface with verified play-by-play v2/v3, traditional/advanced box scores, matchup/defensive stats, player logs and standings. Requires browser-like headers and can return 403/empty responses, so it is a redundancy candidate rather than a stable production source until runner retrieval is proven.",
+      "references": [
+        "https://github.com/pseudo-r/Public-NBA-API"
+      ],
+      "license": "MIT"
+    },
+    "provolleyballr": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate",
+      "note": "Active MIT R package that scrapes match statistics and player data from Athletes Unlimited, LOVB and Major League Volleyball websites. The package README provides team-match and player-level statistics with season data. This is a US women's professional volleyball enrichment source and does not replace FIVB VIS for international coverage.",
+      "references": [
+        "https://github.com/JeffreyRStevens/provolleyballr"
+      ],
+      "license": "MIT"
+    },
+    "valorant_omnic": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_license_scope_check",
+      "note": "MIT-licensed research repository containing ~30k rounds of professional Valorant gameplay from Omnic Data, organized as timestamped event time-series. Useful for round-state/behavioral feature research. Dataset-specific third-party usage rights must be validated separately from repository code license.",
+      "references": [
+        "https://github.com/sophiacofone/valorant_omnic"
+      ],
+      "license": "repository MIT; dataset rights unconfirmed"
+    },
+    "ufc_historical_mirror": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_license_hold",
+      "note": "Updated 2026 UFC historical mirror with events.csv, fights.csv and fighters.csv collected from UFCStats. Useful as a bulk reproducibility/cache source, but it is downstream of UFCStats and its dataset license is not established in the repository, so it must not count as an independent family or enter production.",
+      "references": [
+        "https://github.com/larissapavan/ufc-historical-fight-dataset"
+      ]
+    },
+    "boxing_web_boxmind": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_only_external_dataset",
+      "note": "BoxingWeb is the dataset/code repository for the 2026 BoxMind paper. It distributes video clips, pose/event annotations and punch-classification material via an external Tsinghua Cloud dataset. The paper frames 18 hierarchical technical-tactical indicators and a graph-based matchup model. Because the dataset is video-derived and availability-before-prediction is not established, it is restricted to historical research/representation learning and benchmarking.",
+      "references": [
+        "https://github.com/gouba2333/BoxingWeb",
+        "https://arxiv.org/abs/2601.11492"
+      ]
+    },
+    "boxingvi_benchmark": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_only_benchmark",
+      "note": "BoxingVI is a 6,915-clip benchmark with six punch classes, temporal localization and 2D pose annotations. It is useful for transfer-learning/feature-extraction robustness research, not direct match outcome features.",
+      "references": [
+        "https://arxiv.org/abs/2511.16524"
+      ]
+    },
+    "f1_live_api_wrapper": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_same_upstream",
+      "note": "An open-source F1 live API implementation exposes historical session paths plus live telemetry via SignalR/WebSocket. It is useful as an implementation/replay redundancy layer, but it should not be counted as an independent information source if its upstream is the same official timing stream.",
+      "references": [
+        "https://github.com/harsh779/f1-live-api"
+      ]
+    },
+    "rizin_official_web": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "RIZIN's official site publishes event result pages and fighter profiles/records. Current pages include 2026 events and detailed bout outcomes. Use as official verification/entity source; publication timestamps and page snapshots are required for historical PIT.",
+      "references": [
+        "https://jp.rizinff.com/",
+        "https://jp.rizinff.com/fighters"
+      ]
+    },
+    "boxrec": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate",
+      "note": "BoxRec provides a large public boxing records/results database with fighters, events, titles, schedules and results. No official public API was established here; automated scraping remains research-only and must respect site terms/rate limits.",
+      "references": [
+        "https://boxrec.com/",
+        "https://boxrec.com/en/results"
+      ]
+    },
+    "world_rugby_official_archive": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "World Rugby states it maintains an official repository of international match information, historical results, team/player data and performance statistics. Public web/API access level varies; use only verified public pages/exports and snapshot provenance.",
+      "references": [
+        "https://www.world.rugby/"
+      ]
+    },
+    "atp_official_public": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "ATP Tour public pages expose official player profiles, statistics, individual match statistics and a results archive. They are useful for official tennis entity/result/stat cross-checking, with web snapshot provenance required for PIT.",
+      "references": [
+        "https://www.atptour.com/stats/",
+        "https://www.atptour.com/en/scores/results-archive"
+      ]
+    },
+    "nhl_official_api": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Official NHL public API surface exposes schedules, gamecenter landing, play-by-play, boxscores, standings, player/team statistics and related game metadata. Historical PIT remains unproven until immutable snapshots/replay establish when each payload was available.",
+      "references": [
+        "https://api-web.nhle.com/",
+        "https://api.nhle.com/stats/rest",
+        "https://github.com/Zmalski/NHL-API-Reference"
+      ]
+    },
+    "hockeytech_public_feeds": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate",
+      "note": "Community scraper documentation identifies public HockeyTech-style play-by-play feeds for AHL, PWHL, OHL, WHL and QMJHL. Useful for broadening hockey competition coverage, but public-feed stability and historical PIT must be independently validated.",
+      "references": [
+        "https://github.com/maxtixador/scrapernhl"
+      ]
+    },
+    "cricsheet": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Cricsheet distributes cricket match data in JSON, YAML, CSV and XML, including ball-by-ball delivery data and match metadata. Downloadable releases are broad across match types and competitions. Historical PIT is not inferred from current download time.",
+      "references": [
+        "https://cricsheet.org/downloads/",
+        "https://cricsheet.org/format/json/"
+      ]
+    },
+    "espn_golf_public": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Public ESPN golf API documentation exposes tournament scoreboard/leaderboard/summary endpoints and a player-summary endpoint with per-round, per-hole linescores and tournament statistics.",
+      "references": [
+        "https://github.com/pseudo-r/Public-ESPN-API/blob/main/docs/sports/golf.md"
+      ]
+    },
+    "espn_american_football_public": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Public ESPN API documentation exposes American-football event detail, play-by-play and game-situation endpoints, with additional competition data. Historical availability timestamps still require replayable snapshots.",
+      "references": [
+        "https://github.com/pseudo-r/Public-NFL-API"
+      ]
+    },
+    "snooker_org_api": {
+      "current_web_evidence": "2026-09-28",
+      "status": "conditional_research_candidate",
+      "note": "Snooker.org provides event, match, player, season, ranking, upcoming and result endpoints. It is free for non-commercial use but requires an approved X-Requested-By value; no credential request or secret creation is automated.",
+      "references": [
+        "https://api.snooker.org/",
+        "https://www.snooker.org/about/"
+      ]
+    },
+    "handball_open_lineup_corpus": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate",
+      "note": "An open handball research repository contains lineup-report based data and lineup-efficiency analysis for EHF EURO 2020, showing a route to player-combination features. This is historical research evidence, not broad live coverage.",
+      "references": [
+        "https://github.com/nmjohnson/handball-rapm"
+      ]
+    },
+    "tennis_match_data_v3": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate",
+      "note": "Open Tennis Data v3 publishes ATP/WTA top-level singles results and future fixtures from 2020 onward as checksum-verified Parquet releases. It excludes detailed match statistics, so it is primarily an event/fixture redundancy source.",
+      "references": [
+        "https://github.com/ryantjx/tennis-match-data"
+      ]
+    },
+    "vlrdevapi": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate_same_upstream",
+      "note": "VLR-derived API wrapper exposes matches, events, player/team data and detailed per-map player statistics. It is a second implementation over the same upstream VLR surface, not an independent source family.",
+      "references": [
+        "https://github.com/Vanshbordia/vlrdevapi"
+      ]
+    },
+    "fastf1_open_source": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate_same_domain",
+      "note": "FastF1 provides F1 timing, session results and telemetry analysis and supports Jolpica/Ergast-compatible data. It is valuable as an implementation layer, but underlying source independence must not be overstated.",
+      "references": [
+        "https://github.com/theOehrly/Fast-F1"
+      ]
+    },
+    "nflverse_pbp": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "nflverse maintains NFL play-by-play and player data in versioned releases; data are available through nflreadr/nfl-data-py. Historical prediction-time availability requires separate provenance reconstruction.",
+      "references": [
+        "https://github.com/nflverse/nflverse-pbp",
+        "https://github.com/nflverse/nflverse-data"
+      ]
+    },
+    "opendota": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "OpenDota is an open Dota 2 data platform with match/player/hero resources and public endpoints. Current public documentation reports a free no-key tier; response size and rate limits should be enforced.",
+      "references": [
+        "https://github.com/odota/core",
+        "https://github.com/wood-run/opendota-client"
+      ]
+    },
+    "oracle_elixir": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Oracle's Elixir provides professional League of Legends esports match/player datasets, with public tooling describing coverage from 2014 onward and daily updates. Prediction-time historical availability remains to be proven.",
+      "references": [
+        "https://github.com/HerrKurz/Esports_Data_Pipeline"
+      ]
+    },
+    "hltv_cs_reference": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate_terms_hold",
+      "note": "Open-source HLTV-derived clients expose match/event/team/player statistics and upcoming matches. Treat as terms/rate-limit/PIT research only until independently validated.",
+      "references": [
+        "https://github.com/gigobyte/HLTV",
+        "https://github.com/JuhoNieminen/HLTV-API"
+      ]
+    },
+    "openwec": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "OpenWEC exposes public no-key series, seasons, events, session results and driver/team resources; deeper lap/pace analytics require a key and are excluded from free-only automation.",
+      "references": [
+        "https://github.com/palomacdev/openwec"
+      ]
+    },
+    "rugby_action_description_language": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate_schema_only",
+      "note": "RADL is a draft one-row-per-action rugby union representation. The current specification reports zero real matches traced, so it is a normalization reference rather than validated event data.",
+      "references": [
+        "https://github.com/JFrusher/RADL"
+      ]
+    }
+  },
+  "source_classes": {
+    "primary": "already integrated sport-specific source",
+    "secondary": "free/public enrichment candidate with useful cross-sport or market coverage",
+    "research_only": "candidate requiring additional PIT/data-quality/license validation"
+  },
+  "sports": {
+    "basketball": [
+      {
+        "id": "bleague_official",
+        "name": "B.LEAGUE official",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "sport_official"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "sportscore",
+        "name": "SportScore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "score_provider"
+      },
+      {
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "media_provider_public_api"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required",
+        "independence_family": "odds_aggregator"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "score_provider_public_surface"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "euroleague_basic_free",
+        "name": "Euroleague Advanced API free endpoints",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required",
+        "independence_family": "league_provider"
+      },
+      {
+        "id": "bigballsdata",
+        "name": "Big Balls Sports Data",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_snapshot_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "sportsdataverse_data",
+        "name": "SportsDataverse release corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "timestamp_snapshot_required",
+        "independence_family": "sportsdataverse_upstream"
+      },
+      {
+        "id": "sx_bet",
+        "name": "SX Bet public market data",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "market_timestamp_archive_required",
+        "independence_family": "prediction_market"
+      },
+      {
+        "id": "highlightly",
+        "name": "Highlightly",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "account_snapshot_and_timestamp_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "balldontlie",
+        "name": "BALLDONTLIE NBA API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_timestamp_required",
+        "independence_family": "basketball_api_provider"
+      },
+      {
+        "id": "the_odds_api",
+        "name": "The Odds API",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_time_snapshot_required",
+        "independence_family": "bookmaker_odds_aggregator"
+      },
+      {
+        "id": "euroleague_official",
+        "name": "EuroLeague official API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required",
+        "independence_family": "euroleague_official"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "nbaapi_stats",
+        "name": "NBA API community stats",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "live_only_until_snapshotted",
+        "independence_family": "nba_community_api"
+      },
+      {
+        "id": "public_nba_api",
+        "name": "Public-NBA-API / stats.nba.com",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_and_header_validated_replay_required",
+        "independence_family": "nba_public_undocumented_api"
+      }
+    ],
+    "volleyball": [
+      {
+        "id": "fivb_vis",
+        "name": "FIVB VIS / Volleyball World public data",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "sport_official"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "media_provider_public_api"
+      },
+      {
+        "id": "sofascore",
+        "name": "Sofascore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "score_provider_public_surface"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "sportsdataverse_data",
+        "name": "SportsDataverse release corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "timestamp_snapshot_required",
+        "independence_family": "sportsdataverse_upstream"
+      },
+      {
+        "id": "volleystats_dataproject",
+        "name": "VolleyStats / Data Project Web Competition",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required",
+        "independence_family": "volleyball_web_scraper"
+      },
+      {
+        "id": "highlightly",
+        "name": "Highlightly",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "account_snapshot_and_timestamp_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "sportsdataverse_volleyball",
+        "name": "SportsDataverse NCAA volleyball route",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "release_snapshot_required",
+        "independence_family": "sportsdataverse_upstream"
+      },
+      {
+        "id": "volleybox",
+        "name": "Volleybox community database",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_and_publication_provenance_required",
+        "independence_family": "volleyball_community_db"
+      },
+      {
+        "id": "provolleyballr",
+        "name": "provolleyballr AU/LOVB/MLV",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_and_publication_provenance_required",
+        "independence_family": "us_pro_volleyball_scraper"
+      }
+    ],
+    "ufc": [
+      {
+        "id": "ufc_api",
+        "name": "UFC API / public event history",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "sport_official_or_primary"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "media_provider_public_api"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required",
+        "independence_family": "odds_aggregator"
+      },
+      {
+        "id": "ufc_datalab",
+        "name": "UFC-DataLab open corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "historical_availability_unknown",
+        "independence_family": "open_research_corpus"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "ufcstats",
+        "name": "UFCStats public pages",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_publication_snapshot_required",
+        "independence_family": "public_web_statistics"
+      },
+      {
+        "id": "mma_global_database",
+        "name": "MMA Global Database",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required",
+        "independence_family": "open_research_corpus"
+      },
+      {
+        "id": "sx_bet",
+        "name": "SX Bet public market data",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "market_timestamp_archive_required",
+        "independence_family": "prediction_market"
+      },
+      {
+        "id": "ufc_official_jsonapi",
+        "name": "UFC.com official JSON:API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_and_publication_provenance_required",
+        "independence_family": "ufc_official"
+      },
+      {
+        "id": "the_odds_api",
+        "name": "The Odds API",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_time_snapshot_required",
+        "independence_family": "bookmaker_odds_aggregator"
+      },
+      {
+        "id": "fightforensics",
+        "name": "Fight Forensics MMA API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_and_publication_provenance_required",
+        "independence_family": "mma_independent"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "ufc_stats_api_public_impl",
+        "name": "UFCStats-derived public REST API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "live_service_snapshot_and_source_provenance_required",
+        "independence_family": "ufcstats_api_wrapper"
+      },
+      {
+        "id": "ufc_historical_mirror",
+        "name": "UFC historical fight dataset mirror",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required_license_hold",
+        "independence_family": "ufcstats_downstream_mirror"
+      }
+    ],
+    "rizin": [
+      {
+        "id": "rizin_public_history",
+        "name": "RIZIN public history",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "organization_public"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io MMA/Rizin coverage",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required",
+        "independence_family": "odds_aggregator"
+      },
+      {
+        "id": "mma_global_database",
+        "name": "MMA Global Database",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required",
+        "independence_family": "open_research_corpus"
+      },
+      {
+        "id": "sx_bet",
+        "name": "SX Bet public market data",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "market_timestamp_archive_required",
+        "independence_family": "prediction_market"
+      },
+      {
+        "id": "fightforensics",
+        "name": "Fight Forensics MMA API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "exact_rizin_coverage_and_snapshot_required",
+        "independence_family": "mma_independent"
+      },
+      {
+        "id": "rizin_club",
+        "name": "RIZIN.club public database",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required",
+        "independence_family": "rizin_public_web"
+      },
+      {
+        "id": "rizin_official_web",
+        "name": "RIZIN official results/fighters",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required",
+        "independence_family": "rizin_official"
+      }
+    ],
+    "valorant": [
+      {
+        "id": "public_vlr_dataset",
+        "name": "Public VLR-derived GitHub dataset",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "github_provenance",
+        "independence_family": "open_public_dataset"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "pandascore",
+        "name": "PandaScore",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "tier_and_timestamp_dependent",
+        "independence_family": "esports_provider"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io Valorant",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required",
+        "independence_family": "odds_aggregator"
+      },
+      {
+        "id": "vlr_gg_api",
+        "name": "VLR.gg unofficial API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "live_retrieval_only_until_provenance",
+        "independence_family": "esports_public_web"
+      },
+      {
+        "id": "sx_bet",
+        "name": "SX Bet public market data",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "market_timestamp_archive_required",
+        "independence_family": "prediction_market"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "grid_valorant_open_access",
+        "name": "GRID VALORANT Open Access",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "historical_snapshot_and_access_terms_required",
+        "independence_family": "official_esports_distributor"
+      },
+      {
+        "id": "valorant_blitz_static",
+        "name": "Valorant Blitz-derived GitHub corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required",
+        "independence_family": "esports_public_web"
+      },
+      {
+        "id": "valorant_omnic",
+        "name": "Omnic professional round time-series corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_snapshot_and_timestamp_required",
+        "independence_family": "gameplay_computer_vision_corpus"
+      }
+    ],
+    "tennis": [
+      {
+        "id": "sackmann_archive",
+        "name": "Jeff Sackmann tennis archive",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "open_historical_archive"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "sportscore",
+        "name": "SportScore",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "score_provider"
+      },
+      {
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "media_provider_public_api"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required",
+        "independence_family": "odds_aggregator"
+      },
+      {
+        "id": "livetennisapi",
+        "name": "Live Tennis API academic dataset",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "observed_layer_has_capture_timestamps",
+        "independence_family": "academic_dataset"
+      },
+      {
+        "id": "sx_bet",
+        "name": "SX Bet public market data",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "market_timestamp_archive_required",
+        "independence_family": "prediction_market"
+      },
+      {
+        "id": "the_odds_api",
+        "name": "The Odds API",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_time_snapshot_required",
+        "independence_family": "bookmaker_odds_aggregator"
+      },
+      {
+        "id": "tennis_pointbypoint_legacy",
+        "name": "tennis_pointbypoint public corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required",
+        "independence_family": "tennis_point_sequence_corpus"
+      },
+      {
+        "id": "tennis_match_charting_project",
+        "name": "Match Charting Project",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required",
+        "independence_family": "tennis_match_charting_corpus"
+      },
+      {
+        "id": "tennis_visuals",
+        "name": "TennisVisuals tennis-match-data",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required",
+        "independence_family": "tennis_public_corpus"
+      },
+      {
+        "id": "wta_official",
+        "name": "WTA official public API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required",
+        "independence_family": "wta_official"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "tipero_public",
+        "name": "TIPERO public tennis forecast API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_snapshot_required",
+        "independence_family": "external_forecast"
+      },
+      {
+        "id": "tennis_api_atp_wta_itf",
+        "name": "Tennis API ATP/WTA/ITF",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "rapidapi_prediction_or_historical_snapshot_required",
+        "independence_family": "tennis_api_provider"
+      },
+      {
+        "id": "atp_official_public",
+        "name": "ATP Tour official public stats/results",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required",
+        "independence_family": "atp_official"
+      }
+    ],
+    "f1": [
+      {
+        "id": "openf1",
+        "name": "OpenF1",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "open_data_api"
+      },
+      {
+        "id": "jolpica_ergast",
+        "name": "Jolpica / Ergast-compatible API",
+        "class": "secondary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "open_historical_api"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "espn_public",
+        "name": "ESPN public API surface (Racing)",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "media_provider_public_api"
+      },
+      {
+        "id": "f1_cc0_dataset",
+        "name": "Community F1 1950-2026 CC0 dataset",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required",
+        "independence_family": "community_dataset"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "f1api_dev",
+        "name": "F1API.dev",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required",
+        "independence_family": "independent_f1_api"
+      },
+      {
+        "id": "bigballsdata",
+        "name": "Big Balls Sports Data",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_snapshot_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "racinghub",
+        "name": "RacingHub",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required",
+        "independence_family": "f1db_derived_api"
+      },
+      {
+        "id": "racehooks",
+        "name": "RaceHooks historical API",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "replay_required",
+        "independence_family": "independent_f1_historical_api"
+      },
+      {
+        "id": "sx_bet",
+        "name": "SX Bet public market data",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "market_timestamp_archive_required",
+        "independence_family": "prediction_market"
+      },
+      {
+        "id": "lights_out_f1_schedule",
+        "name": "Lights Out F1 schedule/results JSON",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "fetch_snapshot_time_required",
+        "independence_family": "f1_schedule_json"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "tracinginsights_f1",
+        "name": "TracingInsights F1 public telemetry",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required",
+        "independence_family": "f1_community_telemetry"
+      },
+      {
+        "id": "f1_live_api_wrapper",
+        "name": "Open F1 live telemetry API wrapper",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "session_snapshot_required",
+        "independence_family": "f1_official_timing_wrapper"
+      }
+    ],
+    "rugby": [
+      {
+        "id": "public_rugby_history",
+        "name": "Public rugby history pipeline",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "open_historical_pipeline"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "espn_public",
+        "name": "ESPN public API surface",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "media_provider_public_api"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required",
+        "independence_family": "odds_aggregator"
+      },
+      {
+        "id": "rugby_db",
+        "name": "rugby.db public-domain corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "historical_scope_limited",
+        "independence_family": "open_sports_database"
+      },
+      {
+        "id": "api_sports",
+        "name": "API-Sports",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_key_and_historical_availability_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "rugby_data_repository",
+        "name": "Rugby-Data GitHub corpus",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "git_snapshot_required",
+        "independence_family": "rugby_open_corpus"
+      },
+      {
+        "id": "sx_bet",
+        "name": "SX Bet public market data",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "market_timestamp_archive_required",
+        "independence_family": "prediction_market"
+      },
+      {
+        "id": "highlightly",
+        "name": "Highlightly",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "account_snapshot_and_timestamp_required",
+        "independence_family": "multi_sport_provider"
+      },
+      {
+        "id": "statbunker_rugby",
+        "name": "StatBunker Rugby",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required",
+        "independence_family": "public_stats_web"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "rugby_data_api_legacy",
+        "name": "Rugby Data API legacy",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "historical_snapshot_required",
+        "independence_family": "rugby_public_legacy"
+      },
+      {
+        "id": "world_rugby_official_archive",
+        "name": "World Rugby official archive",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_publication_provenance_required",
+        "independence_family": "world_rugby_official"
+      }
+    ],
+    "boxing": [
+      {
+        "id": "public_boxing_history",
+        "name": "Public boxing history pipeline",
+        "class": "primary",
+        "free": true,
+        "integrated": true,
+        "pit": "replay_required",
+        "independence_family": "open_historical_pipeline"
+      },
+      {
+        "id": "thesportsdb",
+        "name": "TheSportsDB",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "unknown_until_snapshotted",
+        "independence_family": "cross_sport_aggregator"
+      },
+      {
+        "id": "odds_api_io",
+        "name": "Odds-API.io",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "bookmaker_timestamp_required",
+        "independence_family": "odds_aggregator"
+      },
+      {
+        "id": "boxing_punch_dataset",
+        "name": "Boxing punch recognition dataset",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "video_time_alignment_required",
+        "independence_family": "computer_vision_dataset"
+      },
+      {
+        "id": "openboxing",
+        "name": "Open Boxing",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_provenance_required",
+        "independence_family": "open_boxing_database"
+      },
+      {
+        "id": "boxing_data_api",
+        "name": "Boxing Data API",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "api_timestamp_and_key_required",
+        "independence_family": "boxing_provider"
+      },
+      {
+        "id": "sx_bet",
+        "name": "SX Bet public market data",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "market_timestamp_archive_required",
+        "independence_family": "prediction_market"
+      },
+      {
+        "id": "the_odds_api",
+        "name": "The Odds API",
+        "class": "market_source",
+        "free": true,
+        "integrated": false,
+        "pit": "prediction_time_snapshot_required",
+        "independence_family": "bookmaker_odds_aggregator"
+      },
+      {
+        "id": "sporting_events_free",
+        "name": "Sporting Events free CSV/JSON",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_regeneration_snapshot_required",
+        "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "boxing_web_boxmind",
+        "name": "BoxingWeb / BoxMind dataset",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_snapshot_and_pre_prediction_availability_required",
+        "independence_family": "boxing_video_benchmark"
+      },
+      {
+        "id": "boxingvi_benchmark",
+        "name": "BoxingVI benchmark",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_snapshot_and_license_required",
+        "independence_family": "boxing_video_benchmark"
+      },
+      {
+        "id": "boxrec",
+        "name": "BoxRec public record database",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_and_terms_required",
+        "independence_family": "boxing_public_db"
+      }
+    ]
+  },
+  "independence_policy": {
+    "version": "1",
+    "rule": "Do not count multiple downstream/repackaged surfaces as independent merely because they have different provider names.",
+    "family_field": "independence_family",
+    "minimum_distinct_families_for_redundancy": 2,
+    "production_requires_primary_plus_independent_secondary": true,
+    "market_sources_do_not_replace_statistical_primary": true,
+    "unknown_family_is_fail_closed": true
+  }
+}

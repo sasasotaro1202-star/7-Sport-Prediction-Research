@@ -1,0 +1,706 @@
+{
+  "version": "source-discovery-frontier-2026-09-27",
+  "policy": {
+    "free_only": true,
+    "no_trial_auto_use": true,
+    "no_billing_risk": true,
+    "blocked_sources_must_not_enter_production": true,
+    "research_sources_require_pit": true
+  },
+  "frontier": [
+    {
+      "id": "thesportsdb",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "ufc",
+        "rizin",
+        "valorant",
+        "tennis",
+        "f1",
+        "rugby",
+        "boxing"
+      ],
+      "access": "free_public_api",
+      "status": "research_candidate",
+      "next": "probe endpoints -> snapshot -> PIT -> quality -> OOS"
+    },
+    {
+      "id": "espn_public",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "ufc",
+        "tennis",
+        "f1",
+        "rugby"
+      ],
+      "access": "public_undocumented_api",
+      "status": "research_candidate",
+      "next": "probe endpoints -> snapshot -> PIT -> entity mapping -> OOS"
+    },
+    {
+      "id": "odds_api_io",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis",
+        "ufc",
+        "rizin",
+        "rugby",
+        "valorant",
+        "boxing"
+      ],
+      "access": "free_tier_requires_key",
+      "status": "research_candidate",
+      "next": "never auto-create key; only test with explicitly supplied credential; bookmaker timestamp PIT"
+    },
+    {
+      "id": "sportscore",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis"
+      ],
+      "access": "free_public_api_with_attribution",
+      "status": "research_candidate",
+      "next": "redundancy/OOS comparison after terms review"
+    },
+    {
+      "id": "sofascore",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "ufc",
+        "rizin",
+        "valorant",
+        "tennis",
+        "f1",
+        "rugby",
+        "boxing"
+      ],
+      "access": "public_web_unofficial_api_surface",
+      "status": "research_candidate",
+      "next": "do not treat retrieval time as historical availability; snapshot/PIT"
+    },
+    {
+      "id": "flashscore_internal",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "tennis",
+        "ufc",
+        "rugby",
+        "boxing"
+      ],
+      "access": "internal_undocumented_endpoint",
+      "status": "do_not_use_for_production",
+      "next": "avoid unless license/official API and PIT evidence becomes available"
+    },
+    {
+      "id": "sports_hub_mcp",
+      "type": "discovery_aggregator",
+      "confirmed_coverage": [
+        "70_plus_sports"
+      ],
+      "access": "open_source_index",
+      "status": "discovery_only",
+      "next": "use provider catalog to discover new free candidates"
+    },
+    {
+      "id": "sportsapi365",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "browser_demo_free_calls",
+      "status": "research_candidate_low_priority",
+      "next": "use only for redundant basketball validation"
+    },
+    {
+      "id": "pinnacle_official_api",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "multi_sport"
+      ],
+      "access": "closed_general_public_since_2025_07_23",
+      "status": "blocked",
+      "next": "no automatic access request"
+    },
+    {
+      "id": "pinnapi",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "multi_sport"
+      ],
+      "access": "third_party_free_trial",
+      "status": "blocked_by_free_only_policy",
+      "next": "do not use trials or paid upgrade paths"
+    },
+    {
+      "id": "pinnwire",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "13_sports"
+      ],
+      "access": "third_party_trial",
+      "status": "blocked_by_free_only_policy",
+      "next": "do not use trials or paid upgrade paths"
+    },
+    {
+      "id": "api_sports",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "ufc",
+        "f1",
+        "rugby"
+      ],
+      "access": "free_forever_plan_requires_key",
+      "status": "research_candidate",
+      "next": "never auto-create credentials; validate per-sport historical depth, PIT timestamps, quality and quota"
+    },
+    {
+      "id": "ufcstats",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "ufc"
+      ],
+      "access": "public_web_no_official_api",
+      "status": "research_candidate",
+      "next": "rate-limited scraper -> immutable snapshots -> PIT/page provenance -> OOS"
+    },
+    {
+      "id": "openboxing",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "public_csv_and_basic_api",
+      "status": "research_candidate",
+      "next": "validate data completeness/error rate/license -> snapshot -> PIT -> OOS"
+    },
+    {
+      "id": "rugby_data_repository",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rugby"
+      ],
+      "access": "public_git_json_yaml",
+      "status": "research_candidate",
+      "next": "pin git snapshot -> inspect competition coverage/freshness -> PIT -> OOS"
+    },
+    {
+      "id": "f1api_dev",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "free_public_no_key",
+      "status": "research_candidate",
+      "next": "probe current+historical endpoints -> snapshot -> compare against OpenF1/Jolpica -> OOS"
+    },
+    {
+      "id": "pandascore",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "valorant"
+      ],
+      "access": "free_fixtures_pre_match_tier",
+      "status": "research_candidate",
+      "next": "separate free pre-match context from paid historical stats; never assume historical access"
+    },
+    {
+      "id": "euroleague_basic_free",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "free_basic_endpoints",
+      "status": "research_candidate",
+      "next": "probe free schedule/standings/game endpoints and compare against basketball primary sources"
+    },
+    {
+      "id": "bigballsdata",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "ufc",
+        "f1"
+      ],
+      "access": "free_tier_requires_key",
+      "status": "research_candidate",
+      "next": "no auto-create key; validate coverage manifest, history, PIT and tier boundaries"
+    },
+    {
+      "id": "tennis_data_uk",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_download_restricted_training_terms",
+      "status": "blocked_by_project_training_terms",
+      "next": "do not ingest into model training; source explicitly restricts AI/data-training or commercial use"
+    },
+    {
+      "id": "riot_valorant_personal_api",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "valorant"
+      ],
+      "access": "development_key_not_available_as_personal_valorant_key",
+      "status": "blocked_for_this_use_case",
+      "next": "do not request credentials automatically; official docs also prohibit scouting/opponent-stat use cases"
+    },
+    {
+      "id": "ufcalendar_rizin",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rizin",
+        "ufc",
+        "mma_other"
+      ],
+      "access": "free_trial_only_then_paid",
+      "status": "blocked_by_free_only_policy",
+      "next": "do not use trial as an ongoing source; retain as discovery-only reference"
+    },
+    {
+      "id": "sportsdataverse_data",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball"
+      ],
+      "access": "public_github_release_assets",
+      "status": "research_candidate",
+      "next": "pin release + timestamp.json -> validate upstream/source terms -> PIT replay -> OOS"
+    },
+    {
+      "id": "volleystats_dataproject",
+      "type": "data_scraper",
+      "confirmed_coverage": [
+        "volleyball"
+      ],
+      "access": "open_source_scraper_public_web",
+      "status": "research_candidate",
+      "next": "map Data Project federations -> immutable page snapshots -> publication/PIT evidence -> quality/OOS"
+    },
+    {
+      "id": "mma_global_database",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "ufc",
+        "rizin",
+        "mma_other"
+      ],
+      "access": "public_github_and_kaggle",
+      "status": "research_candidate",
+      "next": "pin snapshot -> inspect license/field provenance -> separate after-the-fact stats -> PIT-safe feature construction"
+    },
+    {
+      "id": "boxing_data_api",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "free_basic_tier_requires_key",
+      "status": "research_candidate_low_volume",
+      "next": "never auto-create key; use only 100 req/month free allowance if credential supplied; validate PIT/history"
+    },
+    {
+      "id": "racinghub",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "free_public_no_key_mit",
+      "status": "research_candidate",
+      "next": "probe endpoints -> snapshot -> compare with OpenF1/Jolpica/RaceHooks -> OOS"
+    },
+    {
+      "id": "racehooks",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "free_public_no_auth",
+      "status": "research_candidate",
+      "next": "probe historical endpoints -> snapshot/provenance -> compare against existing F1 sources -> OOS"
+    },
+    {
+      "id": "sx_bet",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis",
+        "ufc",
+        "rizin",
+        "valorant",
+        "f1",
+        "rugby",
+        "boxing"
+      ],
+      "access": "public_read_no_key",
+      "status": "research_candidate",
+      "next": "probe sports/leagues/fixtures/markets -> timestamp archive feasibility -> PIT/OOS; never use write or wallet endpoints"
+    },
+    {
+      "id": "highlightly",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball",
+        "volleyball",
+        "rugby"
+      ],
+      "access": "free_basic_requires_signup_and_key",
+      "status": "research_candidate",
+      "next": "never auto-create credential; validate exact free-tier sport/endpoint scope -> snapshot -> PIT -> OOS"
+    },
+    {
+      "id": "sportsdataverse_volleyball",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "volleyball"
+      ],
+      "access": "public_github_release_ecosystem",
+      "status": "research_candidate",
+      "next": "identify current volleyball release assets -> source timestamp -> PIT reconstruction -> OOS"
+    },
+    {
+      "id": "balldontlie",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "free_key_required_basic_endpoints",
+      "status": "research_candidate_low_priority",
+      "next": "never auto-create key; validate free endpoint scope and snapshot/PIT"
+    },
+    {
+      "id": "statbunker_rugby",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rugby"
+      ],
+      "access": "public_web",
+      "status": "research_candidate",
+      "next": "snapshot pages -> validate history/coverage -> PIT -> OOS"
+    },
+    {
+      "id": "ufc_official_jsonapi",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "ufc"
+      ],
+      "access": "official_public_jsonapi_undocumented",
+      "status": "research_candidate",
+      "next": "probe public JSON:API -> rate-limit -> immutable snapshots -> PIT availability reconstruction -> OOS"
+    },
+    {
+      "id": "the_odds_api",
+      "type": "market_source",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis",
+        "ufc",
+        "boxing"
+      ],
+      "access": "free_starter_requires_key_no_historical_free_tier",
+      "status": "research_candidate",
+      "next": "never auto-create key; capture live/pre-match snapshots only; enforce bookmaker last_update <= prediction_time; compare OOS"
+    },
+    {
+      "id": "tennis_pointbypoint_legacy",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_git_csv",
+      "status": "research_candidate",
+      "next": "pin git snapshot -> audit completeness/source overlap -> PIT-safe feature construction -> OOS"
+    },
+    {
+      "id": "tennis_match_charting_project",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_git_cc_by_nc_sa",
+      "status": "research_candidate",
+      "next": "pin snapshot -> license compliance -> match-level/shot feature audit -> OOS"
+    },
+    {
+      "id": "tennis_visuals",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_git_csv",
+      "status": "research_candidate",
+      "next": "pin snapshot -> compare with Sackmann/other corpora -> duplicate/overlap audit -> OOS"
+    },
+    {
+      "id": "fightforensics",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "ufc",
+        "rizin",
+        "mma_other"
+      ],
+      "access": "free_read_only_key_with_attribution",
+      "status": "research_candidate",
+      "next": "validate RIZIN coverage -> obtain no-cost key only if needed -> immutable snapshots -> PIT/OOS"
+    },
+    {
+      "id": "lights_out_f1_schedule",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "free_public_no_key_cc_by_4",
+      "status": "research_candidate",
+      "next": "snapshot current schedule/results -> compare with OpenF1/Jolpica -> PIT/replay where time-sensitive"
+    },
+    {
+      "id": "rizin_club",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rizin"
+      ],
+      "access": "public_web_database_no_key",
+      "status": "research_candidate",
+      "next": "snapshot event/fight pages -> compare against primary RIZIN history -> PIT/publication provenance -> OOS"
+    },
+    {
+      "id": "wta_official",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "official_public_no_key",
+      "status": "research_candidate",
+      "next": "probe current + historical tournament endpoints -> snapshot -> PIT/replay -> compare with Sackmann/LTA-type archives"
+    },
+    {
+      "id": "euroleague_official",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "official_public_no_key",
+      "status": "research_candidate",
+      "next": "probe seasons/games/boxscores -> establish historical depth -> snapshot/PIT -> OOS"
+    },
+    {
+      "id": "sporting_events_free",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "basketball",
+        "tennis",
+        "rugby",
+        "f1",
+        "ufc",
+        "boxing",
+        "esports"
+      ],
+      "access": "public_csv_json_no_key_attribution",
+      "status": "research_candidate",
+      "next": "pin each regeneration snapshot -> verify covered events -> duplicate/overlap audit -> use only as schedule/context unless deeper fields are validated"
+    },
+    {
+      "id": "grid_valorant_open_access",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "valorant"
+      ],
+      "access": "free_for_qualifying_noncommercial_access_requires_application",
+      "status": "research_candidate",
+      "next": "do not auto-apply; if manually authorized, probe official historical/live series API -> snapshot timestamps -> PIT/OOS -> compare with VLR-derived corpus"
+    },
+    {
+      "id": "rugby_data_api_legacy",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "rugby"
+      ],
+      "access": "public_archived_mit",
+      "status": "historical_research_candidate",
+      "next": "pin archived snapshot -> coverage audit -> use only historical redundancy -> no current-freshness assumption"
+    },
+    {
+      "id": "valorant_blitz_static",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "valorant"
+      ],
+      "access": "public_git_derived_blitz",
+      "status": "historical_research_candidate",
+      "next": "pin snapshot -> compare with VLR/GRID -> same-source-family overlap audit -> historical OOS"
+    },
+    {
+      "id": "nbaapi_stats",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "basketball"
+      ],
+      "access": "public_no_key_unofficial",
+      "status": "research_candidate",
+      "next": "probe current endpoint -> snapshot -> compare against B.LEAGUE/ESPN/SportsDataverse by competition -> PIT/OOS"
+    },
+    {
+      "id": "tipero_public",
+      "type": "external_forecast",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "public_no_key_read_only",
+      "status": "external_forecast_candidate",
+      "next": "capture forecasts at prediction time -> verify historical availability -> calibration/correlation/OOS before any ensemble use"
+    },
+    {
+      "id": "volleybox",
+      "type": "entity_context_source",
+      "confirmed_coverage": [
+        "volleyball"
+      ],
+      "access": "public_web_free_registration",
+      "status": "entity_context_research_candidate",
+      "next": "snapshot player/club/transfer context -> entity-resolution audit -> publication-time/PIT validation -> no automatic production scraping by default"
+    },
+    {
+      "id": "ufc_stats_api_public_impl",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "ufc"
+      ],
+      "access": "public_free_api_no_signup_claim_not_live_verified",
+      "status": "research_candidate",
+      "next": "probe live service in runner -> immutable snapshots -> compare against UFCStats/official UFC -> PIT/OOS"
+    },
+    {
+      "id": "tennis_api_atp_wta_itf",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "free_and_paid_rapidapi_requires_key",
+      "status": "research_candidate",
+      "next": "never auto-create key -> only use free tier if credential already exists -> snapshot -> PIT/OOS and quota audit"
+    },
+    {
+      "id": "tracinginsights_f1",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "public_git_no_key_apache2",
+      "status": "research_candidate",
+      "next": "pin season repo snapshot -> validate telemetry completeness/provenance -> separate pre-race available from post-session telemetry -> OOS"
+    },
+    {
+      "id": "provolleyballr",
+      "type": "data_scraper",
+      "confirmed_coverage": [
+        "volleyball"
+      ],
+      "access": "public_mit_r_package_scraper",
+      "status": "research_candidate",
+      "next": "snapshot AU/LOVB/MLV pages -> validate publication timing -> compare with FIVB/DataProject -> OOS"
+    },
+    {
+      "id": "valorant_omnic",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "valorant"
+      ],
+      "access": "public_git_mit_code_dataset_rights_unconfirmed",
+      "status": "research_candidate_license_scope_check",
+      "next": "pin git snapshot -> verify dataset rights -> inspect timestamp density -> no production until rights/PIT validated"
+    },
+    {
+      "id": "ufc_historical_mirror",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "ufc"
+      ],
+      "access": "public_git_downstream_ufcstats_license_unconfirmed",
+      "status": "research_candidate_license_hold",
+      "next": "pin snapshot -> license check -> duplicate-source audit -> use only as cache/reproducibility if cleared"
+    },
+    {
+      "id": "boxing_web_boxmind",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "public_code_external_dataset_license_unconfirmed",
+      "status": "research_only_external_dataset",
+      "next": "do not auto-download external dataset -> review license/terms -> snapshot -> representation-learning benchmark only"
+    },
+    {
+      "id": "boxingvi_benchmark",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "public_research_benchmark",
+      "status": "research_only_benchmark",
+      "next": "identify official dataset terms -> snapshot -> video-model/feature-extraction robustness only"
+    },
+    {
+      "id": "f1_live_api_wrapper",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "open_source_public_wrapper",
+      "status": "research_candidate_same_upstream",
+      "next": "pin implementation -> compare replay fidelity against OpenF1 -> do not count as independent upstream"
+    },
+    {
+      "id": "rizin_official_web",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rizin"
+      ],
+      "access": "official_public_web",
+      "status": "research_candidate",
+      "next": "snapshot official result/fighter pages -> parse outcome/weight/round/method -> PIT/publication proof -> compare against RIZIN public history"
+    },
+    {
+      "id": "boxrec",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "public_web_database",
+      "status": "research_candidate",
+      "next": "terms/rate-limit review -> immutable page snapshots -> completeness/duplicate audit -> PIT-safe features -> OOS"
+    },
+    {
+      "id": "world_rugby_official_archive",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rugby"
+      ],
+      "access": "official_public_archive",
+      "status": "research_candidate",
+      "next": "identify accessible public match/stat endpoints -> snapshot -> international-only scope separation -> PIT/OOS"
+    },
+    {
+      "id": "atp_official_public",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "official_public_web",
+      "status": "research_candidate",
+      "next": "snapshot stats/player/results pages -> publication/PIT reconstruction -> compare with Sackmann/WTA source"
+    }
+  ]
+}

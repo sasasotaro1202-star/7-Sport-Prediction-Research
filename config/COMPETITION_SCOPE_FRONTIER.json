@@ -1,0 +1,108 @@
+{
+  "version": "competition-scope-frontier-2026-09-28-v1",
+  "policy": {
+    "free_only": true,
+    "research_only": true,
+    "production_model_changes": false,
+    "historical_pit_unknown_is_fail_closed": true,
+    "excluded_sports_never_discover": ["baseball", "soccer"],
+    "competition_types_must_remain_separate": true,
+    "friendly_matches_require_explicit_classification": true,
+    "qualifiers_and_main_events_must_remain_separate_when_outcome_process_differs": true
+  },
+  "target_sports": [
+    "basketball",
+    "volleyball",
+    "ufc",
+    "rizin",
+    "valorant"
+  ],
+  "competition_frontier": {
+    "basketball": [
+      "domestic_league",
+      "domestic_cup",
+      "continental_club",
+      "continental_national_team",
+      "world_national_team",
+      "major_tournament",
+      "qualifier",
+      "all_star_or_exhibition",
+      "friendly",
+      "other_explicit_competition"
+    ],
+    "volleyball": [
+      "domestic_league",
+      "domestic_cup",
+      "continental_club",
+      "continental_national_team",
+      "world_national_team",
+      "major_tournament",
+      "qualifier",
+      "friendly",
+      "other_explicit_competition"
+    ],
+    "ufc": [
+      "numbered_event",
+      "fight_night_event",
+      "special_event",
+      "title_event",
+      "tournament_or_series",
+      "other_explicit_event"
+    ],
+    "rizin": [
+      "numbered_event",
+      "grand_prix",
+      "title_event",
+      "special_event",
+      "tournament_or_series",
+      "other_explicit_event"
+    ],
+    "valorant": [
+      "regional_league",
+      "regional_cup",
+      "international_event",
+      "masters",
+      "champions",
+      "challengers",
+      "game_changers",
+      "qualifier",
+      "showmatch_or_exhibition",
+      "other_explicit_competition"
+    ]
+  },
+  "promotion_stages": [
+    "DISCOVERED",
+    "CLASSIFIED",
+    "SOURCE_PROBED",
+    "DATA_ACQUIRED",
+    "PIT_VALIDATED",
+    "SHADOW",
+    "CHRONOLOGICAL_OOS",
+    "ROBUSTNESS",
+    "LIMITED_PRODUCTION"
+  ],
+  "stop_conditions": [
+    "competition_type_unresolved",
+    "source_availability_unknown",
+    "event_time_unknown",
+    "historical_pit_unproven",
+    "insufficient_coverage",
+    "entity_mapping_failure",
+    "material_oos_regression",
+    "duplicate_upstream_family"
+  ],
+  "minimum_metadata": [
+    "sport",
+    "competition_id",
+    "competition_name",
+    "competition_type",
+    "gender_or_category",
+    "season_or_edition",
+    "region",
+    "event_id",
+    "event_time_utc",
+    "source",
+    "source_available_at_utc",
+    "pit_status"
+  ]
+}

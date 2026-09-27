@@ -24,8 +24,8 @@ def source_gate(c,event_id,cutoff):
     rows=c.execute('''SELECT ep.source,ep.source_url,ss.availability_status,ss.source_available_at_utc FROM event_participant ep LEFT JOIN source_snapshot ss ON ss.source=ep.source AND ss.source_url=ep.source_url WHERE ep.event_id=? AND ep.source_url IS NOT NULL ORDER BY CASE WHEN ss.availability_status='EXACT' THEN 0 ELSE 1 END''',(event_id,)).fetchall()
     for r in rows:
         a=dt(r[3])
-        if r[2]=='EXACT' and a and a<=cutoff:return r[0],r[1],True
-    return (rows[0][0],rows[0][1],False) if rows else ('international-context',None,False)
+        if r[2]=='EXACT' and a and a<=cutoff:return r[0],r[1],True,r[3]
+    return (rows[0][0],rows[0][1],False,None) if rows else ('international-context',None,False,None)
 def rebuild():
     c=sqlite3.connect(DB); c.row_factory=sqlite3.Row
     events=c.execute('SELECT event_id,sport,competition_id,stage,round,event_time_utc FROM event WHERE event_time_utc IS NOT NULL ORDER BY event_time_utc,event_id').fetchall(); history={}; written=exact=0; verified_context={}
@@ -39,12 +39,12 @@ def rebuild():
         if not et: continue
         cutoff=et-timedelta(minutes=60); intl,tier,pressure=classify(e['competition_id'],e['stage'],e['round']); ps=c.execute("SELECT participant_id,side FROM event_participant WHERE event_id=? AND side IN ('A','B') AND participant_id IS NOT NULL",(e['event_id'],)).fetchall()
         if not ps: continue
-        src,url,exact_source=source_gate(c,e['event_id'],cutoff)
+        src,url,exact_source,source_available_at=source_gate(c,e['event_id'],cutoff)
         for p in ps:
             pid=p['participant_id']; recent=history.get(pid,[]); recent_int=sum(1 for is_int,ts,ok in recent if is_int and ok and et-ts<=timedelta(days=30)); values={'ctx_international_flag':float(intl),'ctx_global_tier':tier,'ctx_stage_pressure':pressure,'ctx_recent_int_30d':float(recent_int)}
             for name,value in values.items():
                 quality='EXACT' if exact_source else 'UNVERIFIABLE'; effective=cutoff.isoformat() if exact_source else None
-                c.execute('''INSERT OR REPLACE INTO match_stats(stat_id,event_id,participant_id,team_id,sport,observed_at_utc,effective_at_utc,stat_name,value_num,value_text,unit,source,source_url,quality_status,confidence) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',(sid('international-context-v2',e['event_id'],pid,name),e['event_id'],pid,pid,e['sport'],now(),effective,name,value,str(value),'context',src,url,quality,1.0 if exact_source else 0.0)); written+=1; exact+=int(exact_source)
+                c.execute('''INSERT OR REPLACE INTO match_stats(stat_id,event_id,participant_id,team_id,sport,observed_at_utc,effective_at_utc,stat_name,value_num,value_text,unit,source,source_url,quality_status,confidence) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',(sid('international-context-v3',e['event_id'],pid,name),e['event_id'],pid,pid,e['sport'],source_available_at if exact_source else now(),effective,name,value,str(value),'context',src,url,quality,1.0 if exact_source else 0.0)); written+=1; exact+=int(exact_source)
             history.setdefault(pid,[]).append((bool(intl),et,verified_context.get(e['event_id'],False)))
     c.commit(); c.close(); return {'events':len(events),'context_rows':written,'exact_rows':exact,'pit_policy':'historical context only counts when the context source was EXACT by that event cutoff'}
 def main():

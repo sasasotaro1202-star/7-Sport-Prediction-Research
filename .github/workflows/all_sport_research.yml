@@ -5,10 +5,19 @@ on:
     paths:
       - ".github/workflows/all_sport_research.yml"
       - "config/ACTIVE_SCOPE_9_SPORTS.json"
+      - "config/SPORT_DATA_SOURCES_9.json"
       - "src/ultimate_predictive_control_v13.py"
       - "src/research_cycle_strict.py"
+      - "src/cross_sport_data_layer.py"
+      - "src/source_usage_audit.py"
+      - "scripts/test_source_usage_audit.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_v13_oos_bridge.py"
+      - "scripts/test_cross_sport_data_layer.py"
+      - "src/international_context.py"
+      - "scripts/test_international_context_pit.py"
+      - "src/source_usage_audit.py"
+      - "scripts/test_source_usage_audit.py"
   workflow_dispatch:
   schedule:
     - cron: "11 */12 * * *"
@@ -97,6 +106,12 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
 
+      - name: Validate nine-sport cross-source registry
+        run: python scripts/test_cross_sport_data_layer.py
+
+      - name: Validate international context PIT gate
+        run: PYTHONPATH=. python scripts/test_international_context_pit.py
+
       - name: Initialize research directories
         run: |
           set -euo pipefail
@@ -169,6 +184,12 @@ jobs:
           rm -f "results/research/${{ matrix.sport }}_frozen_holdout.json"
           echo "FROZEN_HOLDOUT_REGISTRY=RESET sport=${{ matrix.sport }}"
 
+      - name: Build research-only international context
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -m src.international_context
+
       - name: Build common strict PIT replay
         shell: bash
         run: |
@@ -180,6 +201,15 @@ jobs:
         run: |
           set -euo pipefail
           timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport "${{ matrix.sport }}"
+
+      - name: Audit actual source-to-feature usage
+        shell: bash
+        env:
+          SPORT: ${{ matrix.sport }}
+        run: |
+          set -euo pipefail
+          python -m src.source_usage_audit --sport "${SPORT}"
+          test -s "results/source_usage/${SPORT}.json"
 
       - name: Verify research result is explicit JSON
         shell: bash
@@ -197,6 +227,13 @@ jobs:
           print(f"SPORT={sport} STATUS={o['status']}")
           print(f"PRODUCTION_CHANGED={o.get('production_changed', False)}")
           PY
+
+      - name: Audit actual source to strict-feature usage
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python src/source_usage_audit.py --sport "${{ matrix.sport }}" --output "results/source_usage/${{ matrix.sport }}.json"
+          test -s "results/source_usage/${{ matrix.sport }}.json"
 
       - name: Verify v13 bridge artifact contract
         shell: bash
@@ -259,6 +296,7 @@ jobs:
           python scripts/test_ultimate_predictive_control.py
           python scripts/test_ultimate_predictive_control_v13.py
           python scripts/test_ultimate_v13_oos_bridge.py
+          python scripts/test_source_usage_audit.py
           test "${ULTIMATE_CONTROL_VERSION}" = "v13"
 
       - name: Persist research database checkpoint
@@ -276,7 +314,9 @@ jobs:
             results/research/${{ matrix.sport }}.json
             results/research/${{ matrix.sport }}_ultimate_intelligence.json
             results/research/${{ matrix.sport }}_ultimate_v13.json
+            results/source_usage/${{ matrix.sport }}.json
             results/*.json
             results/v45/*.json
+            results/source_usage/${{ matrix.sport }}.json
           if-no-files-found: warn
           retention-days: 14
