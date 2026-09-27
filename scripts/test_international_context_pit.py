@@ -60,6 +60,7 @@ def main() -> int:
         assert names == set(ctx.CONTEXT_STATS)
         assert all(r[2] == "EXACT" for r in rows)
         assert all(r[3] == cutoff for r in rows)
+        assert all(r[0] == "ctx_international_flag" or r[1] is not None for r in rows)
         print("INTERNATIONAL_CONTEXT_PIT=PASS")
         print("EXACT_CONTEXT_ROWS", len(rows))
     return 0
