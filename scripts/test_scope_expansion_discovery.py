@@ -23,6 +23,8 @@ def main() -> int:
     assert "soccer" in cfg["excluded_sports"]
     assert len(cfg.get("source_probe_candidates") or []) >= 10
     assert all(str(x["status"]) == "DISCOVERY_ONLY" for x in candidates)
+    assert len(cfg.get("source_probe_candidates") or []) >= 16
+    assert all(str(x.get("sport")) not in {"baseball", "soccer"} for x in cfg.get("source_probe_candidates") or [])
 
     sample = {"items": [{"id": "10", "slug": "demo", "name": "Demo League", "abbreviation": "DL", "isTournament": True}]}
     rows = _items(sample)
@@ -49,6 +51,19 @@ def main() -> int:
         discovery.discover_nhl = original_nhl
     ref_result = discover_candidate({"sport": "handball", "provider": "reference_only", "reference_url": "https://github.com/nmjohnson/handball-rapm"})
     assert ref_result["status"] == "REFERENCE_CANDIDATE"
+
+    original_dota = discovery.discover_opendota
+    try:
+        discovery.discover_opendota = lambda sport: {
+            "sport": sport, "provider": "opendota",
+            "status": "DISCOVERED", "pit_status": "UNPROVEN",
+            "research_only": True, "production_model_touched": False,
+        }
+        dota_result = discover_candidate({"sport": "dota-2", "provider": "opendota"})
+        assert dota_result["provider"] == "opendota"
+        assert dota_result["pit_status"] == "UNPROVEN"
+    finally:
+        discovery.discover_opendota = original_dota
 
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "out.json"

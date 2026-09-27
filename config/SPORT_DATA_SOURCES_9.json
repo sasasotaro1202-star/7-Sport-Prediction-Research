@@ -1,5 +1,5 @@
 {
-  "version": "cross-sport-data-layer-v2.2",
+  "version": "cross-sport-data-layer-v2.3",
   "policy": {
     "free_only": true,
     "production_default_requires_pit": true,
@@ -668,6 +668,57 @@
       "note": "FastF1 provides F1 timing, session results and telemetry analysis and supports Jolpica/Ergast-compatible data. It is valuable as an implementation layer, but underlying source independence must not be overstated.",
       "references": [
         "https://github.com/theOehrly/Fast-F1"
+      ]
+    },
+    "nflverse_pbp": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "nflverse maintains NFL play-by-play and player data in versioned releases; data are available through nflreadr/nfl-data-py. Historical prediction-time availability requires separate provenance reconstruction.",
+      "references": [
+        "https://github.com/nflverse/nflverse-pbp",
+        "https://github.com/nflverse/nflverse-data"
+      ]
+    },
+    "opendota": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "OpenDota is an open Dota 2 data platform with match/player/hero resources and public endpoints. Current public documentation reports a free no-key tier; response size and rate limits should be enforced.",
+      "references": [
+        "https://github.com/odota/core",
+        "https://github.com/wood-run/opendota-client"
+      ]
+    },
+    "oracle_elixir": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Oracle's Elixir provides professional League of Legends esports match/player datasets, with public tooling describing coverage from 2014 onward and daily updates. Prediction-time historical availability remains to be proven.",
+      "references": [
+        "https://github.com/HerrKurz/Esports_Data_Pipeline"
+      ]
+    },
+    "hltv_cs_reference": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate_terms_hold",
+      "note": "Open-source HLTV-derived clients expose match/event/team/player statistics and upcoming matches. Treat as terms/rate-limit/PIT research only until independently validated.",
+      "references": [
+        "https://github.com/gigobyte/HLTV",
+        "https://github.com/JuhoNieminen/HLTV-API"
+      ]
+    },
+    "openwec": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "OpenWEC exposes public no-key series, seasons, events, session results and driver/team resources; deeper lap/pace analytics require a key and are excluded from free-only automation.",
+      "references": [
+        "https://github.com/palomacdev/openwec"
+      ]
+    },
+    "rugby_action_description_language": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate_schema_only",
+      "note": "RADL is a draft one-row-per-action rugby union representation. The current specification reports zero real matches traced, so it is a normalization reference rather than validated event data.",
+      "references": [
+        "https://github.com/JFrusher/RADL"
       ]
     }
   },

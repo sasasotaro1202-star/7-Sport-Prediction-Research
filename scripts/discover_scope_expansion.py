@@ -19,6 +19,7 @@ ALLOWED_HOSTS = {
     "api-web.nhle.com",
     "cricsheet.org",
     "api.snooker.org",
+    "api.opendota.com",
 }
 USER_AGENT = "7-Sport-Prediction-Research/scope-discovery-v2"
 
@@ -160,6 +161,27 @@ def discover_cricsheet(sport: str) -> dict:
     }
 
 
+
+def discover_opendota(sport: str) -> dict:
+    started = utcnow()
+    urls = {
+        "status": "https://api.opendota.com/api/status",
+        "public_matches": "https://api.opendota.com/api/publicMatches?less_than=9999999999",
+    }
+    payloads = {}
+    metas = {}
+    for key, url in urls.items():
+        payloads[key], metas[key] = _request_json(url)
+    rows = payloads.get("public_matches")
+    rows = rows if isinstance(rows, list) else []
+    return {
+        "sport": sport, "provider": "opendota", "retrieved_at_utc": started,
+        "sources": {k: {"url": urls[k], **metas[k]} for k in urls},
+        "public_match_sample_count": len(rows),
+        "status": "DISCOVERED" if rows else "NO_DISCOVERY_EVIDENCE",
+        "pit_status": "UNPROVEN", "research_only": True, "production_model_touched": False,
+    }
+
 def discover_snooker(sport: str) -> dict:
     started = utcnow()
     url = "https://api.snooker.org/"
@@ -193,6 +215,8 @@ def discover_candidate(item: dict) -> dict:
         return discover_nhl(sport)
     if provider == "cricsheet":
         return discover_cricsheet(sport)
+    if provider == "opendota":
+        return discover_opendota(sport)
     if provider == "snooker_org":
         return discover_snooker(sport)
     return discover_reference(item)
