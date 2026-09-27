@@ -14,6 +14,7 @@ on:
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_v13_oos_bridge.py"
       - "scripts/test_cross_sport_data_layer.py"
+      - "scripts/audit_source_feature_usage.py"
   workflow_dispatch:
   schedule:
     - cron: "11 */12 * * *"
@@ -215,6 +216,13 @@ jobs:
           print(f"PRODUCTION_CHANGED={o.get('production_changed', False)}")
           PY
 
+      - name: Audit actual source to strict-feature usage
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/audit_source_feature_usage.py --sport "${{ matrix.sport }}"
+          test -s "results/research/${{ matrix.sport }}_source_usage.json"
+
       - name: Verify v13 bridge artifact contract
         shell: bash
         run: |
@@ -294,6 +302,7 @@ jobs:
             results/research/${{ matrix.sport }}.json
             results/research/${{ matrix.sport }}_ultimate_intelligence.json
             results/research/${{ matrix.sport }}_ultimate_v13.json
+            results/research/${{ matrix.sport }}_source_usage.json
             results/*.json
             results/v45/*.json
             results/source_usage/${{ matrix.sport }}.json
