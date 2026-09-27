@@ -150,7 +150,7 @@ def discover_cricsheet(sport: str) -> dict:
     started = utcnow()
     url = "https://cricsheet.org/downloads/"
     page, meta = _request_text(url)
-    links = sorted(set(re.findall(r'href=["\']([^"\']+\\.zip)["\']', page or "", re.IGNORECASE)))
+    links = sorted(set(re.findall(r'href=["\']([^"\']+\.zip)["\']', page or "", re.IGNORECASE)))
     marker_text = (page or "").lower()
     markers = {"has_json": "json" in marker_text, "has_ball_by_ball": "ball-by-ball" in marker_text, "zip_count": len(links)}
     return {
