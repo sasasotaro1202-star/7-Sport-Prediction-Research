@@ -9,6 +9,8 @@ on:
       - "src/ultimate_predictive_control_v13.py"
       - "src/research_cycle_strict.py"
       - "src/cross_sport_data_layer.py"
+      - "src/source_usage_audit.py"
+      - "scripts/test_source_usage_audit.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_v13_oos_bridge.py"
       - "scripts/test_cross_sport_data_layer.py"
@@ -187,6 +189,15 @@ jobs:
           set -euo pipefail
           timeout --signal=TERM --kill-after=20s 2400s python -m src.research_cycle_strict --sport "${{ matrix.sport }}"
 
+      - name: Audit actual source-to-feature usage
+        shell: bash
+        env:
+          SPORT: ${{ matrix.sport }}
+        run: |
+          set -euo pipefail
+          python -m src.source_usage_audit --sport "${SPORT}"
+          test -s "results/source_usage/${SPORT}.json"
+
       - name: Verify research result is explicit JSON
         shell: bash
         run: |
@@ -284,5 +295,6 @@ jobs:
             results/research/${{ matrix.sport }}_ultimate_v13.json
             results/*.json
             results/v45/*.json
+            results/source_usage/${{ matrix.sport }}.json
           if-no-files-found: warn
           retention-days: 14
