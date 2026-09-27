@@ -54,12 +54,24 @@ PROBES = {
     "rizin_club": {
         "event_history": "https://rizin.club/"
     },
+    "rizin_official_web": {
+        "official_results": "https://jp.rizinff.com/"
+    },
     "sx_bet": {
         "sports": "https://api.sx.bet/sports",
         "markets": "https://api.sx.bet/markets?limit=1"
     },
     "statbunker_rugby": {
         "rugby_home": "https://rugby.statbunker.com/"
+    },
+    "boxrec": {
+        "boxing_results": "https://boxrec.com/en/results"
+    },
+    "world_rugby_official_archive": {
+        "official_home": "https://www.world.rugby/"
+    },
+    "atp_official_public": {
+        "official_stats": "https://www.atptour.com/stats/"
     },
     "wta_official": {
         "wta_rankings": "https://api.wtatennis.com/tennis/players/ranked?type=rankSingles&metric=singles&pageSize=1"
