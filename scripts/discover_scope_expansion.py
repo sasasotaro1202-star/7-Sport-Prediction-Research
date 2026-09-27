@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "config" / "SCOPE_EXPANSION_FRONTIER.json"
 DEFAULT_OUTPUT = ROOT / "results" / "scope_expansion" / "discovery.json"
+EXCLUDED_SPORTS = frozenset({"baseball", "soccer"})
 ALLOWED_HOSTS = {
     "sports.core.api.espn.com",
     "site.api.espn.com",
@@ -149,7 +150,7 @@ def discover_cricsheet(sport: str) -> dict:
     started = utcnow()
     url = "https://cricsheet.org/downloads/"
     page, meta = _request_text(url)
-    links = sorted(set(re.findall(r'href=["\']([^"\']+\.zip)["\']', page or "", re.IGNORECASE)))
+    links = sorted(set(re.findall(r'href=["\']([^"\']+\\.zip)["\']', page or "", re.IGNORECASE)))
     marker_text = (page or "").lower()
     markers = {"has_json": "json" in marker_text, "has_ball_by_ball": "ball-by-ball" in marker_text, "zip_count": len(links)}
     return {
@@ -160,7 +161,6 @@ def discover_cricsheet(sport: str) -> dict:
         "status": "DISCOVERED" if markers["has_json"] and links else "NO_DISCOVERY_EVIDENCE",
         "pit_status": "UNPROVEN", "research_only": True, "production_model_touched": False,
     }
-
 
 
 def discover_opendota(sport: str) -> dict:
@@ -182,6 +182,7 @@ def discover_opendota(sport: str) -> dict:
         "status": "DISCOVERED" if rows else "NO_DISCOVERY_EVIDENCE",
         "pit_status": "UNPROVEN", "research_only": True, "production_model_touched": False,
     }
+
 
 def discover_openwec(sport: str) -> dict:
     started = utcnow()
@@ -230,6 +231,16 @@ def discover_reference(item: dict) -> dict:
 
 def discover_candidate(item: dict) -> dict:
     sport = str(item.get("sport"))
+    if sport in EXCLUDED_SPORTS:
+        return {
+            "sport": sport,
+            "provider": str(item.get("provider") or "unknown"),
+            "retrieved_at_utc": utcnow(),
+            "status": "EXCLUDED_SPORT",
+            "pit_status": "UNPROVEN",
+            "research_only": True,
+            "production_model_touched": False,
+        }
     provider = str(item.get("provider") or "espn")
     if provider == "espn":
         slug = item.get("espn_slug")
@@ -255,7 +266,7 @@ def main() -> int:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     args = parser.parse_args()
     cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
-    excluded = {str(x) for x in (cfg.get("excluded_sports") or [])}
+    excluded = {str(x) for x in (cfg.get("excluded_sports") or [])} | EXCLUDED_SPORTS
     candidates = [x for x in (cfg.get("expansion_candidates") or []) if isinstance(x, dict) and str(x.get("sport")) not in excluded]
     source_candidates = [x for x in (cfg.get("source_probe_candidates") or []) if isinstance(x, dict) and str(x.get("sport")) not in excluded]
     results = [discover_candidate(x) for x in candidates]
