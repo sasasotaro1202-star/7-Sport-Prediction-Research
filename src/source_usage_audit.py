@@ -24,7 +24,7 @@ COLLECTORS = {
     "volleyball": ["src.volleyball_fivb_vis_backfill"],
     "tennis": ["src.tennis_public_backfill", "src.seven_sport_production.collect_wta_public"],
     "ufc": ["src.ufc_api_backfill"],
-    "rizin": ["src.public_history_backfill", "src.rugby_production"],
+    "rizin": ["src.public_history_backfill"],
     "f1": ["src.f1_openf1_backfill", "src.seven_sport_production.collect_f1"],
     "rugby": ["src.rugby_production"],
     "boxing": ["src.boxing_production"],
@@ -82,15 +82,28 @@ def _load_shadow(path: Path) -> dict:
     return raw if isinstance(raw, dict) else {"_error": "shadow_manifest_not_object"}
 
 
+SOURCE_ALIASES = {
+    "espn_public": {"espn"},
+    "f1api_dev": {"f1api", "f1api_dev"},
+    "wta_official": {"wta", "wta_official"},
+    "euroleague_official": {"euroleague", "euroleague_official"},
+    "openboxing": {"openboxing", "open-boxing"},
+    "rizin_club": {"rizin.club", "rizin_club"},
+    "world_rugby_official_archive": {"world.rugby", "world_rugby_official_archive"},
+}
+
 def _source_registry_match(source: str | None, url: str | None, refs: dict[str, list[str]]) -> list[str]:
     src = (source or "").lower()
     host = _host(url)
     matched = []
     for source_id, hosts in refs.items():
-        if source_id.lower() == src:
+        aliases = SOURCE_ALIASES.get(source_id, set())
+        if source_id.lower() == src or src in aliases:
             matched.append(source_id)
             continue
-        if host and any(host == h or host.endswith("." + h) for h in hosts):
+        # GitHub is intentionally excluded from host matching because many
+        # unrelated registry candidates share github.com as a repository host.
+        if host and host != "github.com" and any(host == h or host.endswith("." + h) for h in hosts):
             matched.append(source_id)
     return sorted(set(matched))
 
