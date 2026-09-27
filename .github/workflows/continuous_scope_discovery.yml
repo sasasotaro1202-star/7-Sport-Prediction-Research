@@ -9,6 +9,8 @@ on:
       - "config/SCOPE_EXPANSION_FRONTIER.json"
       - "scripts/discover_scope_expansion.py"
       - "scripts/test_scope_expansion_discovery.py"
+      - "config/COMPETITION_SCOPE_FRONTIER.json"
+      - "scripts/test_competition_scope_frontier.py"
       - ".github/workflows/continuous_scope_discovery.yml"
 
 permissions:
@@ -34,8 +36,9 @@ jobs:
       - name: Compile and test
         run: |
           set -euo pipefail
-          python -m py_compile scripts/discover_scope_expansion.py scripts/test_scope_expansion_discovery.py
+          python -m py_compile scripts/discover_scope_expansion.py scripts/test_scope_expansion_discovery.py scripts/test_competition_scope_frontier.py
           python scripts/test_scope_expansion_discovery.py
+          python scripts/test_competition_scope_frontier.py
       - name: Discover expansion frontier
         run: |
           set -euo pipefail
