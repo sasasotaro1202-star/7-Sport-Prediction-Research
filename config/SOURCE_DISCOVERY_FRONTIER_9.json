@@ -661,6 +661,46 @@
       "access": "open_source_public_wrapper",
       "status": "research_candidate_same_upstream",
       "next": "pin implementation -> compare replay fidelity against OpenF1 -> do not count as independent upstream"
+    },
+    {
+      "id": "rizin_official_web",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rizin"
+      ],
+      "access": "official_public_web",
+      "status": "research_candidate",
+      "next": "snapshot official result/fighter pages -> parse outcome/weight/round/method -> PIT/publication proof -> compare against RIZIN public history"
+    },
+    {
+      "id": "boxrec",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "public_web_database",
+      "status": "research_candidate",
+      "next": "terms/rate-limit review -> immutable page snapshots -> completeness/duplicate audit -> PIT-safe features -> OOS"
+    },
+    {
+      "id": "world_rugby_official_archive",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "rugby"
+      ],
+      "access": "official_public_archive",
+      "status": "research_candidate",
+      "next": "identify accessible public match/stat endpoints -> snapshot -> international-only scope separation -> PIT/OOS"
+    },
+    {
+      "id": "atp_official_public",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "tennis"
+      ],
+      "access": "official_public_web",
+      "status": "research_candidate",
+      "next": "snapshot stats/player/results pages -> publication/PIT reconstruction -> compare with Sackmann/WTA source"
     }
   ]
 }
