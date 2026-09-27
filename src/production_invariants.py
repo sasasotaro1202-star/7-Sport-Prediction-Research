@@ -86,6 +86,9 @@ def main():
     # Cache namespace must be canonical repository-wide across operational workflows.
     # This prevents a future unrelated workflow edit from silently reintroducing
     # the retired eight-sport cache namespace.
+    prod_workflow=(ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8')
+    require('current_main_gate:' in prod_workflow and "needs: current_main_gate" in prod_workflow and "if: needs.current_main_gate.outputs.current == 'true'" in prod_workflow,
+            'production workflow lacks a current-main preflight gate for stale-SHA runs')
     require('nine-sport-target-db-v4-' in all_wf,
             'operational workflows do not reference the canonical nine-sport cache namespace')
     require('eight-sport-db-v4-' not in all_wf,
