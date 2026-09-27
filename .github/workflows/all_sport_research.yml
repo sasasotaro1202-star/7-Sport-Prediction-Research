@@ -14,6 +14,8 @@ on:
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_v13_oos_bridge.py"
       - "scripts/test_cross_sport_data_layer.py"
+      - "src/international_context.py"
+      - "scripts/test_international_context_pit.py"
       - "src/source_usage_audit.py"
       - "scripts/test_source_usage_audit.py"
   workflow_dispatch:
@@ -107,6 +109,9 @@ jobs:
       - name: Validate nine-sport cross-source registry
         run: python scripts/test_cross_sport_data_layer.py
 
+      - name: Validate international context PIT gate
+        run: PYTHONPATH=. python scripts/test_international_context_pit.py
+
       - name: Initialize research directories
         run: |
           set -euo pipefail
@@ -178,6 +183,12 @@ jobs:
           set -euo pipefail
           rm -f "results/research/${{ matrix.sport }}_frozen_holdout.json"
           echo "FROZEN_HOLDOUT_REGISTRY=RESET sport=${{ matrix.sport }}"
+
+      - name: Build research-only international context
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -m src.international_context
 
       - name: Build common strict PIT replay
         shell: bash
