@@ -12,7 +12,7 @@ from src.source_usage_audit import audit
 def _insert_event(con, eid, when):
     con.execute(
         "INSERT INTO event(event_id,sport,competition_id,event_time_utc,status,quality_status) VALUES(?,?,?,?,?,?)",
-        (eid, "basketball", "test", when, "scheduled", "VERIFIED"),
+        (eid, "basketball", "B.LEAGUE", when, "scheduled", "VERIFIED"),
     )
     for side, pid in (("A", f"{eid}-a"), ("B", f"{eid}-b")):
         con.execute(
@@ -46,8 +46,9 @@ def make_db(path: Path) -> None:
 
     _insert_event(con, "e1", "2026-09-20T10:00:00+00:00")
     _insert_event(con, "e2", "2026-09-22T10:00:00+00:00")
+    _insert_event(con, "e3", "2026-09-24T10:00:00+00:00")
 
-    for eid, outcome in (("e1", "A"), ("e2", "B")):
+    for eid, outcome in (("e1", "A"), ("e2", "B"), ("e3", "A")):
         con.execute(
             """
             INSERT INTO event_outcome(
