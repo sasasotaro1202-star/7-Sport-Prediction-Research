@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import math
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -82,6 +83,42 @@ def _load_shadow(path: Path) -> dict:
     return raw if isinstance(raw, dict) else {"_error": "shadow_manifest_not_object"}
 
 
+
+
+def _is_finite(value) -> bool:
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _feature_matrix_usage(con: sqlite3.Connection, sport: str, policy: dict[str, list[str]]) -> dict:
+    """Inspect the exact feature matrix produced by the chronological builder."""
+    from src import research_cycle_v4 as base
+    rows, _ = base.build(con, sport)
+    feature_names = sorted({name for row in rows for name in row[3].keys()})
+    stat_usage = {}
+    for stat in sorted(policy.get(sport) or []):
+        columns = [name for name in feature_names if f"__{stat}__" in name]
+        finite_counts = {
+            name: sum(1 for row in rows if _is_finite(row[3].get(name)))
+            for name in columns
+        }
+        stat_usage[stat] = {
+            "feature_columns": columns,
+            "finite_row_counts": finite_counts,
+            "active_in_feature_matrix": any(v > 0 for v in finite_counts.values()),
+        }
+    active = sorted(stat for stat, item in stat_usage.items() if item["active_in_feature_matrix"])
+    status = "ACTIVE_DIRECT_STATS" if active else "STATE_ONLY" if rows else "NO_STRICT_BUILD_ROWS"
+    return {
+        "status": status,
+        "build_rows": len(rows),
+        "feature_count": len(feature_names),
+        "active_policy_stats": active,
+        "stat_feature_usage": stat_usage,
+    }
+
 SOURCE_ALIASES = {
     "espn_public": {"espn"},
     "f1api_dev": {"f1api", "f1api_dev"},
@@ -119,6 +156,13 @@ def _query_db(db_path: Path, sport: str, policy: dict[str, list[str]]) -> dict:
             "pit_usable_stat_rows": 0,
             "sources": [],
             "feature_usage": [],
+            "feature_matrix_usage": {
+                "status": "DB_ABSENT",
+                "build_rows": 0,
+                "feature_count": 0,
+                "active_policy_stats": [],
+                "stat_feature_usage": {},
+            },
         }
 
     con = sqlite3.connect(db_path)
@@ -195,6 +239,7 @@ def _query_db(db_path: Path, sport: str, policy: dict[str, list[str]]) -> dict:
             )
 
         pit_active = [x for x in feature_usage if x["strict_pit_active"]]
+        feature_matrix_usage = _feature_matrix_usage(con, sport, policy)
         sources = [
             {
                 "source": r["source"],
@@ -216,6 +261,7 @@ def _query_db(db_path: Path, sport: str, policy: dict[str, list[str]]) -> dict:
             "sources": sources,
             "feature_usage": feature_usage,
             "active_pit_features": pit_active,
+            "feature_matrix_usage": feature_matrix_usage,
         }
     finally:
         con.close()
