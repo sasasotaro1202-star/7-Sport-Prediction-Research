@@ -147,7 +147,9 @@ def main() -> int:
             last_research = time.monotonic()
 
         checkpoint = {
-            "version": "24h-research-marathon-main-v1",
+            "version": "24h-research-marathon-main-v2",
+            "github_sha": os.environ.get("GITHUB_SHA", ""),
+            "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
             "stage": args.stage,
             "sport": sport,
             "active_target_sports": active,
@@ -170,7 +172,9 @@ def main() -> int:
             time.sleep(args.research_interval_minutes * 60)
 
     final = {
-        "version": "24h-research-marathon-main-v1",
+        "version": "24h-research-marathon-main-v2",
+        "github_sha": os.environ.get("GITHUB_SHA", ""),
+        "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
         "stage": args.stage,
         "sport": sport,
         "active_target_sports": active,
