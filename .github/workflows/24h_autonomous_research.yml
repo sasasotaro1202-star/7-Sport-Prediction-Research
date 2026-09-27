@@ -52,7 +52,7 @@ jobs:
       - name: Run 24H stage
         run: python scripts/run_24h_research_stage_main.py --stage 1 --minutes 282 --research-interval-minutes 90
       - name: Save basketball DB checkpoint
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: data/db
@@ -100,7 +100,7 @@ jobs:
       - name: Run 24H stage
         run: python scripts/run_24h_research_stage_main.py --stage 2 --minutes 282 --research-interval-minutes 90
       - name: Save volleyball DB checkpoint
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: data/db
@@ -148,7 +148,7 @@ jobs:
       - name: Run 24H stage
         run: python scripts/run_24h_research_stage_main.py --stage 3 --minutes 282 --research-interval-minutes 90
       - name: Save ufc DB checkpoint
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: data/db
@@ -196,7 +196,7 @@ jobs:
       - name: Run 24H stage
         run: python scripts/run_24h_research_stage_main.py --stage 4 --minutes 282 --research-interval-minutes 90
       - name: Save rizin DB checkpoint
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: data/db
@@ -244,7 +244,7 @@ jobs:
       - name: Run 24H stage
         run: python scripts/run_24h_research_stage_main.py --stage 5 --minutes 282 --research-interval-minutes 90
       - name: Save valorant DB checkpoint
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: data/db
