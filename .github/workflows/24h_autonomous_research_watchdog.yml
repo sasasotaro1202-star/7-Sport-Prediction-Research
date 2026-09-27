@@ -41,9 +41,10 @@ jobs:
               if out="$(gh "$@" 2>&1)"; then
                 printf '%s\n' "$out"
                 return 0
+              else
+                rc=$?
+                echo "gh attempt ${attempt}/4 failed rc=${rc}: ${out}" >&2
               fi
-              rc=$?
-              echo "gh attempt ${attempt}/4 failed rc=${rc}: ${out}" >&2
               if [ "${attempt}" -lt 4 ]; then sleep $((attempt * 2)); fi
             done
             return "${rc}"
