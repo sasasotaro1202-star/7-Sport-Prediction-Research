@@ -30,19 +30,19 @@
   "expansion_candidates": [
     {
       "sport": "hockey",
-      "espn_slug": "hockey",
       "priority": 1,
       "status": "DISCOVERY_ONLY",
       "integration": "new_sport_candidate",
-      "reason": "Current public ESPN API documentation lists multiple hockey leagues and a broad event surface."
+      "reason": "Current public ESPN API documentation lists multiple hockey leagues and a broad event surface.",
+      "provider": "nhl_official"
     },
     {
       "sport": "cricket",
-      "espn_slug": "cricket",
       "priority": 1,
       "status": "DISCOVERY_ONLY",
       "integration": "new_sport_candidate",
-      "reason": "Current public ESPN documentation exposes cricket league/event endpoints and active-series discovery."
+      "reason": "Current public ESPN documentation exposes cricket league/event endpoints and active-series discovery.",
+      "provider": "cricsheet"
     },
     {
       "sport": "golf",
@@ -50,7 +50,8 @@
       "priority": 2,
       "status": "DISCOVERY_ONLY",
       "integration": "new_sport_candidate",
-      "reason": "Public ESPN endpoints cover multiple golf tours and event/leaderboard data."
+      "reason": "Public ESPN endpoints cover multiple golf tours and event/leaderboard data.",
+      "provider": "espn"
     },
     {
       "sport": "field-hockey",
@@ -155,6 +156,86 @@
   "notes": [
     "baseball and soccer are hard exclusions and must never be added to automatic discovery",
     "new sports remain Discovery-only until coverage, licensing, PIT, entity mapping, chronological OOS and robustness gates pass",
-    "provider independence must be tracked; multiple wrappers of one upstream do not count as independent evidence"
+    "provider independence must be tracked; multiple wrappers of one upstream do not count as independent evidence",
+    "provider-specific discovery probes are research-only; retrieval timestamps never establish historical PIT"
+  ],
+  "source_probe_candidates": [
+    {
+      "id": "nhl_official_api",
+      "sport": "hockey",
+      "provider": "nhl_official",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "cricsheet",
+      "sport": "cricket",
+      "provider": "cricsheet",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "espn_golf_public",
+      "sport": "golf",
+      "provider": "espn",
+      "espn_slug": "golf",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "espn_american_football_public",
+      "sport": "american-football",
+      "provider": "espn",
+      "espn_slug": "football",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "snooker_org_api",
+      "sport": "snooker",
+      "provider": "snooker_org",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY"
+    },
+    {
+      "id": "handball_open_lineup_corpus",
+      "sport": "handball",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/nmjohnson/handball-rapm"
+    },
+    {
+      "id": "tennis_match_data_v3",
+      "sport": "tennis",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/ryantjx/tennis-match-data"
+    },
+    {
+      "id": "vlrdevapi",
+      "sport": "valorant",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/Vanshbordia/vlrdevapi"
+    },
+    {
+      "id": "ufc_stats_api_public_impl",
+      "sport": "ufc",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/malichetty/ufc-stats-api"
+    },
+    {
+      "id": "fastf1_open_source",
+      "sport": "f1",
+      "provider": "reference_only",
+      "priority": 2,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/theOehrly/Fast-F1"
+    }
   ]
 }
