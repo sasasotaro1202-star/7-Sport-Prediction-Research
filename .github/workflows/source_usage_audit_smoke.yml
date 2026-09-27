@@ -20,6 +20,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: .
+
 concurrency:
   group: source-usage-audit-smoke-${{ github.ref }}
   cancel-in-progress: true
