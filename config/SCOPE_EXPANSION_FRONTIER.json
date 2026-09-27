@@ -1,0 +1,36 @@
+{
+  "version": "scope-expansion-frontier-2026-09-28",
+  "policy": {
+    "free_only": true,
+    "credentials_never_auto_created": true,
+    "paid_or_trial_sources_never_auto_used": true,
+    "discovery_is_not_prediction_eligibility": true,
+    "historical_pit_unknown_is_fail_closed": true,
+    "production_model_changes": false
+  },
+  "current_supported_sports": [
+    "valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby","boxing"
+  ],
+  "expansion_candidates": [
+    {"sport":"baseball","espn_slug":"baseball","priority":1,"status":"DISCOVERY_ONLY","integration":"cross-project_candidate","reason":"High event volume; a dedicated Baseball-Prediction-System exists for downstream handoff."},
+    {"sport":"hockey","espn_slug":"hockey","priority":1,"status":"DISCOVERY_ONLY","integration":"new_sport_candidate","reason":"Current public ESPN API documentation lists multiple hockey leagues and a broad event surface."},
+    {"sport":"cricket","espn_slug":"cricket","priority":1,"status":"DISCOVERY_ONLY","integration":"new_sport_candidate","reason":"Current public ESPN documentation exposes cricket league/event endpoints and active-series discovery."},
+    {"sport":"golf","espn_slug":"golf","priority":2,"status":"DISCOVERY_ONLY","integration":"new_sport_candidate","reason":"Public ESPN endpoints cover multiple golf tours and event/leaderboard data."},
+    {"sport":"field-hockey","espn_slug":"field-hockey","priority":2,"status":"DISCOVERY_ONLY","integration":"new_sport_candidate","reason":"Explicitly represented in the current public ESPN sport catalog."},
+    {"sport":"lacrosse","espn_slug":"lacrosse","priority":2,"status":"DISCOVERY_ONLY","integration":"new_sport_candidate","reason":"Explicitly represented in the current public ESPN sport catalog."},
+    {"sport":"water-polo","espn_slug":"water-polo","priority":2,"status":"DISCOVERY_ONLY","integration":"new_sport_candidate","reason":"Explicitly represented in the current public ESPN sport catalog."},
+    {"sport":"australian-football","espn_slug":"australian-football","priority":3,"status":"DISCOVERY_ONLY","integration":"new_sport_candidate","reason":"Explicitly represented in the current public ESPN sport catalog."},
+    {"sport":"rugby-league","espn_slug":"rugby-league","priority":3,"status":"DISCOVERY_ONLY","integration":"new_sport_candidate","reason":"Kept separate from rugby union to avoid blind pooling across materially different competition structures."},
+    {"sport":"soccer","espn_slug":"soccer","priority":3,"status":"DISCOVERY_ONLY","integration":"cross-project_candidate","reason":"Large competition surface; dedicated Soccer-Prediction-Research remains the downstream production project."}
+  ],
+  "promotion_stages": [
+    "DISCOVERED","SOURCE_PROBED","DATA_ACQUIRED","PIT_VALIDATED","SHADOW",
+    "CHRONOLOGICAL_OOS","ROBUSTNESS","LIMITED_PRODUCTION"
+  ],
+  "stop_conditions": [
+    "license_or_terms_unclear","source_availability_unknown",
+    "duplicate_source_family_without_incremental_information",
+    "insufficient_event_coverage","persistent_schema_or_entity_mapping_failure",
+    "material_oos_regression"
+  ]
+}
