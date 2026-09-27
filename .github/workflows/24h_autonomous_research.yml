@@ -261,3 +261,83 @@ jobs:
           if-no-files-found: warn
           retention-days: 2
 
+
+
+  finalize:
+    name: "Final / 24H evidence reconciliation"
+    needs: [stage1, stage2, stage3, stage4, stage5]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Download all stage evidence
+        continue-on-error: true
+        uses: actions/download-artifact@v6
+        with:
+          pattern: 24h-main-stage-*-${{ github.run_id }}
+          path: artifacts/24h
+          merge-multiple: true
+      - name: Reconcile immutable handoff
+        env:
+          S1: ${{ needs.stage1.result }}
+          S2: ${{ needs.stage2.result }}
+          S3: ${{ needs.stage3.result }}
+          S4: ${{ needs.stage4.result }}
+          S5: ${{ needs.stage5.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/final
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          stage_results = {
+              "stage1_basketball": os.environ["S1"],
+              "stage2_volleyball": os.environ["S2"],
+              "stage3_ufc": os.environ["S3"],
+              "stage4_rizin": os.environ["S4"],
+              "stage5_valorant": os.environ["S5"],
+          }
+          finals = sorted(Path("artifacts/24h").glob("stage_*_final.json"))
+          payload = {
+              "schema_version": 1,
+              "status": "COMPLETED" if all(v == "success" for v in stage_results.values()) else "PARTIAL_OR_BLOCKED",
+              "github_sha": os.environ["GITHUB_SHA"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "stage_results": stage_results,
+              "final_stage_evidence_count": len(finals),
+              "research_only": True,
+              "production_model_touched": False,
+              "hard_exclusions": ["baseball", "soccer"],
+          }
+
+          if len(finals) != 5:
+              payload["status"] = "PARTIAL_OR_BLOCKED"
+
+          for path in finals:
+              obj = json.loads(path.read_text(encoding="utf-8"))
+              if obj.get("research_only") is not True:
+                  raise SystemExit(f"research_only contract failed: {path}")
+              if obj.get("production_model_touched") is not False:
+                  raise SystemExit(f"production boundary claim failed: {path}")
+              if set(obj.get("hard_exclusions", [])) != {"baseball", "soccer"}:
+                  raise SystemExit(f"hard exclusion contract failed: {path}")
+
+          Path("artifacts/final/24h_run_status.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          PY
+      - name: Upload reconciled 24H handoff
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 24h-main-reconciled-${{ github.run_id }}
+          path: artifacts/final/24h_run_status.json
+          if-no-files-found: error
+          retention-days: 7
