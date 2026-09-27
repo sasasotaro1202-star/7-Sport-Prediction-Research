@@ -31,8 +31,8 @@ def make_db(path: Path) -> None:
         ("s1","basketball","espn","https://site.api.espn.com/x","2026-09-20T08:00:00+00:00","2026-09-20T10:00:00+00:00","EXACT"),
     )
     con.execute(
-        "INSERT INTO match_stats VALUES (?,?,?,?,?,?,?,?)",
-        ("m1","e1","p1","basketball","points",100.0,"espn","https://site.api.espn.com/x"),
+        "INSERT INTO match_stats VALUES (?,?,?,?,?,?,?,?,?)",
+        ("m1","e1","p1","basketball","points",100.0,"espn","https://site.api.espn.com/x","2026-09-20T08:00:00+00:00"),
     )
     con.commit()
     con.close()
