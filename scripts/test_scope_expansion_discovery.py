@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 
+import scripts.discover_scope_expansion as discovery
 from scripts.discover_scope_expansion import _active_leagues, _items, _league_summary, discover_candidate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,9 +35,18 @@ def main() -> int:
     active = _active_leagues(header)
     assert active == [{"id": "10", "name": "Demo League", "slug": "demo", "event_count": 2}]
 
-    nhl_result = discover_candidate({"sport": "hockey", "provider": "nhl_official"})
-    assert nhl_result["provider"] == "nhl_official"
-    assert nhl_result["pit_status"] == "UNPROVEN"
+    original_nhl = discovery.discover_nhl
+    try:
+        discovery.discover_nhl = lambda sport: {
+            "sport": sport, "provider": "nhl_official",
+            "status": "DISCOVERED", "pit_status": "UNPROVEN",
+            "research_only": True, "production_model_touched": False,
+        }
+        nhl_result = discover_candidate({"sport": "hockey", "provider": "nhl_official"})
+        assert nhl_result["provider"] == "nhl_official"
+        assert nhl_result["pit_status"] == "UNPROVEN"
+    finally:
+        discovery.discover_nhl = original_nhl
     ref_result = discover_candidate({"sport": "handball", "provider": "reference_only", "reference_url": "https://github.com/nmjohnson/handball-rapm"})
     assert ref_result["status"] == "REFERENCE_CANDIDATE"
 
