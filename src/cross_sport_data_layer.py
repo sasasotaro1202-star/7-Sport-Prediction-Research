@@ -36,20 +36,25 @@ def pit_status(
     available_at: str | None,
     prediction_time: str,
 ) -> str:
-    """Fail closed when historical availability cannot be established."""
-    if not available_at:
+    """Fail closed unless both timestamps are explicit timezone-aware instants."""
+    if not isinstance(available_at, str) or not available_at.strip():
+        return "UNKNOWN_FAIL_CLOSED"
+    if not isinstance(prediction_time, str) or not prediction_time.strip():
         return "UNKNOWN_FAIL_CLOSED"
     try:
         a = _parse_utc(available_at)
         p = _parse_utc(prediction_time)
-    except ValueError:
+    except (TypeError, ValueError):
         return "UNKNOWN_FAIL_CLOSED"
     return "PASS" if a <= p else "FAIL"
 
 
 def _parse_utc(value: str) -> datetime:
-    s = value.strip().replace("Z", "+00:00")
+    s = value.strip()
+    if s.endswith(("Z", "z")):
+        s = s[:-1] + "+00:00"
     dt = datetime.fromisoformat(s)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+    # A naive datetime has an unknown temporal reference; never infer UTC.
+    if dt.tzinfo is None or dt.utcoffset() is None:
+        raise ValueError("timezone_required")
     return dt.astimezone(timezone.utc)
