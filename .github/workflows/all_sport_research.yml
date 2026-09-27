@@ -14,7 +14,8 @@ on:
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_v13_oos_bridge.py"
       - "scripts/test_cross_sport_data_layer.py"
-      - "scripts/audit_source_feature_usage.py"
+      - "src/source_usage_audit.py"
+      - "scripts/test_source_usage_audit.py"
   workflow_dispatch:
   schedule:
     - cron: "11 */12 * * *"
@@ -220,8 +221,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PYTHONPATH=. python scripts/audit_source_feature_usage.py --sport "${{ matrix.sport }}"
-          test -s "results/research/${{ matrix.sport }}_source_usage.json"
+          PYTHONPATH=. python src/source_usage_audit.py --sport "${{ matrix.sport }}" --output "results/source_usage/${{ matrix.sport }}.json"
+          test -s "results/source_usage/${{ matrix.sport }}.json"
 
       - name: Verify v13 bridge artifact contract
         shell: bash
@@ -302,7 +303,7 @@ jobs:
             results/research/${{ matrix.sport }}.json
             results/research/${{ matrix.sport }}_ultimate_intelligence.json
             results/research/${{ matrix.sport }}_ultimate_v13.json
-            results/research/${{ matrix.sport }}_source_usage.json
+            results/source_usage/${{ matrix.sport }}.json
             results/*.json
             results/v45/*.json
             results/source_usage/${{ matrix.sport }}.json
