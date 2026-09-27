@@ -1,5 +1,5 @@
 {
-  "version": "scope-expansion-frontier-2026-09-28-v3",
+  "version": "scope-expansion-frontier-2026-09-28-v4",
   "policy": {
     "free_only": true,
     "credentials_never_auto_created": true,

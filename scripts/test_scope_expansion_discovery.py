@@ -23,7 +23,7 @@ def main() -> int:
     assert "soccer" in cfg["excluded_sports"]
     assert len(cfg.get("source_probe_candidates") or []) >= 10
     assert all(str(x["status"]) == "DISCOVERY_ONLY" for x in candidates)
-    assert len(cfg.get("source_probe_candidates") or []) >= 16
+    assert len(cfg.get("source_probe_candidates") or []) >= 17
     assert all(str(x.get("sport")) not in {"baseball", "soccer"} for x in cfg.get("source_probe_candidates") or [])
 
     sample = {"items": [{"id": "10", "slug": "demo", "name": "Demo League", "abbreviation": "DL", "isTournament": True}]}
@@ -51,6 +51,19 @@ def main() -> int:
         discovery.discover_nhl = original_nhl
     ref_result = discover_candidate({"sport": "handball", "provider": "reference_only", "reference_url": "https://github.com/nmjohnson/handball-rapm"})
     assert ref_result["status"] == "REFERENCE_CANDIDATE"
+
+    original_openwec = discovery.discover_openwec
+    try:
+        discovery.discover_openwec = lambda sport: {
+            "sport": sport, "provider": "openwec",
+            "status": "DISCOVERED", "pit_status": "UNPROVEN",
+            "research_only": True, "production_model_touched": False,
+        }
+        openwec_result = discover_candidate({"sport": "wec", "provider": "openwec"})
+        assert openwec_result["provider"] == "openwec"
+        assert openwec_result["pit_status"] == "UNPROVEN"
+    finally:
+        discovery.discover_openwec = original_openwec
 
     original_dota = discovery.discover_opendota
     try:

@@ -20,6 +20,7 @@ ALLOWED_HOSTS = {
     "cricsheet.org",
     "api.snooker.org",
     "api.opendota.com",
+    "api.openwec.com",
 }
 USER_AGENT = "7-Sport-Prediction-Research/scope-discovery-v2"
 
@@ -182,6 +183,31 @@ def discover_opendota(sport: str) -> dict:
         "pit_status": "UNPROVEN", "research_only": True, "production_model_touched": False,
     }
 
+def discover_openwec(sport: str) -> dict:
+    started = utcnow()
+    urls = {
+        "series": "https://api.openwec.com/api/v1/series",
+        "events": "https://api.openwec.com/api/v1/series/WEC/seasons/2026/events",
+    }
+    payloads = {}
+    metas = {}
+    for key, url in urls.items():
+        payloads[key], metas[key] = _request_json(url)
+    series = payloads.get("series")
+    events = payloads.get("events")
+    series_rows = series.get("data") if isinstance(series, dict) else None
+    event_rows = events.get("data") if isinstance(events, dict) else None
+    series_count = len(series_rows) if isinstance(series_rows, list) else 0
+    event_count = len(event_rows) if isinstance(event_rows, list) else 0
+    return {
+        "sport": sport, "provider": "openwec", "retrieved_at_utc": started,
+        "sources": {k: {"url": urls[k], **metas[k]} for k in urls},
+        "series_count": series_count, "event_count": event_count,
+        "status": "DISCOVERED" if series_count or event_count else "NO_DISCOVERY_EVIDENCE",
+        "pit_status": "UNPROVEN", "research_only": True, "production_model_touched": False,
+    }
+
+
 def discover_snooker(sport: str) -> dict:
     started = utcnow()
     url = "https://api.snooker.org/"
@@ -217,6 +243,8 @@ def discover_candidate(item: dict) -> dict:
         return discover_cricsheet(sport)
     if provider == "opendota":
         return discover_opendota(sport)
+    if provider == "openwec":
+        return discover_openwec(sport)
     if provider == "snooker_org":
         return discover_snooker(sport)
     return discover_reference(item)
