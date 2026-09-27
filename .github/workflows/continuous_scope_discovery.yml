@@ -1,0 +1,63 @@
+name: Continuous Scope Expansion Discovery
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+  push:
+    paths:
+      - "config/SCOPE_EXPANSION_FRONTIER.json"
+      - "scripts/discover_scope_expansion.py"
+      - "scripts/test_scope_expansion_discovery.py"
+      - ".github/workflows/continuous_scope_discovery.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuous-scope-discovery
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Compile and test
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/discover_scope_expansion.py scripts/test_scope_expansion_discovery.py
+          python scripts/test_scope_expansion_discovery.py
+      - name: Discover expansion frontier
+        run: |
+          set -euo pipefail
+          python scripts/discover_scope_expansion.py --output results/scope_expansion/discovery.json
+          test -s results/scope_expansion/discovery.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          o=json.loads(Path("results/scope_expansion/discovery.json").read_text(encoding="utf-8"))
+          assert o.get("policy",{}).get("free_only") is True
+          assert all(x.get("research_only") is True for x in o.get("results",[]))
+          assert all(x.get("production_model_touched") is False for x in o.get("results",[]))
+          statuses={}
+          for x in o.get("results",[]):
+              statuses[x.get("status")]=statuses.get(x.get("status"),0)+1
+          print(f"SCOPE_DISCOVERY_RESULTS={len(o.get('results',[]))}")
+          print(f"SCOPE_DISCOVERY_STATUSES={statuses}")
+          PY
+      - name: Upload discovery evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: scope-expansion-discovery-${{ github.run_id }}
+          path: results/scope_expansion/discovery.json
+          if-no-files-found: error
+          retention-days: 14
