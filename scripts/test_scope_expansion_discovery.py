@@ -28,6 +28,16 @@ def main() -> int:
     assert "badminton" in sports
     assert "table-tennis" in sports
 
+    # Hard exclusions must also hold at the function boundary, not only in
+    # config filtering, so direct/in-process discovery cannot rediscover them.
+    for excluded_sport in ("baseball", "soccer"):
+        result = discover_candidate({"sport": excluded_sport, "provider": "espn", "espn_slug": excluded_sport})
+        assert result["status"] == "EXCLUDED_SPORT"
+        assert result["sport"] == excluded_sport
+        assert result["pit_status"] == "UNPROVEN"
+        assert result["research_only"] is True
+        assert result["production_model_touched"] is False
+
     sample = {"items": [{"id": "10", "slug": "demo", "name": "Demo League", "abbreviation": "DL", "isTournament": True}]}
     rows = _items(sample)
     assert len(rows) == 1
@@ -87,6 +97,7 @@ def main() -> int:
 
     print("SCOPE_EXPANSION_CONFIG=PASS")
     print("SCOPE_EXPANSION_PARSER=PASS")
+    print("SCOPE_EXPANSION_HARD_EXCLUSION=PASS")
     print("SCOPE_EXPANSION_PIT_DEFAULT=PASS")
     return 0
 
