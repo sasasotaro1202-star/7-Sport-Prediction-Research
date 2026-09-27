@@ -1,0 +1,42 @@
+name: Source Usage Audit Smoke
+
+on:
+  push:
+    paths:
+      - "src/source_usage_audit.py"
+      - "scripts/test_source_usage_audit.py"
+      - "config/SPORT_DATA_SOURCES_9.json"
+      - "src/research_cycle_v4.py"
+      - ".github/workflows/source_usage_audit_smoke.yml"
+  pull_request:
+    paths:
+      - "src/source_usage_audit.py"
+      - "scripts/test_source_usage_audit.py"
+      - "config/SPORT_DATA_SOURCES_9.json"
+      - "src/research_cycle_v4.py"
+      - ".github/workflows/source_usage_audit_smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-usage-audit-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Compile audit and regression test
+        run: |
+          set -euo pipefail
+          python -m py_compile src/source_usage_audit.py scripts/test_source_usage_audit.py
+          python scripts/test_source_usage_audit.py
