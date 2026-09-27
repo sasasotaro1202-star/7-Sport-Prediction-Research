@@ -302,7 +302,7 @@ jobs:
               "stage4_rizin": os.environ["S4"],
               "stage5_valorant": os.environ["S5"],
           }
-          finals = sorted(Path("artifacts/24h").glob("stage_*_final.json"))
+          finals = sorted(Path("artifacts/24h").rglob("stage_*_final.json"))
           payload = {
               "schema_version": 1,
               "status": "COMPLETED" if all(v == "success" for v in stage_results.values()) else "PARTIAL_OR_BLOCKED",
