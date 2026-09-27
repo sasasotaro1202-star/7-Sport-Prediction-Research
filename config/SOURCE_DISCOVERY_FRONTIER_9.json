@@ -631,6 +631,36 @@
       "access": "public_git_downstream_ufcstats_license_unconfirmed",
       "status": "research_candidate_license_hold",
       "next": "pin snapshot -> license check -> duplicate-source audit -> use only as cache/reproducibility if cleared"
+    },
+    {
+      "id": "boxing_web_boxmind",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "public_code_external_dataset_license_unconfirmed",
+      "status": "research_only_external_dataset",
+      "next": "do not auto-download external dataset -> review license/terms -> snapshot -> representation-learning benchmark only"
+    },
+    {
+      "id": "boxingvi_benchmark",
+      "type": "historical_corpus",
+      "confirmed_coverage": [
+        "boxing"
+      ],
+      "access": "public_research_benchmark",
+      "status": "research_only_benchmark",
+      "next": "identify official dataset terms -> snapshot -> video-model/feature-extraction robustness only"
+    },
+    {
+      "id": "f1_live_api_wrapper",
+      "type": "data_source",
+      "confirmed_coverage": [
+        "f1"
+      ],
+      "access": "open_source_public_wrapper",
+      "status": "research_candidate_same_upstream",
+      "next": "pin implementation -> compare replay fidelity against OpenF1 -> do not count as independent upstream"
     }
   ]
 }
