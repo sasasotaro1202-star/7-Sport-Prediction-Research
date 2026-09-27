@@ -166,12 +166,13 @@ jobs:
             for attempt in 1 2 3 4 5; do
               sleep 3
               after="$(gh_retry run list --repo "${REPO}" --workflow "${WORKFLOW}" --limit 20 --json databaseId,status,headSha,createdAt)"
-              if printf '%s' "${after}" | python - "${main_sha}" "${before}" <<'PY'
+              printf '%s' "${after}" > /tmp/dispatch_runs.json
+              if python - "${main_sha}" "${before}" /tmp/dispatch_runs.json <<'PY'
           import json, sys
           from datetime import datetime, timezone
           main_sha = sys.argv[1]
           before = int(sys.argv[2])
-          runs = json.load(sys.stdin)
+          runs = json.load(open(sys.argv[3], encoding="utf-8"))
           for r in runs:
               if r.get("headSha") != main_sha:
                   continue
