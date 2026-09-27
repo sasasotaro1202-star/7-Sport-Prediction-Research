@@ -16,6 +16,8 @@ def main() -> int:
     assert cfg["policy"]["free_only"] is True
     sports = [str(x["sport"]) for x in candidates]
     assert len(sports) == len(set(sports))
+    assert "baseball" not in sports
+    assert "baseball" in cfg["excluded_sports"]
     assert all(str(x["status"]) == "DISCOVERY_ONLY" for x in candidates)
 
     sample = {"items": [{"id": "10", "slug": "demo", "name": "Demo League", "abbreviation": "DL", "isTournament": True}]}
