@@ -66,6 +66,22 @@ jobs:
             fi
           fi
 
+          latest_any="$(printf '%s' "${runs}" | jq -c '[.workflow_runs[]] | sort_by(.created_at) | reverse | .[0] // empty')"
+          latest_any_created="$(printf '%s' "${latest_any}" | jq -r '.created_at // empty')"
+          if [ -z "${latest_any_created}" ]; then
+            echo "WATCHDOG: no recorded marathon runs; dispatching first cycle"
+            gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
+            exit 0
+          fi
+
+          latest_any_epoch="$(date -d "${latest_any_created}" +%s 2>/dev/null || echo 0)"
+          latest_any_age="$(( (now-latest_any_epoch)/60 ))"
+          if [ "${latest_any_age}" -ge 1440 ]; then
+            echo "WATCHDOG: 24h cycle overdue; dispatching fresh run age_minutes=${latest_any_age}"
+            gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
+            exit 0
+          fi
+
           queued_id="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "queued" or .status == "pending")] | sort_by(.created_at) | .[0].id // empty')"
           queued_created="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "queued" or .status == "pending")] | sort_by(.created_at) | .[0].created_at // empty')"
 
