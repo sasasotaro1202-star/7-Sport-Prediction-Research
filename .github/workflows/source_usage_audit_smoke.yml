@@ -16,6 +16,8 @@ on:
       - "scripts/test_source_usage_audit.py"
       - "config/SPORT_DATA_SOURCES_9.json"
       - "src/research_cycle_v4.py"
+      - "src/international_context.py"
+      - "scripts/test_international_context_pit.py"
       - ".github/workflows/source_usage_audit_smoke.yml"
   workflow_dispatch:
 
