@@ -4,6 +4,7 @@ import json
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -96,6 +97,11 @@ REQUIRED_SOURCES = {
     "openboxing",
 }
 
+RETRYABLE_HTTP = {408, 429, 500, 502, 503, 504}
+MAX_RETRIES = 2
+REQUEST_TIMEOUT_SEC = 12
+
+
 def probe(url: str) -> dict:
     url = url.format(date=PROBE_DATE)
     started = time.monotonic()
@@ -107,53 +113,64 @@ def probe(url: str) -> dict:
             "Accept-Language": "en-US,en;q=0.8",
         },
     )
-    try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            body = response.read(16384)
-            result = {
-                "ok": 200 <= response.status < 400 and bool(body),
-                "status_code": int(response.status),
-                "bytes_sampled": len(body),
+    last_error: dict[str, object] | None = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SEC) as response:
+                body = response.read(16384)
+                result = {
+                    "ok": 200 <= response.status < 400 and bool(body),
+                    "status_code": int(response.status),
+                    "bytes_sampled": len(body),
+                    "elapsed_sec": round(time.monotonic() - started, 3),
+                    "final_url": response.geturl(),
+                    "attempt": attempt + 1,
+                }
+                try:
+                    payload = json.loads(body.decode("utf-8"))
+                    result["json_parseable"] = True
+                    result["body_shape"] = type(payload).__name__
+                    if payload in ({}, [], None):
+                        result["error_signal"] = "empty_json_payload"
+                        result["ok"] = False
+                    elif isinstance(payload, dict):
+                        errors = payload.get("errors")
+                        if errors not in (None, {}, [], ""):
+                            result["error_signal"] = "json_errors"
+                            result["ok"] = False
+                        elif payload.get("error") not in (None, {}, [], ""):
+                            result["error_signal"] = "json_error"
+                            result["ok"] = False
+                        elif str(payload.get("status", "")).lower() in {"failure", "failed", "error"}:
+                            result["error_signal"] = "json_failure_status"
+                            result["ok"] = False
+                        elif str(payload.get("message", "")).lower() in {"invalid api key", "application not found"}:
+                            result["error_signal"] = "json_failure_message"
+                            result["ok"] = False
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    result["json_parseable"] = False
+                return result
+        except urllib.error.HTTPError as exc:
+            last_error = {
+                "ok": False,
+                "status_code": int(exc.code),
                 "elapsed_sec": round(time.monotonic() - started, 3),
-                "final_url": response.geturl(),
+                "error": f"HTTPError:{exc.code}",
+                "attempt": attempt + 1,
             }
-            try:
-                payload = json.loads(body.decode("utf-8"))
-                result["json_parseable"] = True
-                result["body_shape"] = type(payload).__name__
-                if payload in ({}, [], None):
-                    result["error_signal"] = "empty_json_payload"
-                    result["ok"] = False
-                elif isinstance(payload, dict):
-                    errors = payload.get("errors")
-                    if errors not in (None, {}, [], ""):
-                        result["error_signal"] = "json_errors"
-                        result["ok"] = False
-                    elif payload.get("error") not in (None, {}, [], ""):
-                        result["error_signal"] = "json_error"
-                        result["ok"] = False
-                    elif str(payload.get("status", "")).lower() in {"failure", "failed", "error"}:
-                        result["error_signal"] = "json_failure_status"
-                        result["ok"] = False
-                    elif str(payload.get("message", "")).lower() in {"invalid api key", "application not found"}:
-                        result["error_signal"] = "json_failure_message"
-                        result["ok"] = False
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                result["json_parseable"] = False
-            return result
-    except urllib.error.HTTPError as exc:
-        return {
-            "ok": False,
-            "status_code": int(exc.code),
-            "elapsed_sec": round(time.monotonic() - started, 3),
-            "error": f"HTTPError:{exc.code}",
-        }
-    except Exception as exc:
-        return {
-            "ok": False,
-            "elapsed_sec": round(time.monotonic() - started, 3),
-            "error": repr(exc),
-        }
+            if exc.code not in RETRYABLE_HTTP or attempt >= MAX_RETRIES:
+                return last_error
+        except (urllib.error.URLError, TimeoutError) as exc:
+            last_error = {
+                "ok": False,
+                "elapsed_sec": round(time.monotonic() - started, 3),
+                "error": repr(exc),
+                "attempt": attempt + 1,
+            }
+            if attempt >= MAX_RETRIES:
+                return last_error
+        time.sleep(0.5 * (2**attempt))
+    return last_error or {"ok": False, "elapsed_sec": round(time.monotonic() - started, 3), "error": "unknown_failure"}
 
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
@@ -165,8 +182,18 @@ def main() -> int:
         "pit_status": "NOT_ESTABLISHED",
         "sources": {},
     }
+    tasks: list[tuple[str, str, str]] = [
+        (source, sport, url)
+        for source, sports in PROBES.items()
+        for sport, url in sports.items()
+    ]
+    with ThreadPoolExecutor(max_workers=6, thread_name_prefix="source-probe") as pool:
+        results = list(pool.map(lambda item: (item[0], item[1], item[2], probe(item[2])), tasks))
+    grouped: dict[str, dict[str, dict]] = {}
+    for source, sport, url, result in results:
+        grouped.setdefault(source, {})[sport] = {"url": url, **result}
     for source, sports in PROBES.items():
-        rows = {sport: {"url": url, **probe(url)} for sport, url in sports.items()}
+        rows = grouped.get(source, {})
         report["sources"][source] = {
             "results": rows,
             "healthy_count": sum(1 for row in rows.values() if row.get("ok")),
