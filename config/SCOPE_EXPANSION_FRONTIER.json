@@ -94,14 +94,6 @@
       "reason": "Kept separate from rugby union to avoid blind pooling across materially different competition structures."
     },
     {
-      "sport": "soccer",
-      "espn_slug": "soccer",
-      "priority": 3,
-      "status": "DISCOVERY_ONLY",
-      "integration": "cross-project_candidate",
-      "reason": "Large competition surface; dedicated Soccer-Prediction-Research remains the downstream production project."
-    },
-    {
       "sport": "american-football",
       "espn_slug": "football",
       "provider": "espn",
