@@ -44,10 +44,16 @@ def main() -> int:
     summary = _league_summary(rows[0])
     assert summary["slug"] == "demo"
     assert summary["name"] == "Demo League"
+    assert summary["classification"]["competition_type"] == "domestic_league"
 
     header = {"sports": [{"leagues": [{"id": "10", "name": "Demo League", "slug": "demo", "events": [{"id": "e1"}, {"id": "e2"}]}]}]}
     active = _active_leagues(header)
-    assert active == [{"id": "10", "name": "Demo League", "slug": "demo", "event_count": 2}]
+    assert len(active) == 1
+    assert active[0]["id"] == "10"
+    assert active[0]["name"] == "Demo League"
+    assert active[0]["slug"] == "demo"
+    assert active[0]["event_count"] == 2
+    assert active[0]["classification"]["competition_type"] == "domestic_league"
 
     original_nhl = discovery.discover_nhl
     try:
