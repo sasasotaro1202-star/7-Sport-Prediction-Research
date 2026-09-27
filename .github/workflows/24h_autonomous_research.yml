@@ -1,0 +1,224 @@
+name: 24H Autonomous Research Marathon
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 15 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 24h-autonomous-research
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONPATH: .
+  MARATHON_MINUTES: "286"
+  MARATHON_INTERVAL_MINUTES: "45"
+
+jobs:
+  stage1:
+    name: "24H Stage 1 / basketball"
+    runs-on: ubuntu-latest
+    timeout-minutes: 299
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore latest safe basketball DB
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: 24h-db-basketball-${{ github.run_id }}-stage-1
+          restore-keys: |
+            24h-db-basketball-
+      - name: Run marathon stage
+        run: python scripts/run_24h_research_stage.py --stage 1 --minutes "${{ env.MARATHON_MINUTES }}" --interval-minutes "${{ env.MARATHON_INTERVAL_MINUTES }}"
+      - name: Save basketball DB checkpoint
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: 24h-db-basketball-${{ github.run_id }}-stage-1
+      - name: Upload stage evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 24h-research-stage-1-${{ github.run_id }}
+          path: results/24h_marathon/**
+          if-no-files-found: warn
+          retention-days: 2
+
+  stage2:
+    name: "24H Stage 2 / volleyball"
+    runs-on: ubuntu-latest
+    timeout-minutes: 299
+    needs: stage1
+    if: always()
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore latest safe volleyball DB
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: 24h-db-volleyball-${{ github.run_id }}-stage-2
+          restore-keys: |
+            24h-db-volleyball-
+      - name: Run marathon stage
+        run: python scripts/run_24h_research_stage.py --stage 2 --minutes "${{ env.MARATHON_MINUTES }}" --interval-minutes "${{ env.MARATHON_INTERVAL_MINUTES }}"
+      - name: Save volleyball DB checkpoint
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: 24h-db-volleyball-${{ github.run_id }}-stage-2
+      - name: Upload stage evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 24h-research-stage-2-${{ github.run_id }}
+          path: results/24h_marathon/**
+          if-no-files-found: warn
+          retention-days: 2
+
+  stage3:
+    name: "24H Stage 3 / ufc"
+    runs-on: ubuntu-latest
+    timeout-minutes: 299
+    needs: stage2
+    if: always()
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore latest safe ufc DB
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: 24h-db-ufc-${{ github.run_id }}-stage-3
+          restore-keys: |
+            24h-db-ufc-
+      - name: Run marathon stage
+        run: python scripts/run_24h_research_stage.py --stage 3 --minutes "${{ env.MARATHON_MINUTES }}" --interval-minutes "${{ env.MARATHON_INTERVAL_MINUTES }}"
+      - name: Save ufc DB checkpoint
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: 24h-db-ufc-${{ github.run_id }}-stage-3
+      - name: Upload stage evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 24h-research-stage-3-${{ github.run_id }}
+          path: results/24h_marathon/**
+          if-no-files-found: warn
+          retention-days: 2
+
+  stage4:
+    name: "24H Stage 4 / rizin"
+    runs-on: ubuntu-latest
+    timeout-minutes: 299
+    needs: stage3
+    if: always()
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore latest safe rizin DB
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: 24h-db-rizin-${{ github.run_id }}-stage-4
+          restore-keys: |
+            24h-db-rizin-
+      - name: Run marathon stage
+        run: python scripts/run_24h_research_stage.py --stage 4 --minutes "${{ env.MARATHON_MINUTES }}" --interval-minutes "${{ env.MARATHON_INTERVAL_MINUTES }}"
+      - name: Save rizin DB checkpoint
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: 24h-db-rizin-${{ github.run_id }}-stage-4
+      - name: Upload stage evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 24h-research-stage-4-${{ github.run_id }}
+          path: results/24h_marathon/**
+          if-no-files-found: warn
+          retention-days: 2
+
+  stage5:
+    name: "24H Stage 5 / valorant"
+    runs-on: ubuntu-latest
+    timeout-minutes: 299
+    needs: stage4
+    if: always()
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore latest safe valorant DB
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: 24h-db-valorant-${{ github.run_id }}-stage-5
+          restore-keys: |
+            24h-db-valorant-
+      - name: Run marathon stage
+        run: python scripts/run_24h_research_stage.py --stage 5 --minutes "${{ env.MARATHON_MINUTES }}" --interval-minutes "${{ env.MARATHON_INTERVAL_MINUTES }}"
+      - name: Save valorant DB checkpoint
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: 24h-db-valorant-${{ github.run_id }}-stage-5
+      - name: Upload stage evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 24h-research-stage-5-${{ github.run_id }}
+          path: results/24h_marathon/**
+          if-no-files-found: warn
+          retention-days: 2
+
