@@ -152,6 +152,9 @@ def _query_db(db_path: Path, sport: str, policy: dict[str, list[str]]) -> dict:
                       AND COALESCE(ss.source_url,'')=COALESCE(ms.source_url,'')
                       AND ss.availability_status='EXACT'
                       AND ss.source_available_at_utc IS NOT NULL
+                      AND ms.effective_at_utc IS NOT NULL
+                      AND datetime(ss.source_available_at_utc) <= datetime(e.event_time_utc, '-60 minutes')
+                      AND datetime(ms.effective_at_utc) <= datetime(e.event_time_utc, '-60 minutes')
                       AND (ss.event_time_utc IS NULL OR ss.event_time_utc=e.event_time_utc)
                  ) THEN 1 ELSE 0 END) AS pit_rows
                FROM match_stats ms
