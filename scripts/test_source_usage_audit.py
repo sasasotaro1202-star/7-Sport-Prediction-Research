@@ -49,8 +49,7 @@ def make_registry(path: Path) -> None:
 
 
 def make_policy(path: Path) -> None:
-    path.write_text("POLICY={'basketball':('points','rebounds'),'boxing':()}
-", encoding="utf-8")
+    path.write_text("POLICY={'basketball':('points','rebounds'),'boxing':()}\n", encoding="utf-8")
 
 
 def main() -> int:
@@ -79,8 +78,7 @@ def main() -> int:
         assert result["shadow"]["manifest_present"] is False
 
         # A stat outside POLICY is observed in DB but must never become an active model feature.
-        policy.write_text("POLICY={'basketball':('rebounds',),'boxing':()}
-", encoding="utf-8")
+        policy.write_text("POLICY={'basketball':('rebounds',),'boxing':()}\n", encoding="utf-8")
         result2 = audit(
             "basketball",
             db_path=db,
