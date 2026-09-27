@@ -20,7 +20,7 @@ def make_db(path: Path) -> None:
         );
         CREATE TABLE match_stats(
           stat_id TEXT PRIMARY KEY,event_id TEXT,participant_id TEXT,sport TEXT,
-          stat_name TEXT,value_num REAL,source TEXT,source_url TEXT
+          stat_name TEXT,value_num REAL,source TEXT,source_url TEXT,effective_at_utc TEXT
         );
         """
     )
