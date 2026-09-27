@@ -525,6 +525,31 @@
       "references": [
         "https://github.com/larissapavan/ufc-historical-fight-dataset"
       ]
+    },
+    "boxing_web_boxmind": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_only_external_dataset",
+      "note": "BoxingWeb is the dataset/code repository for the 2026 BoxMind paper. It distributes video clips, pose/event annotations and punch-classification material via an external Tsinghua Cloud dataset. The paper frames 18 hierarchical technical-tactical indicators and a graph-based matchup model. Because the dataset is video-derived and availability-before-prediction is not established, it is restricted to historical research/representation learning and benchmarking.",
+      "references": [
+        "https://github.com/gouba2333/BoxingWeb",
+        "https://arxiv.org/abs/2601.11492"
+      ]
+    },
+    "boxingvi_benchmark": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_only_benchmark",
+      "note": "BoxingVI is a 6,915-clip benchmark with six punch classes, temporal localization and 2D pose annotations. It is useful for transfer-learning/feature-extraction robustness research, not direct match outcome features.",
+      "references": [
+        "https://arxiv.org/abs/2511.16524"
+      ]
+    },
+    "f1_live_api_wrapper": {
+      "current_web_evidence": "2026-09-27",
+      "status": "research_candidate_same_upstream",
+      "note": "An open-source F1 live API implementation exposes historical session paths plus live telemetry via SignalR/WebSocket. It is useful as an implementation/replay redundancy layer, but it should not be counted as an independent information source if its upstream is the same official timing stream.",
+      "references": [
+        "https://github.com/harsh779/f1-live-api"
+      ]
     }
   },
   "source_classes": {
@@ -1355,6 +1380,15 @@
         "integrated": false,
         "pit": "git_snapshot_required",
         "independence_family": "f1_community_telemetry"
+      },
+      {
+        "id": "f1_live_api_wrapper",
+        "name": "Open F1 live telemetry API wrapper",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "session_snapshot_required",
+        "independence_family": "f1_official_timing_wrapper"
       }
     ],
     "rugby": [
@@ -1548,6 +1582,24 @@
         "integrated": false,
         "pit": "dataset_regeneration_snapshot_required",
         "independence_family": "global_fixture_aggregator"
+      },
+      {
+        "id": "boxing_web_boxmind",
+        "name": "BoxingWeb / BoxMind dataset",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_snapshot_and_pre_prediction_availability_required",
+        "independence_family": "boxing_video_benchmark"
+      },
+      {
+        "id": "boxingvi_benchmark",
+        "name": "BoxingVI benchmark",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "dataset_snapshot_and_license_required",
+        "independence_family": "boxing_video_benchmark"
       }
     ]
   },
