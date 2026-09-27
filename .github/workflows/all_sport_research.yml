@@ -276,6 +276,7 @@ jobs:
           python scripts/test_ultimate_predictive_control.py
           python scripts/test_ultimate_predictive_control_v13.py
           python scripts/test_ultimate_v13_oos_bridge.py
+          python scripts/test_source_usage_audit.py
           test "${ULTIMATE_CONTROL_VERSION}" = "v13"
 
       - name: Persist research database checkpoint
