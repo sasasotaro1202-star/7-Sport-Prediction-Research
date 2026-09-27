@@ -10,6 +10,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
+from src.competition_scope_classifier import classify_competition
+
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "config" / "SCOPE_EXPANSION_FRONTIER.json"
 DEFAULT_OUTPUT = ROOT / "results" / "scope_expansion" / "discovery.json"
@@ -85,9 +87,11 @@ def _items(payload: dict | None) -> list[dict]:
 def _league_summary(item: dict) -> dict:
     sport = item.get("sport")
     sport_slug = sport.get("slug") if isinstance(sport, dict) else None
+    name = item.get("name")
     return {"id": item.get("id"), "uid": item.get("uid"), "slug": item.get("slug"),
-            "name": item.get("name"), "abbreviation": item.get("abbreviation"),
-            "isTournament": item.get("isTournament"), "sport": sport_slug}
+            "name": name, "abbreviation": item.get("abbreviation"),
+            "isTournament": item.get("isTournament"), "sport": sport_slug,
+            "classification": classify_competition(str(sport_slug or ""), name)}
 
 
 def _active_leagues(payload: dict | None) -> list[dict]:
@@ -97,12 +101,16 @@ def _active_leagues(payload: dict | None) -> list[dict]:
     for sport in payload.get("sports") or []:
         if not isinstance(sport, dict):
             continue
+        sport_slug = sport.get("slug") or sport.get("sport")
         for league in sport.get("leagues") or []:
             if not isinstance(league, dict):
                 continue
             events = league.get("events") or []
-            out.append({"id": league.get("id"), "name": league.get("name"), "slug": league.get("slug"),
-                        "event_count": len(events) if isinstance(events, list) else None})
+            name = league.get("name")
+            out.append({"id": league.get("id"), "name": name, "slug": league.get("slug"),
+                        "sport": sport_slug,
+                        "event_count": len(events) if isinstance(events, list) else None,
+                        "classification": classify_competition(str(sport_slug or ""), name)})
     return out
 
 
