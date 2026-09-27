@@ -124,10 +124,20 @@ def discover_espn(sport: str, slug: str) -> dict:
     active, active_meta = _request_json(header_url)
     leagues = [_league_summary(x) for x in _items(catalog)]
     active_rows = _active_leagues(active)
+
+    def counts(rows):
+        out = {}
+        for row in rows:
+            cls = (row.get("classification") or {}).get("competition_type", "unresolved")
+            out[cls] = out.get(cls, 0) + 1
+        return dict(sorted(out.items()))
+
     return {
         "sport": sport, "provider": "espn", "espn_slug": slug, "retrieved_at_utc": started,
         "sources": {"league_catalog": {"url": catalog_url, **catalog_meta}, "active_header": {"url": header_url, **active_meta}},
         "league_count": len(leagues), "leagues": leagues, "active_series": active_rows,
+        "classification_counts": counts(leagues),
+        "active_classification_counts": counts(active_rows),
         "status": "DISCOVERED" if leagues or active_rows else "NO_DISCOVERY_EVIDENCE",
         "pit_status": "UNPROVEN", "research_only": True, "production_model_touched": False,
     }
