@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import re
 import urllib.error
@@ -98,10 +100,11 @@ def summarize(spec: SourceSpec, body: bytes, status_code: int, final_url: str, c
             result["error"] = "json_parse_failed"
     elif spec.kind == "csv":
         text = body.decode("utf-8-sig", errors="replace")
-        lines = [line for line in text.splitlines() if line.strip()]
-        result["parseable"] = bool(lines)
-        result["record_count"] = max(0, len(lines) - 1)
-        result["header"] = [x.strip() for x in lines[0].split(",")][:100] if lines else []
+        rows = list(csv.reader(io.StringIO(text)))
+        nonempty = [row for row in rows if any(str(cell).strip() for cell in row)]
+        result["parseable"] = bool(nonempty)
+        result["record_count"] = max(0, len(nonempty) - 1)
+        result["header"] = [str(x).strip() for x in nonempty[0]][:100] if nonempty else []
     else:
         text = body.decode("utf-8", errors="replace")
         result["parseable"] = bool(text.strip())
