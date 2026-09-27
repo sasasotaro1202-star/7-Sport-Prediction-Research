@@ -25,6 +25,8 @@ def main() -> int:
     assert all(str(x["status"]) == "DISCOVERY_ONLY" for x in candidates)
     assert len(cfg.get("source_probe_candidates") or []) >= 17
     assert all(str(x.get("sport")) not in {"baseball", "soccer"} for x in cfg.get("source_probe_candidates") or [])
+    assert "badminton" in sports
+    assert "table-tennis" in sports
 
     sample = {"items": [{"id": "10", "slug": "demo", "name": "Demo League", "abbreviation": "DL", "isTournament": True}]}
     rows = _items(sample)

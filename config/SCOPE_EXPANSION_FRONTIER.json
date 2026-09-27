@@ -1,5 +1,5 @@
 {
-  "version": "scope-expansion-frontier-2026-09-28-v4",
+  "version": "scope-expansion-frontier-2026-09-28-v5",
   "policy": {
     "free_only": true,
     "credentials_never_auto_created": true,
@@ -165,6 +165,22 @@
       "status": "DISCOVERY_ONLY",
       "integration": "existing_rugby_extension",
       "reason": "RADL supplies an action-level rugby event schema for normalization research."
+    },
+    {
+      "sport": "badminton",
+      "provider": "racket_sports_dataset",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Open racket-sports corpus includes BWF match records and standardized winner/date/player fields."
+    },
+    {
+      "sport": "table-tennis",
+      "provider": "racket_sports_dataset",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "integration": "new_sport_candidate",
+      "reason": "Open racket-sports corpus includes WTT match records with standardized winner/date/player fields."
     }
   ],
   "promotion_stages": [
@@ -317,6 +333,22 @@
       "priority": 2,
       "status": "DISCOVERY_ONLY",
       "reference_url": "https://github.com/JFrusher/RADL"
+    },
+    {
+      "id": "racket_sports_dataset_badminton",
+      "sport": "badminton",
+      "provider": "reference_only",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/Li02003121/racket-sports-dataset"
+    },
+    {
+      "id": "racket_sports_dataset_table_tennis",
+      "sport": "table-tennis",
+      "provider": "reference_only",
+      "priority": 1,
+      "status": "DISCOVERY_ONLY",
+      "reference_url": "https://github.com/Li02003121/racket-sports-dataset"
     }
   ]
 }
