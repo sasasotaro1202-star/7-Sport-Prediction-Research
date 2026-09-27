@@ -2,6 +2,12 @@ name: 24H Autonomous Research Marathon
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/24h_autonomous_research.yml"
+      - "scripts/run_24h_research_stage.py"
+      - "config/ACTIVE_SCOPE_9_SPORTS.json"
+      - "config/COMPETITION_SCOPE_FRONTIER.json"
   schedule:
     - cron: "17 15 * * *"
 
