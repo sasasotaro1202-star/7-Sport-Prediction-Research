@@ -550,6 +550,41 @@
       "references": [
         "https://github.com/harsh779/f1-live-api"
       ]
+    },
+    "rizin_official_web": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "RIZIN's official site publishes event result pages and fighter profiles/records. Current pages include 2026 events and detailed bout outcomes. Use as official verification/entity source; publication timestamps and page snapshots are required for historical PIT.",
+      "references": [
+        "https://jp.rizinff.com/",
+        "https://jp.rizinff.com/fighters"
+      ]
+    },
+    "boxrec": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate",
+      "note": "BoxRec provides a large public boxing records/results database with fighters, events, titles, schedules and results. No official public API was established here; automated scraping remains research-only and must respect site terms/rate limits.",
+      "references": [
+        "https://boxrec.com/",
+        "https://boxrec.com/en/results"
+      ]
+    },
+    "world_rugby_official_archive": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "World Rugby states it maintains an official repository of international match information, historical results, team/player data and performance statistics. Public web/API access level varies; use only verified public pages/exports and snapshot provenance.",
+      "references": [
+        "https://www.world.rugby/"
+      ]
+    },
+    "atp_official_public": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "ATP Tour public pages expose official player profiles, statistics, individual match statistics and a results archive. They are useful for official tennis entity/result/stat cross-checking, with web snapshot provenance required for PIT.",
+      "references": [
+        "https://www.atptour.com/stats/",
+        "https://www.atptour.com/en/scores/results-archive"
+      ]
     }
   },
   "source_classes": {
@@ -1023,6 +1058,15 @@
         "integrated": false,
         "pit": "page_snapshot_required",
         "independence_family": "rizin_public_web"
+      },
+      {
+        "id": "rizin_official_web",
+        "name": "RIZIN official results/fighters",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required",
+        "independence_family": "rizin_official"
       }
     ],
     "valorant": [
@@ -1252,6 +1296,15 @@
         "integrated": false,
         "pit": "rapidapi_prediction_or_historical_snapshot_required",
         "independence_family": "tennis_api_provider"
+      },
+      {
+        "id": "atp_official_public",
+        "name": "ATP Tour official public stats/results",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_required",
+        "independence_family": "atp_official"
       }
     ],
     "f1": [
@@ -1499,6 +1552,15 @@
         "integrated": false,
         "pit": "historical_snapshot_required",
         "independence_family": "rugby_public_legacy"
+      },
+      {
+        "id": "world_rugby_official_archive",
+        "name": "World Rugby official archive",
+        "class": "secondary",
+        "free": true,
+        "integrated": false,
+        "pit": "snapshot_publication_provenance_required",
+        "independence_family": "world_rugby_official"
       }
     ],
     "boxing": [
@@ -1600,6 +1662,15 @@
         "integrated": false,
         "pit": "dataset_snapshot_and_license_required",
         "independence_family": "boxing_video_benchmark"
+      },
+      {
+        "id": "boxrec",
+        "name": "BoxRec public record database",
+        "class": "research_only",
+        "free": true,
+        "integrated": false,
+        "pit": "page_snapshot_and_terms_required",
+        "independence_family": "boxing_public_db"
       }
     ]
   },
