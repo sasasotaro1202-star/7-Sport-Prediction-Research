@@ -1,5 +1,5 @@
 {
-  "version": "cross-sport-data-layer-v2.1",
+  "version": "cross-sport-data-layer-v2.2",
   "policy": {
     "free_only": true,
     "production_default_requires_pit": true,
@@ -584,6 +584,90 @@
       "references": [
         "https://www.atptour.com/stats/",
         "https://www.atptour.com/en/scores/results-archive"
+      ]
+    },
+    "nhl_official_api": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Official NHL public API surface exposes schedules, gamecenter landing, play-by-play, boxscores, standings, player/team statistics and related game metadata. Historical PIT remains unproven until immutable snapshots/replay establish when each payload was available.",
+      "references": [
+        "https://api-web.nhle.com/",
+        "https://api.nhle.com/stats/rest",
+        "https://github.com/Zmalski/NHL-API-Reference"
+      ]
+    },
+    "hockeytech_public_feeds": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate",
+      "note": "Community scraper documentation identifies public HockeyTech-style play-by-play feeds for AHL, PWHL, OHL, WHL and QMJHL. Useful for broadening hockey competition coverage, but public-feed stability and historical PIT must be independently validated.",
+      "references": [
+        "https://github.com/maxtixador/scrapernhl"
+      ]
+    },
+    "cricsheet": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Cricsheet distributes cricket match data in JSON, YAML, CSV and XML, including ball-by-ball delivery data and match metadata. Downloadable releases are broad across match types and competitions. Historical PIT is not inferred from current download time.",
+      "references": [
+        "https://cricsheet.org/downloads/",
+        "https://cricsheet.org/format/json/"
+      ]
+    },
+    "espn_golf_public": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Public ESPN golf API documentation exposes tournament scoreboard/leaderboard/summary endpoints and a player-summary endpoint with per-round, per-hole linescores and tournament statistics.",
+      "references": [
+        "https://github.com/pseudo-r/Public-ESPN-API/blob/main/docs/sports/golf.md"
+      ]
+    },
+    "espn_american_football_public": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate",
+      "note": "Public ESPN API documentation exposes American-football event detail, play-by-play and game-situation endpoints, with additional competition data. Historical availability timestamps still require replayable snapshots.",
+      "references": [
+        "https://github.com/pseudo-r/Public-NFL-API"
+      ]
+    },
+    "snooker_org_api": {
+      "current_web_evidence": "2026-09-28",
+      "status": "conditional_research_candidate",
+      "note": "Snooker.org provides event, match, player, season, ranking, upcoming and result endpoints. It is free for non-commercial use but requires an approved X-Requested-By value; no credential request or secret creation is automated.",
+      "references": [
+        "https://api.snooker.org/",
+        "https://www.snooker.org/about/"
+      ]
+    },
+    "handball_open_lineup_corpus": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate",
+      "note": "An open handball research repository contains lineup-report based data and lineup-efficiency analysis for EHF EURO 2020, showing a route to player-combination features. This is historical research evidence, not broad live coverage.",
+      "references": [
+        "https://github.com/nmjohnson/handball-rapm"
+      ]
+    },
+    "tennis_match_data_v3": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate",
+      "note": "Open Tennis Data v3 publishes ATP/WTA top-level singles results and future fixtures from 2020 onward as checksum-verified Parquet releases. It excludes detailed match statistics, so it is primarily an event/fixture redundancy source.",
+      "references": [
+        "https://github.com/ryantjx/tennis-match-data"
+      ]
+    },
+    "vlrdevapi": {
+      "current_web_evidence": "2026-09-28",
+      "status": "research_candidate_same_upstream",
+      "note": "VLR-derived API wrapper exposes matches, events, player/team data and detailed per-map player statistics. It is a second implementation over the same upstream VLR surface, not an independent source family.",
+      "references": [
+        "https://github.com/Vanshbordia/vlrdevapi"
+      ]
+    },
+    "fastf1_open_source": {
+      "current_web_evidence": "2026-09-28",
+      "status": "strong_research_candidate_same_domain",
+      "note": "FastF1 provides F1 timing, session results and telemetry analysis and supports Jolpica/Ergast-compatible data. It is valuable as an implementation layer, but underlying source independence must not be overstated.",
+      "references": [
+        "https://github.com/theOehrly/Fast-F1"
       ]
     }
   },
