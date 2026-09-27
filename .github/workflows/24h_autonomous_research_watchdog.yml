@@ -2,6 +2,12 @@ name: 24H Autonomous Research Watchdog
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/24h_autonomous_research.yml"
+      - ".github/workflows/24h_autonomous_research_watchdog.yml"
+      - "scripts/run_24h_research_stage_main.py"
+      - "config/ACTIVE_SCOPE_9_SPORTS.json"
   schedule:
     - cron: "*/15 * * * *"
 
@@ -15,7 +21,7 @@ concurrency:
 
 jobs:
   watch:
-    name: "Watch / recover 24H marathon"
+    name: "Watch / recover latest-main 24H marathon"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -24,77 +30,185 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           WORKFLOW: 24h_autonomous_research.yml
+          SELF_RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
 
-          runs="$(gh api "repos/${REPO}/actions/workflows/${WORKFLOW}/runs?per_page=30")"
-          now="$(date -u +%s)"
+          gh_retry() {
+            local attempt out rc
+            for attempt in 1 2 3 4; do
+              if out="$(gh "$@" 2>&1)"; then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              rc=$?
+              echo "gh attempt ${attempt}/4 failed rc=${rc}: ${out}" >&2
+              if [ "${attempt}" -lt 4 ]; then sleep $((attempt * 2)); fi
+            done
+            return "${rc}"
+          }
 
-          active_id="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "in_progress")] | sort_by(.run_started_at) | reverse | .[0].id // empty')"
-          active_started="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "in_progress")] | sort_by(.run_started_at) | reverse | .[0].run_started_at // empty')"
+          MAIN_SHA="$(gh_retry api "repos/${REPO}/git/ref/heads/main" --jq '.object.sha')"
+          runs="$(gh_retry run list --repo "${REPO}" --workflow "${WORKFLOW}" --limit 50 --json databaseId,status,conclusion,headSha,createdAt,updatedAt)"
 
-          if [ -n "${active_id}" ] && [ -n "${active_started}" ]; then
-            start_epoch="$(date -d "${active_started}" +%s 2>/dev/null || echo 0)"
-            age_minutes="$(( (now-start_epoch)/60 ))"
-            echo "MARATHON_ACTIVE run=${active_id} age_minutes=${age_minutes}"
-            if [ "${age_minutes}" -gt 1450 ]; then
-              echo "::warning title=24H marathon stale::cancelling run ${active_id} after ${age_minutes} minutes"
-              gh run cancel "${active_id}" --repo "${REPO}"
-              gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
-            fi
-            exit 0
-          fi
+          python - "${MAIN_SHA}" "${SELF_RUN_ID}" "${runs}" <<'PY' > /tmp/decision.json
+          import json
+          import sys
+          from datetime import datetime, timezone
 
-          failed_json="$(printf '%s' "${runs}" | jq '[.workflow_runs[] | select(.status == "completed") | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | map(select((.created_at | fromdateiso8601) >= (now - 21600)))')"
-          recent_failures="$(printf '%s' "${failed_json}" | jq 'length')"
-          if [ "${recent_failures}" -ge 3 ]; then
-            echo "WATCHDOG: HOLD after 3 failures within the last 6 hours"
-            exit 0
-          fi
+          main_sha = sys.argv[1]
+          self_id = int(sys.argv[2])
+          runs = json.loads(sys.argv[3])
+          now = datetime.now(timezone.utc)
 
-          latest="$(printf '%s' "${runs}" | jq -c '[.workflow_runs[] | select(.status == "completed")] | sort_by(.created_at) | reverse | .[0] // empty')"
-          latest_conclusion="$(printf '%s' "${latest}" | jq -r '.conclusion // empty')"
-          latest_created="$(printf '%s' "${latest}" | jq -r '.created_at // empty')"
-          if [ -n "${latest_created}" ] && { [ "${latest_conclusion}" = "failure" ] || [ "${latest_conclusion}" = "cancelled" ] || [ "${latest_conclusion}" = "timed_out" ]; }; then
-            latest_epoch="$(date -d "${latest_created}" +%s 2>/dev/null || echo 0)"
-            failure_age="$(( (now-latest_epoch)/60 ))"
-            if [ "${failure_age}" -ge 10 ]; then
-              echo "WATCHDOG: recovering failed latest run ${latest_conclusion}; age_minutes=${failure_age}"
-              gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
-              exit 0
-            fi
-          fi
+          active = {"queued", "pending", "waiting", "requested", "in_progress"}
 
-          latest_any="$(printf '%s' "${runs}" | jq -c '[.workflow_runs[]] | sort_by(.created_at) | reverse | .[0] // empty')"
-          latest_any_created="$(printf '%s' "${latest_any}" | jq -r '.created_at // empty')"
-          if [ -z "${latest_any_created}" ]; then
-            echo "WATCHDOG: no recorded marathon runs; dispatching first cycle"
-            gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
-            exit 0
-          fi
+          def dt(raw):
+              return datetime.fromisoformat(raw.replace("Z", "+00:00"))
 
-          latest_any_epoch="$(date -d "${latest_any_created}" +%s 2>/dev/null || echo 0)"
-          latest_any_age="$(( (now-latest_any_epoch)/60 ))"
-          if [ "${latest_any_age}" -ge 1440 ]; then
-            echo "WATCHDOG: 24h cycle overdue; dispatching fresh run age_minutes=${latest_any_age}"
-            gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
-            exit 0
-          fi
+          candidates = [r for r in runs if int(r.get("databaseId", -1)) != self_id]
+          current = [r for r in candidates if r.get("headSha") == main_sha and r.get("status") in active]
 
-          queued_id="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "queued" or .status == "pending")] | sort_by(.created_at) | .[0].id // empty')"
-          queued_created="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "queued" or .status == "pending")] | sort_by(.created_at) | .[0].created_at // empty')"
+          stale_current = []
+          for r in current:
+              age_min = (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() / 60
+              if r.get("status") == "in_progress" and age_min >= 350:
+                  stale_current.append(r)
+              elif r.get("status") in {"queued", "pending", "waiting", "requested"} and age_min >= 30:
+                  stale_current.append(r)
 
-          if [ -n "${queued_id}" ] && [ -n "${queued_created}" ]; then
-            created_epoch="$(date -d "${queued_created}" +%s 2>/dev/null || echo 0)"
-            age_minutes="$(( (now-created_epoch)/60 ))"
-            echo "MARATHON_QUEUED run=${queued_id} age_minutes=${age_minutes}"
-            if [ "${age_minutes}" -gt 60 ]; then
-              echo "::warning title=24H marathon queue stall::cancelling run ${queued_id} after ${age_minutes} minutes"
-              gh run cancel "${queued_id}" --repo "${REPO}"
-              gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
-            fi
-            exit 0
-          fi
+          outdated_queued = []
+          for r in candidates:
+              if r.get("headSha") != main_sha and r.get("status") in {"queued", "pending"}:
+                  age_min = (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() / 60
+                  if age_min >= 30:
+                      outdated_queued.append(r)
 
-          echo "WATCHDOG: no recovery required"
+          completed = [
+              r for r in candidates
+              if r.get("headSha") == main_sha and r.get("status") == "completed"
+          ]
+          completed.sort(key=lambda r: dt(r.get("updatedAt") or r.get("createdAt")), reverse=True)
+
+          recent_failures = [
+              r for r in completed
+              if (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() <= 6 * 3600
+              and r.get("conclusion") in {"failure", "cancelled", "timed_out"}
+          ]
+
+          if len(recent_failures) >= 3:
+              decision = {
+                  "action": "HOLD",
+                  "reason": "three_recent_failures_within_6h",
+                  "main_sha": main_sha,
+              }
+          elif stale_current:
+              decision = {
+                  "action": "CANCEL_AND_DISPATCH",
+                  "run_id": stale_current[0]["databaseId"],
+                  "reason": "current_main_run_stale",
+                  "main_sha": main_sha,
+              }
+          elif outdated_queued:
+              decision = {
+                  "action": "CANCEL_OUTDATED_AND_DISPATCH",
+                  "run_id": outdated_queued[0]["databaseId"],
+                  "reason": "outdated_main_queued_run_blocking_latest",
+                  "main_sha": main_sha,
+              }
+          elif current:
+              decision = {
+                  "action": "WAIT",
+                  "reason": "current_main_run_active",
+                  "main_sha": main_sha,
+              }
+          elif not completed:
+              decision = {
+                  "action": "DISPATCH",
+                  "reason": "no_verified_run_for_current_main",
+                  "main_sha": main_sha,
+              }
+          else:
+              age_min = (now - dt(completed[0].get("updatedAt") or completed[0].get("createdAt"))).total_seconds() / 60
+              if completed[0].get("conclusion") in {"failure", "cancelled", "timed_out"} and age_min >= 10:
+                  decision = {
+                      "action": "DISPATCH",
+                      "reason": "latest_current_main_run_failed",
+                      "main_sha": main_sha,
+                  }
+              elif age_min >= 1440:
+                  decision = {
+                      "action": "DISPATCH",
+                      "reason": "current_main_24h_cycle_elapsed",
+                      "main_sha": main_sha,
+                  }
+              else:
+                  decision = {
+                      "action": "WAIT",
+                      "reason": "current_main_cycle_within_window",
+                      "main_sha": main_sha,
+                  }
+
+          print(json.dumps(decision, sort_keys=True))
+          PY
+
+          cat /tmp/decision.json
+          action="$(python -c 'import json; print(json.load(open("/tmp/decision.json"))["action"])')"
+          run_id="$(python -c 'import json; print(json.load(open("/tmp/decision.json")).get("run_id",""))')"
+          reason="$(python -c 'import json; print(json.load(open("/tmp/decision.json"))["reason"])')"
+          main_sha="$(python -c 'import json; print(json.load(open("/tmp/decision.json"))["main_sha"])')"
+
+          dispatch_and_verify() {
+            local before after attempt
+            before="$(date -u +%s)"
+            gh_retry workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
+            for attempt in 1 2 3 4 5; do
+              sleep 3
+              after="$(gh_retry run list --repo "${REPO}" --workflow "${WORKFLOW}" --limit 20 --json databaseId,status,headSha,createdAt)"
+              if printf '%s' "${after}" | python - "${main_sha}" "${before}" <<'PY'
+          import json, sys
+          from datetime import datetime, timezone
+          main_sha = sys.argv[1]
+          before = int(sys.argv[2])
+          runs = json.load(sys.stdin)
+          for r in runs:
+              if r.get("headSha") != main_sha:
+                  continue
+              raw = r.get("createdAt")
+              if not raw:
+                  continue
+              created = int(datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp())
+              if created >= before and r.get("status") in {"queued","pending","waiting","requested","in_progress"}:
+                  raise SystemExit(0)
+          raise SystemExit(1)
+          PY
+              then
+                echo "WATCHDOG: dispatch verified attempt ${attempt}/5"
+                return 0
+              fi
+            done
+            echo "WATCHDOG: dispatch verification failed" >&2
+            return 1
+          }
+
+          case "${action}" in
+            WAIT|HOLD)
+              echo "WATCHDOG: ${action} (${reason})"
+              ;;
+            CANCEL_AND_DISPATCH)
+              gh_retry run cancel "${run_id}" --repo "${REPO}"
+              dispatch_and_verify
+              ;;
+            CANCEL_OUTDATED_AND_DISPATCH)
+              gh_retry run cancel "${run_id}" --repo "${REPO}"
+              dispatch_and_verify
+              ;;
+            DISPATCH)
+              dispatch_and_verify
+              ;;
+            *)
+              echo "WATCHDOG: unknown action ${action}" >&2
+              exit 1
+              ;;
+          esac
