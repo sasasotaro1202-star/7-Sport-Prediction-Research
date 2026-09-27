@@ -158,6 +158,19 @@ def main() -> int:
         assert matrix["stat_feature_usage"]["points"]["active_in_feature_matrix"] is True
         assert result["shadow"]["manifest_present"] is False
 
+        # A syntactically valid manifest with null sources must also fail closed
+        # to an empty capture set rather than crashing the audit.
+        shadow_null = root / "shadow-null.json"
+        shadow_null.write_text(json.dumps({"sources": None}), encoding="utf-8")
+        result_null = audit(
+            "basketball",
+            db_path=db,
+            registry_path=registry,
+            policy_path=policy,
+            shadow_path=shadow_null,
+        )
+        assert result_null["shadow"]["captured_source_count"] == 0
+
         # An observed stat outside POLICY must stay data-only and never become
         # an active model input through this audit path.
         policy.write_text(
