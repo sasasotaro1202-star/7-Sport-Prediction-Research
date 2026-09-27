@@ -43,5 +43,6 @@ jobs:
       - name: Compile audit and regression test
         run: |
           set -euo pipefail
-          python -m py_compile src/source_usage_audit.py scripts/test_source_usage_audit.py
+          python -m py_compile src/source_usage_audit.py src/international_context.py scripts/test_source_usage_audit.py scripts/test_international_context_pit.py
           python scripts/test_source_usage_audit.py
+          python scripts/test_international_context_pit.py
