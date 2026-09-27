@@ -56,9 +56,24 @@ def main() -> int:
         prediction_time="2026-01-01T00:00:01Z",
     ) == "UNKNOWN_FAIL_CLOSED"
 
+    # Timezone-unknown timestamps must never be silently interpreted as UTC.
+    assert pit_status(
+        available_at="2026-01-01T00:00:00",
+        prediction_time="2026-01-01T00:00:01Z",
+    ) == "UNKNOWN_FAIL_CLOSED"
+    assert pit_status(
+        available_at="2026-01-01T00:00:00Z",
+        prediction_time="2026-01-01T00:00:01",
+    ) == "UNKNOWN_FAIL_CLOSED"
+    assert pit_status(
+        available_at=123,  # type: ignore[arg-type]
+        prediction_time="2026-01-01T00:00:01Z",
+    ) == "UNKNOWN_FAIL_CLOSED"
+
     print("NINE_SPORT_SOURCE_REGISTRY=PASS")
     print("NINE_SPORT_PIT_ROUTER=PASS")
     print("NINE_SPORT_FREE_ONLY=PASS")
+    print("NINE_SPORT_PIT_TIMEZONE_FAIL_CLOSED=PASS")
     return 0
 
 
