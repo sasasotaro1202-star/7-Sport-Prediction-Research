@@ -46,13 +46,22 @@ jobs:
             exit 0
           fi
 
-          recent_failures="$(printf '%s' "${runs}" | jq '[.workflow_runs[] | select(.status == "completed") | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | sort_by(.created_at) | reverse | .[0:3] | length')"
+          failed_json="$(printf '%s' "${runs}" | jq '[.workflow_runs[] | select(.status == "completed") | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | map(select((.created_at | fromdateiso8601) >= (now - 21600)))')"
+          recent_failures="$(printf '%s' "${failed_json}" | jq 'length')"
           if [ "${recent_failures}" -ge 3 ]; then
-            newest_fail="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "completed") | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | sort_by(.created_at) | reverse | .[0].created_at // empty')"
-            newest_epoch="$(date -d "${newest_fail}" +%s 2>/dev/null || echo 0)"
-            failure_age="$(( (now-newest_epoch)/60 ))"
-            if [ "${failure_age}" -lt 360 ]; then
-              echo "WATCHDOG: HOLD after 3 recent failures; failure_age_minutes=${failure_age}"
+            echo "WATCHDOG: HOLD after 3 failures within the last 6 hours"
+            exit 0
+          fi
+
+          latest="$(printf '%s' "${runs}" | jq -c '[.workflow_runs[] | select(.status == "completed")] | sort_by(.created_at) | reverse | .[0] // empty')"
+          latest_conclusion="$(printf '%s' "${latest}" | jq -r '.conclusion // empty')"
+          latest_created="$(printf '%s' "${latest}" | jq -r '.created_at // empty')"
+          if [ -n "${latest_created}" ] && { [ "${latest_conclusion}" = "failure" ] || [ "${latest_conclusion}" = "cancelled" ] || [ "${latest_conclusion}" = "timed_out" ]; }; then
+            latest_epoch="$(date -d "${latest_created}" +%s 2>/dev/null || echo 0)"
+            failure_age="$(( (now-latest_epoch)/60 ))"
+            if [ "${failure_age}" -ge 10 ]; then
+              echo "WATCHDOG: recovering failed latest run ${latest_conclusion}; age_minutes=${failure_age}"
+              gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref main
               exit 0
             fi
           fi
