@@ -51,6 +51,23 @@ jobs:
         run: |
           set -euo pipefail
           test -s results/cross_sport_source_probe/cross_sport.json
+          test -s results/cross_sport_shadow/shadow_sources.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("results/cross_sport_shadow/shadow_sources.json")
+          o=json.loads(p.read_text(encoding="utf-8"))
+          assert o.get("research_only") is True
+          assert o.get("production_model_touched") is False
+          assert o.get("historical_pit_status") == "UNPROVEN"
+          assert o.get("source_count") == 6
+          for row in o.get("sources", []):
+              assert row.get("requested_url","").startswith("https://")
+              assert row.get("research_only") is True
+              assert row.get("production_model_touched") is False
+              assert row.get("historical_pit_status") == "UNPROVEN"
+          print("CROSS_SPORT_SHADOW_ARTIFACT=PASS")
+          PY
           python - <<'PY'
           import json
           from pathlib import Path
@@ -103,5 +120,8 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: cross-sport-source-probe-${{ github.run_id }}
-          path: results/cross_sport_source_probe/cross_sport.json
+          path: |
+            results/cross_sport_source_probe/cross_sport.json
+            results/cross_sport_shadow/shadow_sources.json
+            data/raw/cross_sport_shadow/**
           retention-days: 14
