@@ -83,14 +83,14 @@ jobs:
           for r in candidates:
               if r.get("headSha") != main_sha and r.get("status") in active:
                   age_min = (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() / 60
-                  if age_min >= 5:
+                  if age_min >= 0:
                       outdated_active.append(r)
 
           outdated_queued = []
           for r in candidates:
               if r.get("headSha") != main_sha and r.get("status") in {"queued", "pending"}:
                   age_min = (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() / 60
-                  if age_min >= 30:
+                  if age_min >= 0:
                       outdated_queued.append(r)
 
           completed = [
