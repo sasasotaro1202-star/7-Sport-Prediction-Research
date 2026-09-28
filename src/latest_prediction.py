@@ -56,10 +56,15 @@ def active_scope() -> list[str]:
     return list(dict.fromkeys(scope))
 
 
-def _run(args: list[str]) -> None:
+def _run(args: list[str], *, force_refresh: bool = False) -> None:
+    env = None
+    if force_refresh:
+        env = dict(__import__("os").environ)
+        env["V45_FORCE_REFRESH"] = "1"
     proc = subprocess.run(
         args,
         cwd=ROOT,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -140,7 +145,8 @@ def request_latest(
                     str(int(days_back)),
                     "--days-forward",
                     str(int(days_forward)),
-                ]
+                ],
+                force_refresh=True,
             )
             collection = _verify_collection(sport, request_started)
 
