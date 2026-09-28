@@ -107,6 +107,7 @@ def main() -> int:
     for label, argv in [
         ("compile_strict", ["python", "-m", "py_compile", "src/research_cycle_strict.py"]),
         ("pit_replay_compile", ["python", "-m", "py_compile", "src/pit_replay_builder.py"]),
+        ("evidence_verifier_compile", ["python", "-m", "py_compile", "scripts/verify_24h_research_evidence.py"]),
         ("scope_guard", ["python", "-c", "import json; c=json.load(open('config/ACTIVE_SCOPE_9_SPORTS.json')); assert not ({'baseball','soccer'} & set(c.get('active_scope',{})))"]),
     ]:
         row = run(label, argv, 180)
@@ -144,6 +145,15 @@ def main() -> int:
             commands.append(row)
             if row["status"] != "PASS":
                 degraded.append(row["label"])
+            else:
+                evidence_row = run(
+                    f"verify_evidence_{sport}",
+                    ["python", "scripts/verify_24h_research_evidence.py", "--sport", sport],
+                    180,
+                )
+                commands.append(evidence_row)
+                if evidence_row["status"] != "PASS":
+                    critical.append(evidence_row["label"])
             last_research = time.monotonic()
 
         checkpoint = {
