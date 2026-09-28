@@ -64,12 +64,13 @@ def main():
     require('seven canonical sports' not in workflow.lower(),'canonical workflow contains stale seven-sport wording')
     require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
     require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
-    require('9-sport' in readme.lower(),'README does not explicitly declare nine-sport target scope')
+    require('active prediction scope' in readme.lower() and '- VALORANT' in readme and '- Basketball' in readme and '- Volleyball' in readme and '- UFC' in readme and '- RIZIN' in readme,
+            'README does not explicitly declare the five-sport active prediction scope')
     scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
     require('"B.LEAGUE"' in scope and '"Asian Games Basketball"' in scope and '"Asian Games Volleyball"' in scope,'active scope target competitions missing')
     require("target_event(s,name,competition_id)" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'research engine lacks explicit target-competition filtering')
-    require('All nine sports are mandatory prediction lanes' in readme,'README does not declare all-nine mandatory prediction scope')
-    require('- Boxing' in readme,'README does not list Boxing in the nine-sport target set')
+    require('Research-only / deferred extensions' in readme,'README does not distinguish research-only deferred extensions')
+    require('Boxing is not an active prediction lane' in readme,'README does not keep Boxing outside the active prediction scope')
 
     # Repository-wide temporal evaluation guard: prevent legacy random-split or
     # hidden failure patterns from re-entering the codebase through an unrelated module.
@@ -413,7 +414,7 @@ def main():
             'forced PIT history refresh does not document provenance-sensitive rebuild semantics')
 
     recovery_src=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
-    require('Nine-Sport Target v4.5.15 Production' in recovery_src and
+    require('Active-Scope Target v4.5.15 Production' in recovery_src and
             'PIT History Expansion' in recovery_src and
             'Rugby Coverage Production' in recovery_src and
             'Boxing PIT Source Guard' in recovery_src,
