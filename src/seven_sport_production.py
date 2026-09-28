@@ -11,7 +11,11 @@ from src.storage.db_v45 import connect, utcnow
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / 'data/db/sports_v45.sqlite'
-SPORTS = ('valorant','basketball','volleyball','tennis','ufc','rizin','f1')
+SCOPE_PATH = ROOT / 'config/PROJECT_SCOPE_POLICY.json'
+_SCOPE_CONFIG = json.loads(SCOPE_PATH.read_text(encoding='utf-8'))
+SPORTS = tuple(_SCOPE_CONFIG.get('active_prediction_scope') or ())
+if not SPORTS:
+    raise RuntimeError('active prediction scope is empty')
 PARSER = 'v4.5.10'
 UA = os.getenv('SPORTS_PIPELINE_USER_AGENT', 'SevenSportResearchEngine/4.5.10')
 
