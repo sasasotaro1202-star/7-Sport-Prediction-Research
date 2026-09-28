@@ -15,7 +15,7 @@ HARD_EXCLUDED = {"baseball", "soccer"}
 STAGE_SPORTS = {1: "basketball", 2: "volleyball", 3: "ufc", 4: "rizin", 5: "valorant"}
 REFERENCE_ONLY_SPORTS = sorted(HARD_EXCLUDED)
 MIN_CYCLE_INTERVAL_MINUTES = 5
-RUNNER_VERSION = "24h-research-marathon-main-v4"
+RUNNER_VERSION = "24h-research-marathon-main-v5"
 
 
 def utcnow() -> str:
