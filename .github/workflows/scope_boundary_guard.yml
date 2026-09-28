@@ -1,0 +1,33 @@
+name: Scope Boundary Guard
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "config/PROJECT_SCOPE_POLICY.json"
+      - "config/ACTIVE_SCOPE_9_SPORTS.json"
+      - "scripts/run_24h_research_stage_main.py"
+      - "scripts/test_scope_boundary.py"
+      - "src/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scope-boundary-guard
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Run scope boundary regression
+        run: python scripts/test_scope_boundary.py
