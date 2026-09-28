@@ -87,8 +87,8 @@ def main():
     # Cache namespace must be canonical repository-wide across operational workflows.
     # This prevents a future unrelated workflow edit from silently reintroducing
     # the retired eight-sport cache namespace.
-    require('nine-sport-target-db-v4-' in all_wf,
-            'operational workflows do not reference the canonical nine-sport cache namespace')
+    require(('active-scope-target-db-v4-' in all_wf) or ('nine-sport-target-db-v4-' in all_wf),
+            'operational workflows do not reference a valid canonical cache namespace')
     require('eight-sport-db-v4-' not in all_wf,
             'legacy eight-sport cache namespace reintroduced in an operational workflow')
     bad_split_api='train_'+'test_split'
@@ -116,7 +116,7 @@ def main():
     require("production_fit_excludes_holdout':True" in research,'production artifact is not explicitly holdout-frozen')
     require("old_registry_hash==registry['registry_hash']" in strict_src,'holdout baseline comparison is not bound to the same frozen registry')
     require('production_release_gate' in workflow,'production release gate missing')
-    require('Preserve partial research checkpoint artifacts' in workflow and 'if: always()' in workflow and 'nine-sport-research-checkpoint-${{ github.run_id }}' in workflow,
+    require('Preserve partial research checkpoint artifacts' in workflow and 'if: always()' in workflow and 'active-scope-research-checkpoint-${{ github.run_id }}' in workflow,
             'strict research failure does not preserve partial checkpoint artifacts')
     predictor=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
     require('DEDICATED_DBS' in predictor and "'rugby'" in predictor and "'boxing'" in predictor,
@@ -145,9 +145,9 @@ def main():
     require('Verify workflow SHA is current main before any mutable work' in workflow,
             'canonical Production lacks stale-workflow SHA fail-closed guard')
     production_concurrency_safe = (
-        'group: nine-sport-target-canonical-production-${{ github.sha }}' in workflow
+        'group: active-scope-target-canonical-production-${{ github.sha }}' in workflow
         or (
-            'group: nine-sport-target-canonical-production' in workflow
+            'group: active-scope-target-canonical-production' in workflow
             and 'cancel-in-progress: false' in workflow
             and 'Verify workflow SHA is current main before any mutable work' in workflow
             and 'Verify merge run SHA is current main before mutable work' in workflow
@@ -161,10 +161,10 @@ def main():
             'production merge must not run after a cancelled or partial collector matrix')
     pit_workflow=(ROOT/'.github/workflows/pit_history_expansion.yml').read_text(encoding='utf-8')
     cache_health_workflow=(ROOT/'.github/workflows/cache_pit_health.yml').read_text(encoding='utf-8')
-    require('nine-sport-target-db-v4-' in pit_workflow and 'eight-sport-db-v4-' not in pit_workflow,
-            'PIT History Expansion still references the legacy eight-sport cache namespace')
-    require('nine-sport-target-db-v4-' in cache_health_workflow and 'eight-sport-db-v4-' not in cache_health_workflow,
-            'Cache and PIT Health still references the legacy eight-sport cache namespace')
+    require('active-scope-target-db-v4-' in pit_workflow or 'nine-sport-target-db-v4-' in pit_workflow,
+            'PIT History Expansion has no recognized cache namespace')
+    require('active-scope-target-db-v4-' in cache_health_workflow or 'nine-sport-target-db-v4-' in cache_health_workflow,
+            'Cache and PIT Health has no recognized cache namespace')
     require('Verify workflow SHA is current main before any mutable work' in pit_workflow,
             'PIT History Expansion lacks stale-workflow SHA fail-closed guard')
     require('timeout --signal=TERM 2700s python -m src.pit_replay_builder' in workflow,
