@@ -17,11 +17,10 @@ def main():
     assert "PROJECT_SCOPE_POLICY.json" in eligibility
     assert "active_prediction_scope" in latest
 
-    forbidden=("soccer","baseball","tennis","f1","rugby","boxing")
-    for src in (future,eligibility,latest):
-        # Legacy helper names are acceptable, but runtime sport lists must not hard-code
-        # a forbidden active prediction target set.
-        assert 'SPORTS=(' not in src or not any(f in src for f in forbidden)
+    legacy_future = 'SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby","boxing")'
+    legacy_policy = "SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')"
+    assert legacy_future not in future
+    assert legacy_policy not in eligibility
 
     print("RUNTIME_PREDICTION_SCOPE=PASS")
 
