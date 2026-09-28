@@ -38,6 +38,8 @@ def main():
         "OUT_OF_SCOPE",
         "stored_prediction_reused",
         "FRESH_REQUEST_VERIFIED",
+        "force_refresh=True",
+        "V45_FORCE_REFRESH",
     )
     for marker in required:
         assert marker in src, marker
