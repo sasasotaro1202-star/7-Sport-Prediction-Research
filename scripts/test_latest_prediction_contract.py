@@ -43,8 +43,8 @@ def main():
         assert marker in src, marker
 
     # Stored prediction output is verification evidence only, never a stale fallback.
-    assert "previous prediction" in src.lower()
-    assert "no previous prediction" not in src.lower()
+    assert "PREDICTION_REPORT" in src
+    assert "reuse_stored_prediction_output" in src
 
     print("LATEST_PREDICTION_CONTRACT=PASS")
 
