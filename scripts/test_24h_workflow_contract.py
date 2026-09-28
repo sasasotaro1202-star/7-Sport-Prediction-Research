@@ -45,6 +45,19 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn('name: "Final / 24H evidence reconciliation"', text)
         self.assertIn('rglob("stage_*_final.json")', text)
 
+    def test_runner_uses_stage_sport_and_bounded_cycle(self):
+        text = (ROOT / "scripts" / "run_24h_research_stage_main.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            '["python", "-m", "src.pit_replay_builder", "--sport", sport]',
+            text,
+        )
+        self.assertIn("cycle_interval_minutes", text)
+        self.assertIn("MIN_CYCLE_INTERVAL_MINUTES = 5", text)
+        self.assertNotIn("last_research", text)
+        self.assertIn("next_cycle_at", text)
+
     def test_watchdog_binds_to_latest_main(self):
         text = (ROOT / ".github" / "workflows" / "24h_autonomous_research_watchdog.yml").read_text(
             encoding="utf-8"
