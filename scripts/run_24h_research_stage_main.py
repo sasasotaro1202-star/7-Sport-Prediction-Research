@@ -13,6 +13,7 @@ RESULTS = ROOT / "results" / "24h_marathon"
 SCOPE = ROOT / "config" / "ACTIVE_SCOPE_9_SPORTS.json"
 HARD_EXCLUDED = {"baseball", "soccer"}
 STAGE_SPORTS = {1: "basketball", 2: "volleyball", 3: "ufc", 4: "rizin", 5: "valorant"}
+REFERENCE_ONLY_SPORTS = sorted(HARD_EXCLUDED)
 
 
 def utcnow() -> str:
@@ -108,6 +109,7 @@ def main() -> int:
         ("compile_strict", ["python", "-m", "py_compile", "src/research_cycle_strict.py"]),
         ("pit_replay_compile", ["python", "-m", "py_compile", "src/pit_replay_builder.py"]),
         ("evidence_verifier_compile", ["python", "-m", "py_compile", "scripts/verify_24h_research_evidence.py"]),
+        ("scope_boundary_test", ["python", "scripts/test_scope_boundary.py"]),
         ("scope_guard", ["python", "-c", "import json; c=json.load(open('config/ACTIVE_SCOPE_9_SPORTS.json')); assert not ({'baseball','soccer'} & set(c.get('active_scope',{})))"]),
     ]:
         row = run(label, argv, 180)
@@ -170,6 +172,7 @@ def main() -> int:
             "critical_failures": sorted(set(critical)),
             "degraded_tasks": sorted(set(degraded)),
             "hard_exclusions": sorted(HARD_EXCLUDED),
+            "reference_only_sports": REFERENCE_ONLY_SPORTS,
             "research_only": True,
             "production_model_touched": False,
         }
