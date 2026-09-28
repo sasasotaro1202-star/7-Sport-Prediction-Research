@@ -5,6 +5,8 @@ on:
     paths:
       - ".github/workflows/all_sport_research.yml"
       - "config/ACTIVE_SCOPE_9_SPORTS.json"
+      - "config/PROJECT_SCOPE_POLICY.json"
+      - "scripts/test_scope_boundary.py"
       - "src/ultimate_predictive_control_v13.py"
       - "src/research_cycle_strict.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
@@ -35,6 +37,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
+
+      - name: Enforce project scope boundary
+        run: python scripts/test_scope_boundary.py
 
       - name: Resolve TARGET sports from canonical scope
         id: scope
