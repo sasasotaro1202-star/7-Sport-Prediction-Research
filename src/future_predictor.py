@@ -13,9 +13,16 @@ DB=ROOT/'data/db/sports_v45.sqlite'
 MODELS=ROOT/'models/research'
 OUT=ROOT/'results/future_predictions.json'
 ELIGIBILITY_OUT=ROOT/'results/prediction_eligibility.json'
-SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby","boxing")
-HEAD_TO_HEAD_SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","rugby","boxing")
-MULTICLASS_SPORTS=("f1",)
+SCOPE_PATH=ROOT/'config/PROJECT_SCOPE_POLICY.json'
+try:
+    _SCOPE_CONFIG=json.loads(SCOPE_PATH.read_text(encoding='utf-8'))
+    SPORTS=tuple(_SCOPE_CONFIG.get('active_prediction_scope') or ())
+except Exception as exc:
+    raise RuntimeError(f"prediction scope unavailable: {type(exc).__name__}") from exc
+if not SPORTS:
+    raise RuntimeError("active prediction scope is empty")
+HEAD_TO_HEAD_SPORTS=tuple(SPORTS)
+MULTICLASS_SPORTS=()
 PIT_LEAD_MINUTES=60
 F1_CURRENT_ROSTER_URL="https://www.formula1.com/en/drivers"
 
