@@ -32,7 +32,7 @@ def main():
             else: reason='ELIGIBLE'; eligible+=1
             reasons[reason]=reasons.get(reason,0)+1
         out.append({'sport':sport,'events':len(events),'eligible_future_events':eligible,'reasons':reasons})
-    report={'timestamp_utc':utc(),'policy':'prediction-eligibility-v2-multiclass-f1','sports':out}
+    report={'timestamp_utc':utc(),'policy':'prediction-eligibility-active-scope-v4','sports':out}
     path=ROOT/'results/prediction_eligibility.json'; path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8'); print(json.dumps(report,ensure_ascii=False,indent=2))
 
 if __name__=='__main__': main()
