@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - ".github/workflows/24h_autonomous_research.yml"
       - "scripts/run_24h_research_stage_main.py"
       - "config/ACTIVE_SCOPE_9_SPORTS.json"
   schedule:
