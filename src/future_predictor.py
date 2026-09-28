@@ -559,7 +559,7 @@ def main():
             results.append({'sport':s,'status':'PREDICTION_BLOCKED_RUNTIME','reason':type(exc).__name__})
         finally:
             con.close()
-    report={'generated_at_utc':now.isoformat(),'policy':'nine-sport-mandatory; accepted-artifact-first; PIT-safe research features; explicit safe-prior fallback; F1 multiclass safe-prior lane; gated contextual routing; frozen-holdout-validated calibration; event-confidence-v1; matchday-situation-v1','sports':results}
+    report={'generated_at_utc':now.isoformat(),'policy':'active-scope-mandatory; accepted-artifact-first; PIT-safe research features; explicit safe-prior fallback; F1 multiclass safe-prior lane; gated contextual routing; frozen-holdout-validated calibration; event-confidence-v1; matchday-situation-v1','sports':results}
     archive_status=experience.archive_predictions(results, now.isoformat())
     report['experience_archive']=archive_status
     OUT.parent.mkdir(parents=True,exist_ok=True)
