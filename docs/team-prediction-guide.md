@@ -24,6 +24,19 @@ This document is the shared operating contract for the seven-sport prediction sy
 6. Publish a prediction only when data, model, PIT, and eligibility gates pass.
 7. Preserve the exact prediction cutoff, dataset/model/config versions and provenance for auditability.
 
+
+## Freshness rule for user-facing predictions
+
+When a prediction is requested, prior prediction files are never treated as authoritative. The canonical entrypoint is:
+
+```
+python -m src.latest_prediction
+```
+
+That entrypoint refreshes the current active-scope data first, then runs the future predictor, and verifies that the collection and prediction timestamps are newer than the request start. A refresh failure, stale output, invalid scope, or missing freshness evidence is `FAIL_CLOSED`; an older prediction is never returned as a substitute.
+
+This rule exists because schedules, participants, source evidence, model artifacts, calibration state, and matchday information can change after an earlier prediction was generated.
+
 ## Probability output
 
 Every eligible prediction must expose probabilities, not just a winner label.
