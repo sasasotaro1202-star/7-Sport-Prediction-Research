@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: 24h-autonomous-research-main
+  group: 24h-autonomous-research-main-${{ github.sha }}
   cancel-in-progress: true
 
 env:
