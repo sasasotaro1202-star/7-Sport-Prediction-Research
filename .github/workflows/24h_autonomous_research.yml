@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: 24h-autonomous-research-main
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: "1"
