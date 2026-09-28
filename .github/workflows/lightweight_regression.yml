@@ -40,6 +40,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_future_predictor_pit_cutoff.py
       - name: Fresh prediction request contract
         run: PYTHONPATH=. python scripts/test_latest_prediction_contract.py
+      - name: Forced fresh HTTP retrieval behavior
+        run: PYTHONPATH=. python scripts/test_forced_fresh_http.py
       - name: Active scope runtime regression
         run: PYTHONPATH=. python scripts/test_prediction_scope_runtime.py
       - name: Prediction experience ledger test
