@@ -50,6 +50,8 @@ jobs:
           mkdir -p data/db data/raw/http_cache results/research results/v45 models/research results/24h_marathon
       - name: Preflight evidence verifier test
         run: python scripts/test_24h_research_evidence.py
+      - name: Preflight 24H workflow contract test
+        run: python scripts/test_24h_workflow_contract.py
       - name: Run 24H stage
         run: python scripts/run_24h_research_stage_main.py --stage 1 --minutes 282 --research-interval-minutes 90
       - name: Save basketball DB checkpoint
