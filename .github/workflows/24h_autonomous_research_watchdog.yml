@@ -79,6 +79,13 @@ jobs:
               elif r.get("status") in {"queued", "pending", "waiting", "requested"} and age_min >= 30:
                   stale_current.append(r)
 
+          outdated_active = []
+          for r in candidates:
+              if r.get("headSha") != main_sha and r.get("status") in active:
+                  age_min = (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() / 60
+                  if age_min >= 5:
+                      outdated_active.append(r)
+
           outdated_queued = []
           for r in candidates:
               if r.get("headSha") != main_sha and r.get("status") in {"queued", "pending"}:
@@ -109,6 +116,13 @@ jobs:
                   "action": "CANCEL_AND_DISPATCH",
                   "run_id": stale_current[0]["databaseId"],
                   "reason": "current_main_run_stale",
+                  "main_sha": main_sha,
+              }
+          elif outdated_active:
+              decision = {
+                  "action": "CANCEL_OUTDATED_AND_DISPATCH",
+                  "run_id": outdated_active[0]["databaseId"],
+                  "reason": "outdated_main_run_still_active",
                   "main_sha": main_sha,
               }
           elif outdated_queued:
