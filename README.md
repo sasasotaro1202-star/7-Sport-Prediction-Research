@@ -1,17 +1,16 @@
-# 9-Sport-Prediction-Research
+# Active-Scope Prediction Research
 
-Nine target-sport prediction/research lanes with a provenance-first data foundation. The research and prediction policies remain isolated by sport. **All nine sports are mandatory prediction lanes.** A sport-specific production model can remain gated while data/PIT/OOS evidence is incomplete, but the future-prediction layer must still attempt a safe, explicitly labeled prediction for all nine lanes whenever the required event and participant information is available.
+Five active prediction lanes with a provenance-first data foundation. The active prediction scope is Basketball, Volleyball, UFC, RIZIN, and VALORANT. Research-only/deferred tooling may exist outside this scope, but it must not become an active prediction target or production prediction lane without an explicit scope-policy change and validation.
 
-## Target sports
+## Active prediction scope
 - VALORANT
 - Basketball
 - Volleyball
-- Tennis
 - UFC
 - RIZIN
-- F1
-- Rugby
-- Boxing
+
+## Research-only / deferred extensions
+Tennis, F1, Rugby, and Boxing may remain as isolated research or coverage tooling when explicitly gated. They are not active prediction targets.
 
 ## Non-negotiable rules
 1. Shared data foundation where appropriate; sport-specific research/prediction policies remain isolated.
@@ -27,7 +26,7 @@ Nine target-sport prediction/research lanes with a provenance-first data foundat
 ## Data-source strategy
 The system is source-agnostic. It can combine official feeds, structured public APIs, reputable historical datasets, and high-quality public event pages when their provenance and schema can be recorded.
 
-The project maintains an explicit nine-sport target source registry and independent audit baseline in `docs/SOURCE_REGISTRY_8_SPORTS.md` and `docs/COMPLETE_8_SPORT_AUDIT.md`.
+The project maintains explicit source registries for the active scope and separately gated research extensions and independent audit baseline in `docs/SOURCE_REGISTRY_8_SPORTS.md` and `docs/COMPLETE_8_SPORT_AUDIT.md`.
 
 Current deep historical/enrichment sources include:
 - Tennis: Jeff Sackmann ATP/WTA historical match/stat archive mirror, with conservative PIT treatment.
@@ -48,7 +47,7 @@ The system does not assume that one provider is complete. Cross-source reconcili
 - Source-backed HTTP cache to avoid repeatedly downloading unchanged pages.
 - Checkpoint/resume state for long collectors.
 - Parallel detail-page retrieval inside a sport while keeping deterministic database writes.
-- Explicit nine-sport prediction scope; every run reports all nine lanes. A production model can be PASS, research-only, or gated according to evidence, but no sport is silently omitted from prediction.
+- Explicit active prediction scope; every production prediction run is limited to the five active lanes. Research-only/deferred extensions are isolated and cannot silently enter production.
 
 ### Outcome reconstruction
 `src/outcome_backfill.py` reconstructs outcomes only when source evidence is sufficient. Missing or unverifiable outcomes remain deferred.
@@ -67,7 +66,7 @@ X data is isolated from the production model: collection → PIT storage → ind
 
 ## GitHub Actions
 ### Canonical production
-`.github/workflows/v4_5_15_production.yml` runs all nine sports independently. Tennis, F1, Rugby and Boxing may remain model-gated when their sport-specific PIT/OOS evidence is insufficient, but they are still collected and passed through the mandatory future-prediction lane.
+`.github/workflows/v4_5_15_production.yml` runs only the five active prediction lanes. Research-only/deferred extensions are isolated from the canonical production prediction path.
 
 ### Rugby / Boxing coverage guards
 `.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby remains coverage-only until its sport-specific PIT/OOS/release path is proven.
@@ -76,14 +75,14 @@ X data is isolated from the production model: collection → PIT storage → ind
 ### Reliability
 Cache/PIT health and production invariant workflows provide independent safety checks. A release gate is fail-closed: unsafe models are never published, and a blocked gate must be visible as a non-zero Action rather than a false green success.
 
-## Boxing integration status
-- Boxing is a mandatory prediction lane.
+## Boxing research status
+- Boxing is not an active prediction lane.
 - Boxing model promotion remains `DEFERRED_PIT` until a free historical source can prove source availability before the prediction cutoff.
 - Candidate public sources are tracked separately from production data. Public availability or a current schedule is not treated as historical PIT evidence.
 - Until a gated Boxing model exists, future inference uses the explicitly labeled PIT-safe historical-prior fallback; no fabricated feature or result is introduced.
 
 ## Definition of done
-A sport is model-production-ready only when it has reliable intended historical/current coverage, explicit provenance and PIT availability metadata, leakage-safe chronological OOS, calibrated probability evaluation, frozen-holdout acceptance, incumbent/challenger protection, production invariants, reproducible artifacts, and recovery from transient source/network failures. Separately, every one of the nine sports must remain represented in future inference; a gated model is never a reason to silently omit a prediction lane.
+A sport is model-production-ready only when it has reliable intended historical/current coverage, explicit provenance and PIT availability metadata, leakage-safe chronological OOS, calibrated probability evaluation, frozen-holdout acceptance, incumbent/challenger protection, production invariants, reproducible artifacts, and recovery from transient source/network failures. Active prediction scope is defined by `config/PROJECT_SCOPE_POLICY.json`; deferred extensions remain excluded from production inference until formally admitted.
 
 A successful GitHub Action is evidence that a run completed; it is not by itself evidence that a model is accurate, calibrated, leakage-free, or production-ready.
 
