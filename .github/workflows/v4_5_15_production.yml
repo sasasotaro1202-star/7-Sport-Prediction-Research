@@ -1,5 +1,5 @@
 # Canonical production workflow. Source outages degrade coverage; unsafe models are never published.
-name: Nine-Sport Target v4.5.15 Production
+name: Active-Scope Target v4.5.15 Production
 on:
   workflow_dispatch:
   schedule:
@@ -12,7 +12,7 @@ permissions:
 concurrency:
   # Keep an active canonical run intact. At most one newer run waits behind it;
   # stale-SHA guards stop an old run before mutable publication if main advances.
-  group: nine-sport-target-canonical-production
+  group: active-scope-target-canonical-production
   cancel-in-progress: false
 env:
   PYTHONUNBUFFERED: '1'
@@ -21,9 +21,9 @@ jobs:
     name: Collect ${{ matrix.sport }}
     strategy:
       fail-fast: false
-      max-parallel: 9
+      max-parallel: 5
       matrix:
-        sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1, rugby, boxing]
+        sport: [valorant, basketball, volleyball, ufc, rizin]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -63,49 +63,25 @@ jobs:
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
+          key: active-scope-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
           restore-keys: |
-            nine-sport-target-db-v4-${{ matrix.sport }}-pit-
-            nine-sport-target-db-v4-${{ matrix.sport }}-
+            active-scope-target-db-v4-${{ matrix.sport }}-pit-
+            active-scope-target-db-v4-${{ matrix.sport }}-
       - name: Validate/repair restored database before collection
         shell: bash
         run: |
           set -euo pipefail
-          case '${{ matrix.sport }}' in
-            rugby)
-              if [ -s data/db/rugby_v45.sqlite ]; then python -m src.cache_health --db data/db/rugby_v45.sqlite --sport rugby --repair; else echo 'RUGBY_CACHE=EMPTY'; fi
-              ;;
-            boxing)
-              if [ -s data/db/boxing_v45.sqlite ]; then python -m src.cache_health --db data/db/boxing_v45.sqlite --sport boxing --repair; else echo 'BOXING_CACHE=EMPTY'; fi
-              ;;
-            *)
-              python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
-              ;;
-          esac
+          python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
       - name: Initialize schema
         shell: bash
         run: |
           set -euo pipefail
-          case '${{ matrix.sport }}' in
-            rugby|boxing)
-              echo "Dedicated database sport=${{ matrix.sport }}; sport-specific collector owns schema initialization."
-              ;;
-            *)
-              python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
-              ;;
-          esac
+          python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
       - name: Incremental collector (source failures degrade explicitly)
         run: |
           set -uo pipefail
           collector_rc=0
-          case '${{ matrix.sport }}' in
-            rugby|boxing)
-              echo 'dedicated_collector_status=SELECTED'
-              ;;
-            *)
-              if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3 --days-forward 7; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
-              ;;
-          esac
+          if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3 --days-forward 7; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
           backfill_rc=0
           case '${{ matrix.sport }}' in
             basketball)
@@ -149,7 +125,7 @@ jobs:
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: nine-sport-target-db-v4-${{ matrix.sport }}-${{ github.run_id }}
+          key: active-scope-target-db-v4-${{ matrix.sport }}-${{ github.run_id }}
   merge:
     name: Merge, research, and release gate
     needs: collect
@@ -182,14 +158,14 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install dependencies with transient-network retry
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
-      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,tennis,f1,ufc,rizin} data/db results models
+      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,ufc,rizin} data/db results models
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
       - name: Restore VALORANT
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: nine-sport-target-db-v4-valorant-${{ github.run_id }}
+          key: active-scope-target-db-v4-valorant-${{ github.run_id }}
       - name: Materialize VALORANT partition when coverage exists
         run: |
           set -euo pipefail
@@ -202,7 +178,7 @@ jobs:
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: nine-sport-target-db-v4-basketball-${{ github.run_id }}
+          key: active-scope-target-db-v4-basketball-${{ github.run_id }}
       - name: Materialize Basketball partition when coverage exists
         run: |
           set -euo pipefail
@@ -215,7 +191,7 @@ jobs:
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: nine-sport-target-db-v4-volleyball-${{ github.run_id }}
+          key: active-scope-target-db-v4-volleyball-${{ github.run_id }}
       - name: Materialize Volleyball partition when coverage exists
         run: |
           set -euo pipefail
@@ -224,13 +200,6 @@ jobs:
           if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite; echo "VOLLEYBALL_PARTITION=PASS events=$events"; else echo "VOLLEYBALL_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
-      - name: Restore Tennis
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
-        with:
-          path: data/db
-          key: nine-sport-target-db-v4-tennis-${{ github.run_id }}
-          restore-keys: |
-            nine-sport-target-db-v4-tennis-
       - name: Materialize Tennis partition when coverage exists
         run: |
           set -euo pipefail
@@ -239,13 +208,6 @@ jobs:
           if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/tennis/sports_v45.sqlite; echo "TENNIS_PARTITION=PASS events=$events"; else echo "TENNIS_PARTITION=DEFERRED events=$events"; fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
-      - name: Restore F1
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
-        with:
-          path: data/db
-          key: nine-sport-target-db-v4-f1-${{ github.run_id }}
-          restore-keys: |
-            nine-sport-target-db-v4-f1-
       - name: Materialize F1 partition when coverage exists
         run: |
           set -euo pipefail
@@ -258,7 +220,7 @@ jobs:
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: nine-sport-target-db-v4-ufc-${{ github.run_id }}
+          key: active-scope-target-db-v4-ufc-${{ github.run_id }}
       - name: Materialize UFC partition when coverage exists
         run: |
           set -euo pipefail
@@ -271,7 +233,7 @@ jobs:
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: nine-sport-target-db-v4-rizin-${{ github.run_id }}
+          key: active-scope-target-db-v4-rizin-${{ github.run_id }}
       - name: Materialize RIZIN partition only when coverage is actually present
         run: |
           set -euo pipefail
@@ -288,43 +250,31 @@ jobs:
           fi
       - name: Clear merge working database
         run: rm -f data/db/sports_v45.sqlite
-      - name: Nine-sport prediction scope
-        run: echo 'All nine target sports are mandatory prediction lanes; model promotion remains separately gated by PIT/OOS/holdout evidence.'
+      - name: Active prediction scope
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          scope=json.loads(Path('config/PROJECT_SCOPE_POLICY.json').read_text(encoding='utf-8'))['active_prediction_scope']
+          expected=['basketball','volleyball','ufc','rizin','valorant']
+          assert scope == expected, f'ACTIVE_SCOPE_MISMATCH expected={expected} actual={scope}'
+          print('ACTIVE_SCOPE=' + ','.join(scope))
+          PY
       - name: Verify restored partitions are valid and non-empty
         run: |
           set -euo pipefail
-          for sport in valorant basketball volleyball tennis ufc rizin f1; do
+          for sport in valorant basketball volleyball ufc rizin; do
             if [ -s "hourly-artifacts/$sport/sports_v45.sqlite" ]; then
               python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
             else
               echo "$sport"_PARTITION=DEFERRED
             fi
           done
-          echo 'RUGBY_PARTITION=DEDICATED_DB'
-          echo 'BOXING_PARTITION=DEDICATED_DB'
       - name: Merge partitions
         run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
-      - name: Restore Rugby dedicated prediction database
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
-        with:
-          path: data/db/rugby_v45.sqlite
-          key: nine-sport-target-db-v4-rugby-${{ github.run_id }}
-          restore-keys: |
-            nine-sport-target-db-v4-rugby-
-
-      - name: Restore Boxing dedicated prediction database
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
-        with:
-          path: data/db/boxing_v45.sqlite
-          key: nine-sport-target-db-v4-boxing-${{ github.run_id }}
-          restore-keys: |
-            nine-sport-target-db-v4-boxing-
-
-      - name: Robust adapters
+      - name: Scope-bound robust adapters
         run: python -m src.robust_sport_adapters_v4
-      - name: Boxing history ingestion and PIT guard
-        run: python -m src.boxing_production --ingest-history
-
       - name: Outcomes
         run: python -m src.outcome_backfill
       - name: Strict PIT replay
@@ -343,7 +293,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nine-sport-research-checkpoint-${{ github.run_id }}
+          name: active-scope-research-checkpoint-${{ github.run_id }}
           if-no-files-found: warn
           retention-days: 7
           path: |
@@ -408,7 +358,7 @@ jobs:
           fi
           git diff --cached --check
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore: update nine-sport target research results'
+          git commit -m 'chore: update active-scope research results'
           git fetch origin main
           rebase_with_generated_output_resolution() {
             if git rebase --autostash origin/main; then
