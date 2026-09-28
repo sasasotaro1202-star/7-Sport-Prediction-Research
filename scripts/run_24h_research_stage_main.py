@@ -14,6 +14,7 @@ SCOPE = ROOT / "config" / "ACTIVE_SCOPE_9_SPORTS.json"
 HARD_EXCLUDED = {"baseball", "soccer"}
 STAGE_SPORTS = {1: "basketball", 2: "volleyball", 3: "ufc", 4: "rizin", 5: "valorant"}
 REFERENCE_ONLY_SPORTS = sorted(HARD_EXCLUDED)
+MIN_CYCLE_INTERVAL_MINUTES = 5
 
 
 def utcnow() -> str:
@@ -124,42 +125,54 @@ def main() -> int:
             if row["status"] != "PASS":
                 degraded.append(label)
 
+    cycle_minutes = max(float(args.research_interval_minutes), MIN_CYCLE_INTERVAL_MINUTES)
+    cycle_interval_sec = cycle_minutes * 60.0
     iteration = 0
-    last_research = 0.0
+    next_cycle_at = time.monotonic()
+
     while time.monotonic() < deadline - 12 * 60 and not critical:
+        now = time.monotonic()
+        if now < next_cycle_at:
+            sleep_sec = min(next_cycle_at - now, max(0.0, deadline - now))
+            if sleep_sec > 0:
+                time.sleep(sleep_sec)
+            continue
+
         iteration += 1
 
+        # A stage must only rebuild PIT state for its own sport. Running the
+        # all-sport replay on every cycle wasted compute and touched deferred
+        # datasets outside the active 24H stage.
         row = run(
             "pit_replay",
-            ["python", "-m", "src.pit_replay_builder"],
+            ["python", "-m", "src.pit_replay_builder", "--sport", sport],
             1800,
         )
         commands.append(row)
         if row["status"] != "PASS":
             degraded.append(row["label"])
 
-        if last_research == 0.0 or time.monotonic() - last_research >= args.research_interval_minutes * 60:
-            row = run(
-                f"strict_oos_{sport}",
-                ["python", "-m", "src.research_cycle_strict", "--sport", sport],
-                2400,
+        row = run(
+            f"strict_oos_{sport}",
+            ["python", "-m", "src.research_cycle_strict", "--sport", sport],
+            2400,
+        )
+        commands.append(row)
+        if row["status"] != "PASS":
+            degraded.append(row["label"])
+        else:
+            evidence_row = run(
+                f"verify_evidence_{sport}",
+                ["python", "scripts/verify_24h_research_evidence.py", "--sport", sport],
+                180,
             )
-            commands.append(row)
-            if row["status"] != "PASS":
-                degraded.append(row["label"])
-            else:
-                evidence_row = run(
-                    f"verify_evidence_{sport}",
-                    ["python", "scripts/verify_24h_research_evidence.py", "--sport", sport],
-                    180,
-                )
-                commands.append(evidence_row)
-                if evidence_row["status"] != "PASS":
-                    critical.append(evidence_row["label"])
-            last_research = time.monotonic()
+            commands.append(evidence_row)
+            if evidence_row["status"] != "PASS":
+                critical.append(evidence_row["label"])
 
         checkpoint = {
-            "version": "24h-research-marathon-main-v2",
+            "version": "24h-research-marathon-main-v3",
+            "cycle_interval_minutes": cycle_minutes,
             "github_sha": os.environ.get("GITHUB_SHA", ""),
             "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
             "stage": args.stage,
@@ -182,10 +195,14 @@ def main() -> int:
         )
         remaining = deadline - time.monotonic()
         if remaining > args.research_interval_minutes * 60:
-            time.sleep(args.research_interval_minutes * 60)
+            next_cycle_at = max(
+            next_cycle_at + cycle_interval_sec,
+            time.monotonic() + cycle_interval_sec,
+        )
 
     final = {
-        "version": "24h-research-marathon-main-v2",
+        "version": "24h-research-marathon-main-v3",
+        "cycle_interval_minutes": cycle_minutes,
         "github_sha": os.environ.get("GITHUB_SHA", ""),
         "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
         "stage": args.stage,
