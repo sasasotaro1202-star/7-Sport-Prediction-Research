@@ -1,19 +1,10 @@
 {
-  "timestamp_utc": "2026-09-24T23:39:45.739854+00:00",
+  "timestamp_utc": "2026-09-28T23:02:34.698190+00:00",
   "policy": "prediction-eligibility-v3-derived-from-canonical-future-inference",
   "sports": [
     {
-      "sport": "valorant",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
-      "eligible_future_events": 0,
-      "reasons": {
-        "DEFERRED_ARTIFACT_NOT_ACCEPTED": 0
-      },
-      "status": "DEFERRED_ARTIFACT_NOT_ACCEPTED"
-    },
-    {
       "sport": "basketball",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
+      "generated_at_utc": "2026-09-28T23:02:34.698190+00:00",
       "eligible_future_events": 0,
       "reasons": {
         "NO_FUTURE_EVENTS": 0
@@ -22,25 +13,16 @@
     },
     {
       "sport": "volleyball",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
+      "generated_at_utc": "2026-09-28T23:02:34.698190+00:00",
       "eligible_future_events": 0,
       "reasons": {
-        "DEFERRED_NO_ACCEPTED_ARTIFACT": 0
+        "NO_FUTURE_EVENTS": 0
       },
-      "status": "DEFERRED_NO_ACCEPTED_ARTIFACT"
-    },
-    {
-      "sport": "tennis",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
-      "eligible_future_events": 0,
-      "reasons": {
-        "DEFERRED_NO_ACCEPTED_ARTIFACT": 0
-      },
-      "status": "DEFERRED_NO_ACCEPTED_ARTIFACT"
+      "status": "NO_FUTURE_EVENTS"
     },
     {
       "sport": "ufc",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
+      "generated_at_utc": "2026-09-28T23:02:34.698190+00:00",
       "eligible_future_events": 0,
       "reasons": {
         "NO_FUTURE_EVENTS": 0
@@ -49,39 +31,21 @@
     },
     {
       "sport": "rizin",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
+      "generated_at_utc": "2026-09-28T23:02:34.698190+00:00",
       "eligible_future_events": 0,
       "reasons": {
-        "DEFERRED_NO_ACCEPTED_ARTIFACT": 0
+        "NO_FUTURE_EVENTS": 0
       },
-      "status": "DEFERRED_NO_ACCEPTED_ARTIFACT"
+      "status": "NO_FUTURE_EVENTS"
     },
     {
-      "sport": "f1",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
+      "sport": "valorant",
+      "generated_at_utc": "2026-09-28T23:02:34.698190+00:00",
       "eligible_future_events": 0,
       "reasons": {
-        "DEFERRED_NO_ACCEPTED_ARTIFACT": 0
+        "NO_FUTURE_EVENTS": 0
       },
-      "status": "DEFERRED_NO_ACCEPTED_ARTIFACT"
-    },
-    {
-      "sport": "rugby",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
-      "eligible_future_events": 0,
-      "reasons": {
-        "DEFERRED_NO_ACCEPTED_ARTIFACT": 0
-      },
-      "status": "DEFERRED_NO_ACCEPTED_ARTIFACT"
-    },
-    {
-      "sport": "boxing",
-      "generated_at_utc": "2026-09-24T23:39:45.739854+00:00",
-      "eligible_future_events": 0,
-      "reasons": {
-        "DEFERRED_NO_ACCEPTED_ARTIFACT": 0
-      },
-      "status": "DEFERRED_NO_ACCEPTED_ARTIFACT"
+      "status": "NO_FUTURE_EVENTS"
     }
   ]
 }

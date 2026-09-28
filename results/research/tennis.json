@@ -1,6 +1,7 @@
 {
   "sport": "tennis",
-  "status": "DEFERRED",
-  "reason": "DEFERRED_BY_PROJECT_SCOPE",
-  "promotion_policy": "Do not train or publish until sport-specific PIT, chronological OOS and frozen-holdout requirements are enabled"
+  "status": "DEFERRED_PIT",
+  "reason": "sport_specific_PIT_gate_not_enabled_for_generic_strict_training",
+  "production_changed": false,
+  "promotion_allowed": false
 }
