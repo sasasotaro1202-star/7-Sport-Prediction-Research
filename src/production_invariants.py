@@ -20,10 +20,10 @@ def main():
     m=re.search(r"SPORTS=\(([^)]*)\)",research)
     actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
     require(EXPECTED_CORE<=actual,f'research engine missing sports: {sorted(EXPECTED_CORE-actual)}')
-    require(len(actual)==9,f'research engine sport count is {len(actual)}, expected exactly 9')
+    require(len(actual)==9,f'research engine candidate count is {len(actual)}, expected exactly 9 including deferred research-only targets')
     require('matrix:' in workflow,'canonical workflow matrix missing')
-    required_matrix='sport: [valorant, basketball, volleyball, tennis, ufc, rizin, f1, rugby, boxing]'
-    require(required_matrix in workflow,'canonical workflow matrix is not the full nine-sport target set')
+    required_matrix='sport: [valorant, basketball, volleyball, ufc, rizin]'
+    require(required_matrix in workflow,'canonical workflow matrix is not the active five-sport target set')
     guard_src=(ROOT/'src/collection_guard.py').read_text(encoding='utf-8')
     require("'boxing'" in guard_src and "'rugby'" in guard_src and 'DEDICATED_DBS' in guard_src,
             'collection guard does not cover dedicated Rugby/Boxing prediction lanes')
@@ -35,13 +35,13 @@ def main():
     for sport in sorted(EXPECTED_CORE):
         require(re.search(rf'(?m)^\s*[-] {sport}$',workflow) is not None or sport in workflow,
                 f'canonical workflow missing sport token: {sport}')
-    require('max-parallel: 9' in workflow,'canonical workflow parallelism declaration missing')
-    require('nine-sport-target-db-v4-' in workflow,'canonical production cache namespace is not nine-sport target scoped')
+    require('max-parallel: 5' in workflow,'canonical workflow parallelism declaration missing')
+    require('active-scope-target-db-v4-' in workflow,'canonical production cache namespace is not active-scope target scoped')
     require('eight-sport-db-v4-' not in workflow,'canonical production still references legacy eight-sport cache namespace')
     
-    require('Nine-Sport Target v4.5.15 Production' in workflow,'canonical workflow name is not nine-sport target')
-    require('All nine target sports are mandatory prediction lanes' in workflow,
-            'canonical production workflow does not declare all-nine mandatory prediction scope')
+    require('Active-Scope Target v4.5.15 Production' in workflow,'canonical workflow name is not active-scope target')
+    require('ACTIVE_SCOPE_MISMATCH' in workflow and 'Active prediction scope' in workflow,
+            'canonical production workflow does not declare the formal active prediction scope')
     require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src,
             'strict research deferred-sport declaration does not include all deferred targets')
     release_gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
@@ -568,12 +568,14 @@ def main():
         require(False,f'dynamic router behavioral invariant failed: {exc}')
 
     cache_guard=(ROOT/'src/partition_cache_guard.py').read_text(encoding='utf-8')
-    require('restore-keys:' in workflow and 'nine-sport-target-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
+    require('restore-keys:' in workflow and 'active-scope-target-db-v4-${{ matrix.sport }}-' in workflow,'production cache restore does not reuse sport history safely')
     merge_section=workflow[workflow.index('  merge:'):] if '  merge:' in workflow else ''
     require('Verify merge workflow SHA is current main before any mutable work' in merge_section,
             'production merge lacks an independent current-main SHA guard')
     require('STALE_MERGE_WORKFLOW_SHA' in merge_section,
             'production merge stale-SHA guard does not fail closed with explicit status')
+    require('STALE_PUBLISH_RUN' in merge_section and 'ensure_main_unchanged' in merge_section,
+            'production persist step lacks final latest-main publish guard')
     require((ROOT/'scripts/validate_model_pipeline.py').exists(),'model pipeline regression test script is missing')
     require((ROOT/'scripts/test_feature_temporal_invariance.py').exists(),'temporal feature immutability regression test is missing')
     require('validate_model_pipeline.py' in (ROOT/'.github/workflows/production_invariants.yml').read_text(encoding='utf-8'),'production invariants workflow does not execute model pipeline regression checks')
