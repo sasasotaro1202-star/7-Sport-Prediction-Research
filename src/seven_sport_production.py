@@ -46,13 +46,14 @@ class HTTP:
         self.max_workers = max(1, int(os.getenv('V45_HTTP_WORKERS','8')))
         self.cache_dir = ROOT / 'data/raw/http_cache'
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.force_refresh = os.getenv('V45_FORCE_REFRESH', '0') == '1'
 
     def _cache_path(self, url):
         return self.cache_dir / (hashlib.sha256(url.encode()).hexdigest() + '.json')
 
     def get(self, url, use_cache=True):
         cp = self._cache_path(url)
-        if use_cache and cp.exists():
+        if use_cache and not self.force_refresh and cp.exists():
             try:
                 obj = json.loads(cp.read_text(encoding='utf-8'))
                 if obj.get('status') == 200 and obj.get('text') is not None:
