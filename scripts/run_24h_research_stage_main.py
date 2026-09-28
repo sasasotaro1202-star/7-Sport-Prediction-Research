@@ -15,6 +15,7 @@ HARD_EXCLUDED = {"baseball", "soccer"}
 STAGE_SPORTS = {1: "basketball", 2: "volleyball", 3: "ufc", 4: "rizin", 5: "valorant"}
 REFERENCE_ONLY_SPORTS = sorted(HARD_EXCLUDED)
 MIN_CYCLE_INTERVAL_MINUTES = 5
+RUNNER_VERSION = "24h-research-marathon-main-v4"
 
 
 def utcnow() -> str:
@@ -92,6 +93,11 @@ def main() -> int:
     ap.add_argument("--minutes", type=float, default=282.0)
     ap.add_argument("--research-interval-minutes", type=float, default=90.0)
     args = ap.parse_args()
+
+    if args.research_interval_minutes < MIN_CYCLE_INTERVAL_MINUTES:
+        raise ValueError(
+            f"research interval must be >= {MIN_CYCLE_INTERVAL_MINUTES} minutes"
+        )
 
     sport = STAGE_SPORTS[args.stage]
     active = active_sports()
@@ -171,7 +177,7 @@ def main() -> int:
                 critical.append(evidence_row["label"])
 
         checkpoint = {
-            "version": "24h-research-marathon-main-v3",
+            "version": RUNNER_VERSION,
             "cycle_interval_minutes": cycle_minutes,
             "github_sha": os.environ.get("GITHUB_SHA", ""),
             "github_run_id": os.environ.get("GITHUB_RUN_ID", ""),
