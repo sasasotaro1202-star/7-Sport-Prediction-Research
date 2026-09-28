@@ -4,14 +4,12 @@
 
 This document is the shared operating contract for the seven-sport prediction system. The objective is future generalization and production reliability, not the highest historical backtest score.
 
-## Seven sports
+## Active prediction scope (five sports)
 
 - Basketball
 - Volleyball
 - UFC
 - RIZIN
-- Tennis
-- F1
 - Valorant
 
 ## How a prediction is made
@@ -48,7 +46,7 @@ For a two-outcome event:
 - Side B probability: `0-100%`.
 - Probabilities must sum to approximately `100%` within the configured numerical tolerance.
 
-For multi-entrant events such as F1, do not force the event into binary A/B semantics. Output the appropriate per-entrant probability distribution (for example, win probability) and validate that the semantics match the sport.
+For future scope expansion, multi-entrant semantics must be added explicitly and separately from binary match-winner inference.
 
 ## Confidence is separate from probability
 
@@ -96,7 +94,7 @@ A model may predict A at 51.8%, while the production ranking classifies the even
 
 ## Sport-specific semantics
 
-- Basketball / Volleyball / UFC / RIZIN / Tennis / Valorant: use the sport's valid match winner semantics.
+- Basketball / Volleyball / UFC / RIZIN / Valorant: use the sport's valid match winner semantics.
 - F1: use multi-entrant race semantics; do not treat the first two participants as the only possible winners.
 
 ## Reliability rules
