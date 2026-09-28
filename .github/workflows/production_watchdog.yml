@@ -7,7 +7,7 @@ on:
     - cron: '*/5 * * * *'
   workflow_run:
     workflows:
-      - Nine-Sport Target v4.5.15 Production
+      - Active-Scope Target v4.5.15 Production
       - Production Safety Audit
       - Lightweight Regression and Safety Checks
     types: [completed]
@@ -58,7 +58,7 @@ jobs:
           trigger='${{ github.event_name }}'
           subject=$(git log -1 --format='%s')
           eligible=true
-          if [ "$trigger" = "workflow_run" ] && [ "$subject" = "chore: update nine-sport target research results" ]; then
+          if [ "$trigger" = "workflow_run" ] && [ "$subject" = "chore: update active-scope research results" ]; then
             eligible=false
             echo 'SKIP_WORKFLOW_RUN_RESCUE_GENERATED_OUTPUT_COMMIT'
           fi
@@ -220,7 +220,7 @@ jobs:
             parent_sha=$(printf '%s' "$commit_meta" | jq -r '.parents[0].sha // ""')
             generated_only=$(printf '%s' "$commit_meta" | jq -r '[.files[]?.filename] | if length > 0 and all(startswith("results/") or startswith("models/")) then "true" else "false" end')
             parent_production=$(gh run list --workflow "v4_5_15_production.yml" --limit 50 --json databaseId,status,conclusion,headSha               | jq --arg sha "$parent_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
-            if [ "$generated_only" = "true" ] &&                [ "$subject" = "chore: update nine-sport target research results" ] &&                [ -n "$parent_sha" ] && [ "$parent_production" -ge 1 ]; then
+            if [ "$generated_only" = "true" ] &&                [ "$subject" = "chore: update active-scope research results" ] &&                [ -n "$parent_sha" ] && [ "$parent_production" -ge 1 ]; then
               inherited_validation=true
               echo "INHERITED_VALIDATION_FROM_SUCCESSFUL_GENERATOR parent=$parent_sha production_runs=$parent_production"
             fi
