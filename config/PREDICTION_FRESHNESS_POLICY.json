@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "canonical_entrypoint": "python -m src.latest_prediction",
+  "refresh_before_every_prediction_request": true,
+  "reuse_stored_prediction_output": false,
+  "stale_output_action": "FAIL_CLOSED",
+  "freshness_contract": {
+    "collection_must_start_after_request": true,
+    "prediction_generation_must_start_after_request": true,
+    "stored_future_predictions_are_not_authoritative": true,
+    "stored_prediction_eligibility_is_not_authoritative": true
+  },
+  "scope_source": "config/PROJECT_SCOPE_POLICY.json",
+  "notes": [
+    "A user-facing prediction request must run the canonical latest-prediction entrypoint rather than reuse an older result file.",
+    "Current data collection and inference are repeated on every request so schedules, participants, source evidence, model state, and PIT-safe context can change between requests.",
+    "If refresh or freshness verification fails, the system must not return an older prediction as a substitute."
+  ]
+}
