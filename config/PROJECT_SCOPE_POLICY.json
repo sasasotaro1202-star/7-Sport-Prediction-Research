@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "active_prediction_scope": [
+    "basketball",
+    "volleyball",
+    "ufc",
+    "rizin",
+    "valorant"
+  ],
+  "reference_only_projects": {
+    "soccer": {
+      "allowed_use": [
+        "architecture_reference",
+        "failure_analysis_reference",
+        "watchdog_reference",
+        "PIT_design_reference",
+        "research_process_reference"
+      ],
+      "forbidden_use": [
+        "prediction_target",
+        "active_scope",
+        "collector",
+        "feature",
+        "training_dataset",
+        "model",
+        "production_artifact",
+        "published_prediction"
+      ]
+    },
+    "baseball": {
+      "allowed_use": [
+        "architecture_reference",
+        "failure_analysis_reference",
+        "circuit_breaker_reference",
+        "checkpoint_reference",
+        "PIT_design_reference",
+        "research_process_reference"
+      ],
+      "forbidden_use": [
+        "prediction_target",
+        "active_scope",
+        "collector",
+        "feature",
+        "training_dataset",
+        "model",
+        "production_artifact",
+        "published_prediction"
+      ]
+    }
+  },
+  "production_mutation": false,
+  "scope_pooling": false,
+  "notes": [
+    "Reference-only project learnings may be ported as generic engineering patterns.",
+    "Reference-only sports themselves must never become active prediction scope in this repository."
+  ]
+}
