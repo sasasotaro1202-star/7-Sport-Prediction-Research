@@ -34,8 +34,8 @@
       "events": 21133,
       "timed_events": 21133,
       "completed_events": 21133,
-      "resolved_outcomes": 19577,
-      "verified_model_outcomes": 19577,
+      "resolved_outcomes": 19579,
+      "verified_model_outcomes": 19579,
       "accepted_models": 1,
       "model_safety": "OK"
     },
@@ -99,7 +99,7 @@
     }
   },
   "coverage_warnings": [
-    "volleyball:completed_event_outcome_gap:1556"
+    "volleyball:completed_event_outcome_gap:1554"
   ],
   "publishable_artifacts": [
     "models/research/volleyball_current.joblib",
