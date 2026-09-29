@@ -31,11 +31,11 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "volleyball": {
-      "events": 21133,
-      "timed_events": 21133,
-      "completed_events": 21133,
-      "resolved_outcomes": 19585,
-      "verified_model_outcomes": 19585,
+      "events": 21213,
+      "timed_events": 21213,
+      "completed_events": 21213,
+      "resolved_outcomes": 19587,
+      "verified_model_outcomes": 19587,
       "accepted_models": 1,
       "model_safety": "OK"
     },
@@ -99,7 +99,7 @@
     }
   },
   "coverage_warnings": [
-    "volleyball:completed_event_outcome_gap:1548"
+    "volleyball:completed_event_outcome_gap:1626"
   ],
   "publishable_artifacts": [
     "models/research/volleyball_current.joblib",
