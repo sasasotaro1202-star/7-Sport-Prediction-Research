@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-09-29T17:57:28.032494+00:00",
-  "source_git_commit_sha": "4362657a128aaaf3783afe6fad0f9e6c547c6326",
+  "generated_at_utc": "2026-09-29T21:59:24.624825+00:00",
+  "source_git_commit_sha": "26af3f630826056fcb53f3b9e44303a5da5ea5a5",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 247029760,
-      "sha256": "e1b5e06b2f02105dd28c004e8b4787bac2dd0e864bd8402ad7f66f5dccbb04bd"
+      "bytes": 262590464,
+      "sha256": "d1f1d619c527ddfeedd86c81203a135ce3d0d9b3cffbea7b3f594ca2523dcce6"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -57,8 +57,8 @@
     {
       "path": "results/quality_gate.json",
       "exists": true,
-      "bytes": 3869,
-      "sha256": "20c3b8b0bd71fb64611a3c147d5e2186662e0f02fe47728a7606fbdc14e9acc8"
+      "bytes": 3868,
+      "sha256": "dca01f2da4872c3ab256b514160478fc492ce8dfca04698121f1eeec7caf769c"
     },
     {
       "path": "results/release_gate.json",
@@ -120,7 +120,7 @@
       "path": "results/research/ufc.json",
       "exists": true,
       "bytes": 467158,
-      "sha256": "6a14c3ff28ac95f0de55c232c023300fe624ce0685bbffa5d278e713bc2b131c"
+      "sha256": "9690829531418f689cd1615e633545e64271ac77a5fff8b72432bba62cdb36ac"
     },
     {
       "path": "results/research/ufc_frozen_holdout.json",
@@ -150,7 +150,7 @@
       "path": "results/research/volleyball.json",
       "exists": true,
       "bytes": 1141350,
-      "sha256": "5fdc1bb06daf5a73fdfcd35441552b5f26837c83a2c491a13a52c0740c65b25c"
+      "sha256": "d846045dedb43964ef442a843e9751628c4a58927305ebdbb0e2b8a3b920eb7e"
     },
     {
       "path": "results/research/volleyball_frozen_holdout.json",
