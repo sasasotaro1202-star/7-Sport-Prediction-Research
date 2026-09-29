@@ -109,11 +109,43 @@ def _verify_prediction(sport: str, request_started: datetime) -> dict:
     return report
 
 
+
+def verify_latest_main() -> str:
+    """Require this checkout to be exactly the current public main revision."""
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=20,
+    )
+    if head.returncode != 0:
+        raise RuntimeError("CURRENT_HEAD_UNAVAILABLE")
+    current = head.stdout.strip()
+    remote = subprocess.run(
+        ["git", "ls-remote", "origin", "refs/heads/main"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    if remote.returncode != 0:
+        raise RuntimeError("REMOTE_MAIN_UNAVAILABLE")
+    remote_sha = remote.stdout.strip().split()[0] if remote.stdout.strip() else ""
+    if not remote_sha or remote_sha != current:
+        raise RuntimeError(
+            f"STALE_CODE_CHECKOUT:current={current}:remote_main={remote_sha}"
+        )
+    return current
+
 def request_latest(
     sports: list[str] | None = None,
     days_back: int = 30,
     days_forward: int = 7,
 ) -> dict:
+    main_sha = verify_latest_main()
     policy = read_json(FRESHNESS_PATH)
     if policy.get("refresh_before_every_prediction_request") is not True:
         raise RuntimeError("FRESHNESS_POLICY_REFRESH_DISABLED")
@@ -174,6 +206,7 @@ def request_latest(
         # file is returned as a fallback.
         failure = {
             "request_started_at_utc": request_started.isoformat(),
+            "source_git_commit_sha": main_sha,
             "status": "FAIL_CLOSED",
             "sports": requested,
             "stored_prediction_reused": False,
@@ -186,6 +219,7 @@ def request_latest(
 
     manifest = {
         "request_id": request_id,
+        "source_git_commit_sha": main_sha,
         "request_started_at_utc": request_started.isoformat(),
         "completed_at_utc": utc_now().isoformat(),
         "status": "FRESH_REQUEST_VERIFIED",
