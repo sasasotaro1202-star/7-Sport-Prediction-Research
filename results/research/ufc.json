@@ -5,13 +5,13 @@
     "hist_gb_missing",
     "hist_gb_shallow_symmetric"
   ],
-  "model_version": "2e7d5113d4ee8d7e",
+  "model_version": "06bb767c50ca1de5",
   "feature_version": "strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features",
   "training_rows": 6798,
   "frozen_holdout_rows": 1918,
   "features": 84,
   "training_cutoff_utc": "2022-12-03T00:00:00+00:00",
-  "git_commit_sha": "879192eed6975cc9d48667098bdf1888dea65cca",
+  "git_commit_sha": "aee906f27feb48df9741359aef397e5ac81d9e55",
   "artifact_path": "models/research/ufc_current.joblib",
   "selection_oos": {
     "logistic": {
@@ -1563,14 +1563,14 @@
       "error_correlation": [
         [
           1.0,
-          0.7366454920472925
+          0.7366454920472921
         ],
         [
-          0.7366454920472925,
-          0.9999999999999999
+          0.7366454920472921,
+          1.0
         ]
       ],
-      "mean_pairwise_error_correlation": 0.7366454920472925,
+      "mean_pairwise_error_correlation": 0.7366454920472921,
       "mean_error_overlap": 0.35718954248366014
     },
     "selective_ablation": {
@@ -5082,14 +5082,14 @@
       "error_correlation": [
         [
           1.0,
-          0.7366454920472925
+          0.7366454920472921
         ],
         [
-          0.7366454920472925,
-          0.9999999999999999
+          0.7366454920472921,
+          1.0
         ]
       ],
-      "mean_pairwise_error_correlation": 0.7366454920472925,
+      "mean_pairwise_error_correlation": 0.7366454920472921,
       "mean_error_overlap": 0.35718954248366014
     },
     "future_model_failure": {

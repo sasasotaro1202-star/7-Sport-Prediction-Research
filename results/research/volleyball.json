@@ -6,13 +6,13 @@
     "hist_gb_fast",
     "lightgbm_wide"
   ],
-  "model_version": "2db186b5c3bb37c7",
+  "model_version": "b1b53420747088b8",
   "feature_version": "strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features",
   "training_rows": 14899,
   "frozen_holdout_rows": 4203,
   "features": 102,
   "training_cutoff_utc": "2025-09-15T06:00:00+00:00",
-  "git_commit_sha": "879192eed6975cc9d48667098bdf1888dea65cca",
+  "git_commit_sha": "aee906f27feb48df9741359aef397e5ac81d9e55",
   "artifact_path": "models/research/volleyball_current.joblib",
   "selection_oos": {
     "logistic": {
@@ -1531,21 +1531,21 @@
       "error_correlation": [
         [
           1.0,
-          0.8718316292315098,
-          0.8928582568473272
+          0.8718316292315175,
+          0.8928582568473367
         ],
         [
-          0.8718316292315098,
+          0.8718316292315174,
           1.0,
-          0.8410426396156091
+          0.8410426396156068
         ],
         [
-          0.8928582568473273,
-          0.8410426396156091,
+          0.8928582568473368,
+          0.8410426396156069,
           0.9999999999999999
         ]
       ],
-      "mean_pairwise_error_correlation": 0.8685775085648154,
+      "mean_pairwise_error_correlation": 0.8685775085648203,
       "mean_error_overlap": 0.24519015659955257
     },
     "selective_ablation": {
@@ -8711,21 +8711,21 @@
       "error_correlation": [
         [
           1.0,
-          0.8718316292315098,
-          0.8928582568473272
+          0.8718316292315175,
+          0.8928582568473367
         ],
         [
-          0.8718316292315098,
+          0.8718316292315174,
           1.0,
-          0.8410426396156091
+          0.8410426396156068
         ],
         [
-          0.8928582568473273,
-          0.8410426396156091,
+          0.8928582568473368,
+          0.8410426396156069,
           0.9999999999999999
         ]
       ],
-      "mean_pairwise_error_correlation": 0.8685775085648154,
+      "mean_pairwise_error_correlation": 0.8685775085648203,
       "mean_error_overlap": 0.24519015659955257
     },
     "future_model_failure": {

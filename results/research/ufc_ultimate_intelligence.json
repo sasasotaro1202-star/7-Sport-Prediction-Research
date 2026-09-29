@@ -266,14 +266,14 @@
     "error_correlation": [
       [
         1.0,
-        0.7366454920472925
+        0.7366454920472921
       ],
       [
-        0.7366454920472925,
-        0.9999999999999999
+        0.7366454920472921,
+        1.0
       ]
     ],
-    "mean_pairwise_error_correlation": 0.7366454920472925,
+    "mean_pairwise_error_correlation": 0.7366454920472921,
     "mean_error_overlap": 0.35718954248366014
   },
   "selective_ablation": {

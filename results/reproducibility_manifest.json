@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-09-28T23:02:31.098853+00:00",
-  "source_git_commit_sha": "879192eed6975cc9d48667098bdf1888dea65cca",
+  "generated_at_utc": "2026-09-29T00:45:12.017778+00:00",
+  "source_git_commit_sha": "aee906f27feb48df9741359aef397e5ac81d9e55",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 205795328,
-      "sha256": "2ea422c65ef141c28e4f06e403cf3ae2bd9ee864f17eab9f2652c4c5905319fa"
+      "bytes": 213954560,
+      "sha256": "c876972f52ed8928b4e570b140607f4715a54a3ef1a94108147b541ee911b22d"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -57,14 +57,14 @@
     {
       "path": "results/quality_gate.json",
       "exists": true,
-      "bytes": 3868,
-      "sha256": "e84ec5c7322155527b9ec1eb8f5e5282808db55996cd04d165d8787ea661d68a"
+      "bytes": 3869,
+      "sha256": "51ba36d3b12abff2d0432ab8c264c891d4f4503e5d339adf596ab9dd4f2dbdd1"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
-      "bytes": 3749,
-      "sha256": "ccbbf83198eab06d4d22853235fbf7a347928cc6cec53add388ba802d73a1338"
+      "bytes": 4402,
+      "sha256": "018d0c015a5129f2d39e048a827d6c8a699e8244ef51514918e3569b66aa93ef"
     },
     {
       "path": "results/pit_replay.json",
@@ -119,8 +119,8 @@
     {
       "path": "results/research/ufc.json",
       "exists": true,
-      "bytes": 465888,
-      "sha256": "9943f7a6dff85ed2397f73864718cc26af58d0662ab3d11928f3351f87452e60"
+      "bytes": 465858,
+      "sha256": "4002a39a570fac8f5df673b36397ae30edf8e0b6258a5e2834d6a91f8e911b6a"
     },
     {
       "path": "results/research/ufc_frozen_holdout.json",
@@ -131,14 +131,14 @@
     {
       "path": "results/research/ufc_ultimate_intelligence.json",
       "exists": true,
-      "bytes": 13081,
-      "sha256": "7f119573eacdd9bad54efbb7a80c6556543c3e3b156e12b077d7c237c19ff48a"
+      "bytes": 13066,
+      "sha256": "c456da952f02938330b3a13365f50cd9967294474a89f78f38464f2dc6666bf5"
     },
     {
       "path": "results/research/ufc_ultimate_v13.json",
       "exists": true,
-      "bytes": 381622,
-      "sha256": "1a5104d87b9f332f505806249b61f6441ab5a7d4d078a4b7731cff9be23dcce6"
+      "bytes": 381607,
+      "sha256": "9632ce2441327e4845289902a5d1ad0126debb1a9aa188592c684f70f069cc4a"
     },
     {
       "path": "results/research/valorant.json",
@@ -150,7 +150,7 @@
       "path": "results/research/volleyball.json",
       "exists": true,
       "bytes": 1140031,
-      "sha256": "b05e5126b147b6be4fc3112fa1a2f3047ee43f9946169cb3d336007837267749"
+      "sha256": "01eed8e1247c12c653979622c6912b9cb1c57b8502eb9f6d7b4e6b83b1634117"
     },
     {
       "path": "results/research/volleyball_frozen_holdout.json",
@@ -162,13 +162,13 @@
       "path": "results/research/volleyball_ultimate_intelligence.json",
       "exists": true,
       "bytes": 15805,
-      "sha256": "c4c00b2340756bb322952feca7d531ebd4fb9d91600cae42c7a105cc5fe391d5"
+      "sha256": "cc50d87ee798bca6c46f80e8a0d50f585733927a4f38c6a08f69ee2430b637b5"
     },
     {
       "path": "results/research/volleyball_ultimate_v13.json",
       "exists": true,
       "bytes": 1014179,
-      "sha256": "e6f9959c41380bdc4901e7c3a4e46d9e6d821535ab4c79c2920653ee3d2973a9"
+      "sha256": "5fb43b9ef2910b0fd43b1e7b47fc390993405aeae0310c425d4e1c5ab6b7ad22"
     },
     {
       "path": "models/research/basketball_current.joblib",
@@ -179,8 +179,8 @@
     {
       "path": "models/research/ufc_current.joblib",
       "exists": true,
-      "bytes": 740122,
-      "sha256": "4cb580b38485ad0315f3d7deb6bedaa24d9b0bf34886761c3f673663bb083521"
+      "bytes": 740058,
+      "sha256": "4b37d3672636a555f3ae008c6b2b7d5308b685478870166beec8967643dd2e8a"
     },
     {
       "path": "models/research/valorant_current.joblib",
@@ -191,8 +191,8 @@
     {
       "path": "models/research/volleyball_current.joblib",
       "exists": true,
-      "bytes": 2393162,
-      "sha256": "c16a5b56302783b50db1444e3dacce7a73bc32a88c0ccd9465e49498f8c36ba9"
+      "bytes": 2393050,
+      "sha256": "da1c7ebb824f5f319912ea6e0480ac1ec907de09a14a058e20b2d81184256aed"
     }
   ],
   "policy": {
