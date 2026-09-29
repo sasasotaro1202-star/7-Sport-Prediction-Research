@@ -40,6 +40,9 @@ def main():
         "FRESH_REQUEST_VERIFIED",
         "force_refresh=True",
         "V45_FORCE_REFRESH",
+        "verify_latest_main",
+        "STALE_CODE_CHECKOUT",
+        "REMOTE_MAIN_UNAVAILABLE",
     )
     for marker in required:
         assert marker in src, marker
