@@ -32,6 +32,24 @@ def resolve_profile(sport: str, competition_id: object = None, event_name: objec
                 "phase_type": str(profile.get("phase_type") or "unknown"),
                 "rules_profile": str(profile.get("rules_profile") or "standard"),
                 "matched": True,
+                "dynamic": False,
+                "competition_id": str(competition_id or ""),
+            }
+    dynamic = {str(x) for x in (policy.get("dynamic_competition_discovery") or [])}
+    if str(sport) in dynamic and cid:
+        base_profile = next(
+            (p for p in policy.get("profiles", []) if str(p.get("sport")) == str(sport)),
+            None,
+        )
+        if base_profile:
+            safe_id = re.sub(r"[^a-z0-9]+", "_", cid).strip("_")[:80] or "unknown"
+            return {
+                "profile_id": f"{sport}:competition:{safe_id}",
+                "sport": str(sport),
+                "phase_type": str(base_profile.get("phase_type") or "competition"),
+                "rules_profile": str(base_profile.get("rules_profile") or "standard"),
+                "matched": True,
+                "dynamic": True,
                 "competition_id": str(competition_id or ""),
             }
     return {
@@ -40,6 +58,7 @@ def resolve_profile(sport: str, competition_id: object = None, event_name: objec
         "phase_type": "unknown",
         "rules_profile": "unknown",
         "matched": False,
+        "dynamic": False,
         "competition_id": str(competition_id or ""),
     }
 
