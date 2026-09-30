@@ -137,13 +137,24 @@ def main() -> int:
 
     # Discovery is evidence collection, not adoption. A GitHub repository,
     # reachable URL, or search hit never enters a prediction feature/model by itself.
+    github_failures = sum(1 for x in leads if str(x.get("status", "")).endswith("_FAILED"))
+    code_failures = sum(1 for x in code_leads if str(x.get("status", "")).endswith("_FAILED"))
+    total_registry = len(health)
+    reachable_registry = sum(1 for x in health if x.get("reachable"))
+    total_queries = len(SPORT_QUERIES)
+    status = "EVALUATED"
+    if github_failures >= total_queries and code_failures >= total_queries and reachable_registry == 0 and total_registry > 0:
+        status = "FAILED"
+    elif github_failures or code_failures or reachable_registry < total_registry:
+        status = "DEGRADED"
+
     report = {
         "version": "scope-source-discovery-v1",
-        "status": "EVALUATED",
+        "status": status,
         "checked_at_utc": _utc(),
         "free_only": True,
         "registry_urls_checked": len(urls),
-        "reachable_registry_urls": sum(1 for x in health if x.get("reachable")),
+        "reachable_registry_urls": reachable_registry,
         "github_repo_leads": leads,
         "github_code_leads": code_leads,
         "per_sport": per_sport,
@@ -158,7 +169,7 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0
+    return 0 if status != "FAILED" else 2
 
 
 if __name__ == "__main__":
