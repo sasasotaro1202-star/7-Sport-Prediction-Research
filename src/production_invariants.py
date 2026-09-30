@@ -77,6 +77,28 @@ def main():
     require('PROMOTION_CANDIDATE_HOLDOUT_REQUIRED' in profile_eval and 'production_route_enabled": False' in profile_eval,'competition OOS evaluator lacks research-only promotion gate')
     require("any(k in n or k in c for k in ('asian games','アジア大会'))" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'volleyball target filter does not enforce active Asian Games scope')
     require('Research-only / deferred extensions' in readme,'README does not distinguish research-only deferred extensions')
+    expansion_cfg=(ROOT/'config/SCOPE_EXPANSION_POLICY.json').read_text(encoding='utf-8')
+    expansion_src=(ROOT/'src/scope_expansion_gate.py').read_text(encoding='utf-8')
+    expansion_wf=(ROOT/'.github/workflows/scope_expansion_audit.yml').read_text(encoding='utf-8')
+    expansion_test=(ROOT/'scripts/test_scope_expansion_policy.py').read_text(encoding='utf-8')
+    require('staged-scope-expansion-v1' in expansion_cfg,'staged scope expansion policy is missing')
+    require('"no_implicit_activation": true' in expansion_cfg,'scope expansion can implicitly activate new targets')
+    require('"max_new_targets_in_advanced_validation_per_cycle": 1' in expansion_cfg,
+            'scope expansion does not limit advanced validation to one new target per cycle')
+    require('"max_new_production_admissions_per_cycle": 0' in expansion_cfg,
+            'scope expansion allows automatic production admission')
+    require('ADVANCE_ONE_CANDIDATE_ONLY' in expansion_src and 'advanced_validation_batch' in expansion_src,
+            'scope expansion gate does not enforce one-candidate advancement')
+    require('"activation_allowed": False' in expansion_src and 'explicit_scope_admission' in expansion_src,
+            'scope expansion gate lacks explicit activation/admission boundary')
+    require('source_available_at_utc <= ss.event_time_utc' in expansion_src,
+            'scope expansion PIT evidence does not require historical source availability')
+    require('scope_expansion_audit.yml' in expansion_wf and 'workflow_dispatch:' in expansion_wf and 'contents: read' in expansion_wf,
+            'staged scope expansion audit workflow is missing safe manual/read-only execution')
+    require('test_scope_expansion_policy.py' in (ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8'),
+            'staged scope expansion regression is not wired into lightweight CI')
+    require('"DISCOVERED"' in expansion_test and '"SCALE_UP"' in expansion_test,
+            'staged scope expansion test does not cover the full ladder')
     require('Boxing is not an active prediction lane' in readme,'README does not keep Boxing outside the active prediction scope')
 
     # Repository-wide temporal evaluation guard: prevent legacy random-split or
