@@ -34,6 +34,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_active_scope_workflow.py
       - name: PIT cache namespace regression
         run: PYTHONPATH=. python scripts/test_pit_cache_namespace.py
+      - name: Competition profile regression
+        run: PYTHONPATH=. python scripts/test_competition_profiles.py
       - name: Research checkpoint cache persistence
         run: PYTHONPATH=. python scripts/test_research_checkpoint_cache.py
       - name: Release gate fail-closed exit regression
