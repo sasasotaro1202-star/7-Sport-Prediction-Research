@@ -10,6 +10,9 @@ WORKFLOW = ROOT / ".github" / "workflows" / "pit_history_expansion.yml"
 def main() -> int:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
+    assert "  push:" in workflow
+    assert "      - '.github/workflows/pit_history_expansion.yml'" in workflow
+
     required = (
         "active-scope-target-db-v4-${{ matrix.sport }}-pit-",
         "active-scope-target-db-v4-${{ matrix.sport }}-",
