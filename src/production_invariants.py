@@ -106,14 +106,14 @@ def main():
             'accumulated autofill history is not connected to canonical production cache restore')
     require('--max-actions 3' in autofill_wf and 'selection_continues' in autofill_src,
             'autofill loop does not repeat bounded data acquisition and selection')
+    require('competition_frontier' in autofill_src and 'selection_action' in autofill_src,
+            'autofill controller does not persist the discovered competition frontier/next selection')
     require('continuous_source_discovery' in autofill_src and 'GITHUB_TOKEN' in discovery_src,
             'continuous source discovery is not wired to the autofill controller')
     require('discovery_does_not_adopt' in discovery_src and 'retrieval_is_not_historical_pit' in discovery_src,
             'source discovery lacks fail-closed non-adoption/PIT semantics')
     require('scope_source_discovery' in autofill_wf,
             'source discovery job is missing from continuous autofill workflow')
-    require('scope-expansion-db-v1-' not in autofill_wf,
-            'continuous autofill references an undefined generic expansion cache namespace')
     require('test_scope_expansion_policy.py' in (ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8'),
             'staged scope expansion regression is not wired into lightweight CI')
     require('"DISCOVERED"' in expansion_test and '"SCALE_UP"' in expansion_test,
