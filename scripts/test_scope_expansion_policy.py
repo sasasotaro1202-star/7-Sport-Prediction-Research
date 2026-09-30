@@ -36,6 +36,35 @@ def main() -> int:
     assert "PIT_EVIDENCE_INCOMPLETE" in script
     assert "explicit_scope_admission" in script
     assert "consecutive_clean_runs" in script
+
+    from src.scope_expansion_gate import _stage_from_evidence
+
+    low = {"events": 0, "verified_outcomes": 0, "pit_ratio": 0.0}
+    assert _stage_from_evidence("x", None, low, policy)[0] == "METADATA_CHECKED"
+    data_only = {"events": 120, "verified_outcomes": 80, "pit_ratio": 0.50}
+    assert _stage_from_evidence("x", None, data_only, policy)[0] == "DATA_FEASIBLE"
+    pit_ok = {"events": 120, "verified_outcomes": 80, "pit_ratio": 0.95}
+    assert _stage_from_evidence("x", None, pit_ok, policy)[0] == "PIT_VALIDATED"
+    shadow = {
+        "shadow_status": "PASS",
+        "oos_status": "PASS",
+        "robustness_status": "PASS",
+        "calibration_status": "PASS",
+        "frozen_holdout_status": "PASS",
+        "limited_production_status": "PASS",
+        "recovery_status": "PASS",
+        "important_case_status": "PASS",
+        "stable_production_status": "PASS",
+        "scale_up_status": "PASS",
+        "explicit_scope_admission": True,
+        "consecutive_clean_runs": 6,
+    }
+    assert _stage_from_evidence("x", shadow, pit_ok, policy)[0] == "SCALE_UP"
+
+    no_admission = dict(shadow)
+    no_admission["explicit_scope_admission"] = False
+    assert _stage_from_evidence("x", no_admission, pit_ok, policy)[0] == "OOS_ROBUSTNESS"
+
     print("SCOPE_EXPANSION_POLICY=PASS")
     return 0
 
