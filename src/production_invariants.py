@@ -153,6 +153,9 @@ def main():
             'Router promotion does not explicitly keep frozen holdout score-only')
     require("apply_cal = None if strategy=='contextual_router' else cal" in predictor,
             'future predictor may apply fixed-ensemble calibration to Router output')
+    release_gate=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
+    require("meta.setdefault('sport',sport)" in release_gate,
+            'release gate does not bind hydrated model metadata to canonical DB sport identity')
     require("use_router=router_status=='PRODUCTION_ROUTABLE_AFTER_GATES'" in predictor,
             'future predictor lacks explicit Router promotion gate')
     require('Verify workflow SHA is current main before any mutable work' in workflow,
