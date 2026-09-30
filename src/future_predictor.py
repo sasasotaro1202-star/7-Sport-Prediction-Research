@@ -207,9 +207,15 @@ def _safe_prior_binary(c,s,now):
         sb,wb,rate_b=_prior_record(c,s,b[0],cutoff)
         denom=max(rate_a+rate_b,1e-12)
         pb=float(np.clip(rate_b/denom,1e-6,1-1e-6))
+        event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
+        event_name,competition_id,season,stage=event_row if event_row else ("","","","")
+        competition_profile=resolve_profile(s,competition_id,event_name)
         features={
             'prior_starts_a':sa,'prior_wins_a':wa,'prior_win_rate_a':rate_a,
             'prior_starts_b':sb,'prior_wins_b':wb,'prior_win_rate_b':rate_b,
+            'competition_profile':competition_profile,
+            'season':season,
+            'stage':stage,
             'fallback_policy':'pit_safe_historical_prior_v2_retrieval_pit',
         }
         pid=_persist_forward_prediction(
@@ -220,6 +226,11 @@ def _safe_prior_binary(c,s,now):
             'event_id':eid,'event_time_utc':event_time,'prediction_cutoff_at_utc':cutoff,
             'side_a':a[1],'side_b':b[1],
             'probability_side_b':pb,'probability_side_a':1.0-pb,
+            'competition_id':competition_id,
+            'competition_profile':competition_profile,
+            'season':season,
+            'stage':stage,
+            'model_scope':'safe_prior_fallback;competition_specific_selection_not_applied',
             'strategy':'safe_prior','router_status':'SAFE_PRIOR_FALLBACK',
             'prediction_id':pid,'models':['historical_prior'],'ensemble_weights':None,
             'model_version':'safe-prior-v1','feature_version':'pit-safe-historical-win-rate-v1',
