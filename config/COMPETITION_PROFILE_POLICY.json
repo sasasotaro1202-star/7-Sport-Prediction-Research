@@ -88,5 +88,12 @@
         "valorant"
       ]
     }
-  ]
+  ],
+  "dynamic_competition_discovery": [
+    "valorant"
+  ],
+  "rules": {
+    "dynamic_profiles_are_research_only": true,
+    "dynamic_profile_requires_nonempty_explicit_competition_id": true
+  }
 }
