@@ -1,0 +1,44 @@
+name: Staged Scope Expansion Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'config/SCOPE_EXPANSION_POLICY.json'
+      - 'config/PROJECT_SCOPE_POLICY.json'
+      - 'config/ACTIVE_SCOPE_9_SPORTS.json'
+      - 'src/scope_expansion_gate.py'
+      - 'scripts/test_scope_expansion_policy.py'
+  schedule:
+    - cron: '41 18 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staged-scope-expansion
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Scope expansion regression
+        run: PYTHONPATH=. python scripts/test_scope_expansion_policy.py
+      - name: Scope expansion gate
+        run: PYTHONPATH=. python -m src.scope_expansion_gate
+      - name: Preserve scope expansion state
+        uses: actions/upload-artifact@v4
+        with:
+          name: staged-scope-expansion-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+          path: results/scope_expansion_state.json
