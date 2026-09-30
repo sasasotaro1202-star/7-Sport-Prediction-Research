@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from src.scope_autofill_controller import ACTIONS, MIN_EVENTS, MIN_VERIFIED, MIN_EXACT_PIT_RATIO, select_action
+from src.scope_autofill_controller import ACTIONS, MIN_EVENTS, MIN_VERIFIED, MIN_EXACT_PIT_RATIO, route_score, select_action
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,6 +34,15 @@ def main() -> int:
     assert "discovery_does_not_adopt" in discovery
     assert "retrieval_is_not_historical_pit" in discovery
     assert 'selection_action' in controller
+
+    history = {
+        "historical_b_league": {
+            "runs": 1, "success": 1, "fail": 0,
+            "event_delta": [0], "verified_delta": [0], "pit_delta": [0],
+        }
+    }
+    assert route_score(history, "historical_b_league") == 0.0
+    assert route_score(history, "incremental_official") > route_score(history, "historical_b_league")
 
     selected = select_action(
         "basketball",
