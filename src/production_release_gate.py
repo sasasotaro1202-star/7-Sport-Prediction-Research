@@ -82,6 +82,12 @@ def _validate_model(meta):
     if missing: return False, f'model_metadata_missing:{",".join(missing)}'
     if meta.get('holdout_frozen') is not True: return False, 'holdout_not_frozen'
     if meta.get('production_fit_excludes_holdout') is not True: return False, 'production_fit_includes_holdout_or_unproven'
+    sport=str(meta.get('sport') or '')
+    if sport in {'basketball','volleyball'}:
+        if meta.get('competition_scope_policy') != 'competition_target_only':
+            return False, 'competition_scope_metadata_missing_or_unsafe'
+        if meta.get('competition_profile_policy_version') != 'competition-aware-research-v1':
+            return False, 'competition_profile_policy_version_missing_or_unsupported'
     if not _artifact_valid(meta): return False, 'model_artifact_missing_or_unloadable'
     hm=meta.get('holdout_metrics') or {}
     for k in ('logloss','brier','accuracy','ece','n'):
