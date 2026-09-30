@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "policy": "staged-scope-expansion-v1",
+  "stage_order": [
+    "DISCOVERED",
+    "METADATA_CHECKED",
+    "DATA_FEASIBLE",
+    "PIT_VALIDATED",
+    "SHADOW",
+    "OOS_ROBUSTNESS",
+    "LIMITED_PRODUCTION",
+    "STABLE_PRODUCTION",
+    "SCALE_UP"
+  ],
+  "selection_level": "target_or_competition",
+  "no_implicit_activation": true,
+  "limits": {
+    "max_new_targets_in_advanced_validation_per_cycle": 1,
+    "max_new_production_admissions_per_cycle": 0,
+    "parallel_shadow_targets": 1
+  },
+  "minimums": {
+    "events": 120,
+    "verified_outcomes": 80,
+    "exact_pit_event_ratio": 0.95
+  },
+  "evidence_requirements": {
+    "shadow": {
+      "artifact": "results/scope_evidence/<scope_id>.json",
+      "required": ["shadow_status"],
+      "pass_value": "PASS"
+    },
+    "oos_robustness": {
+      "required": [
+        "oos_status",
+        "robustness_status",
+        "calibration_status",
+        "frozen_holdout_status"
+      ],
+      "pass_value": "PASS"
+    },
+    "limited_production": {
+      "required": [
+        "limited_production_status",
+        "recovery_status",
+        "important_case_status"
+      ],
+      "pass_value": "PASS",
+      "requires_explicit_scope_admission": true
+    },
+    "stable_production": {
+      "required": ["stable_production_status"],
+      "pass_value": "PASS",
+      "minimum_consecutive_clean_runs": 3
+    },
+    "scale_up": {
+      "required": ["scale_up_status"],
+      "pass_value": "PASS",
+      "minimum_consecutive_clean_runs": 6
+    }
+  },
+  "activation_rules": [
+    "A candidate may advance only when the preceding stage is evidenced.",
+    "Failure, PIT uncertainty, missing identity, data corruption, or unexplained regression forces HOLD or DEGRADE.",
+    "Sparse candidates inherit the validated parent/global method and remain out of scope-specific production.",
+    "Competition-specific research never changes the active prediction scope by itself.",
+    "LIMITED_PRODUCTION and above require an explicit PROJECT_SCOPE_POLICY change plus all release gates.",
+    "Only one new target may enter advanced validation per expansion cycle; other candidates remain queued."
+  ],
+  "candidate_sources": {
+    "active_sports": "Discover unrecognized explicit competition_id values from current sport databases without silently activating them.",
+    "deferred_sports": [
+      {
+        "scope_id": "sport:tennis",
+        "sport": "tennis",
+        "kind": "sport",
+        "status": "DISCOVERED",
+        "note": "Known deferred extension; historical PIT evidence must be proven before advancement."
+      },
+      {
+        "scope_id": "sport:f1",
+        "sport": "f1",
+        "kind": "sport",
+        "status": "DISCOVERED",
+        "note": "Known deferred extension; session/publication availability must be proven before advancement."
+      },
+      {
+        "scope_id": "sport:rugby",
+        "sport": "rugby",
+        "kind": "sport",
+        "status": "DISCOVERED",
+        "note": "Known deferred extension; isolated database and sport-specific PIT/OOS evidence required."
+      },
+      {
+        "scope_id": "sport:boxing",
+        "sport": "boxing",
+        "kind": "sport",
+        "status": "DISCOVERED",
+        "note": "Known deferred extension; source availability before cutoff remains the first hard gate."
+      }
+    ]
+  }
+}
