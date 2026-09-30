@@ -7,6 +7,7 @@ from src import dynamic_model_router as router
 from src import matchday_intelligence_oos as matchday_intelligence
 from src import research_cycle_v4 as base
 from src import prediction_experience as experience
+from src.competition_profiles import resolve_profile
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
@@ -505,6 +506,9 @@ def predict_sport(c,s,now):
         apply_method = 'none' if strategy=='contextual_router' else cal_method
         p=float(_apply_calibration(raw,apply_cal,apply_method)[0])
         cutoff=(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
+        event_name,competition_id,season,stage=event_row if event_row else ("","","","")
+        competition_profile=resolve_profile(s,competition_id,event_name)
         situation=_matchday_situation(eid,t,cutoff)
         confidence=_prediction_confidence(p,situation)
         action_state=_prediction_action(confidence,situation)
@@ -520,11 +524,19 @@ def predict_sport(c,s,now):
             {
                 **{f:row_features.get(f) for f in features},
                 "matchday_situation": situation,
+                "competition_profile": competition_profile,
+                "season": season,
+                "stage": stage,
             }
         )
         outputs.append({
             'event_id':eid,'event_time_utc':t,'prediction_cutoff_at_utc':cutoff,'side_a':a,'side_b':b,
             'probability_side_b':p,'probability_side_a':1.0-p,
+            'competition_id':competition_id,
+            'competition_profile':competition_profile,
+            'season':season,
+            'stage':stage,
+            'model_scope':'sport_incumbent;competition_specific_selection_research_only',
             'strategy':strategy,'router_status':router_status,'prediction_id':prediction_id,
             'models':list(names) if strategy!='contextual_router' else list(rnames),
             'ensemble_weights':dict(weights) if strategy!='contextual_router' else None,
