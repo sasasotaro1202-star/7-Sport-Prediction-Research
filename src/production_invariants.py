@@ -69,6 +69,13 @@ def main():
     scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
     require('"B.LEAGUE"' in scope and '"Asian Games Basketball"' in scope and '"Asian Games Volleyball"' in scope,'active scope target competitions missing')
     require("target_event(s,name,competition_id)" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'research engine lacks explicit target-competition filtering')
+    profile_cfg=(ROOT/'config/COMPETITION_PROFILE_POLICY.json').read_text(encoding='utf-8')
+    profile_src=(ROOT/'src/competition_profiles.py').read_text(encoding='utf-8')
+    profile_eval=(ROOT/'src/competition_profile_oos.py').read_text(encoding='utf-8')
+    require('"competition-aware-research-v1"' in profile_cfg and '"no_implicit_pooling": true' in profile_cfg,'competition profile policy is missing no-pooling protection')
+    require('resolve_profile' in profile_src and 'matched' in profile_src,'competition profile resolver missing')
+    require('PROMOTION_CANDIDATE_HOLDOUT_REQUIRED' in profile_eval and 'production_route_enabled": False' in profile_eval,'competition OOS evaluator lacks research-only promotion gate')
+    require("any(k in n or k in c for k in ('asian games','アジア大会'))" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'volleyball target filter does not enforce active Asian Games scope')
     require('Research-only / deferred extensions' in readme,'README does not distinguish research-only deferred extensions')
     require('Boxing is not an active prediction lane' in readme,'README does not keep Boxing outside the active prediction scope')
 
@@ -303,12 +310,12 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
             'research features lack score-margin strength signals')
-    require('strict-pit-v19-multiscale-form-h2h-freshness-router-competition-elo-features' in strict_src,
+    require('strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features' in strict_src,
             'strict model feature version was not bumped to v19 after PIT-safe H2H interaction semantics changed')
     carry_fn_start=strict_src.find('def _carry_forward_previous')
     carry_fn_end=strict_src.find('def ', carry_fn_start+5) if carry_fn_start>=0 else -1
     carry_fn=strict_src[carry_fn_start:carry_fn_end] if carry_fn_start>=0 and carry_fn_end>carry_fn_start else ''
-    require('feature_version.startswith("strict-pit-v19-")' in carry_fn,
+    require('feature_version.startswith("strict-pit-v20-")' in carry_fn,
             'v19 accepted artifacts are not explicitly eligible for safe carry-forward')
     require('strict-pit-v18-' in strict_src and 'strict-pit-v17-' in strict_src and 'strict-pit-v16-' in strict_src and 'strict-pit-v15-' in strict_src and 'strict-pit-v14-' in strict_src,
             'carry-forward compatibility does not preserve prior accepted schemas while enabling current v17 schema')
