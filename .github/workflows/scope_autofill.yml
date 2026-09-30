@@ -1,0 +1,150 @@
+name: Continuous Scope Autofill and Discovery
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '13 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuous-scope-autofill
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  discover:
+    name: Continuous public-source discovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Search free/public source candidates
+        run: python -m src.scope_source_discovery
+      - name: Preserve discovery report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scope-source-discovery-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+          path: results/scope_source_discovery.json
+
+  autofill:
+    name: Autofill ${{ matrix.sport }}
+    needs: discover
+    strategy:
+      fail-fast: false
+      max-parallel: 9
+      matrix:
+        sport: [basketball, volleyball, ufc, rizin, valorant, tennis, f1, rugby, boxing]
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Prepare data directories
+        run: mkdir -p data/db results results/research
+
+      - name: Restore accumulated autofill/history cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: scope-autofill-seed-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            scope-autofill-db-v1-${{ matrix.sport }}-
+            active-scope-target-db-v4-${{ matrix.sport }}-autofill-
+            active-scope-target-db-v4-${{ matrix.sport }}-pit-
+            active-scope-target-db-v4-${{ matrix.sport }}-
+            scope-expansion-db-v1-${{ matrix.sport }}-
+
+      - name: Restore dedicated Rugby/Boxing history when applicable
+        if: matrix.sport == 'rugby' || matrix.sport == 'boxing'
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: scope-autofill-dedicated-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            scope-autofill-db-v1-${{ matrix.sport }}-
+            rugby-v45-db-
+            boxing-v45-db-
+
+      - name: Validate seed database when present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ matrix.sport }}' = 'rugby' ] || [ '${{ matrix.sport }}' = 'boxing' ]; then
+            db="data/db/${{ matrix.sport }}_v45.sqlite"
+          else
+            db="data/db/sports_v45.sqlite"
+          fi
+          if [ -s "$db" ]; then
+            python -m src.cache_health --db "$db" --sport "${{ matrix.sport }}" --repair
+          else
+            echo "NO_SEED_DB=${{ matrix.sport }}"
+          fi
+
+      - name: Iteratively add data and choose next safe action
+        run: python -m src.scope_autofill_controller --sport "${{ matrix.sport }}" --max-actions 3 --skip-discovery
+
+      - name: Re-run competition-specific chronological selection for active sports
+        if: matrix.sport == 'basketball' || matrix.sport == 'volleyball' || matrix.sport == 'ufc' || matrix.sport == 'rizin' || matrix.sport == 'valorant'
+        run: |
+          db="data/db/sports_v45.sqlite"
+          if [ -s "$db" ]; then
+            python -m src.competition_profile_oos --sport "${{ matrix.sport }}" --db "$db" --out "results/research/competition_profiles_${{ matrix.sport }}.json"
+          else
+            echo "NO_DB_FOR_COMPETITION_SELECTION=${{ matrix.sport }}"
+          fi
+
+      - name: Validate post-autofill database
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ matrix.sport }}' = 'rugby' ] || [ '${{ matrix.sport }}' = 'boxing' ]; then
+            db="data/db/${{ matrix.sport }}_v45.sqlite"
+          else
+            db="data/db/sports_v45.sqlite"
+          fi
+          if [ -s "$db" ]; then
+            python -m src.cache_health --db "$db" --sport "${{ matrix.sport }}" --repair
+          else
+            echo "NO_POST_DB=${{ matrix.sport }}"
+          fi
+
+      - name: Save accumulated history for the next cycle
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db
+          key: scope-autofill-db-v1-${{ matrix.sport }}-${{ github.run_id }}
+
+      - name: Preserve autofill and selection evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scope-autofill-${{ matrix.sport }}-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            results/scope_autofill_${{ matrix.sport }}.json
+            results/research/competition_profiles_${{ matrix.sport }}.json
