@@ -116,6 +116,7 @@ jobs:
           fi
 
       - name: Validate post-autofill database
+        id: post_validate
         if: always()
         shell: bash
         run: |
@@ -132,7 +133,7 @@ jobs:
           fi
 
       - name: Save accumulated history for the next cycle
-        if: success()
+        if: always() && steps.post_validate.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: data/db
