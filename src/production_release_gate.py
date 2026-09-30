@@ -183,6 +183,7 @@ def main():
                 # Provenance columns are canonical DB fields. Hydrate missing JSON
                 # metadata from them instead of treating a serialization omission as
                 # an unsafe model, while still requiring all safety metrics below.
+                meta.setdefault('sport',sport)
                 meta.setdefault('model_version',mv)
                 meta.setdefault('feature_version',fv)
                 meta.setdefault('training_cutoff_utc',cutoff)
