@@ -180,7 +180,9 @@ def load_route_history(sport: str, limit: int = 30) -> dict[str, dict]:
 def route_score(history: dict[str, dict], action: str) -> float:
     h = history.get(action)
     if not h or h["runs"] <= 0:
-        return 0.0
+        # Explicit exploration bonus prevents a successful-but-zero-progress
+        # route from monopolizing future cycles.
+        return 0.25
     mean_events = sum(h["event_delta"]) / max(len(h["event_delta"]), 1)
     mean_verified = sum(h["verified_delta"]) / max(len(h["verified_delta"]), 1)
     mean_pit = sum(h["pit_delta"]) / max(len(h["pit_delta"]), 1)
