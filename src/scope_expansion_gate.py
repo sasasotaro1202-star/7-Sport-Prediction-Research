@@ -65,6 +65,10 @@ def _identity_and_pit(con: sqlite3.Connection, sport: str, events: list[tuple]) 
                     (ss.event_time_utc IS NOT NULL AND ss.event_time_utc=?)
                     OR ss.event_time_utc IS NULL
                )
+               AND (
+                    ss.event_time_utc IS NULL
+                    OR ss.source_available_at_utc <= ss.event_time_utc
+               )
              LIMIT 1
             """,
             (sport, event_time),
@@ -117,8 +121,10 @@ def _stage_from_evidence(scope_id: str, evidence: dict | None, metrics: dict, po
     stages = policy["stage_order"]
     reasons: list[str] = []
 
+    if metrics["events"] <= 0:
+        return "METADATA_CHECKED", ["no_historical_events"]
     if metrics["events"] < int(policy["minimums"]["events"]):
-        return "DISCOVERED", [f"events<{int(policy['minimums']['events'])}"]
+        return "METADATA_CHECKED", [f"events<{int(policy['minimums']['events'])}"]
     if metrics["verified_outcomes"] < int(policy["minimums"]["verified_outcomes"]):
         return "DATA_FEASIBLE", [
             f"verified_outcomes<{int(policy['minimums']['verified_outcomes'])}"
@@ -319,9 +325,11 @@ def main() -> int:
     queued.sort(key=lambda x: (policy["stage_order"].index(x[0]), x[1]), reverse=True)
     if queued:
         state["next_validation_candidate"] = queued[0][1]
+        state["advanced_validation_batch"] = [queued[0][1]]
         state["next_action"] = "ADVANCE_ONE_CANDIDATE_ONLY"
     else:
         state["next_validation_candidate"] = None
+        state["advanced_validation_batch"] = []
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
