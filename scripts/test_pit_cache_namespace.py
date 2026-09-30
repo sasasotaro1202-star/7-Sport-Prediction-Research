@@ -13,6 +13,11 @@ def main() -> int:
     assert "  push:" in workflow
     assert "      - '.github/workflows/pit_history_expansion.yml'" in workflow
 
+    assert "Require non-empty PIT seed cache" in workflow
+    assert "PIT_SEED_CACHE_MISSING:" in workflow
+    assert "PIT_SEED_CACHE_EMPTY:" in workflow
+    assert "PIT_SEED_CACHE=PASS" in workflow
+
     required = (
         "active-scope-target-db-v4-${{ matrix.sport }}-pit-",
         "active-scope-target-db-v4-${{ matrix.sport }}-",
