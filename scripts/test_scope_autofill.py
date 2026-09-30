@@ -29,6 +29,10 @@ def main() -> int:
     assert 'f1_v45.sqlite' not in controller
     assert '--skip-discovery' in controller
     assert 'def competition_frontier' in controller
+    discovery = (ROOT / "src/scope_source_discovery.py").read_text(encoding="utf-8")
+    assert "GITHUB_TOKEN" in discovery
+    assert "discovery_does_not_adopt" in discovery
+    assert "retrieval_is_not_historical_pit" in discovery
     assert 'selection_action' in controller
 
     selected = select_action(
