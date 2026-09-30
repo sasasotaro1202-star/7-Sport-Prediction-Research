@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from src.scope_expansion_gate import candidate_priority
 
 ROOT = Path(__file__).resolve().parents[1]
 policy = json.loads((ROOT / "config/SCOPE_EXPANSION_POLICY.json").read_text(encoding="utf-8"))
@@ -60,6 +61,10 @@ def main() -> int:
         "consecutive_clean_runs": 6,
     }
     assert _stage_from_evidence("x", shadow, pit_ok, policy)[0] == "SCALE_UP"
+
+    low_priority = candidate_priority({"stage": "DATA_FEASIBLE", "metrics": {"events": 120, "verified_outcomes": 80, "pit_ratio": 0.50}}, policy)
+    high_priority = candidate_priority({"stage": "PIT_VALIDATED", "metrics": {"events": 180, "verified_outcomes": 150, "pit_ratio": 0.99}}, policy)
+    assert high_priority > low_priority
 
     no_admission = dict(shadow)
     no_admission["explicit_scope_admission"] = False
