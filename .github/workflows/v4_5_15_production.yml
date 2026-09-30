@@ -65,6 +65,7 @@ jobs:
           path: data/db
           key: active-scope-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
           restore-keys: |
+            scope-autofill-db-v1-${{ matrix.sport }}-
             active-scope-target-db-v4-${{ matrix.sport }}-pit-
             active-scope-target-db-v4-${{ matrix.sport }}-
       - name: Validate/repair restored database before collection
