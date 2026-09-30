@@ -12,8 +12,6 @@ from src.research_cycle_v4 import target_event
 ROOT = Path(__file__).resolve().parents[1]
 SHARED_DB = ROOT / "data/db/sports_v45.sqlite"
 DEDICATED_DBS = {
-    "tennis": ROOT / "data/db/tennis_v45.sqlite",
-    "f1": ROOT / "data/db/f1_v45.sqlite",
     "rugby": ROOT / "data/db/rugby_v45.sqlite",
     "boxing": ROOT / "data/db/boxing_v45.sqlite",
 }
@@ -211,6 +209,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sport", required=True, choices=sorted(ACTIONS))
     ap.add_argument("--max-actions", type=int, default=DEFAULT_MAX_ACTIONS)
+    ap.add_argument("--skip-discovery", action="store_true")
     args = ap.parse_args()
 
     sport = args.sport
@@ -220,12 +219,13 @@ def main() -> int:
 
     # Discovery is repeated every cycle before data selection so source candidates
     # can change independently of the current model/data state.
-    discovery = run_action(
-        "continuous_source_discovery",
-        [sys.executable, "-m", "src.scope_source_discovery"],
-        600,
-    )
-    trace.append({"decision": "DISCOVER_SOURCES", **discovery})
+    if not args.skip_discovery:
+        discovery = run_action(
+            "continuous_source_discovery",
+            [sys.executable, "-m", "src.scope_source_discovery"],
+            600,
+        )
+        trace.append({"decision": "DISCOVER_SOURCES", **discovery})
 
     for _ in range(max(1, args.max_actions)):
         current = metrics(sport)
@@ -279,6 +279,7 @@ def main() -> int:
         and after["verified_outcomes"] >= MIN_VERIFIED
         and (after["exact_pit_ratio"] >= MIN_EXACT_PIT_RATIO or sport not in SUPPORTED_ACTIVE_PIT)
     )
+    selection_action = "RUN_COMPETITION_OOS" if threshold_reached and sport in SUPPORTED_ACTIVE_PIT else "KEEP_COLLECTING_OR_HOLD"
     failed_actions = [x for x in trace if x.get("returncode", 0) not in (0, None)]
     report = {
         "version": "scope-autofill-controller-v1",
@@ -299,6 +300,7 @@ def main() -> int:
         "failed_actions": len(failed_actions),
         "trace": trace,
         "next_cycle": "REPEAT_UNTIL_THRESHOLD_OR_NO_SAFE_ROUTE",
+        "selection_action": selection_action,
     }
     out = OUT_DIR / f"scope_autofill_{sport}.json"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
