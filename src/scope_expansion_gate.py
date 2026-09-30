@@ -171,6 +171,28 @@ def _stage_from_evidence(scope_id: str, evidence: dict | None, metrics: dict, po
     return "SCALE_UP", reasons
 
 
+def candidate_priority(item: dict, policy: dict) -> float:
+    stage = str(item.get("stage") or "DISCOVERED")
+    order = policy.get("stage_order") or []
+    try:
+        stage_rank = float(order.index(stage))
+    except ValueError:
+        stage_rank = 0.0
+    metrics = item.get("metrics") or {}
+    events = float(metrics.get("events", 0) or 0)
+    verified = float(metrics.get("verified_outcomes", 0) or 0)
+    pit_ratio = float(metrics.get("pit_ratio", 0.0) or 0.0)
+    verified_ratio = verified / max(events, 1.0)
+    # Candidate priority is deliberately transparent and conservative:
+    # stage readiness dominates, then data/PIT quality and remaining learning value.
+    return (
+        stage_rank * 1000.0
+        + min(events / max(float(policy["minimums"]["events"]), 1.0), 2.0) * 100.0
+        + verified_ratio * 100.0
+        + pit_ratio * 100.0
+    )
+
+
 def _load_evidence(scope_id: str) -> dict | None:
     path = ROOT / "results/scope_evidence" / f"{_safe_name(scope_id)}.json"
     if not path.is_file():
@@ -237,6 +259,9 @@ def _active_competition_frontier(con: sqlite3.Connection, sport: str, policy: di
                 "stage": stage,
                 "reasons": reasons,
                 "metrics": metrics,
+                "priority_score": candidate_priority(
+                    {"stage": entry["stage"], "metrics": metrics}, policy
+                ),
             }
         )
     return frontier
@@ -322,10 +347,29 @@ def main() -> int:
             if item["stage"] in {"PIT_VALIDATED", "SHADOW", "OOS_ROBUSTNESS"}:
                 queued.append((item["stage"], item["scope_id"]))
 
-    queued.sort(key=lambda x: (policy["stage_order"].index(x[0]), x[1]), reverse=True)
-    if queued:
-        state["next_validation_candidate"] = queued[0][1]
-        state["advanced_validation_batch"] = [queued[0][1]]
+    queued_items = []
+    for stage, scope_id in queued:
+        source = None
+        if scope_id.startswith("sport:"):
+            source = state["deferred_sports"].get(scope_id.split(":", 1)[1])
+        else:
+            for block in state["competition_frontier"].values():
+                for item in block.get("candidates", []):
+                    if item.get("scope_id") == scope_id:
+                        source = item
+                        break
+                if source:
+                    break
+        queued_items.append(
+            (
+                candidate_priority(source or {"stage": stage, "metrics": {}}, policy),
+                scope_id,
+            )
+        )
+    queued_items.sort(key=lambda x: (-x[0], x[1]))
+    if queued_items:
+        state["next_validation_candidate"] = queued_items[0][1]
+        state["advanced_validation_batch"] = [queued_items[0][1]]
         state["next_action"] = "ADVANCE_ONE_CANDIDATE_ONLY"
     else:
         state["next_validation_candidate"] = None
