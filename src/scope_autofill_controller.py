@@ -350,16 +350,25 @@ def main() -> int:
 
         name, command, timeout = selected
         attempted.add(name)
+        action_before = current
+        result = run_action(name, command, timeout)
+        action_after = metrics(sport)
         trace.append({
             "decision": "SELECT_NEXT_ACTION",
             "reason": {
                 "events_deficit": max(0, MIN_EVENTS - current["events"]),
                 "verified_outcomes_deficit": max(0, MIN_VERIFIED - current["verified_outcomes"]),
                 "exact_pit_ratio_deficit": max(0.0, MIN_EXACT_PIT_RATIO - current["exact_pit_ratio"]),
+                "route_history_score": route_score(history, name),
             },
             "selected_action": name,
             "command": command[2:] if len(command) >= 3 else command,
-            **run_action(name, command, timeout),
+            "progress_after_action": {
+                "events": action_after["events"] - action_before["events"],
+                "verified_outcomes": action_after["verified_outcomes"] - action_before["verified_outcomes"],
+                "exact_pit_events": action_after["exact_pit_events"] - action_before["exact_pit_events"],
+            },
+            **result,
         })
 
     after = metrics(sport)
