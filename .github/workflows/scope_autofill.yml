@@ -77,11 +77,11 @@ jobs:
             scope-control-state-${{ matrix.sport }}-
 
       - name: Import current discovery report
+        if: needs.discover.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: scope-source-discovery-${{ github.run_id }}
           path: results/discovery
-        continue-on-error: true
       - name: Restore accumulated autofill/history cache
         uses: actions/cache/restore@v4
         with:
