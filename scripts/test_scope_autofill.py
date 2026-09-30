@@ -22,6 +22,12 @@ def main() -> int:
     assert MIN_EVENTS == 120
     assert MIN_VERIFIED == 80
     assert MIN_EXACT_PIT_RATIO == 0.95
+    controller = (ROOT / "src/scope_autofill_controller.py").read_text(encoding="utf-8")
+    assert '"rugby": ROOT / "data/db/rugby_v45.sqlite"' in controller
+    assert '"boxing": ROOT / "data/db/boxing_v45.sqlite"' in controller
+    assert 'tennis_v45.sqlite' not in controller
+    assert 'f1_v45.sqlite' not in controller
+    assert '--skip-discovery' in controller
 
     selected = select_action(
         "basketball",
