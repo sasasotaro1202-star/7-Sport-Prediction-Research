@@ -21,6 +21,7 @@ MIN_EVENTS = 120
 MIN_VERIFIED = 80
 MIN_EXACT_PIT_RATIO = 0.95
 DEFAULT_MAX_ACTIONS = 3
+HISTORY_PATH = OUT_DIR / "scope_autofill_history.jsonl"
 
 # Free, repository-native collection routes. No commercial API is invoked.
 ACTIONS = {
@@ -144,7 +145,50 @@ def metrics(sport: str) -> dict:
         con.close()
 
 
-def select_action(sport: str, current: dict, attempted: set[str]) -> tuple[str, list[str], int] | None:
+def load_route_history(sport: str, limit: int = 30) -> dict[str, dict]:
+    history: list[dict] = []
+    if HISTORY_PATH.is_file():
+        for line in HISTORY_PATH.read_text(encoding="utf-8", errors="ignore").splitlines()[-limit:]:
+            try:
+                item = json.loads(line)
+            except Exception:
+                continue
+            if item.get("sport") == sport:
+                history.append(item)
+    scores: dict[str, dict] = {}
+    for report in history:
+        for trace in report.get("trace", []):
+            name = str(trace.get("selected_action") or "")
+            if not name:
+                continue
+            entry = scores.setdefault(
+                name,
+                {"runs": 0, "success": 0, "fail": 0, "event_delta": [], "verified_delta": [], "pit_delta": []},
+            )
+            entry["runs"] += 1
+            if trace.get("status") == "PASS":
+                entry["success"] += 1
+            else:
+                entry["fail"] += 1
+            delta = trace.get("progress_after_action") or {}
+            entry["event_delta"].append(float(delta.get("events", 0.0) or 0.0))
+            entry["verified_delta"].append(float(delta.get("verified_outcomes", 0.0) or 0.0))
+            entry["pit_delta"].append(float(delta.get("exact_pit_events", 0.0) or 0.0))
+    return scores
+
+
+def route_score(history: dict[str, dict], action: str) -> float:
+    h = history.get(action)
+    if not h or h["runs"] <= 0:
+        return 0.0
+    mean_events = sum(h["event_delta"]) / max(len(h["event_delta"]), 1)
+    mean_verified = sum(h["verified_delta"]) / max(len(h["verified_delta"]), 1)
+    mean_pit = sum(h["pit_delta"]) / max(len(h["pit_delta"]), 1)
+    success_rate = h["success"] / max(h["runs"], 1)
+    return (4.0 * mean_events + 8.0 * mean_verified + 120.0 * mean_pit) * success_rate - 10.0 * (1.0 - success_rate)
+
+
+def select_action(sport: str, current: dict, attempted: set[str], history: dict[str, dict] | None = None) -> tuple[str, list[str], int] | None:
     if current["events"] < MIN_EVENTS:
         priority = ACTIONS[sport]
     elif current["verified_outcomes"] < MIN_VERIFIED:
@@ -158,9 +202,14 @@ def select_action(sport: str, current: dict, attempted: set[str]) -> tuple[str, 
         )
     else:
         priority = ACTIONS[sport]
-    for name, command, timeout in priority:
-        if name not in attempted:
-            return name, command, timeout
+    candidates = [(name, command, timeout) for name, command, timeout in priority if name not in attempted]
+    if candidates:
+        history = history or {}
+        ranked = sorted(
+            enumerate(candidates),
+            key=lambda x: (-route_score(history, x[1][0]), x[0]),
+        )
+        return ranked[0][1]
     if current["exact_pit_ratio"] < MIN_EXACT_PIT_RATIO and sport in SUPPORTED_ACTIVE_PIT and "strict_pit_replay" not in attempted:
         return (
             "strict_pit_replay",
@@ -258,6 +307,7 @@ def main() -> int:
     sport = args.sport
     trace = []
     attempted: set[str] = set()
+    history = load_route_history(sport)
     before = metrics(sport)
 
     # Discovery is repeated every cycle before data selection so source candidates
@@ -287,7 +337,7 @@ def main() -> int:
             })
             break
 
-        selected = select_action(sport, current, attempted)
+        selected = select_action(sport, current, attempted, history)
         if selected is None:
             trace.append({
                 "decision": "NO_UNTRIED_COLLECTION_ROUTE",
@@ -349,6 +399,8 @@ def main() -> int:
     out = OUT_DIR / f"scope_autofill_{sport}.json"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    with HISTORY_PATH.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(report, ensure_ascii=False) + "\n")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if not failed_actions else 2
 
