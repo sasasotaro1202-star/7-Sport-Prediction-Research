@@ -130,6 +130,12 @@ def main():
             'future predictor does not support dedicated Rugby/Boxing databases')
     require('PREDICTED_SAFE_PRIOR' in predictor and 'PREDICTED_SAFE_PRIOR_MULTICLASS' in predictor,
             'future predictor has no explicit all-nine safe fallback lane')
+    require('from src.competition_profiles import resolve_profile' in predictor and 'competition_profile=resolve_profile' in predictor,
+            'future prediction ledger does not bind predictions to an explicit competition profile')
+    require("'model_scope':'sport_incumbent;competition_specific_selection_research_only'" in predictor,
+            'future predictor does not distinguish incumbent sport model from competition-specific research selection')
+    require('Competition-level chronological OOS evaluation' in workflow,
+            'production research workflow does not evaluate competition-level OOS profiles')
     require("availability_status='EXACT'" in predictor and 'source_available_at_utc' in predictor,
             'safe fallback prior does not enforce exact historical source availability')
     base_src=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
