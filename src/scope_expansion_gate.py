@@ -260,7 +260,7 @@ def _active_competition_frontier(con: sqlite3.Connection, sport: str, policy: di
                 "reasons": reasons,
                 "metrics": metrics,
                 "priority_score": candidate_priority(
-                    {"stage": entry["stage"], "metrics": metrics}, policy
+                    {"stage": stage, "metrics": metrics}, policy
                 ),
             }
         )
