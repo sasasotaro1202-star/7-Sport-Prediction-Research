@@ -60,6 +60,41 @@ def _url_health(url: str) -> dict:
         return {"url": url, "reachable": False, "error": repr(exc)}
 
 
+def _github_code_leads() -> list[dict]:
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": UA}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    out: list[dict] = []
+    for sport, queries in SPORT_QUERIES.items():
+        query = queries[0]
+        try:
+            r = requests.get(
+                "https://api.github.com/search/code",
+                headers=headers,
+                params={"q": f"{query} filename:csv", "per_page": 5},
+                timeout=TIMEOUT,
+            )
+            r.raise_for_status()
+            for item in (r.json().get("items") or []):
+                out.append({
+                    "sport": sport,
+                    "query": query,
+                    "name": item.get("name"),
+                    "path": item.get("path"),
+                    "repository": ((item.get("repository") or {}).get("full_name")),
+                    "html_url": item.get("html_url"),
+                })
+        except Exception as exc:
+            out.append({
+                "sport": sport,
+                "query": query,
+                "status": "CODE_SEARCH_FAILED",
+                "error": repr(exc),
+            })
+    return out
+
+
 def _github_repo_leads() -> list[dict]:
     token = os.getenv("GITHUB_TOKEN", "").strip()
     headers = {
@@ -110,6 +145,8 @@ def main() -> int:
         "registry_urls_checked": len(urls),
         "reachable_registry_urls": sum(1 for x in health if x.get("reachable")),
         "github_repo_leads": leads,
+        "github_code_leads": code_leads,
+        "per_sport": per_sport,
         "rules": {
             "retrieval_is_not_historical_pit": True,
             "discovery_does_not_adopt": True,
