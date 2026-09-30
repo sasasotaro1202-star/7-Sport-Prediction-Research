@@ -28,6 +28,8 @@ def main() -> int:
     assert 'tennis_v45.sqlite' not in controller
     assert 'f1_v45.sqlite' not in controller
     assert '--skip-discovery' in controller
+    assert 'def competition_frontier' in controller
+    assert 'selection_action' in controller
 
     selected = select_action(
         "basketball",
