@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "policy": "competition-aware-research-v1",
+  "hierarchy": [
+    "sport",
+    "phase_type",
+    "competition",
+    "season",
+    "gender_when_explicit"
+  ],
+  "no_implicit_pooling": true,
+  "production_route_enabled": false,
+  "minimums": {
+    "rows": 120,
+    "train_rows": 80,
+    "folds": 4,
+    "test_rows_per_fold": 15,
+    "periods": 2
+  },
+  "selection": {
+    "primary": "logloss",
+    "secondary": [
+      "brier",
+      "ece",
+      "accuracy"
+    ],
+    "min_relative_logloss_improvement": 0.03,
+    "min_folds_not_worse": 0.7,
+    "require_holdout_before_production": true
+  },
+  "profiles": [
+    {
+      "profile_id": "basketball:bleague",
+      "sport": "basketball",
+      "phase_type": "league",
+      "rules_profile": "bleague",
+      "aliases": [
+        "b.league",
+        "b league",
+        "bリーグ"
+      ]
+    },
+    {
+      "profile_id": "basketball:asian_games",
+      "sport": "basketball",
+      "phase_type": "tournament",
+      "rules_profile": "asian_games",
+      "aliases": [
+        "asian games",
+        "アジア大会"
+      ]
+    },
+    {
+      "profile_id": "volleyball:asian_games",
+      "sport": "volleyball",
+      "phase_type": "tournament",
+      "rules_profile": "asian_games_volleyball",
+      "aliases": [
+        "asian games volleyball",
+        "asian games",
+        "アジア大会"
+      ]
+    },
+    {
+      "profile_id": "ufc:promotion",
+      "sport": "ufc",
+      "phase_type": "promotion",
+      "rules_profile": "ufc",
+      "aliases": [
+        "ufc"
+      ]
+    },
+    {
+      "profile_id": "rizin:promotion",
+      "sport": "rizin",
+      "phase_type": "promotion",
+      "rules_profile": "rizin",
+      "aliases": [
+        "rizin"
+      ]
+    },
+    {
+      "profile_id": "valorant:ecosystem",
+      "sport": "valorant",
+      "phase_type": "circuit",
+      "rules_profile": "valorant",
+      "aliases": [
+        "valorant"
+      ]
+    }
+  ]
+}
