@@ -134,6 +134,18 @@ def main() -> int:
     urls = _urls_from_registry()
     health = [_url_health(url) for url in urls]
     leads = _github_repo_leads()
+    code_leads = _github_code_leads()
+    per_sport = {
+        sport: {
+            "repository_leads": sum(
+                1 for x in leads if x.get("sport") == sport and x.get("full_name")
+            ),
+            "code_leads": sum(
+                1 for x in code_leads if x.get("sport") == sport and x.get("repository")
+            ),
+        }
+        for sport in SPORT_QUERIES
+    }
 
     # Discovery is evidence collection, not adoption. A GitHub repository,
     # reachable URL, or search hit never enters a prediction feature/model by itself.
