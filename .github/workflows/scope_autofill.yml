@@ -30,6 +30,8 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - name: Search free/public source candidates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python -m src.scope_source_discovery
       - name: Preserve discovery report
         if: always()
@@ -65,6 +67,21 @@ jobs:
       - name: Prepare data directories
         run: mkdir -p data/db results results/research
 
+      - name: Restore previous scope-control state
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            results/scope_autofill_history.jsonl
+          key: scope-control-state-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            scope-control-state-${{ matrix.sport }}-
+
+      - name: Import current discovery report
+        uses: actions/download-artifact@v4
+        with:
+          name: scope-source-discovery-${{ github.run_id }}
+          path: results/discovery
+        continue-on-error: true
       - name: Restore accumulated autofill/history cache
         uses: actions/cache/restore@v4
         with:
@@ -103,7 +120,11 @@ jobs:
           fi
 
       - name: Iteratively add data and choose next safe action
-        run: python -m src.scope_autofill_controller --sport "${{ matrix.sport }}" --max-actions 3 --skip-discovery
+        run: |
+          if [ -f results/discovery/scope_source_discovery.json ]; then
+            cp results/discovery/scope_source_discovery.json results/scope_source_discovery.json
+          fi
+          python -m src.scope_autofill_controller --sport "${{ matrix.sport }}" --max-actions 3 --skip-discovery
 
       - name: Re-run competition-specific chronological selection for active sports
         if: matrix.sport == 'basketball' || matrix.sport == 'volleyball' || matrix.sport == 'ufc' || matrix.sport == 'rizin' || matrix.sport == 'valorant'
@@ -138,6 +159,13 @@ jobs:
         with:
           path: data/db
           key: scope-autofill-db-v1-${{ matrix.sport }}-${{ github.run_id }}
+
+      - name: Save scope-control state for the next cycle
+        if: always() && steps.post_validate.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: results/scope_autofill_history.jsonl
+          key: scope-control-state-${{ matrix.sport }}-${{ github.run_id }}
 
       - name: Preserve autofill and selection evidence
         if: always()
