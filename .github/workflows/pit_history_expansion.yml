@@ -87,6 +87,26 @@ jobs:
             active-scope-target-db-v4-${{ matrix.sport }}-
             nine-sport-target-db-v4-${{ matrix.sport }}-pit-
             nine-sport-target-db-v4-${{ matrix.sport }}-
+      - name: Require non-empty PIT seed cache
+        if: steps.cadence.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          sport='${{ matrix.sport }}'
+          db=Path('data/db/sports_v45.sqlite')
+          if not db.is_file() or db.stat().st_size <= 0:
+              raise SystemExit(f'PIT_SEED_CACHE_MISSING:{sport}')
+          con=sqlite3.connect(db)
+          try:
+              events=int(con.execute('SELECT COUNT(*) FROM event WHERE sport=?',(sport,)).fetchone()[0])
+          finally:
+              con.close()
+          if events <= 0:
+              raise SystemExit(f'PIT_SEED_CACHE_EMPTY:{sport}')
+          print(f'PIT_SEED_CACHE=PASS sport={sport} events={events}')
+          PY
       - name: Validate restored database
         if: steps.cadence.outputs.run == 'true'
         run: |
