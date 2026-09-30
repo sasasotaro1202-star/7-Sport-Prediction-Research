@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from src.research_cycle_v4 import target_event
+from src.competition_profiles import resolve_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 SHARED_DB = ROOT / "data/db/sports_v45.sqlite"
@@ -203,6 +204,48 @@ def run_action(name: str, command: list[str], timeout: int) -> dict:
         }
 
 
+
+def competition_frontier(sport: str, limit: int = 25) -> list[dict]:
+    path = db_path(sport)
+    if not path.is_file():
+        return []
+    con = sqlite3.connect(path)
+    try:
+        rows = con.execute(
+            """SELECT competition_id, COUNT(*) AS events,
+                      SUM(CASE WHEN EXISTS (
+                          SELECT 1 FROM event_outcome eo
+                           WHERE eo.event_id=event.event_id
+                             AND eo.outcome_status='VERIFIED'
+                      ) THEN 1 ELSE 0 END) AS verified
+                 FROM event
+                WHERE sport=?
+                  AND competition_id IS NOT NULL
+                  AND TRIM(competition_id)<>''
+             GROUP BY competition_id
+             ORDER BY events DESC, competition_id
+             LIMIT ?""",
+            (sport, int(limit)),
+        ).fetchall()
+        out = []
+        for competition_id, events, verified in rows:
+            profile = resolve_profile(sport, competition_id, None)
+            out.append({
+                "competition_id": str(competition_id),
+                "events": int(events or 0),
+                "verified_outcomes": int(verified or 0),
+                "profile_id": profile.get("profile_id"),
+                "profile_matched": bool(profile.get("matched")),
+                "dynamic_profile": bool(profile.get("dynamic", False)),
+                "research_ready": bool(
+                    int(events or 0) >= MIN_EVENTS
+                    and int(verified or 0) >= MIN_VERIFIED
+                ),
+            })
+        return out
+    finally:
+        con.close()
+
 def main() -> int:
     import argparse
 
@@ -268,6 +311,7 @@ def main() -> int:
         })
 
     after = metrics(sport)
+    frontier = competition_frontier(sport)
     progress = {
         "event_delta": after["events"] - before["events"],
         "verified_outcome_delta": after["verified_outcomes"] - before["verified_outcomes"],
