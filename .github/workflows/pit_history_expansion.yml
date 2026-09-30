@@ -83,6 +83,7 @@ jobs:
           path: data/db
           key: pit-history-seed-${{ matrix.sport }}-${{ github.run_id }}
           restore-keys: |
+            scope-autofill-db-v1-${{ matrix.sport }}-
             active-scope-target-db-v4-${{ matrix.sport }}-pit-
             active-scope-target-db-v4-${{ matrix.sport }}-
             nine-sport-target-db-v4-${{ matrix.sport }}-pit-
