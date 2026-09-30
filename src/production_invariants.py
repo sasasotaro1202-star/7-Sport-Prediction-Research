@@ -74,7 +74,7 @@ def main():
     profile_eval=(ROOT/'src/competition_profile_oos.py').read_text(encoding='utf-8')
     require('"competition-aware-research-v1"' in profile_cfg and '"no_implicit_pooling": true' in profile_cfg,'competition profile policy is missing no-pooling protection')
     require('resolve_profile' in profile_src and 'matched' in profile_src,'competition profile resolver missing')
-    require('dynamic_competition_discovery' in profile_cfg and 'dynamic=True' in profile_src.replace(' ',''),
+    require('dynamic_competition_discovery' in profile_cfg and '"dynamic": True' in profile_src,
             'dynamic competition discovery contract is missing')
     require('PROMOTION_CANDIDATE_HOLDOUT_REQUIRED' in profile_eval and 'production_route_enabled": False' in profile_eval,'competition OOS evaluator lacks research-only promotion gate')
     require("any(k in n or k in c for k in ('asian games','アジア大会'))" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'volleyball target filter does not enforce active Asian Games scope')
