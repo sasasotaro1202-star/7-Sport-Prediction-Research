@@ -12,6 +12,17 @@ Five active prediction lanes with a provenance-first data foundation. The active
 ## Research-only / deferred extensions
 Tennis, F1, Rugby, and Boxing may remain as isolated research or coverage tooling when explicitly gated. They are not active prediction targets.
 
+## Staged scope expansion
+New prediction targets are not added directly to production. The repository maintains a fail-closed expansion ladder:
+
+`DISCOVERED → METADATA_CHECKED → DATA_FEASIBLE → PIT_VALIDATED → SHADOW → OOS/ROBUSTNESS → LIMITED_PRODUCTION → STABLE_PRODUCTION → SCALE_UP`.
+
+Only the evidence for the current stage may unlock the next stage. Historical source availability must be proven before a candidate can leave the PIT stage. Competition-specific research can select a specialist method only when its own chronological evidence is sufficient; sparse competitions remain on the validated global/incumbent fallback.
+
+Expansion is deliberately serialized: at most one new target enters advanced validation in an expansion cycle, and automatic production admission is disabled. `LIMITED_PRODUCTION` or later requires an explicit scope-policy admission plus the normal frozen-holdout, calibration, leakage, reliability, recovery, and release gates. Failures or missing provenance hold/degrade the candidate rather than advancing it.
+
+`.github/workflows/scope_expansion_audit.yml` audits the frontier without mutating production scope. The resulting `results/scope_expansion_state.json` records the current stage, blockers, and at most one next validation candidate. Active sports also expose unrecognized explicit `competition_id` values as a discovery frontier, so new leagues/tournaments can be evaluated without silently entering the training or prediction population.
+
 ## Non-negotiable rules
 1. Shared data foundation where appropriate; sport-specific research/prediction policies remain isolated.
 2. No synthetic, guessed, or silently backfilled observations.
