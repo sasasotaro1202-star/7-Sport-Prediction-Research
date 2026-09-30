@@ -43,9 +43,10 @@ jobs:
   autofill:
     name: Autofill ${{ matrix.sport }}
     needs: discover
+    if: always()
     strategy:
       fail-fast: false
-      max-parallel: 9
+      max-parallel: 5
       matrix:
         sport: [basketball, volleyball, ufc, rizin, valorant, tennis, f1, rugby, boxing]
     runs-on: ubuntu-latest
