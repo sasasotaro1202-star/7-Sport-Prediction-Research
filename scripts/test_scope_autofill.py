@@ -33,6 +33,10 @@ def main() -> int:
     assert "GITHUB_TOKEN" in discovery
     assert "discovery_does_not_adopt" in discovery
     assert "retrieval_is_not_historical_pit" in discovery
+    assert "def _github_code_leads" in discovery
+    assert "code_leads = _github_code_leads()" in discovery
+    assert "per_sport = {" in discovery
+    assert 'return 0 if status != "FAILED" else 2' in discovery
     assert 'selection_action' in controller
 
     history = {
@@ -43,6 +47,7 @@ def main() -> int:
     }
     assert route_score(history, "historical_b_league") == 0.0
     assert route_score(history, "incremental_official") > route_score(history, "historical_b_league")
+    assert route_score({}, "incremental_official") > 0.0
 
     selected = select_action(
         "basketball",
