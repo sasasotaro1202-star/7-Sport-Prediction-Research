@@ -1,6 +1,9 @@
 name: PIT History Expansion
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/pit_history_expansion.yml'
   schedule:
     # GitHub cron cannot express a true rolling 9-hour cadence across UTC day boundaries.
     # Wake every 3 hours and run the expensive expansion only on 9-hour epoch boundaries.
