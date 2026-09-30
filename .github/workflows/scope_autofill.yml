@@ -74,7 +74,6 @@ jobs:
             active-scope-target-db-v4-${{ matrix.sport }}-autofill-
             active-scope-target-db-v4-${{ matrix.sport }}-pit-
             active-scope-target-db-v4-${{ matrix.sport }}-
-            scope-expansion-db-v1-${{ matrix.sport }}-
 
       - name: Restore dedicated Rugby/Boxing history when applicable
         if: matrix.sport == 'rugby' || matrix.sport == 'boxing'
