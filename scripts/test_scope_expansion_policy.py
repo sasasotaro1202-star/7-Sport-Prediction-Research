@@ -31,7 +31,7 @@ def main() -> int:
     deferred = {x["sport"] for x in policy["candidate_sources"]["deferred_sports"]}
     assert not active.intersection(deferred)
 
-    assert '"activation_allowed": False' in script
+    assert 'entry["activation_allowed"] = False' in script
     assert "ADVANCE_ONE_CANDIDATE_ONLY" in script
     assert "PIT_EVIDENCE_INCOMPLETE" in script
     assert "explicit_scope_admission" in script
