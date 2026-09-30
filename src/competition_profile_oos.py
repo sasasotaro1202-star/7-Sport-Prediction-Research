@@ -89,10 +89,18 @@ def _evaluate_group(items: list[dict], feature_names: list[str], candidates: lis
     best = min(results, key=lambda k: (results[k]["logloss"], results[k]["brier"], results[k]["ece"]))
     cand = results[best]
     fold_pairs = []
-    logistic_folds = baseline["folds_detail"]
-    best_folds = cand["folds_detail"]
-    for lf, bf in zip(logistic_folds, best_folds):
-        fold_pairs.append(float(bf["logloss"] <= lf["logloss"] + 1e-12))
+    logistic_folds = {
+        (str(x.get("oos_start")), str(x.get("oos_end"))): x
+        for x in baseline["folds_detail"]
+    }
+    best_folds = {
+        (str(x.get("oos_start")), str(x.get("oos_end"))): x
+        for x in cand["folds_detail"]
+    }
+    for key, lf in logistic_folds.items():
+        bf = best_folds.get(key)
+        if bf is not None:
+            fold_pairs.append(float(bf["logloss"] <= lf["logloss"] + 1e-12))
     non_worse = float(np.mean(fold_pairs)) if fold_pairs else 0.0
     rel_improvement = float((baseline["logloss"] - cand["logloss"]) / max(abs(baseline["logloss"]), 1e-12))
     periods = seasons if seasons else sorted({x["time"][:4] for x in items if x.get("time")})
@@ -127,6 +135,13 @@ def _evaluate_group(items: list[dict], feature_names: list[str], candidates: lis
 
 
 def main() -> int:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--sport", choices=["valorant", "basketball", "volleyball", "ufc", "rizin"], default=None)
+    ap.add_argument("--db", default=str(DB))
+    ap.add_argument("--out", default=None)
+    args = ap.parse_args()
+
     policy = profile_policy()
     active_sports = []
     scope_path = ROOT / "config/ACTIVE_SCOPE_9_SPORTS.json"
@@ -134,8 +149,11 @@ def main() -> int:
     for sport, entries in (scope.get("active_scope") or {}).items():
         if any(isinstance(e, dict) and str(e.get("status", "")).upper() == "TARGET" for e in entries):
             active_sports.append(sport)
+    if args.sport:
+        active_sports = [args.sport]
 
-    con = sqlite3.connect(DB)
+    db_path = Path(args.db).resolve()
+    con = sqlite3.connect(db_path)
     try:
         report = {
             "version": "competition-aware-research-v1",
@@ -199,8 +217,16 @@ def main() -> int:
                 }
             report["sports"][sport] = sport_profiles
 
-        OUT.parent.mkdir(parents=True, exist_ok=True)
-        OUT.write_text(json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+        output_path = Path(args.out) if args.out else (
+            ROOT / "results/research" / (
+                f"competition_profiles_{args.sport}.json" if args.sport else "competition_profiles.json"
+            )
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False),
+            encoding="utf-8",
+        )
         print(json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False))
     finally:
         con.close()
