@@ -36,6 +36,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_pit_cache_namespace.py
       - name: Competition profile regression
         run: PYTHONPATH=. python scripts/test_competition_profiles.py
+      - name: Continuous scope autofill regression
+        run: PYTHONPATH=. python scripts/test_scope_autofill.py
       - name: Staged scope expansion policy regression
         run: PYTHONPATH=. python scripts/test_scope_expansion_policy.py
       - name: Research checkpoint cache persistence
