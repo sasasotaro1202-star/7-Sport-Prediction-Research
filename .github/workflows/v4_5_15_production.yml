@@ -287,6 +287,11 @@ jobs:
           set -euo pipefail
           timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict
 
+      - name: Competition-level chronological OOS evaluation
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 2400s python -m src.competition_profile_oos
+
       # Preserve partial strict-research outputs even when the research step times out.
       # These are diagnostics only; they never publish model artifacts.
       - name: Preserve partial research checkpoint artifacts
