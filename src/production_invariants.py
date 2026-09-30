@@ -95,6 +95,25 @@ def main():
             'scope expansion PIT evidence does not require historical source availability')
     require('scope_expansion_audit.yml' in expansion_wf and 'workflow_dispatch:' in expansion_wf and 'contents: read' in expansion_wf,
             'staged scope expansion audit workflow is missing safe manual/read-only execution')
+    autofill_wf=(ROOT/'.github/workflows/scope_autofill.yml').read_text(encoding='utf-8')
+    autofill_src=(ROOT/'src/scope_autofill_controller.py').read_text(encoding='utf-8')
+    discovery_src=(ROOT/'src/scope_source_discovery.py').read_text(encoding='utf-8')
+    require('Continuous Scope Autofill and Discovery' in autofill_wf and "cron: '13 */6 * * *'" in autofill_wf,
+            'continuous scope autofill workflow is missing its scheduled discovery/collection loop')
+    require('max-parallel: 9' in autofill_wf and 'fail-fast: false' in autofill_wf,
+            'continuous scope autofill must process all target lanes without aborting the remaining lanes')
+    require('scope-autofill-db-v1-' in autofill_wf and 'active-scope-target-db-v4-${{ matrix.sport }}-' in (ROOT/'.github/workflows/v4_5_15_production.yml').read_text(encoding='utf-8'),
+            'accumulated autofill history is not connected to canonical production cache restore')
+    require('--max-actions 3' in autofill_wf and 'selection_continues' in autofill_src,
+            'autofill loop does not repeat bounded data acquisition and selection')
+    require('continuous_source_discovery' in autofill_src and 'GITHUB_TOKEN' in discovery_src,
+            'continuous source discovery is not wired to the autofill controller')
+    require('discovery_does_not_adopt' in discovery_src and 'retrieval_is_not_historical_pit' in discovery_src,
+            'source discovery lacks fail-closed non-adoption/PIT semantics')
+    require('scope_source_discovery' in autofill_wf,
+            'source discovery job is missing from continuous autofill workflow')
+    require('scope-expansion-db-v1-' not in autofill_wf,
+            'continuous autofill references an undefined generic expansion cache namespace')
     require('test_scope_expansion_policy.py' in (ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8'),
             'staged scope expansion regression is not wired into lightweight CI')
     require('"DISCOVERED"' in expansion_test and '"SCALE_UP"' in expansion_test,
