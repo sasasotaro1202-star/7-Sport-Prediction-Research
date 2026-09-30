@@ -112,6 +112,12 @@ def main():
             'autofill controller does not persist the discovered competition frontier/next selection')
     require('continuous_source_discovery' in autofill_src and 'GITHUB_TOKEN' in discovery_src,
             'continuous source discovery is not wired to the autofill controller')
+    require('def load_route_history(' in autofill_src and 'def route_score(' in autofill_src,
+            'autofill does not learn collection route performance across cycles')
+    require('Explicit exploration bonus' in autofill_src and 'progress_after_action' in autofill_src,
+            'autofill lacks adaptive exploration after zero-progress routes')
+    require('status = "FAILED"' in discovery_src and 'return 0 if status != "FAILED" else 2' in discovery_src,
+            'source discovery does not surface total discovery failure explicitly')
     require('discovery_does_not_adopt' in discovery_src and 'retrieval_is_not_historical_pit' in discovery_src,
             'source discovery lacks fail-closed non-adoption/PIT semantics')
     require('scope_source_discovery' in autofill_wf,
