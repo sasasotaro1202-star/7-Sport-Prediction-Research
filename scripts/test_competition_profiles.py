@@ -12,9 +12,14 @@ def main() -> int:
     assert resolve_profile("ufc", "UFC", "UFC 300")["phase_type"] == "promotion"
     unknown = resolve_profile("basketball", "", "ordinary unknown competition")
     assert unknown["matched"] is False
+    dynamic = resolve_profile("valorant", "VCT Champions 2026", "team match")
+    assert dynamic["matched"] is True
+    assert dynamic["dynamic"] is True
+    assert dynamic["profile_id"] == "valorant:competition:vct_champions_2026"
     policy = profile_policy()
     assert policy["no_implicit_pooling"] is True
     assert policy["production_route_enabled"] is False
+    assert "valorant" in policy["dynamic_competition_discovery"]
     assert policy["selection"]["require_holdout_before_production"] is True
     gate = (Path(__file__).resolve().parents[1] / "src/production_release_gate.py").read_text(encoding="utf-8")
     assert "meta.setdefault('sport',sport)" in gate
