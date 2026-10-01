@@ -106,10 +106,11 @@ def test_policy_action_state_is_explicit_for_high_confidence():
         strategy="fixed_equal_weight",
         router_status="FALLBACK_FIXED_ENSEMBLE",
         competition_specific=False,
-        probability=0.90,
+        probability=0.97,
         situation={"status": "PIT_SAFE", "quality": {"evidence_count": 2, "freshness_score": 0.9, "conflict_rate": 0.0}},
         experience_shadow={"recommendation": "PASS"},
     )
+    assert result["uncertainty"]["level"] == "LOW"
     assert result["output"]["action"] == "PRIMARY"
 if __name__ == "__main__":
     test_high_confidence_head_to_head_prefers_scalar_probability()
