@@ -142,7 +142,8 @@ def build_memory(
     policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     policy = policy or _policy()
-    generated = _parse_utc(generated_at_utc or utc_now()).isoformat()
+    generated_dt = _parse_utc(generated_at_utc or utc_now())
+    generated = generated_dt.isoformat()
     minimums = policy.get("minimums") or {}
     thresholds = policy.get("review_thresholds") or {}
     min_rows = int(minimums.get("group_rows", 20))
@@ -154,6 +155,9 @@ def build_memory(
     for row in rows:
         normalized = _validate_row(row)
         if normalized is not None:
+            settled_at = _parse_utc(normalized["settled_at_utc"])
+            if settled_at > generated_dt:
+                raise RuntimeError("EXPERIENCE_LEARNING_FUTURE_SETTLEMENT")
             validated_rows.append(normalized)
 
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
