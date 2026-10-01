@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "policy": "adaptive-prediction-timing-v1",
+  "default_preferred_lead_minutes": 30,
+  "allowed_lead_minutes": [15, 20, 30, 45, 60, 90],
+  "bounds": {
+    "minimum_lead_minutes": 5,
+    "maximum_lead_minutes": 180
+  },
+  "selection": {
+    "mode": "research_then_production",
+    "production_default": 30,
+    "choose_from_allowed_leads_only": true,
+    "optimize_for": [
+      "information_value",
+      "forecast_stability",
+      "calibration",
+      "freshness",
+      "revision_risk",
+      "PIT_safety",
+      "latency",
+      "coverage"
+    ],
+    "require_oos_timing_evidence_for_nondefault": true,
+    "require_frozen_holdout_for_nondefault": true
+  },
+  "actions": {
+    "initial_prediction": "preferred_or_selected_lead",
+    "refresh": "allowed_when_expected_prediction_change_or_uncertainty_reduction_justifies_cost",
+    "late_recovery": true,
+    "abstain_or_fallback": true
+  },
+  "safety": {
+    "prediction_cutoff_is_event_time_minus_actual_selected_lead": true,
+    "feature_availability_must_be_at_or_before_cutoff": true,
+    "no_post_cutoff_information": true
+  }
+}

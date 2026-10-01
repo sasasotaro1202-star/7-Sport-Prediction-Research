@@ -91,11 +91,11 @@ def main():
             'scope expansion allows automatic production admission')
     require('ADVANCE_ONE_CANDIDATE_ONLY' in expansion_src and 'advanced_validation_batch' in expansion_src,
             'scope expansion gate does not enforce one-candidate advancement')
-    require('"activation_allowed": False' in expansion_src and 'explicit_scope_admission' in expansion_src,
+    require('no_implicit_activation' in expansion_src and 'explicit_scope_admission' in expansion_src,
             'scope expansion gate lacks explicit activation/admission boundary')
     require('source_available_at_utc <= ss.event_time_utc' in expansion_src,
             'scope expansion PIT evidence does not require historical source availability')
-    require('scope_expansion_audit.yml' in expansion_wf and 'workflow_dispatch:' in expansion_wf and 'contents: read' in expansion_wf,
+    require('workflow_dispatch:' in expansion_wf and 'contents: read' in expansion_wf and 'Scope expansion gate' in expansion_wf,
             'staged scope expansion audit workflow is missing safe manual/read-only execution')
     autofill_wf=(ROOT/'.github/workflows/scope_autofill.yml').read_text(encoding='utf-8')
     autofill_src=(ROOT/'src/scope_autofill_controller.py').read_text(encoding='utf-8')
@@ -181,8 +181,9 @@ def main():
             'future predictor has no explicit all-nine safe fallback lane')
     require('from src.competition_profiles import resolve_profile' in predictor and 'competition_profile=resolve_profile' in predictor,
             'future prediction ledger does not bind predictions to an explicit competition profile')
-    require("'model_scope':'sport_incumbent;competition_specific_selection_research_only'" in predictor,
-            'future predictor does not distinguish incumbent sport model from competition-specific research selection')
+    require("active_model_scope='competition_specific;frozen_holdout_accepted'" in predictor
+            and "active_model_scope='sport_incumbent;competition_specific_selection_research_only'" in predictor,
+            'future predictor does not distinguish competition-specific accepted routing from sport incumbent fallback')
     require('Competition-level chronological OOS evaluation' in workflow,
             'production research workflow does not evaluate competition-level OOS profiles')
     require("availability_status='EXACT'" in predictor and 'source_available_at_utc' in predictor,
@@ -328,8 +329,8 @@ def main():
             'Rugby coverage workflow should not create heavy push-triggered queue')
     require('boxing' in strict_src.lower() and 'DEFERRED_PIT' in strict_src,
             'Boxing must have an explicit fail-closed PIT deferred research path')
-    require('  push:' not in pit_workflow,
-            'PIT expansion should not create heavy push-triggered queue')
+    require("'push trigger: VALIDATION_ONLY_NO_HEAVY_EXPANSION'" in pit_workflow and 'event_name' in pit_workflow,
+            'PIT expansion should explicitly avoid heavy execution on push triggers')
     require("minute_delta=$((delta / 60))" in pit_workflow,
             'PIT cadence guard must tolerate normal GitHub schedule jitter at minute precision')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
@@ -652,18 +653,37 @@ def main():
     pre_event_audit=(ROOT/'src/pre_event_prediction_audit.py').read_text(encoding='utf-8')
     require((ROOT/'.github/workflows/pre_event_prediction.yml').exists(),
             '30-minute pre-event prediction workflow is missing')
-    require('"target_lead_minutes":30' in pre_event_policy and '"prediction_cutoff":"event_time_minus_target_lead"' in pre_event_policy,
-            'pre-event policy does not define a 30-minute prediction cutoff')
+    require('"target_lead_minutes": 30' in pre_event_policy and '"guideline_only": true' in pre_event_policy,
+            'pre-event policy does not define a 30-minute timing guideline')
+    require('"guideline_tolerance_minutes": 15' in pre_event_policy and '"selection_mode": "adaptive-capable;30m-default"' in pre_event_policy,
+            'pre-event policy does not permit bounded adaptive timing around the guideline')
     require("cron: '3-58/5 * * * *'" in pre_event_wf and '--lead-minutes 30' in pre_event_wf,
             'pre-event workflow is not scheduled at the required 5-minute cadence with 30-minute target')
-    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 40' in pre_event_wf,
+    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 60' in pre_event_wf,
             'pre-event workflow lacks the bounded late-recovery generation window')
     require('--target-scope-only' in pre_event_wf and 'competition_profile_required' in pre_event_wf,
             'pre-event workflow is not restricted to explicit competition scope')
     require('pre-event-target-db-v1-' in pre_event_wf and 'active-scope-target-db-v4-' in pre_event_wf,
             'pre-event workflow does not persist/reuse sport-scoped database state')
-    require('NO_30M_CUTOFF_PREDICTION' in pre_event_audit and 'missing_predictions' in pre_event_audit,
-            'pre-event audit does not explicitly detect missing 30-minute predictions')
+    competition_policy=(ROOT/'config/COMPETITION_ROUTING_POLICY.json').read_text(encoding='utf-8')
+    competition_builder=(ROOT/'src/competition_route_builder.py').read_text(encoding='utf-8')
+    competition_loader=(ROOT/'src/competition_route_registry.py').read_text(encoding='utf-8')
+    require('"no_implicit_production_activation": true' in competition_policy and '"require_frozen_holdout": true' in competition_policy,
+            'competition routing policy does not fail closed on production activation/holdout')
+    require('resolve_research_profile' in competition_builder and 'ACCEPTED_LOCKED_HOLDOUT' in competition_builder,
+            'competition route builder lacks explicit research identity and holdout acceptance')
+    require('holdout_used_for_selection' in competition_builder and 'bootstrap_probability_improvement' in competition_policy,
+            'competition route builder lacks frozen-holdout/uncertainty contract')
+    require('models/competition/' in competition_loader and 'SPORT_INCUMBENT_FALLBACK' in competition_loader,
+            'competition route loader lacks artifact path guard/fallback')
+    require('COMPETITION_SPECIFIC_ACCEPTED' in future_src and 'competition_specific_model' in future_src,
+            'future predictor does not expose explicit competition-specific accepted route state')
+    require('python -m src.competition_route_builder' in workflow,
+            'production workflow does not build competition-specific routes before release')
+    require('test_competition_routing.py' in lightweight_src,
+            'competition routing regression is not wired into Lightweight Regression')
+    require('missing_predictions' in pre_event_audit and 'NO_GUIDELINE_PREDICTION' in pre_event_audit,
+            'pre-event audit does not explicitly detect missing guideline-timing predictions')
     require('def _prediction_timing' in future_src and "'prediction_timing':timing" in future_src,
             'future predictor does not persist actual prediction timing')
     require('--lead-minutes' in future_src and '--target-scope-only' in future_src,

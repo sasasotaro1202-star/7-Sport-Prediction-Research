@@ -5,12 +5,17 @@
     "cron_utc": "3-58/5 * * * *",
     "minimum_interval_minutes": 5,
     "manual_dispatch": true,
-    "target_lead_minutes": 30,
     "generation_window": {
       "min_lead_minutes": 5,
-      "max_lead_minutes": 40,
+      "max_lead_minutes": 60,
       "late_recovery": true
-    }
+    },
+    "guideline_target_minutes": 30,
+    "guideline_tolerance_minutes": 15,
+    "target_lead_minutes": 30,
+    "note": "30 minutes is a target/guideline, not an exact requirement; actual generation may move earlier or later when freshness, information availability, predictability, source reliability, or recovery conditions justify it.",
+    "guideline_only": true,
+    "selection_mode": "adaptive-capable;30m-default"
   },
   "scope": {
     "active_prediction_scope_only": true,
@@ -18,9 +23,11 @@
     "unknown_competition_fail_closed": true
   },
   "pit": {
-    "prediction_cutoff": "event_time_minus_target_lead",
+    "prediction_cutoff": "event_time_minus_guideline_target",
     "feature_pit_lead_minutes": 60,
-    "post_cutoff_information_forbidden": true
+    "post_cutoff_information_forbidden": true,
+    "allow_timing_deviation": true,
+    "max_guideline_deviation_minutes": 15
   },
   "experience": {
     "archive_forward_predictions": true,
@@ -33,5 +40,6 @@
     "safe_prior_fallback_allowed": true,
     "missing_prediction_is_explicit_gap": true,
     "no_failure_hiding": true
-  }
+  },
+  "explanation": "30 minutes is the preferred default, not a hard deadline. Actual prediction timing may be earlier/later when an evidence-backed timing policy selects it; audit accepts the configured guideline tolerance."
 }

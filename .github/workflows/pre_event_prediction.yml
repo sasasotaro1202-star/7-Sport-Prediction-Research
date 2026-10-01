@@ -1,4 +1,4 @@
-name: Pre-Event 30-Minute Prediction
+name: Pre-Event Adaptive Timing Prediction
 
 on:
   workflow_dispatch:
@@ -48,7 +48,9 @@ jobs:
           assert p['scheduler']['target_lead_minutes'] == 30
           assert p['scheduler']['cron_utc'] == '3-58/5 * * * *'
           assert p['scheduler']['generation_window']['min_lead_minutes'] == 5
-          assert p['scheduler']['generation_window']['max_lead_minutes'] == 40
+          assert p['scheduler']['generation_window']['max_lead_minutes'] == 60
+          assert p['scheduler']['guideline_only'] is True
+          assert p['scheduler']['guideline_tolerance_minutes'] == 15
           assert p['scope']['active_prediction_scope_only'] is True
           assert p['scope']['competition_profile_required'] is True
           assert p['pit']['prediction_cutoff'] == 'event_time_minus_target_lead'
@@ -86,7 +88,7 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Generate 30-minute prediction lane
+      - name: Generate around-30-minute prediction lane
         id: predict
         run: |
           set -uo pipefail
@@ -95,7 +97,7 @@ jobs:
               --sport ${{ matrix.sport }} \
               --lead-minutes 30 \
               --min-lead-minutes 5 \
-              --max-lead-minutes 40 \
+              --max-lead-minutes 60 \
               --target-scope-only; then
             echo 'future_prediction=OK'
           else
@@ -117,7 +119,7 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Audit every target event in the active 30-minute window
+      - name: Audit every target event in the active pre-event timing window
         id: audit
         run: |
           set -uo pipefail

@@ -58,7 +58,7 @@ def test_current_roster_parsing_and_f1_fallback(monkeypatch):
     )
     con.commit()
 
-    out = fp._safe_prior_f1(con, now)
+    out = fp._safe_prior_f1(con, now, 30)
     assert out["status"] == "PREDICTED_SAFE_PRIOR_MULTICLASS"
     assert out["count"] == 1
     pred = out["predictions"][0]

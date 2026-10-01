@@ -33,9 +33,14 @@ jobs:
         id: cadence
         run: |
           set -euo pipefail
-          if [ '${{ github.event_name }}' != 'schedule' ]; then
+          if [ '${{ github.event_name }}' = 'push' ]; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            echo 'push trigger: VALIDATION_ONLY_NO_HEAVY_EXPANSION'
+            exit 0
+          fi
+          if [ '${{ github.event_name }}' = 'workflow_dispatch' ]; then
             echo 'run=true' >> "$GITHUB_OUTPUT"
-            echo 'manual/push trigger: RUN'
+            echo 'manual trigger: RUN'
             exit 0
           fi
           anchor=$(date -u -d '2026-09-22 00:47:00' +%s)

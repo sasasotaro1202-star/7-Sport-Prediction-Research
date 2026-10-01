@@ -70,7 +70,7 @@ class WorkflowContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("verify_24h_research_evidence.py", text)
-        self.assertIn("HARD_EXCLUDED = {"baseball", "soccer"}", text)
+        self.assertIn('HARD_EXCLUDED = {"baseball", "soccer"}', text)
 
 
 if __name__ == "__main__":

@@ -97,6 +97,84 @@ def _validate_model(meta):
     return True, 'OK'
 
 
+def _validate_competition_routes(active_sports):
+    path = ROOT / 'results/research/competition_routes.json'
+    if not path.exists():
+        return [], []
+    try:
+        report = json.loads(path.read_text(encoding='utf-8'))
+    except Exception as exc:
+        return [], [f'competition_route_registry_invalid:{type(exc).__name__}']
+    if not isinstance(report, dict):
+        return [], ['competition_route_registry_wrong_shape']
+    status = str(report.get('status') or '')
+    if status not in {'READY', 'READY_NO_ACCEPTED_ROUTES'}:
+        return [], [f'competition_route_registry_unsafe_status:{status}']
+    routes = report.get('routes') or {}
+    if not isinstance(routes, dict):
+        return [], ['competition_route_registry_routes_not_object']
+    publish = []
+    fatal = []
+    for profile_id, route in routes.items():
+        route_errors = []
+        if not isinstance(route, dict):
+            route_errors.append(f'competition_route_not_object:{profile_id}')
+        else:
+            sport = str(route.get('sport') or '')
+            required = ('profile_id','sport','model_name','model_version','strategy','feature_names',
+                        'training_cutoff_utc','git_commit_sha','artifact_path','quality_status','model_scope','holdout')
+            missing = [k for k in required if not route.get(k)]
+            if missing:
+                route_errors.append(f'competition_route_metadata_missing:{profile_id}:{",".join(missing)}')
+            if sport not in active_sports:
+                route_errors.append(f'competition_route_sport_not_active:{profile_id}:{sport}')
+            if str(route.get('profile_id')) != str(profile_id):
+                route_errors.append(f'competition_route_profile_mismatch:{profile_id}')
+            if str(route.get('quality_status')) != 'ACCEPTED_LOCKED_HOLDOUT':
+                route_errors.append(f'competition_route_quality_not_accepted:{profile_id}')
+            if str(route.get('model_scope')) != 'competition_specific;frozen_holdout_accepted':
+                route_errors.append(f'competition_route_scope_unsafe:{profile_id}')
+            if str(route.get('strategy')) != 'competition_specific_model':
+                route_errors.append(f'competition_route_strategy_invalid:{profile_id}')
+            if not isinstance(route.get('feature_names'), list) or not route['feature_names']:
+                route_errors.append(f'competition_route_features_invalid:{profile_id}')
+            if bool(route.get('holdout_used_for_selection', False)):
+                route_errors.append(f'competition_route_holdout_used_for_selection:{profile_id}')
+            hold = route.get('holdout') or {}
+            if int(hold.get('n', 0) or 0) < 30:
+                route_errors.append(f'competition_route_holdout_too_small:{profile_id}')
+            if str(route.get('pit_status')) != 'REQUIRED_CLEAN_BY_PRODUCTION_GATE':
+                route_errors.append(f'competition_route_pit_contract_missing:{profile_id}')
+            artifact_path = str(route.get('artifact_path') or '')
+            try:
+                p = (ROOT / artifact_path).resolve()
+                root = ROOT.resolve()
+                safe_path = root in p.parents and artifact_path.startswith('models/competition/') and '..' not in p.relative_to(root).parts
+            except Exception:
+                safe_path = False
+                p = None
+            if not safe_path:
+                route_errors.append(f'competition_route_artifact_path_unsafe:{profile_id}')
+            elif not p.is_file() or p.stat().st_size <= 0:
+                route_errors.append(f'competition_route_artifact_missing:{profile_id}')
+            else:
+                try:
+                    import joblib
+                    obj = joblib.load(p)
+                    if not callable(getattr(obj, 'predict_proba', None)):
+                        route_errors.append(f'competition_route_artifact_not_predictor:{profile_id}')
+                except Exception as exc:
+                    route_errors.append(f'competition_route_artifact_unloadable:{profile_id}:{type(exc).__name__}')
+            if not str(route.get('git_commit_sha') or '').strip():
+                route_errors.append(f'competition_route_git_sha_missing:{profile_id}')
+        if route_errors:
+            fatal.extend(route_errors)
+        else:
+            publish.append(str(route['artifact_path']))
+
+    return list(dict.fromkeys(publish)), fatal
+
+
 def _f1_resolved_counts(c):
     rows=c.execute("SELECT event_id FROM event WHERE sport='f1' AND status IN ('COMPLETED','FINISHED','POST')").fetchall()
     resolved=0
@@ -326,6 +404,9 @@ def main():
                 )
     finally:
         c.close()
+    route_artifacts, route_fatal = _validate_competition_routes([s for s in SPORTS if s not in DEFERRED_SPORTS])
+    r['publishable_artifacts'].extend(route_artifacts)
+    r['fatal'].extend(route_fatal)
     r['publishable_artifacts']=list(dict.fromkeys(r.get('publishable_artifacts') or []))
     return _write(r)
 

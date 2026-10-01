@@ -313,6 +313,11 @@ jobs:
           set -euo pipefail
           timeout --signal=TERM 900s python -m src.independent_leakage_audit
 
+      - name: Build competition-specific production routes
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 2400s python -m src.competition_route_builder
+
       - name: Quality report (non-failing coverage mode)
         run: python -m src.quality_gate
       - name: Reproducibility manifest

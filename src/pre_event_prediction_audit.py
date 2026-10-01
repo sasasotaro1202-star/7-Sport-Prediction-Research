@@ -37,9 +37,11 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
         "sport": sport,
         "target_lead_minutes": target_lead,
         "window": {"min_lead_minutes": min_lead, "max_lead_minutes": max_lead},
+        "guideline_tolerance_minutes": 15,
+        "guideline_only": True,
         "status": "UNKNOWN",
         "target_events_in_window": 0,
-        "predicted_at_30m_cutoff": 0,
+        "predicted_in_guideline_window": 0,
         "missing_predictions": [],
         "timing": {"on_time": 0, "early": 0, "late": 0},
     }
@@ -86,16 +88,20 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
         report["target_events_in_window"] = len(target)
 
         for row, event_dt, lead, profile in target:
-            cutoff = event_dt - timedelta(minutes=target_lead)
+            target_cutoff = event_dt - timedelta(minutes=target_lead)
+            tolerance = timedelta(minutes=15)
+            earliest_cutoff = target_cutoff - tolerance
+            latest_cutoff = target_cutoff + tolerance
             pred = c.execute(
                 """SELECT prediction_id,created_at_utc,prediction_cutoff_at_utc,strategy,model_version
                      FROM forward_prediction
                     WHERE event_id=?
                       AND market='winner'
-                      AND prediction_cutoff_at_utc=?
-                    ORDER BY created_at_utc,prediction_id
+                      AND prediction_cutoff_at_utc BETWEEN ? AND ?
+                      AND datetime(created_at_utc) <= datetime(?)
+                    ORDER BY datetime(created_at_utc) DESC, prediction_id DESC
                     LIMIT 1""",
-                (row["event_id"], cutoff.isoformat()),
+                (row["event_id"], earliest_cutoff.isoformat(), latest_cutoff.isoformat(), row["event_time_utc"]),
             ).fetchone()
 
             item = {
@@ -105,17 +111,21 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
                 "competition_id": row["competition_id"],
                 "competition_profile": profile,
                 "participant_count": int(row["participant_count"] or 0),
-                "target_cutoff_at_utc": cutoff.isoformat(),
+                "target_cutoff_at_utc": target_cutoff.isoformat(),
+                "acceptable_cutoff_range_utc": [earliest_cutoff.isoformat(), latest_cutoff.isoformat()],
             }
 
             if pred is None:
                 report["missing_predictions"].append({
+
                     **item,
-                    "reason": "NO_30M_CUTOFF_PREDICTION",
+                    "reason": "NO_PREDICTION_IN_GUIDELINE_WINDOW",
+                    "error_code": "NO_GUIDELINE_PREDICTION",
                 })
                 continue
 
-            report["predicted_at_30m_cutoff"] += 1
+            report["predicted_in_guideline_window"] += 1
+            cutoff = parse_dt(pred["prediction_cutoff_at_utc"])
             generated = parse_dt(pred["created_at_utc"])
             if generated is None:
                 timing_status = "UNKNOWN_GENERATION_TIME"
