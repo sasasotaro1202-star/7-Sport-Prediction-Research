@@ -38,6 +38,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_competition_profiles.py
       - name: Adaptive timing router regression
         run: PYTHONPATH=. python scripts/test_timing_router.py
+      - name: Production route observability regression
+        run: PYTHONPATH=. python scripts/test_prediction_route_observability.py
       - name: Competition-specific routing regression
         run: PYTHONPATH=. python scripts/test_competition_routing.py
       - name: Continuous scope autofill regression
