@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "policy": "prediction-method-meta-policy-v1",
+  "principles": {
+    "target_is_explicit": true,
+    "horizon_is_event_relative": true,
+    "granularity_is_event_level": true,
+    "pit_required": true,
+    "production_auto_promotion": false,
+    "experience_is_shadow_only": true
+  },
+  "target_profiles": {
+    "head_to_head_winner": {
+      "target_type": "binary_winner",
+      "granularity": "event",
+      "output_candidates": [
+        "single_probability",
+        "probability_plus_uncertainty",
+        "prediction_set_or_scenario",
+        "abstain_or_fallback"
+      ]
+    },
+    "multiclass_winner": {
+      "target_type": "multiclass_winner",
+      "granularity": "event",
+      "output_candidates": [
+        "probability_distribution",
+        "prediction_set_or_scenario",
+        "abstain_or_fallback"
+      ]
+    }
+  },
+  "selection": {
+    "confidence_high_probability": 0.80,
+    "confidence_medium_probability": 0.65,
+    "high_disagreement": 0.05,
+    "high_conflict_rate": 0.50,
+    "stale_freshness_score": 0.50,
+    "minimum_evidence_count_for_high_confidence": 1,
+    "low_confidence_action": "PASS",
+    "medium_confidence_action": "SECONDARY",
+    "high_confidence_action": "PRIMARY"
+  },
+  "method_preferences": {
+    "competition_specific_accepted": "competition_specific_model",
+    "contextual_router": "contextual_router",
+    "fixed_ensemble": "fixed_ensemble",
+    "safe_prior": "safe_prior"
+  },
+  "refresh_policy": {
+    "high_uncertainty": "refresh_or_recompute_candidate",
+    "medium_uncertainty": "refresh_when_new_information_has_expected_value",
+    "low_uncertainty": "maintain_until_selected_cutoff",
+    "always_fallback_on_invalid_route_or_missing_pit_feature": true
+  }
+}
