@@ -706,6 +706,11 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         situation['experience_shadow']=experience_shadow
         confidence=_prediction_confidence(p,situation)
         action_state=_prediction_action(confidence,situation)
+        # Normalize Timing Shadow state before selecting/persisting the method
+        # policy so the stored decision object matches the effective strategy label.
+        if timing_shadow:
+            strategy=f'timing_shadow_{selected_lead}__{strategy}'
+            router_status='TIMING_SHADOW'
         method_situation=dict(situation)
         method_situation['uncertainty'] = {
             **dict(method_situation.get('uncertainty') or {}),
@@ -734,9 +739,6 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                  FROM event_participant ep
                  LEFT JOIN participant p ON p.participant_id=ep.participant_id
                 WHERE ep.event_id=?""",(eid,)).fetchone()
-        if timing_shadow:
-            strategy=f'timing_shadow_{selected_lead}__{strategy}'
-            router_status='TIMING_SHADOW'
         prediction_id=_persist_forward_prediction(
             c,eid,s,cutoff,now,1.0-p,p,strategy,active_model_version,
             active_feature_version,
