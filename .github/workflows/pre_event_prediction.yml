@@ -1,4 +1,4 @@
-name: Pre-Event 30-Minute Prediction
+name: Pre-Event Adaptive Timing Prediction
 
 on:
   workflow_dispatch:
@@ -86,7 +86,7 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Generate 30-minute prediction lane
+      - name: Generate around-30-minute prediction lane
         id: predict
         run: |
           set -uo pipefail
@@ -117,7 +117,7 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Audit every target event in the active 30-minute window
+      - name: Audit every target event in the active pre-event timing window
         id: audit
         run: |
           set -uo pipefail
