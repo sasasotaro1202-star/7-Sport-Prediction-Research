@@ -168,3 +168,53 @@ def online_aggregate(
         "production_effect": "none",
         "coverage_guarantee_claimed": False,
     }
+
+
+def block_coverage_metrics(
+    prediction_sets: Sequence[Sequence[int]],
+    outcomes: Sequence[int],
+    *,
+    blocks: int = 4,
+) -> dict[str, Any]:
+    """Chronological coverage diagnostics; descriptive, not a guarantee."""
+    if len(prediction_sets) != len(outcomes):
+        raise ValueError("prediction_sets and outcomes must align")
+    if int(blocks) < 1:
+        raise ValueError("blocks must be >= 1")
+    n = len(outcomes)
+    if n == 0:
+        return {
+            "rows": 0,
+            "blocks": 0,
+            "overall_coverage": float("nan"),
+            "block_coverages": [],
+            "worst_block_coverage": float("nan"),
+            "max_undercoverage": float("nan"),
+        }
+    actual_blocks = min(int(blocks), n)
+    indices = np.array_split(np.arange(n), actual_blocks)
+    block_coverages = []
+    for idx in indices:
+        if len(idx) == 0:
+            continue
+        hits = [
+            int(outcomes[int(i)]) in {int(x) for x in prediction_sets[int(i)]}
+            for i in idx
+        ]
+        block_coverages.append(float(np.mean(hits)))
+    overall = float(np.mean([
+        int(y) in {int(x) for x in ps}
+        for ps, y in zip(prediction_sets, outcomes)
+    ]))
+    nominal_shortfall = max(0.0, overall - 0.0)
+    worst = min(block_coverages) if block_coverages else float("nan")
+    return {
+        "rows": int(n),
+        "blocks": int(len(block_coverages)),
+        "overall_coverage": overall,
+        "block_coverages": block_coverages,
+        "worst_block_coverage": float(worst),
+        "max_undercoverage": float(overall - worst) if block_coverages else float("nan"),
+        "descriptive_only": True,
+        "guarantee_claimed": False,
+    }
