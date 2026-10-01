@@ -535,6 +535,13 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
             key: metrics(vals)
             for key, vals in _group_rows(scored, "prediction_timing_status").items()
         },
+        "by_target_lead_minutes": {
+            key: metrics(vals)
+            for key, vals in sorted(
+                _group_rows(scored, "target_lead_minutes").items(),
+                key=lambda item: item[0],
+            )
+        },
         "by_confidence": grouped("confidence"),
         "by_probability_bucket": grouped("probability_bucket"),
         "by_action_state": grouped("action_state"),
@@ -720,6 +727,11 @@ def score_archive() -> dict[str, Any]:
         timing_status = timing.get("status") if isinstance(timing, dict) else None
         settled.update({
             "prediction_timing_status": timing_status or "UNKNOWN",
+            "target_lead_minutes": (
+                int(timing.get("target_lead_minutes"))
+                if isinstance(timing, dict) and timing.get("target_lead_minutes") is not None
+                else "UNKNOWN"
+            ),
             "settlement_status": "SCORED",
             "settlement_source": source_out,
             "settled_at_utc": utc_now(),
