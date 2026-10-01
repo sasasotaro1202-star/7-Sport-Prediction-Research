@@ -11,6 +11,7 @@ from src import experience_learning
 from src import competition_route_registry as competition_route
 from src import timing_route_registry as timing_route
 from src.competition_profiles import resolve_profile
+from src import prediction_method_policy
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
@@ -334,6 +335,7 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'confidence':'LOW','action_state':'PASS',
             'situation':{'status':'PIT_SAFE','quality':{'evidence_count':sa+sb,'conflict_rate':None,'freshness_score':None},'experience_shadow':experience_shadow,'policy':'historical outcomes only; no current unavailable information inferred'},
             'experience_shadow':experience_shadow,
+            'prediction_method_policy':method_policy,
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
@@ -638,6 +640,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 active_strategy='competition_specific_model'
 
         x=np.asarray([[row_features.get(f,np.nan) for f in active_feature_names]],dtype=float)
+        model_disagreement=None
         if route_active:
             model=route_info['model']
             raw=np.asarray([float(np.clip(model.predict_proba(x)[0,1],1e-6,1-1e-6))],dtype=float)
@@ -646,10 +649,15 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             p=float(raw[0])
             model_names=[str(route_info['route'].get('model_name') or 'competition_specific_model')]
             model_weights=None
+            model_disagreement=0.0
         elif missing_schema:
             return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
         elif use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
+            base_predictions=[]
+            for rm in rbase:
+                base_predictions.append(float(np.clip(rm.predict_proba(x)[0,1],1e-6,1-1e-6)))
+            model_disagreement=float(np.std(np.asarray(base_predictions,dtype=float)))
             raw,router_meta=router.predict_with_router(
                 artifact['dynamic_router'],rbase,rnames,rref,x,baseline_weights=weights
             )
@@ -672,6 +680,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             z=sum(p*w for p,w in zip(preds,pweights))
             total=sum(pweights)
             raw=np.asarray([z/max(total,1e-12)],dtype=float)
+            model_disagreement=float(np.std(np.asarray(preds,dtype=float))) if len(preds) > 1 else 0.0
             strategy=str(artifact.get('ensemble_strategy') or 'fixed_equal_weight')
             apply_cal=cal
             apply_method=cal_method
@@ -697,15 +706,39 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         situation['experience_shadow']=experience_shadow
         confidence=_prediction_confidence(p,situation)
         action_state=_prediction_action(confidence,situation)
+        # Normalize Timing Shadow state before selecting/persisting the method
+        # policy so the stored decision object matches the effective strategy label.
+        if timing_shadow:
+            strategy=f'timing_shadow_{selected_lead}__{strategy}'
+            router_status='TIMING_SHADOW'
+        method_situation=dict(situation)
+        method_situation['uncertainty'] = {
+            **dict(method_situation.get('uncertainty') or {}),
+            'model_disagreement': model_disagreement,
+        }
+        method_policy=prediction_method_policy.select_method(
+            sport=s,
+            participant_count=int(meta.get('participant_count') or 0),
+            selected_lead_minutes=selected_lead,
+            competition_profile=competition_profile,
+            strategy=strategy,
+            router_status=router_status,
+            competition_specific=route_active,
+            probability=p,
+            situation=method_situation,
+            experience_shadow=experience_shadow,
+            multiclass=False,
+        )
+        # Apply only the policy's decision/action; the scalar probability itself
+        # remains unchanged. This keeps selective prediction separate from
+        # probability generation.
+        action_state=str((method_policy.get('output') or {}).get('action') or action_state)
         a,b=c.execute(
             """SELECT GROUP_CONCAT(CASE WHEN side='A' THEN canonical_name END),
                       GROUP_CONCAT(CASE WHEN side='B' THEN canonical_name END)
                  FROM event_participant ep
                  LEFT JOIN participant p ON p.participant_id=ep.participant_id
                 WHERE ep.event_id=?""",(eid,)).fetchone()
-        if timing_shadow:
-            strategy=f'timing_shadow_{selected_lead}__{strategy}'
-            router_status='TIMING_SHADOW'
         prediction_id=_persist_forward_prediction(
             c,eid,s,cutoff,now,1.0-p,p,strategy,active_model_version,
             active_feature_version,
@@ -719,6 +752,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 "timing_selection_status": selection_status,
                 "feature_pit_lead_minutes": PIT_LEAD_MINUTES,
                 "experience_shadow": experience_shadow,
+                "prediction_method_policy": method_policy,
                 "routing": {
                     "status": router_status,
                     "competition_specific": route_active,
