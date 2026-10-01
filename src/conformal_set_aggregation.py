@@ -32,10 +32,15 @@ def weighted_vote_set(
     if any(len(s) != n_rows for s in model_sets):
         raise ValueError("model set row counts must align")
     w = np.asarray(weights, dtype=float)
-    if w.ndim != 1 or len(w) != n_models or not np.isfinite(w).all() or w.sum() <= 0:
-        w = np.full(n_models, 1.0 / n_models)
-    else:
-        w = w / w.sum()
+    if (
+        w.ndim != 1
+        or len(w) != n_models
+        or not np.isfinite(w).all()
+        or np.any(w < 0)
+        or w.sum() <= 0
+    ):
+        raise ValueError("weights must be finite, non-negative, and positive-mass")
+    w = w / w.sum()
     if not 0.0 < float(min_vote) <= 1.0:
         raise ValueError("min_vote must be in (0,1]")
 
@@ -140,10 +145,15 @@ def online_aggregate(
         w = w / w_sum
 
     combined_np = np.asarray([int(y) in s for y, s in zip(outcomes, combined)], dtype=bool)
+    eligible_np = np.asarray(eligible_flags, dtype=bool)
     return {
         "status": "RESEARCH_ONLY",
         "combined_sets": combined,
         "coverage_total": float(combined_np.mean()) if n_rows else float("nan"),
+        "coverage_eligible": (
+            float(combined_np[eligible_np].mean()) if eligible_np.any() else float("nan")
+        ),
+        "eligible_rows": int(eligible_np.sum()),
         "calibration_counts": calibration_counts,
         "eligible_flags": eligible_flags,
         "weight_history": weight_history,
