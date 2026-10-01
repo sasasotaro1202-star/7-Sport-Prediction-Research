@@ -134,6 +134,7 @@ def walk_forward_prediction_sets(
         "prediction_sets": sets,
         "actions": actions,
         "calibration_count": calibration_counts,
+        "_class_names": names,
         "maturity_gate": {
             "status": "PASS",
             "same_prediction_time_excluded": True,
@@ -149,13 +150,16 @@ def prediction_set_metrics(result: dict[str, Any], y: Sequence[int]) -> dict[str
     counts = np.asarray(result["calibration_count"], dtype=int)
     sizes = np.asarray([len(x) for x in sets], dtype=int)
     eligible = counts >= int(result["min_calibration"])
+    names = [str(x) for x in result.get("_class_names", [])]
+    if len(names) != len(set(names)) or not names:
+        raise ValueError("result is missing class-name mapping")
+    if len(yy) != len(sets):
+        raise ValueError("y must align with prediction sets")
     contained = np.asarray(
-        [0 <= int(label) < len(result["_class_names"]) and result["_class_names"][int(label)] in ps
+        [0 <= int(label) < len(names) and names[int(label)] in ps
          for label, ps in zip(yy, sets)],
         dtype=bool,
-    ) if "_class_names" in result else None
-    if contained is None:
-        raise ValueError("metrics require internal class-name mapping; use add_class_names_for_metrics")
+    )
     return {
         "total_rows": float(len(yy)),
         "eligible_rows": float(eligible.sum()),
