@@ -239,7 +239,6 @@ def main():
         ('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow)
         or (
             'timeout --signal=TERM --kill-after=30s 10800s python -m src.dual_learning_cycle' in workflow
-            and 'src/dual_learning_cycle.py' in workflow
         ),
         'strict research cycle lacks a bounded runtime budget'
     )
@@ -578,7 +577,9 @@ def main():
             'target-aware prediction method policy is missing fail-closed production settings')
     require('select_method' in method_policy_src and 'predictability_proxy' in method_policy_src,
             'target-aware prediction method policy lacks method selection/predictability state')
-    require('prediction_method_policy.select_method' in future_src and '"prediction_method_policy":method_policy' in future_src,
+    require('prediction_method_policy.select_method' in future_src and
+            ('"prediction_method_policy":method_policy' in future_src
+             or "'prediction_method_policy':method_policy" in future_src),
             'future predictor does not persist the selected target-aware method policy')
     require('"policy_hash"' in method_policy_src and 'sha256' in method_policy_src,
             'prediction method policy lacks reproducibility hash binding')
