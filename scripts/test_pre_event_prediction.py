@@ -44,7 +44,7 @@ def main() -> None:
     c.commit()
 
     window = _future_events(
-        c, "basketball", now, min_lead_minutes=25, max_lead_minutes=40
+        c, "basketball", now, min_lead_minutes=25, max_lead_minutes=60
     )
     assert "b1" in window, window
     assert "b3" not in window, window
@@ -107,7 +107,7 @@ def main() -> None:
         disk.execute("INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)", ("p1","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=2)).isoformat(),"test","test"))
         disk.commit()
         disk.close()
-        ar = audit(db, "basketball", now, 25, 40, 30)
+        ar = audit(db, "basketball", now, 25, 60, 30)
         assert ar["status"] == "PASS", ar
         assert ar["predicted_in_guideline_window"] == 1, ar
         assert not ar["missing_predictions"], ar
