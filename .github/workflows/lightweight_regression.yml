@@ -72,6 +72,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_dual_learning_cycle.py
       - name: Prediction method meta-policy regression
         run: PYTHONPATH=. python scripts/test_prediction_method_policy.py
+      - name: Case-risk shadow bridge regression
+        run: PYTHONPATH=. python scripts/test_case_risk_shadow.py
       - name: Temporal similarity memory router regression
         run: PYTHONPATH=. python scripts/test_temporal_memory_router.py
       - name: Import canonical modules
