@@ -138,7 +138,15 @@ def online_aggregate(
         gains = np.zeros(n_models, dtype=float)
         for m in range(n_models):
             gains[m] = float(np.mean([int(outcomes[j]) in model_sets[m][j] for j in prior]))
-        w = w * np.exp(float(learning_rate) * (gains - np.max(gains)))
+        log_update = float(learning_rate) * (gains - np.max(gains))
+        # Keep online expert aggregation numerically stable over long runs.
+        # Clipping prevents underflow to exact zero while preserving the
+        # relative ordering induced by the mature prior-case gains.
+        log_update = np.clip(log_update, -50.0, 50.0)
+        log_w = np.log(np.clip(w, 1e-15, 1.0)) + log_update
+        log_w -= np.max(log_w)
+        w = np.exp(log_w)
+        w = np.clip(w, 1e-12, None)
         w_sum = float(w.sum())
         if not np.isfinite(w_sum) or w_sum <= 0:
             raise RuntimeError("weight_update_nonfinite")
