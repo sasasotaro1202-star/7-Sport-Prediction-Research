@@ -245,6 +245,7 @@ def archive_forward_prediction_db(
             "stage": features.get("stage") if isinstance(features, dict) else None,
             "prediction_timing": features.get("prediction_timing") if isinstance(features, dict) else None,
             "feature_pit_lead_minutes": features.get("feature_pit_lead_minutes") if isinstance(features, dict) else None,
+            "experience_shadow": features.get("experience_shadow") if isinstance(features, dict) else None,
         })
     return archive_predictions([{"sport": sport, "predictions": preds}], generated_at_utc)
 
