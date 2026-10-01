@@ -22,10 +22,11 @@ def main() -> int:
     assert lead == 30 and status == "DEFAULT_GUIDELINE"
 
     future = (ROOT / "src/future_predictor.py").read_text(encoding="utf-8")
+    registry = (ROOT / "src/timing_route_registry.py").read_text(encoding="utf-8")
     assert "timing_route" in future
     assert "--adaptive-timing" in future
-    assert "TIMING_ROUTE_ACCEPTED" in future
-    assert "'target_lead_minutes':selected_lead" in future or '"target_lead_minutes": selected_lead' in future
+    assert "TIMING_ROUTE_ACCEPTED" in registry
+    assert "selected_lead" in future and "selection_status" in future
 
     workflow = (ROOT / ".github/workflows/pre_event_prediction.yml").read_text(encoding="utf-8")
     assert "--adaptive-timing" in workflow
