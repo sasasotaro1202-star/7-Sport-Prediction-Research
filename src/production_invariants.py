@@ -235,8 +235,13 @@ def main():
             'PIT History Expansion lacks stale-workflow SHA fail-closed guard')
     require('timeout --signal=TERM 2700s python -m src.pit_replay_builder' in workflow,
             'strict PIT replay lacks a bounded runtime budget')
-    require('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow,
-            'strict research cycle lacks a bounded runtime budget')
+    require(
+        ('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow)
+        or (
+            'timeout --signal=TERM --kill-after=30s 10800s python -m src.dual_learning_cycle' in workflow
+        ),
+        'strict research cycle lacks a bounded runtime budget'
+    )
     require('timeout --signal=TERM 900s python -m src.independent_leakage_audit' in workflow,
             'independent leakage audit lacks a bounded runtime budget')
     require('source failures degrade explicitly' in workflow,'resilient source-failure policy missing')
@@ -289,8 +294,13 @@ def main():
             'production watchdog validated dispatch path missing')
     require('limit=19800' in watchdog and 'limit=8100' not in watchdog,
             'production watchdog production timeout is too short or not aligned with workflow budgets')
-    require('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow,
-            'strict research runtime budget is not aligned with the production watchdog window')
+    require(
+        ('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow)
+        or (
+            'timeout --signal=TERM --kill-after=30s 10800s python -m src.dual_learning_cycle' in workflow
+        ),
+        'strict research runtime budget is not aligned with the production watchdog window'
+    )
     require('timeout-minutes: 225' in workflow,
             'production merge job timeout is not aligned with the research runtime budget')
     require('v4_5_15_production.yml' in watchdog and 'pit_history_expansion.yml' in watchdog,
@@ -560,6 +570,36 @@ def main():
     require('PRODUCTION_ROUTABLE_AFTER_GATES' in production_router_refs,
             'future prediction runtime lacks explicit gated router state')
     future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    method_policy_cfg=(ROOT/'config/PREDICTION_METHOD_META_POLICY.json').read_text(encoding='utf-8')
+    method_policy_src=(ROOT/'src/prediction_method_policy.py').read_text(encoding='utf-8')
+    dual_cycle_src=(ROOT/'src/dual_learning_cycle.py').read_text(encoding='utf-8')
+    require('"prediction-method-meta-policy-v1"' in method_policy_cfg and '"production_auto_promotion": false' in method_policy_cfg,
+            'target-aware prediction method policy is missing fail-closed production settings')
+    require('select_method' in method_policy_src and 'predictability_proxy' in method_policy_src,
+            'target-aware prediction method policy lacks method selection/predictability state')
+    require('evaluate_temporal_memory_router_from_folds' in router_src
+            and 'evaluate_frozen_holdout_temporal_memory_router_from_folds' in router_src,
+            'temporal similarity memory router candidate is missing chronological/frozen-holdout evaluators')
+    require('temporal_memory_router' in strict_src
+            and 'temporal_memory_router_holdout' in strict_src
+            and 'temporal_memory_accept' in strict_src,
+            'strict research cycle does not persist temporal memory routing evidence')
+    require('test_temporal_memory_router.py' in lightweight_src,
+            'temporal similarity memory router regression is not wired into Lightweight Regression')
+    require('prediction_method_policy.select_method' in future_src and
+            ('"prediction_method_policy":method_policy' in future_src
+             or "'prediction_method_policy':method_policy" in future_src),
+            'future predictor does not persist the selected target-aware method policy')
+    require('"policy_hash"' in method_policy_src and 'sha256' in method_policy_src,
+            'prediction method policy lacks reproducibility hash binding')
+    require('"dual-learning-cycle-v1"' in dual_cycle_src and '"parallel": True' in dual_cycle_src,
+            'dual learning cycle orchestrator is missing explicit parallel contract')
+    require('experience_outcomes_reused_in_historical_oos' in dual_cycle_src and 'historical_oos_used_for_experience_memory' in dual_cycle_src,
+            'dual learning cycle lacks cross-lane leakage firewall metadata')
+    require('src.dual_learning_cycle' in workflow and 'Parallel experience and historical learning' in workflow,
+            'canonical production workflow does not invoke the dual learning cycle')
+    require('test_prediction_method_policy.py' in lightweight_src and 'test_dual_learning_cycle.py' in lightweight_src,
+            'dual learning and method policy tests are not wired into lightweight CI')
     require("apply_cal = None if strategy=='contextual_router' else cal" in future_src,
             'future predictor can apply ensemble calibration to Router output distribution')
     gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
