@@ -3,6 +3,8 @@ name: 24H Autonomous Research Marathon
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - "scripts/run_24h_research_stage_main.py"
       - "scripts/test_scope_boundary.py"
