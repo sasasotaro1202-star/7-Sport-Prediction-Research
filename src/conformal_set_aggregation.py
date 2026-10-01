@@ -104,6 +104,8 @@ def online_aggregate(
 
     pt = parse_times(prediction_times, "prediction")
     mature = parse_times(outcome_confirmed_at, "outcome")
+    if any(pt[i] < pt[i - 1] for i in range(1, n_rows)):
+        raise ValueError("prediction_times must be monotonically non-decreasing")
     if any(mature[i] < pt[i] for i in range(n_rows)):
         raise ValueError("outcome_confirmed_at cannot precede prediction_time")
 
