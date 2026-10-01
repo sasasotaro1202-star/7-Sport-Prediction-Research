@@ -180,6 +180,12 @@ def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | N
                     "models": pred.get("models"),
                     "ensemble_weights": pred.get("ensemble_weights"),
                     "situation": pred.get("situation"),
+                    "competition_id": pred.get("competition_id"),
+                    "competition_profile": pred.get("competition_profile"),
+                    "season": pred.get("season"),
+                    "stage": pred.get("stage"),
+                    "prediction_timing": pred.get("prediction_timing"),
+                    "feature_pit_lead_minutes": pred.get("feature_pit_lead_minutes"),
                 }
                 fh.write(_json(normalized) + "\n")
                 existing_ids.add(pid)
@@ -232,6 +238,12 @@ def archive_forward_prediction_db(
             "feature_version": row[8],
             "status": row[10],
             "situation": features.get("matchday_situation") if isinstance(features, dict) else None,
+            "competition_id": features.get("competition_id") if isinstance(features, dict) else None,
+            "competition_profile": features.get("competition_profile") if isinstance(features, dict) else None,
+            "season": features.get("season") if isinstance(features, dict) else None,
+            "stage": features.get("stage") if isinstance(features, dict) else None,
+            "prediction_timing": features.get("prediction_timing") if isinstance(features, dict) else None,
+            "feature_pit_lead_minutes": features.get("feature_pit_lead_minutes") if isinstance(features, dict) else None,
         })
     return archive_predictions([{"sport": sport, "predictions": preds}], generated_at_utc)
 
@@ -513,6 +525,7 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
         "overall": metrics(scored),
         "by_sport": {sport: metrics(vals) for sport, vals in sorted(sport_groups.items())},
         "by_strategy": grouped("strategy"),
+        "by_competition_profile": grouped("competition_profile"),
         "by_confidence": grouped("confidence"),
         "by_probability_bucket": grouped("probability_bucket"),
         "by_action_state": grouped("action_state"),
@@ -627,6 +640,12 @@ def score_archive() -> dict[str, Any]:
             "router_status": pred.get("router_status"),
             "side_a": pred.get("side_a"),
             "side_b": pred.get("side_b"),
+            "competition_id": pred.get("competition_id"),
+            "competition_profile": pred.get("competition_profile"),
+            "season": pred.get("season"),
+            "stage": pred.get("stage"),
+            "prediction_timing": pred.get("prediction_timing"),
+            "feature_pit_lead_minutes": pred.get("feature_pit_lead_minutes"),
         }
 
         c = conns.get(sport)
