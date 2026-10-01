@@ -181,8 +181,9 @@ def main():
             'future predictor has no explicit all-nine safe fallback lane')
     require('from src.competition_profiles import resolve_profile' in predictor and 'competition_profile=resolve_profile' in predictor,
             'future prediction ledger does not bind predictions to an explicit competition profile')
-    require("'model_scope':'sport_incumbent;competition_specific_selection_research_only'" in predictor,
-            'future predictor does not distinguish incumbent sport model from competition-specific research selection')
+    require("active_model_scope='competition_specific;frozen_holdout_accepted'" in predictor
+            and "active_model_scope='sport_incumbent;competition_specific_selection_research_only'" in predictor,
+            'future predictor does not distinguish competition-specific accepted routing from sport incumbent fallback')
     require('Competition-level chronological OOS evaluation' in workflow,
             'production research workflow does not evaluate competition-level OOS profiles')
     require("availability_status='EXACT'" in predictor and 'source_available_at_utc' in predictor,
@@ -652,8 +653,10 @@ def main():
     pre_event_audit=(ROOT/'src/pre_event_prediction_audit.py').read_text(encoding='utf-8')
     require((ROOT/'.github/workflows/pre_event_prediction.yml').exists(),
             '30-minute pre-event prediction workflow is missing')
-    require('"target_lead_minutes":30' in pre_event_policy and '"prediction_cutoff":"event_time_minus_target_lead"' in pre_event_policy,
-            'pre-event policy does not define a 30-minute prediction cutoff')
+    require('"target_lead_minutes": 30' in pre_event_policy and '"guideline_target_minutes": 30' in pre_event_policy,
+            'pre-event policy does not define a 30-minute timing guideline')
+    require('"allow_timing_deviation": true' in pre_event_policy and '"max_guideline_deviation_minutes": 15' in pre_event_policy,
+            'pre-event policy does not permit bounded adaptive timing around the guideline')
     require("cron: '3-58/5 * * * *'" in pre_event_wf and '--lead-minutes 30' in pre_event_wf,
             'pre-event workflow is not scheduled at the required 5-minute cadence with 30-minute target')
     require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 40' in pre_event_wf,
