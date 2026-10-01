@@ -54,6 +54,8 @@ jobs:
         run: python -m compileall -q src
       - name: Regression
         run: PYTHONPATH=. python scripts/test_upset_uncertainty_oos.py
+      - name: Diagnose exact PIT data coverage
+        run: PYTHONPATH=. python scripts/diagnose_upset_pit_coverage.py --sport ${{ matrix.sport }}
       - name: Run causal OOS upset-risk research
         run: PYTHONPATH=. python -m src.upset_uncertainty_oos --sport ${{ matrix.sport }}
       - name: Run isolated chronological risk-threshold sweep
@@ -65,4 +67,5 @@ jobs:
           path: |
             results/upset_uncertainty_oos.json
             results/upset_threshold_sweep_${{ matrix.sport }}.json
+            results/upset_pit_coverage_${{ matrix.sport }}.json
           retention-days: 14
