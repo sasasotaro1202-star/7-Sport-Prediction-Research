@@ -1,7 +1,15 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
+
+
+def _assert_raises(exc_type, message, fn):
+    try:
+        fn()
+    except exc_type as exc:
+        assert message in str(exc)
+    else:
+        raise AssertionError(f"expected {exc_type.__name__}")
 from datetime import datetime, timedelta, timezone
 
 from src.temporal_conformal_prediction_sets import (
@@ -25,13 +33,19 @@ def test_maturity_contract_fail_closed():
     y, p, pt, mature = _fixture(8)
     bad_pt = pt.copy()
     bad_pt[3] = "2025-12-31T23:00:00+00:00"
-    with pytest.raises(ValueError, match="monotonically"):
-        validate_maturity_contract(bad_pt, mature)
+    _assert_raises(
+        ValueError,
+        "monotonically",
+        lambda: validate_maturity_contract(bad_pt, mature),
+    )
 
     bad_mature = mature.copy()
     bad_mature[3] = "2026-01-01T02:00:00+00:00"
-    with pytest.raises(ValueError, match="precedes"):
-        validate_maturity_contract(pt, bad_mature)
+    _assert_raises(
+        ValueError,
+        "precedes",
+        lambda: validate_maturity_contract(pt, bad_mature),
+    )
 
 
 def test_same_timestamp_and_immature_rows_are_excluded():
