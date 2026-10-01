@@ -147,6 +147,22 @@ def run(sport: str | None = None, research_command: Sequence[str] | None = None)
             }
         _write_evidence(payload)
         return 0 if success else 1
+    except Exception as exc:
+        payload.update({
+            "finished_at_utc": utc_now(),
+            "duration_seconds": round(time.monotonic() - wall_start, 3),
+            "status": "FAILED",
+            "failure": {
+                "exception_type": type(exc).__name__,
+                "exception": str(exc),
+            },
+        })
+        if exp is not None:
+            payload["lanes"]["experience"]["returncode"] = exp.poll()
+        if historical is not None:
+            payload["lanes"]["historical"]["returncode"] = historical.poll()
+        _write_evidence(payload)
+        raise
     finally:
         if exp is not None and exp.poll() is None:
             exp.kill()
