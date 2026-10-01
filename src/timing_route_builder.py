@@ -69,6 +69,10 @@ def _prepare_rows(con: sqlite3.Connection, sport: str, allowed_leads: set[int]) 
           JOIN event_outcome eo ON eo.event_id=fp.event_id
          WHERE fp.sport=? AND fp.market='winner'
            AND eo.outcome_status='VERIFIED' AND eo.outcome IN ('A','B')
+           AND fp.generated_at_utc IS NOT NULL
+           AND fp.prediction_cutoff_at_utc IS NOT NULL
+           AND datetime(fp.generated_at_utc) <= datetime(fp.prediction_cutoff_at_utc)
+           AND fp.feature_snapshot_hash IS NOT NULL AND TRIM(fp.feature_snapshot_hash)<>''
            AND fp.probability_side_a IS NOT NULL AND fp.probability_side_b IS NOT NULL
          ORDER BY e.event_time_utc,fp.generated_at_utc,fp.prediction_id
         """,
