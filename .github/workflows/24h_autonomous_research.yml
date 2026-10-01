@@ -2,14 +2,6 @@ name: 24H Autonomous Research Marathon
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "scripts/run_24h_research_stage_main.py"
-      - "scripts/test_scope_boundary.py"
-      - "scripts/test_model_state_snapshot_idempotency.py"
-      - "config/ACTIVE_SCOPE_9_SPORTS.json"
-      - "config/PROJECT_SCOPE_POLICY.json"
-      - "src/research_cycle_strict.py"
   # Heavy 24H research is intentionally scheduled/manual rather than per-commit.
   # Hourly production and lightweight PR checks provide fast feedback; this marathon
   # remains available for explicit dispatch and the daily long-horizon research cycle.
