@@ -38,7 +38,8 @@ def test_same_timestamp_and_immature_rows_are_excluded():
     y, p, pt, mature = _fixture(60)
     pt[10] = pt[9]
     mature[10] = "2026-01-03T00:00:00+00:00"
-    mature[11] = "2026-01-01T10:45:00+00:00"
+    # Keep row 11's own outcome confirmation valid; row 10 is the immature same-time row.
+    mature[11] = "2026-01-01T11:30:00+00:00"
 
     out = temporal_binary_prediction_sets(
         y, p, pt, mature, min_calibration=10, max_calibration=20
