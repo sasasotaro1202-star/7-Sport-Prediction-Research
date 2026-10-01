@@ -329,8 +329,8 @@ def main():
             'Rugby coverage workflow should not create heavy push-triggered queue')
     require('boxing' in strict_src.lower() and 'DEFERRED_PIT' in strict_src,
             'Boxing must have an explicit fail-closed PIT deferred research path')
-    require('  push:' not in pit_workflow,
-            'PIT expansion should not create heavy push-triggered queue')
+    require("'push trigger: VALIDATION_ONLY_NO_HEAVY_EXPANSION'" in pit_workflow and 'event_name' in pit_workflow,
+            'PIT expansion should explicitly avoid heavy execution on push triggers')
     require("minute_delta=$((delta / 60))" in pit_workflow,
             'PIT cadence guard must tolerate normal GitHub schedule jitter at minute precision')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
@@ -682,8 +682,8 @@ def main():
             'production workflow does not build competition-specific routes before release')
     require('test_competition_routing.py' in lightweight_src,
             'competition routing regression is not wired into Lightweight Regression')
-    require('NO_30M_CUTOFF_PREDICTION' in pre_event_audit and 'missing_predictions' in pre_event_audit,
-            'pre-event audit does not explicitly detect missing 30-minute predictions')
+    require('missing_predictions' in pre_event_audit and 'NO_GUIDELINE_PREDICTION' in pre_event_audit,
+            'pre-event audit does not explicitly detect missing guideline-timing predictions')
     require('def _prediction_timing' in future_src and "'prediction_timing':timing" in future_src,
             'future predictor does not persist actual prediction timing')
     require('--lead-minutes' in future_src and '--target-scope-only' in future_src,
