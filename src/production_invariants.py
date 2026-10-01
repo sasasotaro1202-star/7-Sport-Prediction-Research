@@ -598,6 +598,11 @@ def main():
             'case-risk shadow bridge regression is not wired into Lightweight Regression')
     require('test_safe_prior_method_policy_binding.py' in lightweight_src,
             'safe-prior target-aware method-policy binding regression is not wired into Lightweight Regression')
+    require('test_experience_shadow_prediction_cutoff.py' in lightweight_src,
+            'experience shadow prediction-cutoff PIT regression is not wired into Lightweight Regression')
+    require("experience_learning.shadow_signal(\n            cutoff,s," in future_src
+            and "experience_learning.shadow_signal(\n            now,s," not in future_src,
+            'experience shadow must be anchored to the prediction cutoff, not wall-clock generation time')
     require('prediction_method_policy.select_method' in future_src and
             ('"prediction_method_policy":method_policy' in future_src
              or "'prediction_method_policy':method_policy" in future_src),
