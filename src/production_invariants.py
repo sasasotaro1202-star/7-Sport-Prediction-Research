@@ -721,6 +721,16 @@ def main():
             'route observability does not expose timing/competition adoption dimensions')
     require('test_prediction_route_observability.py' in lightweight_src,
             'route observability regression is not wired into Lightweight Regression')
+    runtime_health=(ROOT/'src/production_runtime_health.py').read_text(encoding='utf-8')
+    runtime_wf=(ROOT/'.github/workflows/production_runtime_health.yml').read_text(encoding='utf-8')
+    require('monitoring_only' in runtime_health and 'promotion_gate' in runtime_health,
+            'production runtime health is not explicitly monitoring-only')
+    require('STALE_RISK' in runtime_health and 'LONG_RUNNING' in runtime_health,
+            'production runtime health lacks long-running/stale state classification')
+    require('actions: read' in runtime_wf and 'contents: read' in runtime_wf,
+            'production runtime health workflow does not use read-only permissions')
+    require('test_production_runtime_health.py' in lightweight_src,
+            'production runtime health regression is not wired into Lightweight Regression')
     require('by_prediction_timing_status' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
             'prediction experience summary does not track pre-event timing quality')
     require('test_pre_event_prediction.py' in lightweight_src,
