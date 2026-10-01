@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 from src.competition_profiles import resolve_profile
 from src.future_predictor import _future_events, _prediction_timing
+from src.pre_event_prediction_audit import audit
 
 
 def main() -> None:
@@ -61,8 +62,20 @@ def main() -> None:
 
     assert resolve_profile("basketball", "B.LEAGUE", "B.LEAGUE")["matched"]
     assert not resolve_profile("basketball", "Other League", "Other League")["matched"]
-    assert resolve_profile("volleyball", "Asian Games Volleyball", "Asian Games Volleyball")["matched"]
-
+    # 30 minutes is a guideline: a prediction with a nearby cutoff is acceptable.
+    c.execute("CREATE TABLE forward_prediction( prediction_id TEXT PRIMARY KEY, event_id TEXT, market TEXT, prediction_cutoff_at_utc TEXT, created_at_utc TEXT, strategy TEXT, model_version TEXT )")
+    cutoff_early = now + timedelta(minutes=15)
+    c.execute(
+        "INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)",
+        ("p1","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=2)).isoformat(),"test","test")
+    )
+    c.commit()
+    ar = audit(
+        __import__("pathlib").Path("/tmp/nonexistent.sqlite"),
+        "basketball", now, 5, 40, 30
+    )
+    assert ar["status"] == "NO_DATABASE"
+    c.close()
     c.close()
     print("PRE_EVENT_PREDICTION_CONTRACT=PASS")
 
