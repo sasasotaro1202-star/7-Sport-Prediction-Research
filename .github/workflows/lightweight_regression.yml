@@ -68,6 +68,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_experience_learning.py
       - name: Experience research bridge regression
         run: PYTHONPATH=. python scripts/test_experience_research_bridge.py
+      - name: Dual learning cycle contract
+        run: PYTHONPATH=. python scripts/test_dual_learning_cycle.py
       - name: Import canonical modules
         run: |
           python - <<'PY'
