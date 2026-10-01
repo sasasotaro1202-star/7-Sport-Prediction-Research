@@ -313,6 +313,7 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'prediction_timing':timing,
             'timing_selection_status':selection_status,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
+            'case_risk_shadow':case_risk_shadow,
             'experience_shadow':experience_shadow,
             'fallback_policy':'pit_safe_historical_prior_v2_retrieval_pit',
         }
@@ -714,6 +715,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
 
         x=np.asarray([[row_features.get(f,np.nan) for f in active_feature_names]],dtype=float)
         model_disagreement=None
+        risk_predictions={}
         if route_active:
             model=route_info['model']
             raw=np.asarray([float(np.clip(model.predict_proba(x)[0,1],1e-6,1-1e-6))],dtype=float)
@@ -731,6 +733,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             for rm in rbase:
                 base_predictions.append(float(np.clip(rm.predict_proba(x)[0,1],1e-6,1-1e-6)))
             model_disagreement=float(np.std(np.asarray(base_predictions,dtype=float)))
+            risk_predictions={str(n):float(v) for n,v in zip(rnames,base_predictions)}
             raw,router_meta=router.predict_with_router(
                 artifact['dynamic_router'],rbase,rnames,rref,x,baseline_weights=weights
             )
@@ -754,6 +757,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             total=sum(pweights)
             raw=np.asarray([z/max(total,1e-12)],dtype=float)
             model_disagreement=float(np.std(np.asarray(preds,dtype=float))) if len(preds) > 1 else 0.0
+            risk_predictions={str(n):float(v) for n,v in zip(names,preds)}
             strategy=str(artifact.get('ensemble_strategy') or 'fixed_equal_weight')
             apply_cal=cal
             apply_method=cal_method
@@ -806,6 +810,47 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         # remains unchanged. This keeps selective prediction separate from
         # probability generation.
         action_state=str((method_policy.get('output') or {}).get('action') or action_state)
+        # Case-risk remains shadow-only and cannot change probability, route, timing, or action.
+        case_risk_shadow={
+            'status':'UNAVAILABLE','error_probability':None,
+            'reference':'pre_holdout_case_risk_model',
+            'used_to_change_probability':False,
+            'used_to_change_model_route':False,
+            'used_to_change_action':False,
+            'reason':'not_available',
+        }
+        case_risk_bundle=artifact.get('case_risk_model')
+        case_risk_names=list(artifact.get('case_risk_model_names') or [])
+        if (case_risk_bundle is not None
+            and str(artifact.get('case_risk_status') or '')=='RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY'
+            and not route_active and selected_lead <= 60 and case_risk_names):
+            history_rows=[]
+            try:
+                cutoff_dt=datetime.fromisoformat(str(cutoff).replace('Z','+00:00'))
+                if cutoff_dt.tzinfo is None: cutoff_dt=cutoff_dt.replace(tzinfo=timezone.utc)
+                for rr in rows:
+                    if rr[2] is None: continue
+                    rdt=datetime.fromisoformat(str(rr[1]).replace('Z','+00:00'))
+                    if rdt.tzinfo is None: rdt=rdt.replace(tzinfo=timezone.utc)
+                    if rdt < cutoff_dt: history_rows.append(rr)
+            except (TypeError,ValueError):
+                history_rows=[]
+            try:
+                hx=np.asarray([[rr[3].get(f,np.nan) for f in features] for rr in history_rows],dtype=float)
+                cx=np.asarray([[row_features.get(f,np.nan) for f in features]],dtype=float)
+                md_ctx=matchday_intelligence.build_matchday_change_context_rows([(eid,t)],DB)[0]
+                case_risk_shadow=_case_risk_shadow(
+                    model_bundle=case_risk_bundle,
+                    model_names=case_risk_names,
+                    risk_predictions=risk_predictions,
+                    baseline_weights=weights,
+                    history_X=hx,
+                    current_X=cx,
+                    matchday_context=md_ctx,
+                    selected_lead_minutes=selected_lead,
+                )
+            except (TypeError,ValueError,FloatingPointError):
+                case_risk_shadow={**case_risk_shadow,'reason':'case_risk_shadow_context_error'}
         a,b=c.execute(
             """SELECT GROUP_CONCAT(CASE WHEN side='A' THEN canonical_name END),
                       GROUP_CONCAT(CASE WHEN side='B' THEN canonical_name END)
@@ -825,6 +870,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 "timing_selection_status": selection_status,
                 "feature_pit_lead_minutes": PIT_LEAD_MINUTES,
                 "experience_shadow": experience_shadow,
+                "case_risk_shadow": case_risk_shadow,
                 "prediction_method_policy": method_policy,
                 "routing": {
                     "status": router_status,
