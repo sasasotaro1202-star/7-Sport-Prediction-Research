@@ -1,0 +1,70 @@
+name: Predictability Calibration Research
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/predictability_calibration_oos.py"
+      - "scripts/test_predictability_calibration_oos.py"
+      - ".github/workflows/predictability_calibration_research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Ensure repository-root imports resolve when test files are executed by pytest.
+
+concurrency:
+  group: predictability-calibration-research
+  cancel-in-progress: true
+
+env:
+  PYTHONPATH: .
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Compile
+        run: python -m compileall -q src/predictability_calibration_oos.py
+      - name: Unit tests
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Run unit tests
+        run: python -m pytest -q scripts/test_predictability_calibration_oos.py
+      - name: Synthetic frozen-suffix smoke
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timedelta, timezone
+          import numpy as np
+          from src.predictability_calibration_oos import chronological_predictability_calibration, brier, ece
+          n=180
+          base=datetime(2026,1,1,tzinfo=timezone.utc)
+          pt=[(base+timedelta(hours=i)).isoformat() for i in range(n)]
+          mt=[(base+timedelta(hours=i,minutes=20)).isoformat() for i in range(n)]
+          raw=np.linspace(.1,.9,n)
+          y=(raw>.55).astype(int)
+          out=chronological_predictability_calibration(raw,y,pt,mt,locked_start=140,min_history=30,max_history=100)
+          locked=slice(140,None)
+          report={
+            "research_only":True,
+            "production_effect":out["production_effect"],
+            "contract":out["contract"],
+            "frozen_training_rows":out["frozen_training_rows"],
+            "locked_brier":brier(y[locked],out["calibrated"][locked]),
+            "locked_ece":ece(y[locked],out["calibrated"][locked]),
+          }
+          print(json.dumps(report,indent=2))
+          assert out["contract"]["status"]=="PASS"
+          assert out["frozen_training_rows"] >= 30
+          PY
