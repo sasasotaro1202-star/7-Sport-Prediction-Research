@@ -79,6 +79,11 @@ X data is isolated from the production model: collection → PIT storage → ind
 ### Canonical production
 `.github/workflows/v4_5_15_production.yml` runs only the five active prediction lanes. Research-only/deferred extensions are isolated from the canonical production prediction path.
 
+### Automatic 30-minute pre-event prediction
+`.github/workflows/pre_event_prediction.yml` runs every 5 minutes (UTC, offset from the top of the hour) for the five active sports. It refreshes upcoming schedules, generates a prediction tied to the event-time-minus-30-minute PIT cutoff, audits every active-scope event in the 5–40 minute recovery window, and preserves the sport-scoped database for the next production cycle. Missing 30-minute predictions are recorded explicitly as coverage gaps; late/early generation timing is tracked rather than hidden.
+
+The 30-minute lane does not promote models. Its outputs are appended to the forward-prediction experience ledger, scored only against verified outcomes, and summarized by competition profile and prediction timing for future research/OOS selection.
+
 ### Rugby / Boxing coverage guards
 `.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby remains coverage-only until its sport-specific PIT/OOS/release path is proven.
 `.github/workflows/boxing_pit_guard.yml` checks free/public Boxing source candidates every 6 hours and records an explicit `DEFERRED_PIT` state until historical source availability is proven.
