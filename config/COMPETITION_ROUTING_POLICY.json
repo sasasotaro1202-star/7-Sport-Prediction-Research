@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "policy": "competition-specific-production-routing-v1",
+  "research_scope": {
+    "explicit_competition_id_required": true,
+    "dynamic_research_discovery_for_active_sports": true,
+    "no_implicit_production_activation": true
+  },
+  "minimums": {
+    "rows": 180,
+    "pre_holdout_train_rows": 90,
+    "folds": 4,
+    "min_test_rows_per_fold": 15,
+    "holdout_rows": 30,
+    "periods": 2
+  },
+  "selection": {
+    "primary": "logloss",
+    "secondary": ["brier", "ece", "accuracy"],
+    "min_relative_logloss_improvement": 0.03,
+    "min_folds_not_worse": 0.70,
+    "holdout_logloss_not_worse": true,
+    "holdout_brier_tolerance": 0.001,
+    "holdout_ece_tolerance": 0.01,
+    "bootstrap_samples": 600,
+    "bootstrap_probability_improvement": 0.90,
+    "require_pit_clean_before_route": true,
+    "require_frozen_holdout": true
+  },
+  "candidates": [
+    "logistic",
+    "extra_trees",
+    "hist_gb",
+    "hist_gb_shallow",
+    "extra_trees_missing",
+    "hist_gb_missing",
+    "lightgbm",
+    "lightgbm_missing"
+  ],
+  "artifacts": {
+    "directory": "models/competition",
+    "registry": "results/research/competition_routes.json"
+  },
+  "fallback_chain": [
+    "competition_specific_accepted",
+    "sport_incumbent",
+    "safe_prior"
+  ],
+  "production": {
+    "route_registry_status_required": "READY",
+    "route_entry_status_required": "ACCEPTED_LOCKED_HOLDOUT",
+    "production_scope_still_requires_explicit_active_target": true
+  }
+}
