@@ -139,9 +139,11 @@ jobs:
                   "main_sha": main_sha,
               }
           elif not completed:
+              # Initial 24H cycles are handled by the marathon's daily schedule/manual trigger.
+              # The watchdog only recovers an existing stale or failed cycle.
               decision = {
-                  "action": "DISPATCH",
-                  "reason": "no_verified_run_for_current_main",
+                  "action": "WAIT",
+                  "reason": "await_scheduled_cycle_for_current_main",
                   "main_sha": main_sha,
               }
           else:
