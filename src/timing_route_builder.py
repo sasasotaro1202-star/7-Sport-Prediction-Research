@@ -273,7 +273,7 @@ def _evaluate_profile(profile_id: str, leads: dict[int, dict[str, dict]], policy
         "baseline_lead_minutes": default,
         "selected_lead_minutes": int(selected_lead),
         "quality_status": "ACCEPTED_LOCKED_HOLDOUT",
-        "holdout_used_for_selection": false,
+        "holdout_used_for_selection": False,
         "pit_status": "REQUIRED_CLEAN_BY_PRODUCTION_TIMING_GATE",
         "model_scope": "timing_policy;competition_specific;frozen_holdout_accepted",
         "holdout": selected["holdout"],
