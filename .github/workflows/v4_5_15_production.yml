@@ -324,8 +324,15 @@ jobs:
         run: python -m src.reproducibility_manifest
       - name: Release gate
         run: python -m src.production_release_gate
+      - name: Build adaptive prediction timing routes
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 1200s python -m src.timing_route_builder
+
       - name: Future prediction inference
-        run: python -m src.future_predictor
+        run: |
+          set -euo pipefail
+          python -m src.future_predictor --adaptive-timing --lead-minutes 30 --min-lead-minutes 5 --max-lead-minutes 180 --target-scope-only
       - name: Score and accumulate prediction experience
         run: python -m src.prediction_experience --score-only
       - name: Production invariants
