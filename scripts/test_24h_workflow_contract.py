@@ -45,6 +45,13 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn('name: "Final / 24H evidence reconciliation"', text)
         self.assertIn('rglob("stage_*_final.json")', text)
 
+    def test_watchdog_waits_when_no_verified_current_cycle_exists(self):
+        text = (ROOT / ".github" / "workflows" / "24h_autonomous_research_watchdog.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('reason": "await_scheduled_cycle_for_current_main"', text)
+        self.assertNotIn('reason": "no_verified_run_for_current_main"', text)
+
     def test_runner_uses_stage_sport_and_bounded_cycle(self):
         text = (ROOT / "scripts" / "run_24h_research_stage_main.py").read_text(
             encoding="utf-8"
