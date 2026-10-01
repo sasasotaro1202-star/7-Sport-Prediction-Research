@@ -43,9 +43,12 @@ jobs:
           import numpy as np
           from src.temporal_conformal_prediction_sets import temporal_binary_prediction_sets, prediction_set_metrics
 
+          from datetime import datetime, timedelta, timezone
           n = 64
-          pt = [f"2026-01-01T{i:02d}:00:00+00:00" for i in range(n)]
-          mature = [f"2026-01-01T{i:02d}:30:00+00:00" if i < 24 else f"2026-01-02T{(i-24):02d}:30:00+00:00" for i in range(n)]
+          base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+          pt_dt = [base + timedelta(hours=i) for i in range(n)]
+          pt = [dt.isoformat() for dt in pt_dt]
+          mature = [(dt + timedelta(minutes=30)).isoformat() for dt in pt_dt]
           y = np.asarray([0, 1] * (n // 2))
           p = np.asarray([0.82, 0.18] * (n // 2))
           out = temporal_binary_prediction_sets(y, p, pt, mature, min_calibration=20, max_calibration=30)
