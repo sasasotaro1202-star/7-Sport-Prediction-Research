@@ -10,6 +10,9 @@ on:
       - "config/ACTIVE_SCOPE_9_SPORTS.json"
       - "config/PROJECT_SCOPE_POLICY.json"
       - "src/research_cycle_strict.py"
+  # Heavy 24H research is intentionally scheduled/manual rather than per-commit.
+  # Hourly production and lightweight PR checks provide fast feedback; this marathon
+  # remains available for explicit dispatch and the daily long-horizon research cycle.
   schedule:
     - cron: "17 15 * * *"
 
