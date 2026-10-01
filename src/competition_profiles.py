@@ -16,7 +16,7 @@ def normalize(value: object) -> str:
     return re.sub(r"\\s+", " ", str(value or "")).strip().lower()
 
 
-def resolve_profile(sport: str, competition_id: object = None, event_name: object = None) -> dict:
+def resolve_profile(sport: str, competition_id: object = None, event_name: object = None, research_discovery: bool = False) -> dict:
     policy = _load()
     cid = normalize(competition_id)
     name = normalize(event_name)
@@ -36,7 +36,7 @@ def resolve_profile(sport: str, competition_id: object = None, event_name: objec
                 "competition_id": str(competition_id or ""),
             }
     dynamic = {str(x) for x in (policy.get("dynamic_competition_discovery") or [])}
-    if str(sport) in dynamic and cid:
+    if (str(sport) in dynamic or research_discovery) and cid:
         base_profile = next(
             (p for p in policy.get("profiles", []) if str(p.get("sport")) == str(sport)),
             None,
@@ -63,8 +63,13 @@ def resolve_profile(sport: str, competition_id: object = None, event_name: objec
     }
 
 
+def resolve_research_profile(sport: str, competition_id: object = None, event_name: object = None) -> dict:
+    """Resolve an explicit competition identity for research only; this never changes production scope."""
+    return resolve_profile(sport, competition_id, event_name, research_discovery=True)
+
+
 def profile_policy() -> dict:
     return _load()
 
 
-__all__ = ["normalize", "resolve_profile", "profile_policy"]
+__all__ = ["normalize", "resolve_profile", "resolve_research_profile", "profile_policy"]
