@@ -313,7 +313,6 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'prediction_timing':timing,
             'timing_selection_status':selection_status,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
-            'case_risk_shadow':case_risk_shadow,
             'experience_shadow':experience_shadow,
             'fallback_policy':'pit_safe_historical_prior_v2_retrieval_pit',
         }
@@ -899,6 +898,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             'action_state':action_state,
             'situation':situation,
             'experience_shadow':experience_shadow,
+            'case_risk_shadow':case_risk_shadow,
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED' if outputs else 'NO_FUTURE_EVENTS',
