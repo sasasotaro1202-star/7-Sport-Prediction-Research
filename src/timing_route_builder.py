@@ -111,13 +111,6 @@ def _prepare_rows(con: sqlite3.Connection, sport: str, allowed_leads: set[int]) 
         existing = grouped[item["profile_id"]].get(int(target))
         if existing is None or abs(item["actual_lead"] - target) < abs(existing["actual_lead"] - target):
             grouped[item["profile_id"]][int(target)] = item
-    # Convert the event-key grouping back into per-profile, per-lead event maps.
-    out: dict[str, dict[int, dict]] = defaultdict(dict)
-    for profile_id in grouped:
-        # The first grouping above is profile -> lead -> best item, but we need
-        # multiple events. Re-read deterministically with profile/lead buckets.
-        pass
-
     buckets: dict[str, dict[int, dict[str, dict]]] = defaultdict(lambda: defaultdict(dict))
     for row in query:
         pid,event_id,cutoff,generated,pb,event_time,competition_id,name,status,outcome=row
@@ -280,6 +273,8 @@ def _evaluate_profile(profile_id: str, leads: dict[int, dict[str, dict]], policy
         "baseline_lead_minutes": default,
         "selected_lead_minutes": int(selected_lead),
         "quality_status": "ACCEPTED_LOCKED_HOLDOUT",
+        "holdout_used_for_selection": false,
+        "pit_status": "REQUIRED_CLEAN_BY_PRODUCTION_TIMING_GATE",
         "model_scope": "timing_policy;competition_specific;frozen_holdout_accepted",
         "holdout": selected["holdout"],
         "oos": {
