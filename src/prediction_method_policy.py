@@ -137,6 +137,26 @@ def select_method(
     experience = experience_shadow or {}
     experience_review = str(experience.get("recommendation") or "PASS") == "EXPERIENCE_REVIEW"
 
+    information_action = "maintain"
+    if conflict is not None and conflict > float(selection["high_conflict_rate"]):
+        information_action = "verify_or_resolve_conflicting_sources"
+    elif freshness is not None and freshness < float(selection["stale_freshness_score"]):
+        information_action = "refresh_pit_safe_sources"
+    elif uncertainty == "HIGH":
+        information_action = "acquire_high_value_information_candidate"
+    elif experience_review:
+        information_action = "study_repeated_error_pattern"
+
+    update_action = (
+        "abstain_or_fallback"
+        if confidence == "LOW"
+        else "recompute_candidate"
+        if uncertainty == "HIGH"
+        else "revise_when_new_information_arrives"
+        if uncertainty == "MEDIUM"
+        else "maintain"
+    )
+
     target_profile_id, target_profile = _target_profile(sport, participant_count, multiclass)
 
     return {
@@ -162,6 +182,7 @@ def select_method(
             "evidence_count": evidence,
             "freshness_score": freshness,
             "conflict_rate": conflict,
+            "next_action": information_action,
         },
         "method": {
             "model_method": model_method,
@@ -183,6 +204,7 @@ def select_method(
             "format": output,
             "action": action,
             "refresh_policy": refresh,
+            "update_action": update_action,
         },
         "experience": {
             "shadow_only": True,
