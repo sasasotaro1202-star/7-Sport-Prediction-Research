@@ -201,7 +201,7 @@ def select_method(
             "level": uncertainty,
         },
         "output": {
-            "format": output,
+            "format_candidate": output,
             "action": action,
             "refresh_policy": refresh,
             "update_action": update_action,
