@@ -76,6 +76,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_case_risk_shadow.py
       - name: Safe-prior method-policy binding regression
         run: PYTHONPATH=. python scripts/test_safe_prior_method_policy_binding.py
+      - name: Experience shadow prediction-cutoff PIT regression
+        run: PYTHONPATH=. python scripts/test_experience_shadow_prediction_cutoff.py
       - name: Temporal similarity memory router regression
         run: PYTHONPATH=. python scripts/test_temporal_memory_router.py
       - name: Import canonical modules
