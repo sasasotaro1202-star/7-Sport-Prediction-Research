@@ -7,6 +7,7 @@ from src import dynamic_model_router as router
 from src import matchday_intelligence_oos as matchday_intelligence
 from src import research_cycle_v4 as base
 from src import prediction_experience as experience
+from src import competition_route_registry as competition_route
 from src.competition_profiles import resolve_profile
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -538,17 +539,50 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             continue
         if s in MULTICLASS_SPORTS and meta['participant_count'] < 2:
             continue
-        # F1 is a true multi-entrant market. Do not silently force a binary
-        # A/B artifact into production. Until a gated multiclass artifact schema
-        # exists, fail closed for F1 rather than emitting an invalid winner model.
         if s in MULTICLASS_SPORTS:
             return {
                 'sport': s,
                 'status': 'DEFERRED_MULTICLASS_ARTIFACT_SCHEMA',
                 'reason': 'F1 requires a gated per-driver multiclass winner artifact; binary A/B artifacts are never accepted'
             }
-        x=np.asarray([[row_features.get(f,np.nan) for f in features]],dtype=float)
-        if use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
+
+        event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
+        event_name,competition_id,season,stage=event_row if event_row else ("","","","")
+        competition_profile=resolve_profile(s,competition_id,event_name)
+        if target_scope_only and not competition_profile.get('matched'):
+            continue
+
+        route_info=competition_route.resolve_route(s,competition_profile)
+        route_active=False
+        active_feature_names=features
+        active_model_version=artifact.get('model_version')
+        active_feature_version=artifact.get('feature_version') or 'unknown'
+        active_model_scope='sport_incumbent;competition_specific_selection_research_only'
+        active_strategy=None
+        if route_info is not None:
+            route=route_info['route']
+            route_features=list(route.get('feature_names') or [])
+            missing_route=sorted(set(route_features)-set(row_features))
+            if route_features and not missing_route and callable(getattr(route_info.get('model'),'predict_proba',None)):
+                route_active=True
+                active_feature_names=route_features
+                active_model_version=str(route.get('model_version') or 'competition-route')
+                active_feature_version=str(route.get('feature_version') or 'competition-route-base-features')
+                active_model_scope='competition_specific;frozen_holdout_accepted'
+                active_strategy='competition_specific_model'
+
+        x=np.asarray([[row_features.get(f,np.nan) for f in active_feature_names]],dtype=float)
+        if route_active:
+            model=route_info['model']
+            raw=np.asarray([float(np.clip(model.predict_proba(x)[0,1],1e-6,1-1e-6))],dtype=float)
+            strategy='competition_specific_model'
+            router_status='COMPETITION_SPECIFIC_ACCEPTED'
+            p=float(raw[0])
+            model_names=[str(route_info['route'].get('model_name') or 'competition_specific_model')]
+            model_weights=None
+        elif missing_schema:
+            return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        elif use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
             raw,router_meta=router.predict_with_router(
                 artifact['dynamic_router'],rbase,rnames,rref,x,baseline_weights=weights
@@ -558,6 +592,12 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 if router_meta.get('fallback')
                 else 'contextual_router'
             )
+            apply_cal = None if strategy=='contextual_router' else cal
+            apply_method = 'none' if strategy=='contextual_router' else cal_method
+            p=float(_apply_calibration(raw,apply_cal,apply_method)[0])
+            router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
+            model_names=list(rnames) if strategy=='contextual_router' else list(names)
+            model_weights=None if strategy=='contextual_router' else dict(weights)
         else:
             preds=[]
             for n,m in zip(names,models):
@@ -567,17 +607,13 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             total=sum(pweights)
             raw=np.asarray([z/max(total,1e-12)],dtype=float)
             strategy=str(artifact.get('ensemble_strategy') or 'fixed_equal_weight')
-        # The stored outer calibrator was trained for the selected fixed/weighted
-        # ensemble. Never apply it to a different Router output distribution.
-        apply_cal = None if strategy=='contextual_router' else cal
-        apply_method = 'none' if strategy=='contextual_router' else cal_method
-        p=float(_apply_calibration(raw,apply_cal,apply_method)[0])
-        cutoff=(datetime.fromisoformat(str(t).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
-        event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
-        event_name,competition_id,season,stage=event_row if event_row else ("","","","")
-        competition_profile=resolve_profile(s,competition_id,event_name)
-        if target_scope_only and not competition_profile.get('matched'):
-            continue
+            apply_cal=cal
+            apply_method=cal_method
+            p=float(_apply_calibration(raw,apply_cal,apply_method)[0])
+            router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
+            model_names=list(names)
+            model_weights=dict(weights)
+
         timing=_prediction_timing(t,now,prediction_lead_minutes)
         cutoff=timing['target_cutoff_at_utc']
         situation=_matchday_situation(eid,t,cutoff)
@@ -590,16 +626,21 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                  LEFT JOIN participant p ON p.participant_id=ep.participant_id
                 WHERE ep.event_id=?""",(eid,)).fetchone()
         prediction_id=_persist_forward_prediction(
-            c,eid,s,cutoff,now,1.0-p,p,strategy,artifact.get('model_version'),
-            artifact.get('feature_version') or 'unknown',
+            c,eid,s,cutoff,now,1.0-p,p,strategy,active_model_version,
+            active_feature_version,
             {
-                **{f:row_features.get(f) for f in features},
+                **{f:row_features.get(f) for f in active_feature_names},
                 "matchday_situation": situation,
                 "competition_profile": competition_profile,
                 "season": season,
                 "stage": stage,
                 "prediction_timing": timing,
                 "feature_pit_lead_minutes": PIT_LEAD_MINUTES,
+                "routing": {
+                    "status": router_status,
+                    "competition_specific": route_active,
+                    "fallback_chain": ["competition_specific_accepted","sport_incumbent","safe_prior"]
+                }
             }
         )
         outputs.append({
@@ -609,12 +650,12 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             'competition_profile':competition_profile,
             'season':season,
             'stage':stage,
-            'model_scope':'sport_incumbent;competition_specific_selection_research_only',
+            'model_scope':active_model_scope,
             'strategy':strategy,'router_status':router_status,'prediction_id':prediction_id,
-            'models':list(names) if strategy!='contextual_router' else list(rnames),
-            'ensemble_weights':dict(weights) if strategy!='contextual_router' else None,
-            'model_version':artifact.get('model_version'),
-            'feature_version':artifact.get('feature_version') or 'unknown',
+            'models':model_names,
+            'ensemble_weights':model_weights,
+            'model_version':active_model_version,
+            'feature_version':active_feature_version,
             'prediction_timing':timing,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'confidence':confidence,
