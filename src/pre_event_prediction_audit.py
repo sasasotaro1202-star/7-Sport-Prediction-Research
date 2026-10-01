@@ -38,6 +38,7 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
         "target_lead_minutes": target_lead,
         "window": {"min_lead_minutes": min_lead, "max_lead_minutes": max_lead},
         "guideline_tolerance_minutes": 15,
+        "guideline_only": True,
         "status": "UNKNOWN",
         "target_events_in_window": 0,
         "predicted_in_guideline_window": 0,
