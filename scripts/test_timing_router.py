@@ -16,6 +16,9 @@ def main() -> int:
     assert DEFAULT_LEAD == 30
     assert timing_builder.DEFAULT_LEAD == 30
     assert callable(timing_builder.build)
+    timing_src = (ROOT / "src/timing_route_builder.py").read_text(encoding="utf-8")
+    assert "datetime(fp.generated_at_utc) <= datetime(fp.prediction_cutoff_at_utc)" in timing_src
+    assert "feature_snapshot_hash" in timing_src
     assert policy["default_preferred_lead_minutes"] == 30
     assert 30 in policy["allowed_lead_minutes"]
     assert policy["selection"]["require_oos_timing_evidence_for_nondefault"] is True
