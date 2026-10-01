@@ -132,6 +132,18 @@ def load_settled_rows(settlements_dir: Path = SETTLEMENTS_DIR) -> list[dict[str,
                 normalized = _validate_row(row)
                 if normalized is not None:
                     rows.append(normalized)
+    deduped: dict[str, dict[str, Any]] = {}
+    for normalized in rows:
+        prediction_id = normalized["prediction_id"]
+        if not prediction_id:
+            raise RuntimeError("EXPERIENCE_LEARNING_MISSING_PREDICTION_ID")
+        previous = deduped.get(prediction_id)
+        if previous is None:
+            deduped[prediction_id] = normalized
+            continue
+        if previous != normalized:
+            raise RuntimeError("EXPERIENCE_LEARNING_DUPLICATE_CONFLICT")
+    rows = list(deduped.values())
     rows.sort(key=lambda x: (x["settled_at_utc"], x["prediction_id"]))
     return rows
 
