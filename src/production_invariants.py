@@ -571,6 +571,25 @@ def main():
     require('PRODUCTION_ROUTABLE_AFTER_GATES' in production_router_refs,
             'future prediction runtime lacks explicit gated router state')
     future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
+    method_policy_cfg=(ROOT/'config/PREDICTION_METHOD_META_POLICY.json').read_text(encoding='utf-8')
+    method_policy_src=(ROOT/'src/prediction_method_policy.py').read_text(encoding='utf-8')
+    dual_cycle_src=(ROOT/'src/dual_learning_cycle.py').read_text(encoding='utf-8')
+    require('"prediction-method-meta-policy-v1"' in method_policy_cfg and '"production_auto_promotion": false' in method_policy_cfg,
+            'target-aware prediction method policy is missing fail-closed production settings')
+    require('select_method' in method_policy_src and 'predictability_proxy' in method_policy_src,
+            'target-aware prediction method policy lacks method selection/predictability state')
+    require('prediction_method_policy.select_method' in future_src and '"prediction_method_policy":method_policy' in future_src,
+            'future predictor does not persist the selected target-aware method policy')
+    require('"policy_hash"' in method_policy_src and 'sha256' in method_policy_src,
+            'prediction method policy lacks reproducibility hash binding')
+    require('"dual-learning-cycle-v1"' in dual_cycle_src and '"parallel": True' in dual_cycle_src,
+            'dual learning cycle orchestrator is missing explicit parallel contract')
+    require('experience_outcomes_reused_in_historical_oos' in dual_cycle_src and 'historical_oos_used_for_experience_memory' in dual_cycle_src,
+            'dual learning cycle lacks cross-lane leakage firewall metadata')
+    require('src.dual_learning_cycle' in workflow and 'Parallel experience and historical learning' in workflow,
+            'canonical production workflow does not invoke the dual learning cycle')
+    require('test_prediction_method_policy.py' in lightweight_src and 'test_dual_learning_cycle.py' in lightweight_src,
+            'dual learning and method policy tests are not wired into lightweight CI')
     require("apply_cal = None if strategy=='contextual_router' else cal" in future_src,
             'future predictor can apply ensemble calibration to Router output distribution')
     gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
