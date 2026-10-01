@@ -33,6 +33,12 @@ def resolve_lead(sport: str, profile: dict, default: int = DEFAULT_LEAD) -> tupl
         return int(default), "DEFAULT_GUIDELINE"
     if str(route.get("quality_status")) != "ACCEPTED_LOCKED_HOLDOUT":
         return int(default), "DEFAULT_GUIDELINE"
+    if str(route.get("model_scope")) != "timing_policy;competition_specific;frozen_holdout_accepted":
+        return int(default), "DEFAULT_GUIDELINE"
+    if str(route.get("pit_status")) != "REQUIRED_CLEAN_BY_PRODUCTION_TIMING_GATE":
+        return int(default), "DEFAULT_GUIDELINE"
+    if bool(route.get("holdout_used_for_selection", False)):
+        return int(default), "DEFAULT_GUIDELINE"
     if str(route.get("sport")) != str(sport):
         return int(default), "DEFAULT_GUIDELINE"
     try:
