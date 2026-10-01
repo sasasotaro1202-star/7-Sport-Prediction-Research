@@ -1,0 +1,62 @@
+name: Temporal Conformal Research
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/temporal_conformal_prediction_sets.py"
+      - "scripts/test_temporal_conformal_prediction_sets.py"
+      - ".github/workflows/temporal_conformal_research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temporal-conformal-research
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Compile
+        run: python -m compileall -q src/temporal_conformal_prediction_sets.py
+      - name: Unit tests
+        run: python scripts/test_temporal_conformal_prediction_sets.py
+      - name: Synthetic chronological smoke
+        run: |
+          python - <<'PY'
+          import json
+          import numpy as np
+          from src.temporal_conformal_prediction_sets import temporal_binary_prediction_sets, prediction_set_metrics
+
+          n = 64
+          pt = [f"2026-01-01T{i:02d}:00:00+00:00" for i in range(n)]
+          mature = [f"2026-01-01T{i:02d}:30:00+00:00" if i < 24 else f"2026-01-02T{(i-24):02d}:30:00+00:00" for i in range(n)]
+          y = np.asarray([0, 1] * (n // 2))
+          p = np.asarray([0.82, 0.18] * (n // 2))
+          out = temporal_binary_prediction_sets(y, p, pt, mature, min_calibration=20, max_calibration=30)
+          report = prediction_set_metrics(out, y)
+          print(json.dumps({
+            "research_only": True,
+            "production_effect": out["production_effect"],
+            "maturity_contract": out["maturity_contract"],
+            "metrics": report,
+          }, indent=2))
+          assert out["eligible_rows"] == 44
+          assert out["maturity_contract"]["status"] == "PASS"
+          assert report["coverage_eligible"] >= 0.90
+          PY
