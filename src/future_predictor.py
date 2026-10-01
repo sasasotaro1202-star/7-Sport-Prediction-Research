@@ -738,10 +738,6 @@ def main():
     ap.add_argument('--target-scope-only',action='store_true')
     ap.add_argument('--adaptive-timing',action='store_true')
     ap.add_argument('--timing-shadow',action='store_true')
-    ap.add_argument('--adaptive-timing',action='store_true')
-    ap.add_argument('--timing-shadow',action='store_true')
-    ap.add_argument('--adaptive-timing',action='store_true')
-    ap.add_argument('--timing-shadow',action='store_true')
     args=ap.parse_args()
     if args.lead_minutes <= 0:
         raise SystemExit('lead-minutes must be positive')
