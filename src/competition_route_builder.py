@@ -288,6 +288,14 @@ def build_route_registry(db_path: Path | None = None, sports: list[str] | None =
             "pit_gate": {"required": bool(policy["selection"]["require_pit_clean_before_route"]), "status": "PENDING_PRODUCTION_INDEPENDENT_AUDIT"},
             "source_git_sha": _git_sha(),
         }
+        pit_bad = int(con.execute(
+            "SELECT COUNT(*) FROM pit_replay WHERE COALESCE(leakage_status,'UNKNOWN') NOT IN ('PASS','CLEAN')"
+        ).fetchone()[0])
+        if pit_bad:
+            report["status"] = "BLOCKED_PIT"
+            report["pit_gate"] = {"required": True, "status": "BLOCKED", "bad_rows": pit_bad}
+            return _safe(report)
+
         for sport in active:
             rows, features = base.build(con, sport)
             event_meta = {
