@@ -23,6 +23,41 @@ def main() -> int:
     assert classify_job({"status": "completed", "conclusion": "success"}) == "SUCCESS"
     assert classify_job({"status": "completed", "conclusion": "failure"}) == "FAILURE"
 
+    from src.production_runtime_health import _latest_production_run
+
+    import src.production_runtime_health as health
+
+    original_api = health._api_json
+    payloads = [
+        {
+            "workflow_runs": [
+                {
+                    "id": 10,
+                    "status": "in_progress",
+                    "head_branch": "main",
+                    "created_at": "2026-10-01T03:00:00Z",
+                },
+                {
+                    "id": 11,
+                    "status": "queued",
+                    "head_branch": "main",
+                    "created_at": "2026-10-01T04:00:00Z",
+                },
+            ]
+        }
+    ]
+    health._api_json = lambda *args, **kwargs: payloads[0]
+    try:
+        selected = _latest_production_run(
+            "https://api.github.com",
+            "owner/repo",
+            "token",
+            "v4_5_15_production.yml",
+        )
+        assert selected["id"] == 10
+    finally:
+        health._api_json = original_api
+
     run = {
         "id": 123,
         "name": "Active-Scope Target v4.5.15 Production",
