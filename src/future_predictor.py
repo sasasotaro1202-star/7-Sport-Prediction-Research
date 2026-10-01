@@ -290,17 +290,17 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
         timing['selection_status']=selection_status
         cutoff=timing['target_cutoff_at_utc']
         strategy_name='safe_prior' if not timing_shadow else f'timing_shadow_{selected_lead}__safe_prior'
-        experience_shadow=experience_learning.shadow_signal(
-            now,s,
-            str(competition_profile.get('profile_id') or 'UNKNOWN'),
-            strategy_name,
-            0.5,
-            selected_lead,
-        )
         sa,wa,rate_a=_prior_record(c,s,a[0],cutoff)
         sb,wb,rate_b=_prior_record(c,s,b[0],cutoff)
         denom=max(rate_a+rate_b,1e-12)
         pb=float(np.clip(rate_b/denom,1e-6,1-1e-6))
+        experience_shadow=experience_learning.shadow_signal(
+            now,s,
+            str(competition_profile.get('profile_id') or 'UNKNOWN'),
+            strategy_name,
+            max(float(pb),1.0-float(pb)),
+            selected_lead,
+        )
         features={
             'prior_starts_a':sa,'prior_wins_a':wa,'prior_win_rate_a':rate_a,
             'prior_starts_b':sb,'prior_wins_b':wb,'prior_win_rate_b':rate_b,
