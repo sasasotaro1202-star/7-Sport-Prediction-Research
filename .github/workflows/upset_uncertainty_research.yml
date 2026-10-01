@@ -1,9 +1,6 @@
 name: Upset Uncertainty Research
 
 on:
-  push:
-    branches:
-      - research/upset-uncertainty-current-main-20261002
   pull_request:
     branches:
       - main
@@ -46,6 +43,8 @@ jobs:
           path: data/db
           key: upset-research-${{ matrix.sport }}-${{ github.run_id }}
           restore-keys: |
+            active-scope-target-db-v4-${{ matrix.sport }}-
+            active-scope-target-db-v4-${{ matrix.sport }}-pit-
             nine-sport-target-db-v4-${{ matrix.sport }}-pit-
             nine-sport-target-db-v4-${{ matrix.sport }}-
             pit-history-seed-${{ matrix.sport }}-
