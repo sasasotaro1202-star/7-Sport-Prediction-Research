@@ -62,6 +62,23 @@ def test_experience_never_changes_probability_or_route():
     assert result["output"]["update_action"] == "revise_when_new_information_arrives"
 
 
+def test_policy_hash_is_present_and_stable():
+    result = select_method(
+        sport="basketball",
+        participant_count=2,
+        selected_lead_minutes=30,
+        competition_profile={"matched": True, "profile_id": "basketball:bleague"},
+        strategy="fixed_equal_weight",
+        router_status="FALLBACK_FIXED_ENSEMBLE",
+        competition_specific=False,
+        probability=0.70,
+        situation={"status": "PIT_SAFE", "quality": {"evidence_count": 1, "freshness_score": 0.9, "conflict_rate": 0.0}},
+        experience_shadow={"recommendation": "PASS"},
+    )
+    assert result["policy_hash"]
+    assert len(result["policy_hash"]) == 64
+
+
 def test_stale_information_requests_refresh():
     result = select_method(
         sport="volleyball",
@@ -99,5 +116,6 @@ if __name__ == "__main__":
     test_uncertain_case_moves_to_set_or_abstain()
     test_experience_never_changes_probability_or_route()
     test_stale_information_requests_refresh()
+    test_policy_hash_is_present_and_stable()
     test_policy_action_state_is_explicit_for_high_confidence()
     print("prediction_method_policy tests passed")
