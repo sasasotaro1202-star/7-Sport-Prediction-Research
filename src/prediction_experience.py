@@ -92,8 +92,14 @@ def _load_settlements() -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for row in _load_jsonl_dir(SETTLEMENTS_DIR):
         pid = str(row.get("prediction_id") or "")
-        if pid:
+        if not pid:
+            raise RuntimeError("INVALID_SETTLEMENT_MISSING_PREDICTION_ID")
+        previous = out.get(pid)
+        if previous is None:
             out[pid] = row
+            continue
+        if previous != row:
+            raise RuntimeError("CONFLICTING_SETTLEMENT_DUPLICATE")
     return out
 
 def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | None = None) -> dict[str, int]:
