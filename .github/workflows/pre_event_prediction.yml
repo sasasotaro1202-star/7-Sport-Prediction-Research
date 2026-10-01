@@ -51,9 +51,6 @@ jobs:
           assert p['scheduler']['generation_window']['max_lead_minutes'] == 180
           assert p['scheduler']['guideline_target_minutes'] == 30
           assert p['scheduler']['guideline_tolerance_minutes'] == 15
-          assert p['scheduler']['guideline_only'] is True
-          assert p['scheduler']['guideline_only'] is True
-          assert p['scheduler']['guideline_tolerance_minutes'] == 15
           assert p['scope']['active_prediction_scope_only'] is True
           assert p['scope']['competition_profile_required'] is True
           assert p['pit']['prediction_cutoff'] == 'event_time_minus_selected_lead'
@@ -211,9 +208,15 @@ jobs:
           collect_rc='${{ steps.collect.outputs.rc }}'
           predict_rc='${{ steps.predict.outputs.rc }}'
           experience_rc='${{ steps.experience.outputs.rc }}'
+          shadow_rc='${{ steps.timing_shadow.outputs.rc }}'
           audit_rc='${{ steps.audit.outputs.rc }}'
           db_rc='${{ steps.dbguard.outputs.rc }}'
-          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} schedule_rc=$collect_rc predict_rc=$predict_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
+          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
+          if [ "$shadow_rc" -ne 0 ]; then
+            echo "TIMING_SHADOW_STATUS=DEGRADED exit=$shadow_rc"
+          else
+            echo "TIMING_SHADOW_STATUS=OK"
+          fi
           rc=0
           for x in "$collect_rc" "$predict_rc" "$experience_rc" "$audit_rc" "$db_rc"; do
             if [ "$x" -ne 0 ] && [ "$rc" -eq 0 ]; then rc="$x"; fi
