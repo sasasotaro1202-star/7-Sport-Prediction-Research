@@ -43,3 +43,15 @@ def test_weights_remain_finite_and_normalized():
     assert np.isfinite(out["final_weights"]).all()
     assert np.isclose(sum(out["final_weights"]),1.0)
     assert all(np.isclose(sum(w),1.0) for w in out["weight_history"])
+
+
+def test_invalid_weights_fail_closed():
+    sets, y, pt, mature = fixture(8)
+    with pytest.raises(ValueError, match="weights must be finite"):
+        weighted_vote_set(sets, [float("nan"), 1.0])
+
+def test_eligible_coverage_excludes_warmup():
+    sets, y, pt, mature = fixture(8)
+    out = online_aggregate(sets, y, pt, mature, min_calibration=3)
+    assert out["eligible_rows"] == 3
+    assert np.isfinite(out["coverage_eligible"])
