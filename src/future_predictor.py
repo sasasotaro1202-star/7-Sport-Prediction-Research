@@ -640,6 +640,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 active_strategy='competition_specific_model'
 
         x=np.asarray([[row_features.get(f,np.nan) for f in active_feature_names]],dtype=float)
+        model_disagreement=None
         if route_active:
             model=route_info['model']
             raw=np.asarray([float(np.clip(model.predict_proba(x)[0,1],1e-6,1-1e-6))],dtype=float)
@@ -648,10 +649,15 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             p=float(raw[0])
             model_names=[str(route_info['route'].get('model_name') or 'competition_specific_model')]
             model_weights=None
+            model_disagreement=0.0
         elif missing_schema:
             return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
         elif use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
+            base_predictions=[]
+            for rm in rbase:
+                base_predictions.append(float(np.clip(rm.predict_proba(x)[0,1],1e-6,1-1e-6)))
+            model_disagreement=float(np.std(np.asarray(base_predictions,dtype=float)))
             raw,router_meta=router.predict_with_router(
                 artifact['dynamic_router'],rbase,rnames,rref,x,baseline_weights=weights
             )
@@ -674,6 +680,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             z=sum(p*w for p,w in zip(preds,pweights))
             total=sum(pweights)
             raw=np.asarray([z/max(total,1e-12)],dtype=float)
+            model_disagreement=float(np.std(np.asarray(preds,dtype=float))) if len(preds) > 1 else 0.0
             strategy=str(artifact.get('ensemble_strategy') or 'fixed_equal_weight')
             apply_cal=cal
             apply_method=cal_method
@@ -699,6 +706,11 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         situation['experience_shadow']=experience_shadow
         confidence=_prediction_confidence(p,situation)
         action_state=_prediction_action(confidence,situation)
+        method_situation=dict(situation)
+        method_situation['uncertainty'] = {
+            **dict(method_situation.get('uncertainty') or {}),
+            'model_disagreement': model_disagreement,
+        }
         method_policy=prediction_method_policy.select_method(
             sport=s,
             participant_count=int(meta.get('participant_count') or 0),
@@ -708,7 +720,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             router_status=router_status,
             competition_specific=route_active,
             probability=p,
-            situation=situation,
+            situation=method_situation,
             experience_shadow=experience_shadow,
             multiclass=False,
         )
