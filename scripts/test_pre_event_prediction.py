@@ -47,7 +47,8 @@ def main() -> None:
         c, "basketball", now, min_lead_minutes=25, max_lead_minutes=60
     )
     assert "b1" in window, window
-    assert "b3" not in window, window
+    assert "b3" in window, window
+    assert window["b3"]["lead_minutes"] == 50.0, window
     assert "x1" not in window, window
 
     on_time = _prediction_timing(t30, now, 30)
