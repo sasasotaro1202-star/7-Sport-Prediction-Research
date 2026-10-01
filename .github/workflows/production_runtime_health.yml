@@ -1,0 +1,46 @@
+name: Production Runtime Health Audit
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: production-runtime-health
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Run production runtime health audit
+        env:
+          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: \${{ github.repository }}
+          GITHUB_API_URL: \${{ github.api_url }}
+        run: |
+          set -euo pipefail
+          python -m src.production_runtime_health --output results/research/production_runtime_health.json
+      - name: Upload production runtime health
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-runtime-health-\${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: results/research/production_runtime_health.json
