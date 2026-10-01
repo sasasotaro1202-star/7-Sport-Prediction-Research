@@ -235,8 +235,14 @@ def main():
             'PIT History Expansion lacks stale-workflow SHA fail-closed guard')
     require('timeout --signal=TERM 2700s python -m src.pit_replay_builder' in workflow,
             'strict PIT replay lacks a bounded runtime budget')
-    require('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow,
-            'strict research cycle lacks a bounded runtime budget')
+    require(
+        ('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow)
+        or (
+            'timeout --signal=TERM --kill-after=30s 10800s python -m src.dual_learning_cycle' in workflow
+            and 'src/dual_learning_cycle.py' in workflow
+        ),
+        'strict research cycle lacks a bounded runtime budget'
+    )
     require('timeout --signal=TERM 900s python -m src.independent_leakage_audit' in workflow,
             'independent leakage audit lacks a bounded runtime budget')
     require('source failures degrade explicitly' in workflow,'resilient source-failure policy missing')
@@ -289,8 +295,13 @@ def main():
             'production watchdog validated dispatch path missing')
     require('limit=19800' in watchdog and 'limit=8100' not in watchdog,
             'production watchdog production timeout is too short or not aligned with workflow budgets')
-    require('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow,
-            'strict research runtime budget is not aligned with the production watchdog window')
+    require(
+        ('timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict' in workflow)
+        or (
+            'timeout --signal=TERM --kill-after=30s 10800s python -m src.dual_learning_cycle' in workflow
+        ),
+        'strict research runtime budget is not aligned with the production watchdog window'
+    )
     require('timeout-minutes: 225' in workflow,
             'production merge job timeout is not aligned with the research runtime budget')
     require('v4_5_15_production.yml' in watchdog and 'pit_history_expansion.yml' in watchdog,
