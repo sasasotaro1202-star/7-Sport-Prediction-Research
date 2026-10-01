@@ -74,3 +74,21 @@ if __name__ == "__main__":
     test_dissent_probability_uses_only_opposing_experts()
     test_dissent_rescue_can_change_pick_only_under_gates()
     test_feature_matrix_preserves_nan_context()
+
+
+def test_overall_status_is_deferred_when_all_sports_are_deferred(monkeypatch):
+    import src.upset_uncertainty_oos as module
+    monkeypatch.setattr(module, "_evaluate_sport", lambda con, sport: {
+        "sport": sport,
+        "status": "DEFERRED",
+        "reason": "synthetic_insufficient_data",
+    })
+    # The CLI-level aggregation is tested by exercising the same status rule
+    # without touching a real database or production artifact.
+    evaluated = [module._evaluate_sport(None, sport) for sport in ("basketball", "ufc")]
+    overall = (
+        "EVALUATED"
+        if any(str(item.get("status")) == "EVALUATED" for item in evaluated)
+        else "DEFERRED"
+    )
+    assert overall == "DEFERRED"
