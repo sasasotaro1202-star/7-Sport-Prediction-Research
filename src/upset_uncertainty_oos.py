@@ -496,12 +496,32 @@ def _evaluate_sport(con, sport):
             extra={"selection_requires_accuracy_improvement": True},
         )
 
+    def _block_mean(row, field):
+        values = [
+            float(block.get(field, float("nan")))
+            for block in (row.get("block_results") or [])
+            if isinstance(block, dict)
+        ]
+        values = [v for v in values if np.isfinite(v)]
+        return float(np.mean(values)) if values else float("-inf")
+
+    def _block_min(row, field):
+        values = [
+            float(block.get(field, float("nan")))
+            for block in (row.get("block_results") or [])
+            if isinstance(block, dict)
+        ]
+        values = [v for v in values if np.isfinite(v)]
+        return float(np.min(values)) if values else float("-inf")
+
     ranked = sorted(
         policy_results.items(),
         key=lambda item: (
+            -_block_mean(item[1], "logloss_improvement"),
+            -_block_min(item[1], "logloss_improvement"),
+            -int(item[1].get("positive_block_count", 0)),
             -float(item[1]["oos_logloss_improvement"]),
             -float(item[1]["oos_accuracy_improvement"]),
-            -float(item[1]["oos_brier_improvement"]),
             float(item[1]["ece_change"]),
         ),
     )
@@ -512,10 +532,23 @@ def _evaluate_sport(con, sport):
             r.get("kind") != "dissent_rescue"
             or r.get("oos_accuracy_improvement", 0.0) > 0.0
         )
+        bootstrap = r.get("cluster_bootstrap") or {}
+        bootstrap_ok = (
+            float(bootstrap.get("probability_improvement", 0.0)) >= 0.90
+            and float(bootstrap.get("p05_improvement", float("-inf"))) > 0.0
+            and int(bootstrap.get("clusters", 0)) >= 30
+        )
+        blocks = r.get("block_results") or []
+        block_mean = _block_mean(r, "logloss_improvement")
+        block_min = _block_min(r, "logloss_improvement")
         if (
             r["oos_logloss_improvement"] > 0.0
             and r["oos_brier_improvement"] >= -0.001
+            and len(blocks) >= 3
             and r["positive_block_count"] >= 2
+            and block_mean > 0.0
+            and block_min > -0.005
+            and bootstrap_ok
             and accuracy_ok
         ):
             selected_key = key
