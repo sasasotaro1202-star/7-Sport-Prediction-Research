@@ -656,6 +656,7 @@ def main():
     args = ap.parse_args()
     if not DB.is_file():
         raise SystemExit(f"FAIL_CLOSED_DB_MISSING:{DB}")
+    sports = [args.sport] if args.sport else list(ACTIVE_SPORTS)
     con = sqlite3.connect(DB)
     try:
         evaluated_sports = [_evaluate_sport(con, sport) for sport in sports]
