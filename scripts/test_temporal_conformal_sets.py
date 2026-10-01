@@ -39,7 +39,7 @@ def test_maturity_contract_rejects_impossible_or_unsorted_time():
 def test_same_prediction_time_is_excluded_and_maturity_is_required():
     y, p, pt, mature = fixture(70)
     pt[31] = pt[30]
-    mature[30] = pt[60]
+    mature[29] = pt[60]
     out = walk_forward_prediction_sets(
         y, p, pt, mature,
         min_calibration=30,
