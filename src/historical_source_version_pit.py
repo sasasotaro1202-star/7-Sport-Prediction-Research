@@ -13,6 +13,7 @@ import base64
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from typing import Any
@@ -39,7 +40,7 @@ def api_json(url: str, token: str, opener=urllib.request.urlopen) -> dict[str,An
 
 def list_path_commits(owner_repo: str, path: str, token: str, api_base="https://api.github.com") -> list[dict[str,Any]]:
     if "/" not in owner_repo or not path.strip(): raise ValueError("invalid_repository_or_path")
-    url=f"{api_base.rstrip("/")}/repos/{owner_repo}/commits?path={__import__("urllib.parse").parse.quote(path,safe="/")}&per_page=100"
+    url=f"{api_base.rstrip("/")}/repos/{owner_repo}/commits?path={urllib.parse.quote(path,safe="/")}&per_page=100"
     data=api_json(url,token)
     items=data.get("items")
     if not isinstance(items,list): raise RuntimeError("GITHUB_API_COMMITS_MISSING")
