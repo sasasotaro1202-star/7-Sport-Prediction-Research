@@ -134,7 +134,7 @@ def walk_forward_prediction_sets(
         "prediction_sets": sets,
         "actions": actions,
         "calibration_count": calibration_counts,
-        "_class_names": names,
+        "class_names": names,
         "maturity_gate": {
             "status": "PASS",
             "same_prediction_time_excluded": True,
@@ -150,7 +150,7 @@ def prediction_set_metrics(result: dict[str, Any], y: Sequence[int]) -> dict[str
     counts = np.asarray(result["calibration_count"], dtype=int)
     sizes = np.asarray([len(x) for x in sets], dtype=int)
     eligible = counts >= int(result["min_calibration"])
-    names = [str(x) for x in result.get("_class_names", [])]
+    names = [str(x) for x in result.get("class_names", [])]
     if len(names) != len(set(names)) or not names:
         raise ValueError("result is missing class-name mapping")
     if len(yy) != len(sets):
