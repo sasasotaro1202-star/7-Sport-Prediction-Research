@@ -284,10 +284,10 @@ jobs:
           set -euo pipefail
           timeout --signal=TERM 2700s python -m src.pit_replay_builder
 
-      - name: Research with frozen holdout
+      - name: Parallel experience and historical learning
         run: |
           set -euo pipefail
-          timeout --signal=TERM --kill-after=30s 10800s python -m src.research_cycle_strict
+          timeout --signal=TERM --kill-after=30s 10800s python -m src.dual_learning_cycle
 
       - name: Competition-level chronological OOS evaluation
         run: |
@@ -355,6 +355,8 @@ jobs:
         run: python scripts/test_experience_learning.py
       - name: Experience research bridge regression
         run: python scripts/test_experience_research_bridge.py
+      - name: Dual learning cycle contract
+        run: python scripts/test_dual_learning_cycle.py
       - name: Production invariants
         run: python -m src.production_invariants
       - name: Compile check
