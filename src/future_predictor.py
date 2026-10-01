@@ -304,6 +304,26 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             max(float(pb),1.0-float(pb)),
             selected_lead,
         )
+        method_policy=prediction_method_policy.select_method(
+            sport=s,
+            participant_count=2,
+            selected_lead_minutes=selected_lead,
+            competition_profile=competition_profile,
+            strategy='safe_prior',
+            router_status=('TIMING_SHADOW' if timing_shadow else 'SAFE_PRIOR_FALLBACK'),
+            competition_specific=False,
+            probability=pb,
+            situation={
+                'status':'PIT_SAFE',
+                'quality':{
+                    'evidence_count':sa+sb,
+                    'conflict_rate':None,
+                    'freshness_score':None,
+                },
+                'experience_shadow':experience_shadow,
+            },
+            experience_shadow=experience_shadow,
+        )
         features={
             'prior_starts_a':sa,'prior_wins_a':wa,'prior_win_rate_a':rate_a,
             'prior_starts_b':sb,'prior_wins_b':wb,'prior_win_rate_b':rate_b,
