@@ -53,7 +53,7 @@ def test_invalid_weights_fail_closed():
 def test_eligible_coverage_excludes_warmup():
     sets, y, pt, mature = fixture(8)
     out = online_aggregate(sets, y, pt, mature, min_calibration=3)
-    assert out["eligible_rows"] == 3
+    assert out["eligible_rows"] == 5
     assert np.isfinite(out["coverage_eligible"])
 
 
