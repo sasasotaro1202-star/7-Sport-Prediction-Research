@@ -724,6 +724,10 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             experience_shadow=experience_shadow,
             multiclass=False,
         )
+        # Apply only the policy's decision/action; the scalar probability itself
+        # remains unchanged. This keeps selective prediction separate from
+        # probability generation.
+        action_state=str((method_policy.get('output') or {}).get('action') or action_state)
         a,b=c.execute(
             """SELECT GROUP_CONCAT(CASE WHEN side='A' THEN canonical_name END),
                       GROUP_CONCAT(CASE WHEN side='B' THEN canonical_name END)
