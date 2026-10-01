@@ -36,6 +36,12 @@ def main() -> int:
     assert "def _github_code_leads" in discovery
     assert "code_leads = _github_code_leads()" in discovery
     assert "per_sport = {" in discovery
+    assert "DISCOVERY_SIGNAL_TERMS" in discovery
+    assert "_discovery_signal_strength" in discovery
+    assert '"signal_strength"' in discovery
+    assert "code_low_signal_leads" in discovery
+    assert "github_code_low_signal_ratio" in discovery
+    assert "low_signal_discovery_is_quarantined_not_deleted" in discovery
     assert 'return 0 if status != "FAILED" else 2' in discovery
     assert 'selection_action' in controller
 
