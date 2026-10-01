@@ -185,6 +185,329 @@ def _recent_model_loss(meta_losses: Sequence[Sequence[float]], n_models: int) ->
     return np.where(np.isfinite(out),out,np.log(2.0))
 
 
+
+def _fit_temporal_memory(meta_features: np.ndarray, meta_losses: np.ndarray, max_rows: int = 600):
+    """Build a compact temporal memory of prior OOF contexts and per-expert losses."""
+    X = np.asarray(meta_features, dtype=float)
+    L = np.asarray(meta_losses, dtype=float)
+    if X.ndim != 2 or L.ndim != 2 or len(X) != len(L) or len(X) < 60:
+        return None
+    if L.shape[1] < 2 or max_rows <= 0:
+        return None
+    X = X[-int(max_rows):]
+    L = L[-int(max_rows):]
+    med = _safe_nanmedian(X, axis=0)
+    scale = _safe_nanmedian(np.abs(X - med), axis=0)
+    med = np.where(np.isfinite(med), med, 0.0)
+    scale = np.where(np.isfinite(scale) & (scale > 1e-6), scale, 1.0)
+    Xn = np.nan_to_num((X - med) / scale, nan=0.0, posinf=0.0, neginf=0.0)
+    return {
+        "kind": "temporal_similarity_memory_v1",
+        "feature_median": med,
+        "feature_scale": scale,
+        "features": Xn,
+        "losses": np.asarray(L, dtype=float),
+        "max_rows": int(max_rows),
+    }
+
+
+def _route_with_temporal_memory(
+    memory,
+    bp: np.ndarray,
+    ctx: np.ndarray,
+    history_loss=None,
+    baseline_weights: Dict[str, float] | None = None,
+    k: int = 20,
+):
+    """Route from nearest prior OOF cases with conservative shrinkage to incumbent."""
+    if not isinstance(memory, dict) or memory.get("kind") != "temporal_similarity_memory_v1":
+        return None
+    bp = np.asarray(bp, dtype=float)
+    ctx = np.asarray(ctx, dtype=float)
+    if bp.ndim != 2 or ctx.ndim != 2 or len(bp) != len(ctx) or bp.shape[1] < 2:
+        return None
+    mem_x = np.asarray(memory.get("features"), dtype=float)
+    mem_l = np.asarray(memory.get("losses"), dtype=float)
+    med = np.asarray(memory.get("feature_median"), dtype=float)
+    scale = np.asarray(memory.get("feature_scale"), dtype=float)
+    if mem_x.ndim != 2 or mem_l.ndim != 2 or len(mem_x) != len(mem_l):
+        return None
+    expected_features = bp.shape[1] + ctx.shape[1] + 1 + bp.shape[1]
+    if mem_x.shape[1] != expected_features or len(med) != expected_features or len(scale) != expected_features:
+        return None
+
+    hl = np.asarray(
+        history_loss if history_loss is not None else np.full(bp.shape[1], np.log(2.0)),
+        dtype=float,
+    )
+    if hl.ndim != 1 or len(hl) != bp.shape[1]:
+        hl = np.full(bp.shape[1], np.log(2.0), dtype=float)
+    hl = np.where(np.isfinite(hl), hl, np.log(2.0))
+    q = np.column_stack([
+        bp,
+        ctx,
+        np.std(bp, axis=1),
+        np.repeat(hl[None, :], len(bp), axis=0),
+    ])
+    q = np.nan_to_num(
+        (q - med[None, :]) / np.where(np.abs(scale[None, :]) > 1e-6, scale[None, :], 1.0),
+        nan=0.0, posinf=0.0, neginf=0.0,
+    )
+
+    names = list(memory.get("model_names") or [])
+    if baseline_weights and len(names) == bp.shape[1]:
+        try:
+            w = np.asarray([float(baseline_weights.get(name, 0.0)) for name in names], dtype=float)
+            if not np.isfinite(w).all() or w.sum() <= 0:
+                raise ValueError("invalid baseline weights")
+            w /= w.sum()
+        except Exception:
+            w = np.full(bp.shape[1], 1.0 / bp.shape[1], dtype=float)
+    else:
+        w = np.full(bp.shape[1], 1.0 / bp.shape[1], dtype=float)
+
+    k = max(3, min(int(k), len(mem_x)))
+    routed = np.empty(len(bp), dtype=float)
+    route_strengths = np.empty(len(bp), dtype=float)
+    nearest = np.empty(len(bp), dtype=float)
+
+    global_loss_median = _safe_nanmedian(mem_l, axis=0)
+    global_spread = float(np.nanmedian(np.abs(mem_l - global_loss_median[None, :])))
+    global_spread = max(global_spread if np.isfinite(global_spread) else 0.0, 0.02)
+
+    for i, row in enumerate(q):
+        dist = np.sqrt(np.mean((mem_x - row[None, :]) ** 2, axis=1))
+        idx = np.argpartition(dist, k - 1)[:k]
+        d = dist[idx]
+        temperature = max(float(np.median(d)) + 0.15, 0.15)
+        sim = np.exp(-d / temperature)
+        if not np.isfinite(sim).all() or float(sim.sum()) <= 0:
+            sim = np.ones_like(sim)
+        sim /= sim.sum()
+
+        local_loss = np.sum(mem_l[idx] * sim[:, None], axis=0)
+        local_loss = np.where(np.isfinite(local_loss), local_loss, np.log(2.0))
+        centered = local_loss - np.min(local_loss)
+        expert_w = w * np.exp(-centered / 0.15)
+        if not np.isfinite(expert_w).all() or float(expert_w.sum()) <= 0:
+            expert_w = w.copy()
+        expert_w /= expert_w.sum()
+
+        baseline_p = float(np.sum(bp[i] * w))
+        candidate_p = float(np.sum(bp[i] * expert_w))
+        spread = float(np.max(local_loss) - np.min(local_loss))
+        separation = float(np.clip(spread / (spread + global_spread), 0.0, 1.0))
+        similarity = float(np.clip(np.exp(-float(np.min(d)) / 1.5), 0.0, 1.0))
+        support = float(np.clip(np.sqrt(k / max(len(mem_x), 1)), 0.0, 1.0))
+        strength = 0.65 * separation * similarity * support
+        routed[i] = np.clip(
+            baseline_p + strength * (candidate_p - baseline_p),
+            1e-6, 1 - 1e-6,
+        )
+        route_strengths[i] = strength
+        nearest[i] = float(np.min(d))
+
+    return {
+        "probability": routed,
+        "route_strength": route_strengths,
+        "nearest_distance": nearest,
+    }
+
+
+def evaluate_temporal_memory_router_from_folds(
+    X: np.ndarray,
+    y: np.ndarray,
+    names: Sequence[str],
+    folds: Sequence[Dict],
+    baseline_weights: Dict[str, float] | None = None,
+    k: int = 20,
+) -> Dict:
+    """Research-only OOS test: fold t can use memory only from folds < t."""
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y)
+    if len(names) < 2 or len(folds) < 4:
+        return {"status": "INSUFFICIENT_OOS", "reason": "too_few_chronological_folds"}
+
+    meta_X = []
+    meta_losses = []
+    static_pred = []
+    routed_pred = []
+    targets = []
+    deltas = []
+    strengths = []
+    nearest = []
+    used = 0
+
+    for fold in folds:
+        end = int(fold["end"])
+        te = int(fold["te"])
+        bp = np.column_stack([np.asarray(fold["preds"][n], dtype=float) for n in names])
+        ctx = _context(X[:end], X[end:te])
+        history_loss = _recent_model_loss(meta_losses, len(names))
+        features = np.column_stack([
+            bp, ctx, np.std(bp, axis=1),
+            np.repeat(history_loss[None, :], len(bp), axis=0),
+        ])
+
+        memory = _fit_temporal_memory(
+            np.asarray(meta_X, dtype=float) if meta_X else np.empty((0, features.shape[1])),
+            np.asarray(meta_losses, dtype=float) if meta_losses else np.empty((0, len(names))),
+        )
+        if memory is not None:
+            memory["model_names"] = list(names)
+
+        if baseline_weights:
+            w = np.asarray([float(baseline_weights.get(n, 0.0)) for n in names], dtype=float)
+            if np.isfinite(w).all() and w.sum() > 0:
+                w /= w.sum()
+                static = np.sum(bp * w[None, :], axis=1)
+            else:
+                static = np.mean(bp, axis=1)
+        else:
+            static = np.mean(bp, axis=1)
+
+        routed_info = _route_with_temporal_memory(memory, bp, ctx, history_loss, baseline_weights, k=k)
+        routed = static.copy() if routed_info is None else np.asarray(routed_info["probability"], dtype=float)
+        if routed_info is not None:
+            strengths.extend(np.asarray(routed_info["route_strength"], dtype=float).tolist())
+            nearest.extend(np.asarray(routed_info["nearest_distance"], dtype=float).tolist())
+
+        yy = y[end:te]
+        sm = _metric(yy, static)
+        rm = _metric(yy, routed)
+        deltas.append(float(rm["logloss"] - sm["logloss"]))
+        static_pred.extend(static.tolist())
+        routed_pred.extend(routed.tolist())
+        targets.extend(yy.tolist())
+
+        yt = yy.astype(float)
+        losses = -(yt[:, None] * np.log(bp) + (1.0 - yt[:, None]) * np.log(1.0 - bp))
+        meta_X.extend(features.tolist())
+        meta_losses.extend(losses.tolist())
+        used += 1
+
+    if len(meta_losses) < 120:
+        return {"status": "INSUFFICIENT_OOS", "reason": "insufficient_temporal_memory_oof", "oos_rows": len(meta_losses)}
+
+    sm = _metric(np.asarray(targets), np.asarray(static_pred))
+    rm = _metric(np.asarray(targets), np.asarray(routed_pred))
+    d = np.asarray(deltas, dtype=float)
+    blocks = []
+    if len(d) >= 3:
+        for ids in np.array_split(np.arange(len(d)), 3):
+            if len(ids):
+                blocks.append(float(np.mean(d[ids])))
+    boot_prob = 0.0
+    boot_p05 = float("-inf")
+    if len(d) >= 6 and np.isfinite(d).all():
+        rng = np.random.default_rng(20261002)
+        idx = rng.integers(0, len(d), size=(1000, len(d)))
+        improvement = -d[idx].mean(axis=1)
+        boot_prob = float(np.mean(improvement > 0.0))
+        boot_p05 = float(np.quantile(improvement, 0.05))
+    return {
+        "status": "EVALUATED",
+        "folds": used,
+        "oos_rows": len(meta_losses),
+        "fixed_ensemble": sm,
+        "temporal_memory_router": rm,
+        "logloss_improvement": sm["logloss"] - rm["logloss"],
+        "brier_improvement": sm["brier"] - rm["brier"],
+        "ece_change": rm["ece"] - sm["ece"],
+        "fold_logloss_deltas": d.tolist(),
+        "nonoverlap_block_deltas": blocks,
+        "bootstrap_p05_improvement": boot_p05,
+        "bootstrap_prob_improvement": boot_prob,
+        "mean_route_strength": float(np.mean(strengths)) if strengths else 0.0,
+        "p95_nearest_distance": float(np.quantile(nearest, 0.95)) if nearest else None,
+        "k": int(k),
+        "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
+        "policy": "research_only; chronological OOF; prior-fold similarity memory; current outcomes enter memory only after scoring",
+    }
+
+
+def evaluate_frozen_holdout_temporal_memory_router_from_folds(
+    X: np.ndarray,
+    y: np.ndarray,
+    names: Sequence[str],
+    folds: Sequence[Dict],
+    holdout_pred: Dict[str, np.ndarray],
+    holdout_X: np.ndarray,
+    holdout_y: np.ndarray,
+    baseline_weights: Dict[str, float] | None = None,
+    k: int = 20,
+) -> Dict:
+    """Score temporal memory routing on frozen holdout using pre-holdout memory only."""
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y)
+    hX = np.asarray(holdout_X, dtype=float)
+    hy = np.asarray(holdout_y)
+    if hX.ndim != 2 or len(hX) != len(hy):
+        return {"status": "INSUFFICIENT_HOLDOUT", "reason": "invalid_holdout_shapes"}
+    lengths = {n: len(np.asarray(holdout_pred.get(n, []))) for n in names}
+    if len(hy) < 30 or any(v != len(hy) for v in lengths.values()):
+        return {"status": "INSUFFICIENT_HOLDOUT", "reason": "holdout_prediction_shape_mismatch", "rows": len(hy)}
+
+    meta_X = []
+    meta_losses = []
+    for fold in folds:
+        end = int(fold["end"])
+        te = int(fold["te"])
+        bp = np.column_stack([np.asarray(fold["preds"][n], dtype=float) for n in names])
+        ctx = _context(X[:end], X[end:te])
+        history_loss = _recent_model_loss(meta_losses, len(names))
+        features = np.column_stack([
+            bp, ctx, np.std(bp, axis=1),
+            np.repeat(history_loss[None, :], len(bp), axis=0),
+        ])
+        yy = y[end:te].astype(float)
+        losses = -(yy[:, None] * np.log(bp) + (1.0 - yy[:, None]) * np.log(1.0 - bp))
+        meta_X.extend(features.tolist())
+        meta_losses.extend(losses.tolist())
+
+    memory = _fit_temporal_memory(np.asarray(meta_X, dtype=float), np.asarray(meta_losses, dtype=float))
+    if memory is None:
+        return {"status": "INSUFFICIENT_OOS", "reason": "insufficient_temporal_memory_oof", "oos_rows": len(meta_losses)}
+    memory["model_names"] = list(names)
+
+    bp = np.column_stack([np.asarray(holdout_pred[n], dtype=float) for n in names])
+    ctx = _context(X, hX)
+    routed_info = _route_with_temporal_memory(
+        memory, bp, ctx, _recent_model_loss(meta_losses, len(names)), baseline_weights, k=k
+    )
+    if routed_info is None:
+        return {"status": "INSUFFICIENT_HOLDOUT", "reason": "temporal_memory_router_fit_failed"}
+
+    if baseline_weights:
+        w = np.asarray([float(baseline_weights.get(n, 0.0)) for n in names], dtype=float)
+        if np.isfinite(w).all() and w.sum() > 0:
+            w /= w.sum()
+            static = np.sum(bp * w[None, :], axis=1)
+        else:
+            static = np.mean(bp, axis=1)
+    else:
+        static = np.mean(bp, axis=1)
+
+    routed = np.asarray(routed_info["probability"], dtype=float)
+    sm = _metric(hy.astype(int), static)
+    rm = _metric(hy.astype(int), routed)
+    return {
+        "status": "EVALUATED",
+        "oos_training_rows": len(meta_losses),
+        "holdout_rows": len(hy),
+        "fixed_ensemble": sm,
+        "temporal_memory_router": rm,
+        "logloss_improvement": sm["logloss"] - rm["logloss"],
+        "brier_improvement": sm["brier"] - rm["brier"],
+        "ece_change": rm["ece"] - sm["ece"],
+        "mean_route_strength": float(np.mean(routed_info["route_strength"])),
+        "p95_nearest_distance": float(np.quantile(routed_info["nearest_distance"], 0.95)),
+        "k": int(k),
+        "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
+        "policy": "research_only; pre-holdout OOF memory only; frozen holdout labels score-only",
+    }
+
+
 def _fit_contextual_loss_selector(meta_features: np.ndarray, meta_losses: np.ndarray):
     """Fit one PIT-safe loss forecaster per base model using only prior OOF rows."""
     X = np.asarray(meta_features, dtype=float)
