@@ -202,11 +202,20 @@ def build_health(
 
     head_sha = str(run.get("head_sha") or "")
     sha_alignment = bool(head_sha and current_main_sha and head_sha == current_main_sha)
+    warnings = []
+    if not sha_alignment:
+        warnings.append("main_sha_mismatch")
+    if failed_jobs:
+        warnings.append("failed_job_present")
+    if route_artifact is None:
+        warnings.append("production_route_artifact_missing")
 
     return {
         "version": "production-runtime-health-v1",
         "status": "PASS",
         "health_state": state,
+        "attention_required": bool(warnings),
+        "failure_detected": bool(failed_jobs) or state == "FAILURE",
         "promotion_gate": False,
         "monitoring_only": True,
         "generated_at_utc": now.isoformat(),
@@ -241,6 +250,7 @@ def build_health(
             "long_running_minutes": LONG_RUNNING_MINUTES,
             "stale_risk_minutes": STALE_RISK_MINUTES,
         },
+        "warnings": warnings,
         "interpretation": {
             "stale_risk_is_not_auto_failure": True,
             "health_does_not_promote_or_demote_models": True,

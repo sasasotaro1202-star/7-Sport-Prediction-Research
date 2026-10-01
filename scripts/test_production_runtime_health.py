@@ -87,6 +87,9 @@ def main() -> int:
     assert report["status"] == "PASS"
     assert report["health_state"] == "LONG_RUNNING"
     assert report["promotion_gate"] is False
+    assert report["attention_required"] is False
+    assert report["failure_detected"] is False
+    assert report["warnings"] == []
     assert report["production_run"]["head_sha_matches_current_main"] is True
     assert report["jobs"]["active"] == ["merge"]
     assert report["artifacts"]["production_route_observability_present"] is True
@@ -102,6 +105,9 @@ def main() -> int:
     assert stale_report["health_state"] == "STALE_RISK"
     assert stale_report["production_run"]["head_sha_matches_current_main"] is False
     assert stale_report["artifacts"]["production_route_observability_present"] is False
+    assert stale_report["attention_required"] is True
+    assert "main_sha_mismatch" in stale_report["warnings"]
+    assert "production_route_artifact_missing" in stale_report["warnings"]
 
     print("PRODUCTION_RUNTIME_HEALTH=PASS")
     return 0
@@ -109,3 +115,23 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def test_failed_job_sets_failure_signal():
+    report = build_health(
+        run={
+            "id": 12,
+            "head_sha": "same",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-10-01T23:00:00Z",
+            "run_started_at": "2026-10-01T23:00:00Z",
+        },
+        jobs_list=[{"name":"merge","status":"completed","conclusion":"failure"}],
+        artifacts_list=[{"name":"production-route-observability-12","expired":False}],
+        current_main_sha="same",
+        now=datetime(2026,10,2,0,0,tzinfo=timezone.utc),
+    )
+    assert report["failure_detected"] is True
+    assert report["attention_required"] is True
+    assert "failed_job_present" in report["warnings"]
