@@ -186,6 +186,7 @@ def archive_predictions(results: list[dict[str, Any]], generated_at_utc: str | N
                     "stage": pred.get("stage"),
                     "prediction_timing": pred.get("prediction_timing"),
                     "feature_pit_lead_minutes": pred.get("feature_pit_lead_minutes"),
+                    "experience_shadow": pred.get("experience_shadow"),
                 }
                 fh.write(_json(normalized) + "\n")
                 existing_ids.add(pid)
@@ -546,6 +547,7 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
         "by_probability_bucket": grouped("probability_bucket"),
         "by_action_state": grouped("action_state"),
         "by_experience_class": grouped("experience_class"),
+        "by_experience_shadow": grouped("experience_shadow"),
         "recent_100": metrics(recent[:100]),
         "recent_20": metrics(recent[:20]),
         "recent_wrong": wrong[:50],
@@ -674,6 +676,7 @@ def score_archive() -> dict[str, Any]:
             "stage": pred.get("stage"),
             "prediction_timing": pred.get("prediction_timing"),
             "feature_pit_lead_minutes": pred.get("feature_pit_lead_minutes"),
+            "experience_shadow": pred.get("experience_shadow"),
         }
 
         c = conns.get(sport)
@@ -726,6 +729,7 @@ def score_archive() -> dict[str, Any]:
         timing = pred.get("prediction_timing")
         timing_status = timing.get("status") if isinstance(timing, dict) else None
         settled.update({
+            "experience_shadow": pred.get("experience_shadow"),
             "prediction_timing_status": timing_status or "UNKNOWN",
             "target_lead_minutes": (
                 int(timing.get("target_lead_minutes"))
