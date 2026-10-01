@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from src import research_cycle_v4 as base
-from src.competition_profiles import profile_policy, resolve_profile
+from src.competition_profiles import profile_policy, resolve_research_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
@@ -183,7 +183,7 @@ def main() -> int:
             identity = {"built_rows": len(rows), "matched_rows": 0, "unknown_competition_rows": 0, "missing_competition_rows": 0}
             for eid, t, label, feats in rows:
                 meta = event_meta.get(str(eid), {})
-                profile = resolve_profile(sport, meta.get("competition_id"), meta.get("name"))
+                profile = resolve_research_profile(sport, meta.get("competition_id"), meta.get("name"))
                 if profile["matched"]:
                     identity["matched_rows"] += 1
                     key = profile["profile_id"]
