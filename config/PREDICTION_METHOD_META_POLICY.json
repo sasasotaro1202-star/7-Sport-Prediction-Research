@@ -31,15 +31,19 @@
     }
   },
   "selection": {
-    "confidence_high_probability": 0.80,
+    "confidence_high_probability": 0.8,
     "confidence_medium_probability": 0.65,
     "high_disagreement": 0.05,
-    "high_conflict_rate": 0.50,
-    "stale_freshness_score": 0.50,
+    "high_conflict_rate": 0.5,
+    "stale_freshness_score": 0.5,
     "minimum_evidence_count_for_high_confidence": 1,
     "low_confidence_action": "PASS",
     "medium_confidence_action": "SECONDARY",
-    "high_confidence_action": "PRIMARY"
+    "high_confidence_action": "PRIMARY",
+    "predictability_high": 0.75,
+    "predictability_medium": 0.55,
+    "predictability_disagreement_weight": 0.35,
+    "predictability_entropy_weight": 0.65
   },
   "method_preferences": {
     "competition_specific_accepted": "competition_specific_model",
