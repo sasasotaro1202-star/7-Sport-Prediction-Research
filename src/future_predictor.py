@@ -298,7 +298,7 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
         denom=max(rate_a+rate_b,1e-12)
         pb=float(np.clip(rate_b/denom,1e-6,1-1e-6))
         experience_shadow=experience_learning.shadow_signal(
-            now,s,
+            cutoff,s,
             str(competition_profile.get('profile_id') or 'UNKNOWN'),
             strategy_name,
             max(float(pb),1.0-float(pb)),
@@ -792,7 +792,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         # Experience is an advisory, PIT-gated shadow signal. It cannot alter
         # probability, model route, timing, or action_state in production.
         experience_shadow=experience_learning.shadow_signal(
-            now,s,
+            cutoff,s,
             str(competition_profile.get('profile_id') or 'UNKNOWN'),
             strategy,
             max(float(p),1.0-float(p)),
