@@ -32,7 +32,7 @@ DISCOVERY_SIGNAL_TERMS = {
 def _discovery_signal_strength(sport: str, item: dict) -> str:
     text = " ".join(
         str(item.get(key) or "")
-        for key in ("name", "path", "repository", "query", "full_name", "description")
+        for key in ("name", "path", "repository", "full_name", "description")
     ).lower()
     terms = DISCOVERY_SIGNAL_TERMS.get(sport, ())
     return "DIRECT" if any(term in text for term in terms) else "LOW_SIGNAL"
