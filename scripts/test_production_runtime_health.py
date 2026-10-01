@@ -115,3 +115,23 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def test_failed_job_sets_failure_signal():
+    report = build_health(
+        run={
+            "id": 12,
+            "head_sha": "same",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-10-01T23:00:00Z",
+            "run_started_at": "2026-10-01T23:00:00Z",
+        },
+        jobs_list=[{"name":"merge","status":"completed","conclusion":"failure"}],
+        artifacts_list=[{"name":"production-route-observability-12","expired":False}],
+        current_main_sha="same",
+        now=datetime(2026,10,2,0,0,tzinfo=timezone.utc),
+    )
+    assert report["failure_detected"] is True
+    assert report["attention_required"] is True
+    assert "failed_job_present" in report["warnings"]
