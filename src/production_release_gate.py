@@ -15,6 +15,15 @@ def _artifact_valid(meta):
         obj = joblib.load(p)
         if not isinstance(obj, dict) or not obj.get('features'):
             return False
+        # Research-only case-risk must never be embedded in an incumbent
+        # production artifact. Its optional reference is separately persisted.
+        if 'case_risk_model' in obj:
+            return False
+        case_risk_ref=obj.get('case_risk_artifact_path')
+        if case_risk_ref is not None:
+            rel=str(case_risk_ref)
+            if rel and ('..' in Path(rel).parts or not rel.startswith('models/research/case_risk/')):
+                return False
         names=list(obj.get('model_names') or [])
         models=list(obj.get('models') or [])
         weights=obj.get('ensemble_weights') or {}

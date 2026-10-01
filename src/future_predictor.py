@@ -472,6 +472,44 @@ def _prediction_confidence(probability, situation):
     return "LOW"
 
 
+
+def _load_case_risk_shadow_artifact(artifact, sport):
+    """Load a separately persisted research-only case-risk artifact, fail closed."""
+    if str((artifact or {}).get('case_risk_status') or '') != 'RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY':
+        return None
+    ref=str((artifact or {}).get('case_risk_artifact_path') or '').strip()
+    if not ref:
+        return None
+    try:
+        candidate=(ROOT / ref).resolve()
+        root=ROOT.resolve()
+        relative=candidate.relative_to(root)
+        if '..' in relative.parts or not str(relative).startswith('models/research/case_risk/'):
+            return None
+        if not candidate.is_file() or candidate.stat().st_size <= 0:
+            return None
+        bundle=joblib.load(candidate)
+        if not isinstance(bundle,dict):
+            return None
+        if bundle.get('artifact_role') != 'case_risk_shadow_only':
+            return None
+        if bundle.get('quality_status') != 'RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY':
+            return None
+        if str(bundle.get('sport') or '') != str(sport):
+            return None
+        if str(bundle.get('pit_status') or '') != 'PIT_SAFE_RESEARCH_ONLY':
+            return None
+        if str(bundle.get('source_model_version') or '') != str((artifact or {}).get('model_version') or ''):
+            return None
+        if str(bundle.get('source_frozen_holdout_registry_hash') or '') != str((artifact or {}).get('frozen_holdout_registry_hash') or ''):
+            return None
+        names=[str(x) for x in (bundle.get('model_names') or [])]
+        if len(names) < 2 or bundle.get('model') is None:
+            return None
+        return bundle
+    except Exception:
+        return None
+
 def _case_risk_shadow(
     *,
     model_bundle,
@@ -838,10 +876,9 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             'used_to_change_action':False,
             'reason':'not_available',
         }
-        case_risk_bundle=artifact.get('case_risk_model')
-        case_risk_names=list(artifact.get('case_risk_model_names') or [])
+        case_risk_bundle=_load_case_risk_shadow_artifact(artifact,s)
+        case_risk_names=list((case_risk_bundle or {}).get('model_names') or [])
         if (case_risk_bundle is not None
-            and str(artifact.get('case_risk_status') or '')=='RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY'
             and not route_active and selected_lead <= 60 and case_risk_names):
             history_rows=[]
             try:

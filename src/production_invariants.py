@@ -588,8 +588,15 @@ def main():
             'temporal similarity memory router regression is not wired into Lightweight Regression')
     require('_case_risk_shadow' in future_src and 'case_risk_shadow' in future_src,
             'future predictor lacks the PIT-safe case-risk shadow bridge')
-    require('case_risk_model_names' in strict_src and 'RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY' in strict_src,
-            'case-risk research model provenance is not persisted with explicit shadow-only status')
+    require('case_risk_model_names' in strict_src and 'case_risk_artifact_path' in strict_src
+            and 'RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY' in strict_src,
+            'case-risk research model provenance is not persisted with explicit separate shadow artifact path')
+    require("'case_risk_model':" not in strict_src,
+            'research-only case-risk model object must not be embedded inside the production incumbent artifact')
+    require("str(relative).startswith('models/research/case_risk/')" in future_src
+            and "source_model_version" in future_src
+            and "source_frozen_holdout_registry_hash" in future_src,
+            'case-risk shadow loader lacks path isolation and incumbent/holdout provenance binding')
     require("'used_to_change_probability':False" in future_src
             and "'used_to_change_model_route':False" in future_src
             and "'used_to_change_action':False" in future_src,
