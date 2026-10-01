@@ -12,6 +12,8 @@ from src import competition_route_registry as competition_route
 from src import timing_route_registry as timing_route
 from src.competition_profiles import resolve_profile
 from src import prediction_method_policy
+from src import case_risk_oos as case_risk
+from src import uncertainty_dynamic_router_oos as uncertainty_router
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
@@ -450,6 +452,77 @@ def _prediction_confidence(probability, situation):
     return "LOW"
 
 
+def _case_risk_shadow(
+    *,
+    model_bundle,
+    model_names,
+    risk_predictions,
+    baseline_weights,
+    history_X,
+    current_X,
+    matchday_context,
+    selected_lead_minutes,
+):
+    """Return a pre-holdout case-error estimate as a shadow signal only."""
+    base_result = {
+        "status": "UNAVAILABLE",
+        "error_probability": None,
+        "reference": "pre_holdout_case_risk_model",
+        "used_to_change_probability": False,
+        "used_to_change_model_route": False,
+        "used_to_change_action": False,
+    }
+    if not isinstance(model_bundle, dict) or model_bundle.get("model") is None:
+        base_result["reason"] = "case_risk_model_not_accepted_or_missing"
+        return base_result
+    names = [str(x) for x in (model_names or [])]
+    if len(names) < 2:
+        base_result["reason"] = "case_risk_requires_at_least_two_models"
+        return base_result
+    if int(selected_lead_minutes) > 60:
+        base_result.update({"status": "PIT_BLOCKED", "reason": "case_risk_matchday_context_uses_t60"})
+        return base_result
+    hx = np.asarray(history_X, dtype=float)
+    cx = np.asarray(current_X, dtype=float)
+    if hx.ndim != 2 or cx.ndim != 2 or len(cx) != 1 or len(hx) < 60 or hx.shape[1] != cx.shape[1]:
+        base_result["reason"] = "case_risk_feature_history_unavailable_or_mismatched"
+        return base_result
+    if any(name not in risk_predictions for name in names):
+        base_result["reason"] = "case_risk_model_name_prediction_missing"
+        return base_result
+    try:
+        bp = np.column_stack([np.asarray([float(risk_predictions[name])], dtype=float) for name in names])
+        weights = np.asarray([float((baseline_weights or {}).get(name, 0.0)) for name in names], dtype=float)
+        if not np.isfinite(weights).all() or float(weights.sum()) <= 0:
+            weights = np.full(len(names), 1.0 / len(names), dtype=float)
+        else:
+            weights /= float(weights.sum())
+        baseline = np.sum(bp * weights[None, :], axis=1)
+        md = np.asarray(matchday_context, dtype=float).reshape(1, -1)
+        if md.shape[1] != 20:
+            base_result["reason"] = "case_risk_matchday_context_shape_mismatch"
+            return base_result
+        population = uncertainty_router.population_drift_features(hx, cx)
+        router_ctx = router._context(hx, cx)
+        full_ctx = np.column_stack([router_ctx, md, population.reshape(1, -1)])
+        risk = case_risk.predict_case_risk(model_bundle, bp, full_ctx)
+        if risk is None or len(risk) != 1 or not np.isfinite(risk[0]):
+            base_result["reason"] = "case_risk_prediction_invalid"
+            return base_result
+        risk_value = float(np.clip(risk[0], 1e-6, 1.0 - 1e-6))
+        base_result.update({
+            "status": "SHADOW",
+            "error_probability": risk_value,
+            "baseline_probability_reference": float(np.clip(baseline[0], 1e-6, 1.0 - 1e-6)),
+            "model_names": names,
+            "model_kind": str(model_bundle.get("kind") or "unknown"),
+            "training_policy": str(model_bundle.get("policy") or "pre_holdout_oos_only"),
+            "pit_guard": "selected_lead_minutes<=60;matchday_T60_T90_context_is_before_or_at_cutoff",
+        })
+        return base_result
+    except (TypeError, ValueError, FloatingPointError):
+        base_result["reason"] = "case_risk_shadow_runtime_error"
+        return base_result
 def _prediction_action(confidence, situation):
     """Keep prediction and decision separate; uncertain/conflicted events abstain."""
     quality = situation.get("quality") or {}
