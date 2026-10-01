@@ -572,9 +572,9 @@ def main():
             'future predictor does not implement Beta calibration transform safely')
     require("method=='isotonic'" in future_src,
             'future predictor does not implement isotonic calibration branch')
-    require("artifact.get('quality_status')" in future_src and '_safe_prior_binary(c,s,now)' in future_src,
+    require("artifact.get('quality_status')" in future_src and '_safe_prior_binary(c,s,now,prediction_lead_minutes' in future_src,
             'future predictor lacks safe fallback when production artifact is unavailable/unaccepted')
-    require('missing_schema' in future_src and "return _safe_prior_binary(c,s,now)" in future_src,
+    require('missing_schema' in future_src and '_safe_prior_binary(c,s,now,prediction_lead_minutes' in future_src,
             'future predictor does not fail safely when artifact/current feature schema is unusable')
     require("'quality_status':'ACCEPTED_LOCKED_HOLDOUT'" in strict_src,
             'strict research artifact does not persist explicit accepted quality state')
@@ -646,6 +646,36 @@ def main():
     require((ROOT/'scripts/test_feature_temporal_invariance.py').exists(),'temporal feature immutability regression test is missing')
     require('validate_model_pipeline.py' in (ROOT/'.github/workflows/production_invariants.yml').read_text(encoding='utf-8'),'production invariants workflow does not execute model pipeline regression checks')
     require('src.cache_health' in workflow and '--repair' in workflow,'production workflow does not validate/repair restored cache before collection')
+    pre_event_wf=(ROOT/'.github/workflows/pre_event_prediction.yml').read_text(encoding='utf-8')
+    pre_event_policy=(ROOT/'config/PRE_EVENT_PREDICTION_POLICY.json').read_text(encoding='utf-8')
+    pre_event_test=(ROOT/'scripts/test_pre_event_prediction.py').read_text(encoding='utf-8')
+    pre_event_audit=(ROOT/'src/pre_event_prediction_audit.py').read_text(encoding='utf-8')
+    require((ROOT/'.github/workflows/pre_event_prediction.yml').exists(),
+            '30-minute pre-event prediction workflow is missing')
+    require('"target_lead_minutes":30' in pre_event_policy and '"prediction_cutoff":"event_time_minus_target_lead"' in pre_event_policy,
+            'pre-event policy does not define a 30-minute prediction cutoff')
+    require("cron: '3-58/5 * * * *'" in pre_event_wf and '--lead-minutes 30' in pre_event_wf,
+            'pre-event workflow is not scheduled at the required 5-minute cadence with 30-minute target')
+    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 40' in pre_event_wf,
+            'pre-event workflow lacks the bounded late-recovery generation window')
+    require('--target-scope-only' in pre_event_wf and 'competition_profile_required' in pre_event_wf,
+            'pre-event workflow is not restricted to explicit competition scope')
+    require('pre-event-target-db-v1-' in pre_event_wf and 'active-scope-target-db-v4-' in pre_event_wf,
+            'pre-event workflow does not persist/reuse sport-scoped database state')
+    require('NO_30M_CUTOFF_PREDICTION' in pre_event_audit and 'missing_predictions' in pre_event_audit,
+            'pre-event audit does not explicitly detect missing 30-minute predictions')
+    require('def _prediction_timing' in future_src and "'prediction_timing':timing" in future_src,
+            'future predictor does not persist actual prediction timing')
+    require('--lead-minutes' in future_src and '--target-scope-only' in future_src,
+            'future predictor CLI lacks configurable pre-event timing/scope controls')
+    require('by_competition_profile' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
+            'prediction experience summary does not preserve competition-specific learning')
+    require('by_prediction_timing_status' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
+            'prediction experience summary does not track pre-event timing quality')
+    require('test_pre_event_prediction.py' in lightweight_src,
+            '30-minute pre-event prediction regression is not wired into Lightweight Regression')
+    require('pre_event_prediction.yml' in (ROOT/'README.md').read_text(encoding='utf-8'),
+            'README does not document the automatic 30-minute prediction lane')
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
         for x in FAILURES: print(f'- {x}')
