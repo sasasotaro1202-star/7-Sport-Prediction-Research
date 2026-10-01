@@ -68,3 +68,10 @@ def test_block_coverage_is_chronological_and_descriptive():
     assert report["worst_block_coverage"] == 0.5
     assert report["max_undercoverage"] == 0.125
     assert report["guarantee_claimed"] is False
+
+
+def test_unsorted_prediction_times_fail_closed():
+    sets, y, pt, mature = fixture(8)
+    pt[4], pt[5] = pt[5], pt[4]
+    with pytest.raises(ValueError, match="prediction_times must be monotonically"):
+        online_aggregate(sets, y, pt, mature, min_calibration=3)
