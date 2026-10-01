@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from datetime import datetime, timedelta
 
 from src.temporal_conformal_prediction_sets import (
     prediction_set_metrics,
@@ -11,8 +12,10 @@ from src.temporal_conformal_prediction_sets import (
 
 
 def _fixture(n=70):
-    pt = [f"2026-01-01T{h:02d}:00:00+00:00" for h in range(n)]
-    mature = [f"2026-01-01T{h:02d}:30:00+00:00" if h < 24 else f"2026-01-02T{(h-24):02d}:30:00+00:00" for h in range(n)]
+    base = datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc)
+    pt_dt = [base + timedelta(hours=h) for h in range(n)]
+    pt = [dt.isoformat() for dt in pt_dt]
+    mature = [(dt + timedelta(minutes=30)).isoformat() for dt in pt_dt]
     y = np.asarray([0, 1] * ((n + 1) // 2))[:n]
     p = np.asarray([0.80, 0.20] * ((n + 1) // 2))[:n]
     return y, p, pt, mature
