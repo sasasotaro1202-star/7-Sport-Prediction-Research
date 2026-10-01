@@ -11,7 +11,7 @@
   },
   "review_thresholds": {
     "accuracy_wilson_lower_bound": 0.55,
-    "high_confidence_accuracy_wilson_lower_bound": 0.60
+    "high_confidence_accuracy_wilson_lower_bound": 0.6
   },
   "safety": {
     "mode": "SHADOW_ONLY",
@@ -21,5 +21,10 @@
     "modify_timing": false,
     "production_promotion": false,
     "fail_closed_on_invalid_settlement": true
+  },
+  "quality": {
+    "require_unique_prediction_id": true,
+    "duplicate_handling": "exact_duplicate_deduplicate_conflicting_duplicate_fail_closed",
+    "require_nonempty_prediction_id": true
   }
 }
