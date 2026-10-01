@@ -658,12 +658,12 @@ def main():
         raise SystemExit(f"FAIL_CLOSED_DB_MISSING:{DB}")
     con = sqlite3.connect(DB)
     try:
-        sports = [args.sport] if args.sport else list(ACTIVE_SPORTS)
+        evaluated_sports = [_evaluate_sport(con, sport) for sport in sports]
+        overall_status = ("EVALUATED" if any(str(item.get("status")) == "EVALUATED" for item in evaluated_sports) else "DEFERRED")
         out = {
-            "status": "EVALUATED",
-            "sports": [_evaluate_sport(con, sport) for sport in sports],
+            "status": overall_status,
+            "sports": evaluated_sports,
             "generated_by": "src/upset_uncertainty_oos.py",
-            "production_model_changed": False,
             "policy": (
                 "research-only; prediction features are pre-event PIT-safe; "
                 "risk labels are used only after outcomes and only for later folds; "
