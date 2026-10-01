@@ -308,6 +308,11 @@ jobs:
             results/v45/**
             models/research/**
 
+      - name: Build competition-specific production routes
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 2400s python -m src.competition_route_builder
+
       - name: Independent leakage audit after model generation
         run: |
           set -euo pipefail
