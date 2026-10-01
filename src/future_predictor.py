@@ -329,7 +329,7 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
     return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
 
 
-def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False):
+def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,adaptive_timing=False,timing_shadow=False):
     future=_future_events(
         c,'f1',now,
         min_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[0],
@@ -545,11 +545,11 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
     except Exception:
         # A corrupt/unreadable artifact must never make the mandatory prediction
         # lane disappear. Fall back to the explicit PIT-safe prior.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     if artifact.get('quality_status') not in ('ACCEPTED_LOCKED_HOLDOUT','ACCEPTED_AFTER_LOCKED_HOLDOUT'):
         # Candidate/deferred artifacts are never used as production models, but
         # the event still receives the mandatory explicitly-labelled safe prior.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     features=list(artifact.get('features') or [])
     models=list(artifact.get('models') or [])
     names=list(artifact.get('model_names') or [])
@@ -559,7 +559,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     router_obj=artifact.get('dynamic_router')
     if router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and router_obj is None:
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     rows,_=base.build(c,s,include_unlabeled=True)
     available_features=set()
     for _,_,_,row_features in rows:
@@ -568,7 +568,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
     if missing_schema:
         # Never synthesize missing model features. Use the PIT-safe fallback
         # instead, which depends only on pre-event verified historical outcomes.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     future=_future_events(
         c,s,now,
         min_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[0],
@@ -637,7 +637,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             model_names=[str(route_info['route'].get('model_name') or 'competition_specific_model')]
             model_weights=None
         elif missing_schema:
-            return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+            return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
         elif use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
             raw,router_meta=router.predict_with_router(
@@ -736,6 +736,8 @@ def main():
     ap.add_argument('--min-lead-minutes',type=int,default=None)
     ap.add_argument('--max-lead-minutes',type=int,default=None)
     ap.add_argument('--target-scope-only',action='store_true')
+    ap.add_argument('--adaptive-timing',action='store_true')
+    ap.add_argument('--timing-shadow',action='store_true')
     ap.add_argument('--adaptive-timing',action='store_true')
     ap.add_argument('--timing-shadow',action='store_true')
     ap.add_argument('--adaptive-timing',action='store_true')
