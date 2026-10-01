@@ -89,10 +89,45 @@ def test_future_settlement_fails_closed():
         raise AssertionError("expected fail-closed future-settlement error")
 
 
+def test_exact_duplicate_settlement_is_deduplicated():
+    row = _row("dup", True)
+    artifact = build_memory([row, dict(row)], "2026-10-01T11:00:00+00:00")
+    assert artifact["source"]["settlement_rows"] == 1
+    assert artifact["memory"][0]["n"] == 1
+
+
+def test_conflicting_duplicate_settlement_fails_closed():
+    row = _row("conflict", True)
+    conflicting = dict(row)
+    conflicting["correct"] = False
+    conflicting["logloss"] = 0.9
+    conflicting["brier"] = 0.72
+    try:
+        build_memory([row, conflicting], "2026-10-01T11:00:00+00:00")
+    except RuntimeError as exc:
+        assert str(exc) == "EXPERIENCE_LEARNING_DUPLICATE_CONFLICT"
+    else:
+        raise AssertionError("expected fail-closed duplicate conflict error")
+
+
+def test_missing_prediction_id_fails_closed():
+    row = _row("missing-id", True)
+    row["prediction_id"] = ""
+    try:
+        build_memory([row], "2026-10-01T11:00:00+00:00")
+    except RuntimeError as exc:
+        assert str(exc) == "EXPERIENCE_LEARNING_MISSING_PREDICTION_ID"
+    else:
+        raise AssertionError("expected fail-closed missing-id error")
+
+
 if __name__ == "__main__":
     test_underperforming_group_becomes_shadow_review()
     test_healthy_group_stays_pass()
     test_memory_is_pit_gated_by_knowledge_time()
     test_invalid_settlement_time_fails_closed()
     test_future_settlement_fails_closed()
+    test_exact_duplicate_settlement_is_deduplicated()
+    test_conflicting_duplicate_settlement_fails_closed()
+    test_missing_prediction_id_fails_closed()
     print("experience_learning tests passed")
