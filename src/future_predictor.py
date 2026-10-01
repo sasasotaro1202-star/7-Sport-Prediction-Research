@@ -8,6 +8,7 @@ from src import matchday_intelligence_oos as matchday_intelligence
 from src import research_cycle_v4 as base
 from src import prediction_experience as experience
 from src import competition_route_registry as competition_route
+from src import timing_route_registry as timing_route
 from src.competition_profiles import resolve_profile
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -30,6 +31,40 @@ PREDICTION_LEAD_MINUTES_DEFAULT=60
 F1_CURRENT_ROSTER_URL="https://www.formula1.com/en/drivers"
 
 _F1_ROSTER_CACHE=None
+
+
+def _timing_policy() -> dict:
+    path = ROOT / 'config/PREDICTION_TIMING_POLICY.json'
+    try:
+        return json.loads(path.read_text(encoding='utf-8'))
+    except Exception:
+        return {
+            'default_preferred_lead_minutes': 30,
+            'allowed_lead_minutes': [15, 20, 30, 45, 60, 90],
+            'bounds': {'minimum_lead_minutes': 5, 'maximum_lead_minutes': 180},
+        }
+
+
+def _select_prediction_lead(sport: str, profile: dict, default_lead: int,
+                            adaptive_timing: bool, timing_shadow: bool) -> tuple[int, str]:
+    if timing_shadow:
+        return int(default_lead), 'TIMING_SHADOW'
+    if adaptive_timing:
+        return timing_route.resolve_lead(sport, profile, int(default_lead))
+    return int(default_lead), 'DEFAULT_GUIDELINE'
+
+
+def _timing_window(default_lead: int, min_lead_minutes, max_lead_minutes, adaptive_timing: bool):
+    policy = _timing_policy()
+    if adaptive_timing and min_lead_minutes is None:
+        minimum = int(policy.get('bounds', {}).get('minimum_lead_minutes', 5))
+    else:
+        minimum = int(default_lead if min_lead_minutes is None else min_lead_minutes)
+    if adaptive_timing and max_lead_minutes is None:
+        maximum = int(policy.get('bounds', {}).get('maximum_lead_minutes', 180))
+    else:
+        maximum = None if max_lead_minutes is None else int(max_lead_minutes)
+    return minimum, maximum
 
 
 def _current_f1_roster(now):
@@ -226,11 +261,11 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
     return starts,wins,(wins+1.0)/(starts+2.0)
 
 
-def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False):
+def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,adaptive_timing=False,timing_shadow=False):
     future=_future_events(
         c,s,now,
-        min_lead_minutes=prediction_lead_minutes if min_lead_minutes is None else min_lead_minutes,
-        max_lead_minutes=max_lead_minutes,
+        min_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[0],
+        max_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[1],
     )
     outputs=[]
     for eid,meta in future.items():
@@ -245,7 +280,13 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
         competition_profile=resolve_profile(s,competition_id,event_name)
         if target_scope_only and not competition_profile.get('matched'):
             continue
-        timing=_prediction_timing(event_time,now,prediction_lead_minutes)
+        selected_lead,selection_status=_select_prediction_lead(s,competition_profile,prediction_lead_minutes,adaptive_timing,timing_shadow)
+        timing_tolerance=int(_timing_policy().get('guideline_tolerance_minutes',15)) if adaptive_timing or timing_shadow else 0
+        actual_lead=float(meta.get('lead_minutes') or 0.0)
+        if timing_tolerance and (actual_lead < max(5.0, selected_lead-timing_tolerance) or actual_lead > selected_lead+timing_tolerance):
+            continue
+        timing=_prediction_timing(event_time,now,selected_lead)
+        timing['selection_status']=selection_status
         cutoff=timing['target_cutoff_at_utc']
         sa,wa,rate_a=_prior_record(c,s,a[0],cutoff)
         sb,wb,rate_b=_prior_record(c,s,b[0],cutoff)
@@ -258,11 +299,13 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'season':season,
             'stage':stage,
             'prediction_timing':timing,
+            'timing_selection_status':selection_status,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'fallback_policy':'pit_safe_historical_prior_v2_retrieval_pit',
         }
+        strategy_name='safe_prior' if not timing_shadow else f'timing_shadow_{selected_lead}__safe_prior'
         pid=_persist_forward_prediction(
-            c,eid,s,cutoff,now,1.0-pb,pb,'safe_prior','safe-prior-v1',
+            c,eid,s,cutoff,now,1.0-pb,pb,strategy_name,'safe-prior-v1',
             'pit-safe-historical-win-rate-v1',features
         )
         outputs.append({
@@ -273,8 +316,8 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'competition_profile':competition_profile,
             'season':season,
             'stage':stage,
-            'model_scope':'safe_prior_fallback;competition_specific_selection_not_applied',
-            'strategy':'safe_prior','router_status':'SAFE_PRIOR_FALLBACK',
+            'model_scope':('timing_shadow;safe_prior_fallback' if timing_shadow else 'safe_prior_fallback;competition_specific_selection_not_applied'),
+            'strategy':strategy_name,'router_status':('TIMING_SHADOW' if timing_shadow else 'SAFE_PRIOR_FALLBACK'),
             'prediction_id':pid,'models':['historical_prior'],'ensemble_weights':None,
             'model_version':'safe-prior-v1','feature_version':'pit-safe-historical-win-rate-v1',
             'prediction_timing':timing,
@@ -286,16 +329,22 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
     return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
 
 
-def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False):
+def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,adaptive_timing=False,timing_shadow=False):
     future=_future_events(
         c,'f1',now,
-        min_lead_minutes=prediction_lead_minutes if min_lead_minutes is None else min_lead_minutes,
-        max_lead_minutes=max_lead_minutes,
+        min_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[0],
+        max_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[1],
     )
     outputs=[]
     for eid,meta in future.items():
         event_time=meta['event_time_utc']
-        timing=_prediction_timing(event_time,now,prediction_lead_minutes)
+        selected_lead,selection_status=_select_prediction_lead('f1',{'matched':True,'profile_id':'f1:default'},prediction_lead_minutes,adaptive_timing,timing_shadow)
+        timing_tolerance=int(_timing_policy().get('guideline_tolerance_minutes',15)) if adaptive_timing or timing_shadow else 0
+        actual_lead=float(meta.get('lead_minutes') or 0.0)
+        if timing_tolerance and (actual_lead < max(5.0, selected_lead-timing_tolerance) or actual_lead > selected_lead+timing_tolerance):
+            continue
+        timing=_prediction_timing(event_time,now,selected_lead)
+        timing['selection_status']=selection_status
         cutoff=timing['target_cutoff_at_utc']
         drivers=c.execute(
             """SELECT DISTINCT ep.participant_id,p.canonical_name
@@ -365,6 +414,7 @@ def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_
             'field_source':field_source,'field_status':field_status,
             'field_roster_retrieved_at_utc':roster_retrieved.isoformat() if roster_retrieved else None,
             'prediction_timing':timing,
+            'timing_selection_status':selection_status,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'confidence':'LOW','action_state':'PASS','generated_at_utc':now.isoformat(),
             'policy':'F1 multiclass safe prior; only pre-event completed driver results are used; current roster fallback is explicitly not event-confirmed',
@@ -480,25 +530,26 @@ def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strateg
 
 
 def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAULT,
-                  min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False):
+                  min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,
+                  adaptive_timing=False,timing_shadow=False):
     # Every sport is a mandatory prediction lane. F1 has distinct multiclass semantics;
     # sports without an accepted production artifact use an explicit PIT-safe historical-prior
     # prediction instead of silently disappearing from the output.
     if s=='f1':
-        return _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     artifact_path=MODELS/f'{s}_current.joblib'
     if not artifact_path.is_file() or artifact_path.stat().st_size<=0:
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     try:
         artifact=joblib.load(artifact_path)
     except Exception:
         # A corrupt/unreadable artifact must never make the mandatory prediction
         # lane disappear. Fall back to the explicit PIT-safe prior.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     if artifact.get('quality_status') not in ('ACCEPTED_LOCKED_HOLDOUT','ACCEPTED_AFTER_LOCKED_HOLDOUT'):
         # Candidate/deferred artifacts are never used as production models, but
         # the event still receives the mandatory explicitly-labelled safe prior.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     features=list(artifact.get('features') or [])
     models=list(artifact.get('models') or [])
     names=list(artifact.get('model_names') or [])
@@ -508,7 +559,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     router_obj=artifact.get('dynamic_router')
     if router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and router_obj is None:
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     rows,_=base.build(c,s,include_unlabeled=True)
     available_features=set()
     for _,_,_,row_features in rows:
@@ -517,11 +568,11 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
     if missing_schema:
         # Never synthesize missing model features. Use the PIT-safe fallback
         # instead, which depends only on pre-event verified historical outcomes.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
     future=_future_events(
         c,s,now,
-        min_lead_minutes=prediction_lead_minutes if min_lead_minutes is None else min_lead_minutes,
-        max_lead_minutes=max_lead_minutes,
+        min_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[0],
+        max_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[1],
     )
     outputs=[]
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
@@ -550,6 +601,11 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         event_name,competition_id,season,stage=event_row if event_row else ("","","","")
         competition_profile=resolve_profile(s,competition_id,event_name)
         if target_scope_only and not competition_profile.get('matched'):
+            continue
+        selected_lead,selection_status=_select_prediction_lead(s,competition_profile,prediction_lead_minutes,adaptive_timing,timing_shadow)
+        timing_tolerance=int(_timing_policy().get('guideline_tolerance_minutes',15)) if adaptive_timing or timing_shadow else 0
+        actual_lead=float(meta.get('lead_minutes') or 0.0)
+        if timing_tolerance and (actual_lead < max(5.0, selected_lead-timing_tolerance) or actual_lead > selected_lead+timing_tolerance):
             continue
 
         route_info=competition_route.resolve_route(s,competition_profile)
@@ -581,7 +637,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             model_names=[str(route_info['route'].get('model_name') or 'competition_specific_model')]
             model_weights=None
         elif missing_schema:
-            return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
+            return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
         elif use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
             raw,router_meta=router.predict_with_router(
@@ -614,7 +670,8 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             model_names=list(names)
             model_weights=dict(weights)
 
-        timing=_prediction_timing(t,now,prediction_lead_minutes)
+        timing=_prediction_timing(t,now,selected_lead)
+        timing['selection_status']=selection_status
         cutoff=timing['target_cutoff_at_utc']
         situation=_matchday_situation(eid,t,cutoff)
         confidence=_prediction_confidence(p,situation)
@@ -625,6 +682,9 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                  FROM event_participant ep
                  LEFT JOIN participant p ON p.participant_id=ep.participant_id
                 WHERE ep.event_id=?""",(eid,)).fetchone()
+        if timing_shadow:
+            strategy=f'timing_shadow_{selected_lead}__{strategy}'
+            router_status='TIMING_SHADOW'
         prediction_id=_persist_forward_prediction(
             c,eid,s,cutoff,now,1.0-p,p,strategy,active_model_version,
             active_feature_version,
@@ -635,6 +695,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 "season": season,
                 "stage": stage,
                 "prediction_timing": timing,
+                "timing_selection_status": selection_status,
                 "feature_pit_lead_minutes": PIT_LEAD_MINUTES,
                 "routing": {
                     "status": router_status,
@@ -650,13 +711,14 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             'competition_profile':competition_profile,
             'season':season,
             'stage':stage,
-            'model_scope':active_model_scope,
+            'model_scope':('timing_shadow;'+active_model_scope) if timing_shadow else active_model_scope,
             'strategy':strategy,'router_status':router_status,'prediction_id':prediction_id,
             'models':model_names,
             'ensemble_weights':model_weights,
             'model_version':active_model_version,
             'feature_version':active_feature_version,
             'prediction_timing':timing,
+            'timing_selection_status':selection_status,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'confidence':confidence,
             'action_state':action_state,
@@ -674,6 +736,8 @@ def main():
     ap.add_argument('--min-lead-minutes',type=int,default=None)
     ap.add_argument('--max-lead-minutes',type=int,default=None)
     ap.add_argument('--target-scope-only',action='store_true')
+    ap.add_argument('--adaptive-timing',action='store_true')
+    ap.add_argument('--timing-shadow',action='store_true')
     args=ap.parse_args()
     if args.lead_minutes <= 0:
         raise SystemExit('lead-minutes must be positive')
@@ -700,6 +764,8 @@ def main():
                     min_lead_minutes=args.min_lead_minutes,
                     max_lead_minutes=args.max_lead_minutes,
                     target_scope_only=args.target_scope_only,
+                    adaptive_timing=args.adaptive_timing,
+                    timing_shadow=args.timing_shadow,
                 )
             )
             # Export both newly-created and previously persisted forward predictions.
@@ -717,6 +783,8 @@ def main():
             'min_lead_minutes':args.min_lead_minutes if args.min_lead_minutes is not None else args.lead_minutes,
             'max_lead_minutes':args.max_lead_minutes,
             'target_scope_only':bool(args.target_scope_only),
+            'adaptive_timing':bool(args.adaptive_timing),
+            'timing_shadow':bool(args.timing_shadow),
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
         },
         'sports':results

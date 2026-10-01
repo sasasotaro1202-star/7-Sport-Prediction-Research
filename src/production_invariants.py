@@ -659,7 +659,7 @@ def main():
             'pre-event policy does not permit bounded adaptive timing around the guideline')
     require("cron: '3-58/5 * * * *'" in pre_event_wf and '--lead-minutes 30' in pre_event_wf,
             'pre-event workflow is not scheduled at the required 5-minute cadence with 30-minute target')
-    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 60' in pre_event_wf,
+    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 180' in pre_event_wf,
             'pre-event workflow lacks the bounded late-recovery generation window')
     require('--target-scope-only' in pre_event_wf and 'competition_profile_required' in pre_event_wf,
             'pre-event workflow is not restricted to explicit competition scope')
@@ -690,6 +690,28 @@ def main():
             'future predictor CLI lacks configurable pre-event timing/scope controls')
     require('by_competition_profile' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
             'prediction experience summary does not preserve competition-specific learning')
+    timing_policy=(ROOT/'config/PREDICTION_TIMING_POLICY.json').read_text(encoding='utf-8')
+    timing_builder=(ROOT/'src/timing_route_builder.py').read_text(encoding='utf-8')
+    timing_registry=(ROOT/'src/timing_route_registry.py').read_text(encoding='utf-8')
+    timing_test=(ROOT/'scripts/test_timing_router.py').read_text(encoding='utf-8')
+    require('"default_preferred_lead_minutes": 30' in timing_policy and '"guideline_only": true' in pre_event_policy,
+            'adaptive timing policy does not retain 30-minute guideline as non-hard default')
+    require('"require_oos_timing_evidence_for_nondefault": true' in timing_policy and '"require_frozen_holdout_for_nondefault": true' in timing_policy,
+            'adaptive timing policy permits unvalidated non-default timing')
+    require('ACCEPTED_LOCKED_HOLDOUT' in timing_builder and 'frozen holdout is score-only' in timing_builder.lower(),
+            'timing route builder lacks frozen-holdout gating')
+    require('TIMING_ROUTE_ACCEPTED' in timing_registry and 'DEFAULT_GUIDELINE' in timing_registry,
+            'timing route registry lacks accepted-route/default fallback states')
+    require('--adaptive-timing' in pre_event_wf and '--timing-shadow' in pre_event_wf,
+            'pre-event workflow does not execute adaptive and shadow timing lanes')
+    require('--max-lead-minutes 180' in pre_event_wf,
+            'pre-event workflow window cannot reach non-default timing candidates')
+    require('resolve_lead' in pre_event_audit,
+            'pre-event audit does not validate the selected timing route')
+    require('by_target_lead_minutes' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
+            'prediction experience summary does not expose lead-specific learning')
+    require('--adaptive-timing' in workflow and 'src.timing_route_builder' in workflow,
+            'canonical production does not build/use adaptive timing routes')
     require('by_prediction_timing_status' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
             'prediction experience summary does not track pre-event timing quality')
     require('test_pre_event_prediction.py' in lightweight_src,

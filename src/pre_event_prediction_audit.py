@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from src.competition_profiles import resolve_profile
+from src.timing_route_registry import resolve_lead
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +37,8 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
         "generated_at_utc": now.isoformat(),
         "sport": sport,
         "target_lead_minutes": target_lead,
+        "default_guideline_minutes": 30,
+        "timing_route_accepted_events": 0,
         "window": {"min_lead_minutes": min_lead, "max_lead_minutes": max_lead},
         "guideline_tolerance_minutes": 15,
         "guideline_only": True,
@@ -88,7 +91,10 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
         report["target_events_in_window"] = len(target)
 
         for row, event_dt, lead, profile in target:
-            target_cutoff = event_dt - timedelta(minutes=target_lead)
+            selected_lead, selection_status = resolve_lead(sport, profile, target_lead)
+            if selection_status == "TIMING_ROUTE_ACCEPTED":
+                report["timing_route_accepted_events"] += 1
+            target_cutoff = event_dt - timedelta(minutes=selected_lead)
             tolerance = timedelta(minutes=15)
             earliest_cutoff = target_cutoff - tolerance
             latest_cutoff = target_cutoff + tolerance
@@ -111,6 +117,8 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
                 "competition_id": row["competition_id"],
                 "competition_profile": profile,
                 "participant_count": int(row["participant_count"] or 0),
+                "selected_lead_minutes": int(selected_lead),
+                "timing_selection_status": selection_status,
                 "target_cutoff_at_utc": target_cutoff.isoformat(),
                 "acceptable_cutoff_range_utc": [earliest_cutoff.isoformat(), latest_cutoff.isoformat()],
             }
@@ -158,7 +166,7 @@ def main() -> int:
     parser.add_argument("--db", default="data/db/sports_v45.sqlite")
     parser.add_argument("--target-lead-minutes", type=int, default=30)
     parser.add_argument("--min-lead-minutes", type=float, default=5.0)
-    parser.add_argument("--max-lead-minutes", type=float, default=40.0)
+    parser.add_argument("--max-lead-minutes", type=float, default=180.0)
     args = parser.parse_args()
 
     if args.target_lead_minutes <= 0 or args.min_lead_minutes < 0 or args.max_lead_minutes <= 0:

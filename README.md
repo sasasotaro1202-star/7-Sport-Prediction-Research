@@ -113,3 +113,5 @@ The system is optimized for production accuracy first: runtime improvements come
 現在の本番対象スポーツでは、イベントに明示された `competition_id` を使って大会・リーグ単位の研究プロファイルを分離できます。各プロファイルは、競技別incumbentとは独立に候補モデルを時系列OOSで比較し、固定したfrozen holdoutをscore-onlyで検証します。OOS改善・fold安定性・holdout・bootstrap・PIT/release gateをすべて満たしたルートだけが `models/competition/` に昇格します。
 
 30分前の本番推論では、`competition_specific_accepted → sport_incumbent → safe_prior` の順でfail-closedにフォールバックします。新しい大会IDの自動発見は研究フロンティアとして扱い、本番対象への暗黙的なscope拡張は行いません。
+### 予測時刻は30分固定ではない
+予測開始時刻の30分は標準的なguidelineです。実際のProduction Timingは、競技×大会の過去予測を使って、15/20/30/45/60/90分などの候補を比較します。非デフォルト時刻は、paired chronological OOS、frozen holdout、bootstrap、PIT gateを通過したTiming Routeだけが使用され、証拠不足時は30分へ戻ります。別時刻のshadow予測はローテーション収集し、将来のTiming Route学習に利用します。

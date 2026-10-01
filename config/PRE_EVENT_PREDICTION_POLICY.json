@@ -7,7 +7,7 @@
     "manual_dispatch": true,
     "generation_window": {
       "min_lead_minutes": 5,
-      "max_lead_minutes": 60,
+      "max_lead_minutes": 180,
       "late_recovery": true
     },
     "guideline_target_minutes": 30,
@@ -23,7 +23,7 @@
     "unknown_competition_fail_closed": true
   },
   "pit": {
-    "prediction_cutoff": "event_time_minus_guideline_target",
+    "prediction_cutoff": "event_time_minus_selected_lead",
     "feature_pit_lead_minutes": 60,
     "post_cutoff_information_forbidden": true,
     "allow_timing_deviation": true,
@@ -33,7 +33,8 @@
     "archive_forward_predictions": true,
     "score_verified_outcomes_only": true,
     "store_competition_context": true,
-    "research_signals_only_until_oos_validation": true
+    "research_signals_only_until_oos_validation": true,
+    "shadow_timing_rotation": true
   },
   "safety": {
     "production_model_promotion": false,
