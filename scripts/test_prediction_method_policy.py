@@ -35,6 +35,8 @@ def test_uncertain_case_moves_to_set_or_abstain():
         experience_shadow={"recommendation": "EXPERIENCE_REVIEW"},
     )
     assert result["uncertainty"]["level"] == "HIGH"
+    assert result["uncertainty"]["predictability_proxy"]["score"] < 0.55
+    assert result["uncertainty"]["predictability_proxy"]["calibrated"] is False
     assert result["output"]["format"] in {"prediction_set_or_scenario", "abstain_or_fallback"}
     assert result["output"]["action"] == "PASS"
     assert result["experience"]["review_signal"] is True
