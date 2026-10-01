@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "policy": "pre-event-prediction-v1",
+  "scheduler": {
+    "cron_utc": "3-58/5 * * * *",
+    "minimum_interval_minutes": 5,
+    "manual_dispatch": true,
+    "target_lead_minutes": 30,
+    "generation_window": {
+      "min_lead_minutes": 5,
+      "max_lead_minutes": 40,
+      "late_recovery": true
+    }
+  },
+  "scope": {
+    "active_prediction_scope_only": true,
+    "competition_profile_required": true,
+    "unknown_competition_fail_closed": true
+  },
+  "pit": {
+    "prediction_cutoff": "event_time_minus_target_lead",
+    "feature_pit_lead_minutes": 60,
+    "post_cutoff_information_forbidden": true
+  },
+  "experience": {
+    "archive_forward_predictions": true,
+    "score_verified_outcomes_only": true,
+    "store_competition_context": true,
+    "research_signals_only_until_oos_validation": true
+  },
+  "safety": {
+    "production_model_promotion": false,
+    "safe_prior_fallback_allowed": true,
+    "missing_prediction_is_explicit_gap": true,
+    "no_failure_hiding": true
+  }
+}
