@@ -713,7 +713,9 @@ def train(s):
       excess=max(0.0,worst-base_ll)
       return base_ll,excess,regime_scores
 
-     oos={'window_signature':oos_window_signature,'window_signature_rule':'exact chronological test-start/test-end windows'}
+     oos={}
+     oos['window_signature']=oos_window_signature
+     oos['window_signature_rule']='exact chronological test-start/test-end windows'
      for name in names:
       p=np.asarray(oof_probs[name],float)
       score=base.metric(oof_y,p)
