@@ -31,15 +31,73 @@ def evaluate_sport(sport: str) -> dict:
         uq.RISK_THRESHOLD = original_threshold
 
     evaluated = [r for r in runs if r.get("status") == "EVALUATED"]
-    ranked = sorted(
-        evaluated,
-        key=lambda r: (
-            -max(
-                float(v.get("oos_logloss_improvement", float("-inf")))
-                for v in (r.get("policy_grid") or {}).values()
-                if isinstance(v, dict)
+
+    def selection_summary(result):
+        values = []
+        for policy in (result.get("policy_grid") or {}).values():
+            if not isinstance(policy, dict):
+                continue
+            blocks = [
+                float(b.get("logloss_improvement", float("nan")))
+                for b in (policy.get("block_results") or [])
+                if isinstance(b, dict)
+            ]
+            blocks = [v for v in blocks if np.isfinite(v)]
+            if not blocks:
+                continue
+            brier_blocks = [
+                float(b.get("brier_improvement", float("nan")))
+                for b in (policy.get("block_results") or [])
+                if isinstance(b, dict)
+            ]
+            brier_blocks = [v for v in brier_blocks if np.isfinite(v)]
+            values.append({
+                "policy": policy,
+                "mean_block_logloss_improvement": float(np.mean(blocks)),
+                "min_block_logloss_improvement": float(np.min(blocks)),
+                "positive_block_count": int(sum(v > 0.0 for v in blocks)),
+                "mean_block_brier_improvement": float(np.mean(brier_blocks))
+                if brier_blocks else float("nan"),
+            })
+        if not values:
+            return None
+        ranked = sorted(
+            values,
+            key=lambda x: (
+                -x["mean_block_logloss_improvement"],
+                -x["min_block_logloss_improvement"],
+                -x["positive_block_count"],
+                -float(x["policy"].get("oos_logloss_improvement", float("-inf"))),
             ),
-            float(r.get("holdout", {}).get("ece_change", float("inf"))),
+        )
+        return ranked[0]
+
+    ranked = []
+    for result in evaluated:
+        summary = selection_summary(result)
+        if summary is None:
+            continue
+        policy = summary["policy"]
+        evidence_ok = (
+            summary["mean_block_logloss_improvement"] > 0.0
+            and summary["min_block_logloss_improvement"] > -0.005
+            and summary["positive_block_count"] >= 2
+            and (
+                not np.isfinite(summary["mean_block_brier_improvement"])
+                or summary["mean_block_brier_improvement"] >= -0.001
+            )
+        )
+        result["_selection_summary"] = summary
+        result["_selection_evidence_ok"] = evidence_ok
+        ranked.append(result)
+
+    ranked = sorted(
+        ranked,
+        key=lambda r: (
+            not bool(r.get("_selection_evidence_ok")),
+            -float(r["_selection_summary"]["mean_block_logloss_improvement"]),
+            -float(r["_selection_summary"]["min_block_logloss_improvement"]),
+            -int(r["_selection_summary"]["positive_block_count"]),
         ),
     )
 
@@ -48,12 +106,17 @@ def evaluate_sport(sport: str) -> dict:
         "status": "EVALUATED" if evaluated else "DEFERRED",
         "thresholds": list(THRESHOLDS),
         "runs": runs,
+        "selection_rule": (
+            "pre-holdout OOS only: mean block logloss improvement, "
+            "minimum block improvement, >=2 positive blocks; no holdout selection"
+        ),
         "best_research_candidate": (
             {
                 "sweep_risk_threshold": ranked[0]["sweep_risk_threshold"],
                 "selected_policy": ranked[0].get("selected_policy"),
                 "selected_strength": ranked[0].get("selected_strength"),
-                "holdout": ranked[0].get("holdout"),
+                "pre_holdout_selection_summary": ranked[0].get("_selection_summary"),
+                "selection_evidence_ok": bool(ranked[0].get("_selection_evidence_ok")),
             }
             if ranked
             else None
