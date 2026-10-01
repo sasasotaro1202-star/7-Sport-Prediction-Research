@@ -347,6 +347,10 @@ jobs:
           path: results/research/production_route_observability.json
       - name: Score and accumulate prediction experience
         run: python -m src.prediction_experience --score-only
+      - name: Learn from settled prediction experience (shadow)
+        run: python -m src.experience_learning
+      - name: Experience learning regression
+        run: python scripts/test_experience_learning.py
       - name: Production invariants
         run: python -m src.production_invariants
       - name: Compile check

@@ -1,0 +1,25 @@
+{
+  "version": "experience-learning-v1",
+  "pit": {
+    "require_settlement_status": "SCORED",
+    "require_prediction_cutoff_at_or_before_settlement": true,
+    "knowledge_available_at": "artifact_generation_time_utc"
+  },
+  "minimums": {
+    "group_rows": 20,
+    "high_confidence_rows": 15
+  },
+  "review_thresholds": {
+    "accuracy_wilson_lower_bound": 0.55,
+    "high_confidence_accuracy_wilson_lower_bound": 0.60
+  },
+  "safety": {
+    "mode": "SHADOW_ONLY",
+    "modify_probability": false,
+    "modify_action_state": false,
+    "modify_model_route": false,
+    "modify_timing": false,
+    "production_promotion": false,
+    "fail_closed_on_invalid_settlement": true
+  }
+}
