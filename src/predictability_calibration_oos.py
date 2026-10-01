@@ -18,7 +18,7 @@ from sklearn.preprocessing import StandardScaler
 EPS = 1e-6
 
 
-def _ts(values: Sequence[Any], name: str) -> list[datetime]:
+def _ts(values: Sequence[Any], name: str, *, require_monotonic: bool = False) -> list[datetime]:
     out=[]
     for v in values:
         dt=v if isinstance(v, datetime) else datetime.fromisoformat(str(v).replace("Z","+00:00"))
@@ -27,14 +27,14 @@ def _ts(values: Sequence[Any], name: str) -> list[datetime]:
         out.append(dt)
     if not out:
         raise ValueError(f"{name} must be non-empty")
-    if any(out[i] < out[i-1] for i in range(1,len(out))):
+    if require_monotonic and any(out[i] < out[i-1] for i in range(1,len(out))):
         raise ValueError(f"{name} must be monotonically non-decreasing")
     return out
 
 
 def _validate(raw, correctness, prediction_times, outcome_confirmed_at):
     x=np.asarray(raw,float); y=np.asarray(correctness,int)
-    pt=_ts(prediction_times,"prediction_times")
+    pt=_ts(prediction_times,"prediction_times",require_monotonic=True)
     mt=_ts(outcome_confirmed_at,"outcome_confirmed_at")
     if x.ndim!=1 or y.ndim!=1 or len(x)!=len(y) or len(x)!=len(pt) or len(x)!=len(mt):
         raise ValueError("predictability calibration inputs must align")
