@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -90,11 +91,11 @@ def select_method(
         confidence = "LOW"
 
     disagreement = _safe_float((situation.get("uncertainty") or {}).get("model_disagreement"))
-    entropy_denominator = 0.6931471805599453
+    entropy_denominator = math.log(2.0)
     entropy = 0.0
     if 0.0 < float(probability) < 1.0:
         p = float(probability)
-        entropy = -(p * __import__("math").log(p) + (1.0 - p) * __import__("math").log(1.0 - p)) / entropy_denominator
+        entropy = -(p * math.log(p) + (1.0 - p) * math.log(1.0 - p)) / entropy_denominator
     disagreement_component = 0.0 if disagreement is None else min(max(disagreement * 4.0, 0.0), 1.0)
     predictability = max(
         0.0,
@@ -136,14 +137,16 @@ def select_method(
     experience = experience_shadow or {}
     experience_review = str(experience.get("recommendation") or "PASS") == "EXPERIENCE_REVIEW"
 
+    target_profile_id, target_profile = _target_profile(sport, participant_count, multiclass)
+
     return {
         "version": "prediction-method-meta-policy-v1",
         "status": "SELECTED",
         "sport": sport,
         "target": {
-            "profile": _target_profile(sport, participant_count, multiclass)[0],
-            "type": _target_profile(sport, participant_count, multiclass)[1]["target_type"],
-            "granularity": _target_profile(sport, participant_count, multiclass)[1]["granularity"],
+            "profile": target_profile_id,
+            "type": target_profile["target_type"],
+            "granularity": target_profile["granularity"],
         },
         "horizon": {
             "kind": "event_relative_lead_minutes",
