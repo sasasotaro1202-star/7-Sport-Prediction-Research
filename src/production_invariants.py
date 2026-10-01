@@ -662,6 +662,23 @@ def main():
             'pre-event workflow is not restricted to explicit competition scope')
     require('pre-event-target-db-v1-' in pre_event_wf and 'active-scope-target-db-v4-' in pre_event_wf,
             'pre-event workflow does not persist/reuse sport-scoped database state')
+    competition_policy=(ROOT/'config/COMPETITION_ROUTING_POLICY.json').read_text(encoding='utf-8')
+    competition_builder=(ROOT/'src/competition_route_builder.py').read_text(encoding='utf-8')
+    competition_loader=(ROOT/'src/competition_route_registry.py').read_text(encoding='utf-8')
+    require('"no_implicit_production_activation": true' in competition_policy and '"require_frozen_holdout": true' in competition_policy,
+            'competition routing policy does not fail closed on production activation/holdout')
+    require('resolve_research_profile' in competition_builder and 'ACCEPTED_LOCKED_HOLDOUT' in competition_builder,
+            'competition route builder lacks explicit research identity and holdout acceptance')
+    require('holdout_used_for_selection' in competition_builder and 'bootstrap_probability_improvement' in competition_policy,
+            'competition route builder lacks frozen-holdout/uncertainty contract')
+    require('models/competition/' in competition_loader and 'SPORT_INCUMBENT_FALLBACK' in competition_loader,
+            'competition route loader lacks artifact path guard/fallback')
+    require('COMPETITION_SPECIFIC_ACCEPTED' in future_src and 'competition_specific_model' in future_src,
+            'future predictor does not expose explicit competition-specific accepted route state')
+    require('src.competition_route_builder' in workflow and 'competition_routes.json' in workflow,
+            'production workflow does not build competition-specific routes before release')
+    require('test_competition_routing.py' in lightweight_src,
+            'competition routing regression is not wired into Lightweight Regression')
     require('NO_30M_CUTOFF_PREDICTION' in pre_event_audit and 'missing_predictions' in pre_event_audit,
             'pre-event audit does not explicitly detect missing 30-minute predictions')
     require('def _prediction_timing' in future_src and "'prediction_timing':timing" in future_src,
