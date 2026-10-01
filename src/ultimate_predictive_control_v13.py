@@ -188,6 +188,61 @@ def predictability_features(d: Mapping[str, np.ndarray], data_quality: np.ndarra
     }
 
 
+def calibrate_predictability_prior_oos(
+    raw_predictability: Sequence[float],
+    correctness: Sequence[int],
+    *,
+    dev_fraction: float = 0.70,
+    min_rows: int = 120,
+) -> tuple[np.ndarray, dict]:
+    """Calibrate raw predictability using development outcomes only, then freeze."""
+    raw = np.asarray(raw_predictability, dtype=float)
+    y = np.asarray(correctness, dtype=int)
+    if raw.ndim != 1 or y.ndim != 1 or len(raw) != len(y):
+        raise ValueError("predictability calibration inputs must be aligned 1-D arrays")
+    if len(raw) < 2 or not np.isfinite(raw).all() or not np.isin(y, [0, 1]).all():
+        return np.full(len(raw), 0.5, dtype=float), {
+            "status": "FALLBACK_INVALID_HISTORY",
+            "training_rows": 0,
+            "method": "prior_mean",
+            "frozen_before_locked": True,
+        }
+
+    dev_end = int(np.floor(len(raw) * float(dev_fraction)))
+    dev_end = min(max(dev_end, 1), len(raw) - 1)
+    dev_x = raw[:dev_end]
+    dev_y = y[:dev_end]
+    if len(dev_y) < int(min_rows) or len(np.unique(dev_y)) < 2:
+        prior = float(np.mean(dev_y)) if len(dev_y) else 0.5
+        return np.full(len(raw), np.clip(prior, 0.01, 0.99), dtype=float), {
+            "status": "FALLBACK_INSUFFICIENT_DEVELOPMENT",
+            "training_rows": int(len(dev_y)),
+            "method": "prior_mean",
+            "dev_end": int(dev_end),
+            "frozen_before_locked": True,
+        }
+
+    model = Pipeline([
+        ("scale", StandardScaler()),
+        ("logistic", LogisticRegression(C=0.50, max_iter=2000, random_state=13013)),
+    ])
+    model.fit(dev_x.reshape(-1, 1), dev_y)
+    calibrated = np.clip(
+        model.predict_proba(raw.reshape(-1, 1))[:, 1],
+        0.01,
+        0.99,
+    )
+    return calibrated, {
+        "status": "FITTED_DEV_ONLY_LOGISTIC",
+        "training_rows": int(len(dev_y)),
+        "method": "dev_only_logistic_predictability_calibration",
+        "dev_end": int(dev_end),
+        "locked_rows": int(len(raw) - dev_end),
+        "frozen_before_locked": True,
+        "locked_outcomes_update_calibrator": False,
+    }
+
+
 def regime_features(d: Mapping[str, np.ndarray]) -> Dict[str, np.ndarray]:
     mean = np.asarray(d["mean"], dtype=float)
     slope = _causal_slope(mean, 12)
@@ -1216,6 +1271,14 @@ def run_v13_research(
     wm /= wm.sum()
     fixed = pm @ wm
 
+    correctness = ((fixed >= 0.5) == yv).astype(int)
+    calibrated_predictability, predictability_calibration = calibrate_predictability_prior_oos(
+        predfeat["predictability"],
+        correctness,
+        dev_fraction=0.70,
+        min_rows=120,
+    )
+
     context = np.column_stack([
         d["std"],
         d["entropy"],
@@ -1443,6 +1506,9 @@ def run_v13_research(
             "p10": _safe_float(np.quantile(predfeat["predictability"], 0.10)),
             "latest": _safe_float(predfeat["predictability"][-1]),
             "velocity_latest": _safe_float(predfeat["velocity"][-1]),
+            "calibrated_mean": _safe_float(np.mean(calibrated_predictability)),
+            "calibrated_latest": _safe_float(calibrated_predictability[-1]),
+            "calibration": predictability_calibration,
         },
         "future_regime_transition": regime_future,
         "ablation": ablation,
