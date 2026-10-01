@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from src.temporal_conformal_sets import (
+    prediction_set_metrics,
     validate_maturity,
     walk_forward_prediction_sets,
 )
@@ -70,3 +71,16 @@ def test_rolling_window_is_bounded():
         class_names=("home", "draw", "away"),
     )
     assert max(out["calibration_count"]) <= 20
+
+
+def test_metrics_are_maturity_gated():
+    y, p, pt, mature = fixture(80)
+    out = walk_forward_prediction_sets(
+        y, p, pt, mature,
+        min_calibration=30,
+        class_names=("home", "draw", "away"),
+    )
+    metrics = prediction_set_metrics(out, y)
+    assert metrics["eligible_rows"] == 50.0
+    assert 0.0 <= metrics["maturity_gated_fraction"] <= 1.0
+    assert metrics["coverage_eligible"] >= 0.0
