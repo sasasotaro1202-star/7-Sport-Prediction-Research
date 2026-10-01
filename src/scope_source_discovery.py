@@ -16,6 +16,27 @@ OUT = ROOT / "results/scope_source_discovery.json"
 UA = "SevenSportResearchScopeDiscovery/1.0"
 TIMEOUT = int(os.getenv("SCOPE_DISCOVERY_TIMEOUT", "15"))
 
+DISCOVERY_SIGNAL_TERMS = {
+    "basketball": ("b.league", "bleague", "asian games", "asiangames", "japan basketball", "basketball"),
+    "volleyball": ("asian games", "asiangames", "fivb", "volleyball"),
+    "ufc": ("ufc", "ultimate fighting championship", "mma"),
+    "rizin": ("rizin", "rizin ff", "mma"),
+    "valorant": ("valorant", "vct", "challengers", "game changers"),
+    "tennis": ("atp", "wta", "tennis"),
+    "f1": ("formula 1", "formula1", "f1", "ergast", "openf1"),
+    "rugby": ("rugby", "world rugby"),
+    "boxing": ("boxing", "boxrec"),
+}
+
+
+def _discovery_signal_strength(sport: str, item: dict) -> str:
+    text = " ".join(
+        str(item.get(key) or "")
+        for key in ("name", "path", "repository", "full_name", "description")
+    ).lower()
+    terms = DISCOVERY_SIGNAL_TERMS.get(sport, ())
+    return "DIRECT" if any(term in text for term in terms) else "LOW_SIGNAL"
+
 SPORT_QUERIES = {
     "basketball": ["B.LEAGUE data", "Asian Games basketball data", "basketball historical statistics"],
     "volleyball": ["Asian Games volleyball data", "FIVB volleyball historical statistics", "volleyball match data"],
@@ -77,14 +98,16 @@ def _github_code_leads() -> list[dict]:
             )
             r.raise_for_status()
             for item in (r.json().get("items") or []):
-                out.append({
+                lead = {
                     "sport": sport,
                     "query": query,
                     "name": item.get("name"),
                     "path": item.get("path"),
                     "repository": ((item.get("repository") or {}).get("full_name")),
                     "html_url": item.get("html_url"),
-                })
+                }
+                lead["signal_strength"] = _discovery_signal_strength(sport, lead)
+                out.append(lead)
         except Exception as exc:
             out.append({
                 "sport": sport,
@@ -116,7 +139,7 @@ def _github_repo_leads() -> list[dict]:
                 r.raise_for_status()
                 items = r.json().get("items") or []
                 for item in items:
-                    out.append({
+                    lead = {
                         "sport": sport,
                         "query": query,
                         "full_name": item.get("full_name"),
@@ -124,7 +147,9 @@ def _github_repo_leads() -> list[dict]:
                         "description": item.get("description"),
                         "updated_at": item.get("updated_at"),
                         "fork": bool(item.get("fork")),
-                    })
+                    }
+                    lead["signal_strength"] = _discovery_signal_strength(sport, lead)
+                    out.append(lead)
             except Exception as exc:
                 out.append({"sport": sport, "query": query, "status": "SEARCH_FAILED", "error": repr(exc)})
     return out
@@ -143,6 +168,18 @@ def main() -> int:
             "code_leads": sum(
                 1 for x in code_leads if x.get("sport") == sport and x.get("repository")
             ),
+            "code_direct_signal_leads": sum(
+                1 for x in code_leads
+                if x.get("sport") == sport
+                and x.get("repository")
+                and x.get("signal_strength") == "DIRECT"
+            ),
+            "code_low_signal_leads": sum(
+                1 for x in code_leads
+                if x.get("sport") == sport
+                and x.get("repository")
+                and x.get("signal_strength") == "LOW_SIGNAL"
+            ),
         }
         for sport in SPORT_QUERIES
     }
@@ -151,6 +188,8 @@ def main() -> int:
     # reachable URL, or search hit never enters a prediction feature/model by itself.
     github_failures = sum(1 for x in leads if str(x.get("status", "")).endswith("_FAILED"))
     code_failures = sum(1 for x in code_leads if str(x.get("status", "")).endswith("_FAILED"))
+    code_direct_signal = sum(1 for x in code_leads if x.get("repository") and x.get("signal_strength") == "DIRECT")
+    code_low_signal = sum(1 for x in code_leads if x.get("repository") and x.get("signal_strength") == "LOW_SIGNAL")
     total_registry = len(health)
     reachable_registry = sum(1 for x in health if x.get("reachable"))
     total_queries = len(SPORT_QUERIES)
@@ -169,12 +208,18 @@ def main() -> int:
         "reachable_registry_urls": reachable_registry,
         "github_repo_leads": leads,
         "github_code_leads": code_leads,
+        "discovery_quality": {
+            "github_code_direct_signal_leads": code_direct_signal,
+            "github_code_low_signal_leads": code_low_signal,
+            "github_code_low_signal_ratio": code_low_signal / max(code_direct_signal + code_low_signal, 1),
+        },
         "per_sport": per_sport,
         "rules": {
             "retrieval_is_not_historical_pit": True,
             "discovery_does_not_adopt": True,
             "commercial_sources_require_explicit_review": True,
             "mirrors_and_republishers_do_not_count_as_independent": True,
+            "low_signal_discovery_is_quarantined_not_deleted": True,
         },
         "registry_health": health,
     }

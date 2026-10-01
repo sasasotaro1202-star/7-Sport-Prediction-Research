@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from src.scope_autofill_controller import ACTIONS, MIN_EVENTS, MIN_VERIFIED, MIN_EXACT_PIT_RATIO, route_score, select_action
+from src.scope_source_discovery import _discovery_signal_strength
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,6 +37,17 @@ def main() -> int:
     assert "def _github_code_leads" in discovery
     assert "code_leads = _github_code_leads()" in discovery
     assert "per_sport = {" in discovery
+    assert "DISCOVERY_SIGNAL_TERMS" in discovery
+    assert "_discovery_signal_strength" in discovery
+    assert '"signal_strength"' in discovery
+    assert "code_low_signal_leads" in discovery
+    assert "github_code_low_signal_ratio" in discovery
+    assert '"query", "full_name"' not in discovery or '"query", "full_name"' not in discovery.split("def _discovery_signal_strength",1)[1].split("return",1)[0]
+    assert "low_signal_discovery_is_quarantined_not_deleted" in discovery
+    assert _discovery_signal_strength("basketball", {"query": "B.LEAGUE data", "name": "Data.csv", "repository": "example/generic"}) == "LOW_SIGNAL"
+    assert _discovery_signal_strength("basketball", {"name": "B.LEAGUE_results.csv", "repository": "example/generic"}) == "DIRECT"
+    assert _discovery_signal_strength("ufc", {"name": "fight_history.csv", "repository": "example/ufc-data"}) == "DIRECT"
+    assert _discovery_signal_strength("ufc", {"name": "random.csv", "repository": "example/random"}) == "LOW_SIGNAL"
     assert 'return 0 if status != "FAILED" else 2' in discovery
     assert 'selection_action' in controller
 
