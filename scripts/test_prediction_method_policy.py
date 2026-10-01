@@ -17,7 +17,7 @@ def test_high_confidence_head_to_head_prefers_scalar_probability():
         experience_shadow={"recommendation": "PASS"},
     )
     assert result["target"]["type"] == "binary_winner"
-    assert result["output"]["format"] == "single_probability"
+    assert result["output"]["format_candidate"] == "single_probability"
     assert result["method"]["model_method"] == "competition_specific_model"
 
 
@@ -37,7 +37,7 @@ def test_uncertain_case_moves_to_set_or_abstain():
     assert result["uncertainty"]["level"] == "HIGH"
     assert result["uncertainty"]["predictability_proxy"]["score"] < 0.55
     assert result["uncertainty"]["predictability_proxy"]["calibrated"] is False
-    assert result["output"]["format"] in {"prediction_set_or_scenario", "abstain_or_fallback"}
+    assert result["output"]["format_candidate"] in {"prediction_set_or_scenario", "abstain_or_fallback"}
     assert result["output"]["action"] == "PASS"
     assert result["experience"]["review_signal"] is True
 
@@ -78,9 +78,26 @@ def test_stale_information_requests_refresh():
     assert result["information"]["next_action"] == "refresh_pit_safe_sources"
 
 
+
+
+def test_policy_action_state_is_explicit_for_high_confidence():
+    result = select_method(
+        sport="basketball",
+        participant_count=2,
+        selected_lead_minutes=30,
+        competition_profile={"matched": True, "profile_id": "basketball:bleague"},
+        strategy="fixed_equal_weight",
+        router_status="FALLBACK_FIXED_ENSEMBLE",
+        competition_specific=False,
+        probability=0.90,
+        situation={"status": "PIT_SAFE", "quality": {"evidence_count": 2, "freshness_score": 0.9, "conflict_rate": 0.0}},
+        experience_shadow={"recommendation": "PASS"},
+    )
+    assert result["output"]["action"] == "PRIMARY"
 if __name__ == "__main__":
     test_high_confidence_head_to_head_prefers_scalar_probability()
     test_uncertain_case_moves_to_set_or_abstain()
     test_experience_never_changes_probability_or_route()
     test_stale_information_requests_refresh()
+    test_policy_action_state_is_explicit_for_high_confidence()
     print("prediction_method_policy tests passed")
