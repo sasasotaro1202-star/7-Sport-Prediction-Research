@@ -92,3 +92,34 @@ def test_overall_status_is_deferred_when_all_sports_are_deferred(monkeypatch):
         else "DEFERRED"
     )
     assert overall == "DEFERRED"
+
+
+def test_cli_main_defines_sport_list(monkeypatch, tmp_path):
+    import json
+    import src.upset_uncertainty_oos as module
+
+    db = tmp_path / "empty.sqlite"
+    import sqlite3
+    sqlite3.connect(db).close()
+    monkeypatch.setattr(module, "DB", db)
+    monkeypatch.setattr(module, "RESULTS", tmp_path / "results")
+    monkeypatch.setattr(
+        module,
+        "_evaluate_sport",
+        lambda con, sport: {
+            "sport": sport,
+            "status": "DEFERRED",
+            "reason": "synthetic",
+        },
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["upset_uncertainty_oos", "--sport", "ufc"],
+    )
+
+    assert module.main() == 0
+    payload = json.loads(
+        (tmp_path / "results" / "upset_uncertainty_oos.json").read_text(encoding="utf-8")
+    )
+    assert payload["status"] == "DEFERRED"
+    assert payload["sports"][0]["sport"] == "ufc"
