@@ -44,7 +44,7 @@ def test_same_time_and_immature_history_are_excluded():
 def test_invalid_range_fails_closed():
     raw,y,pt,mt=_fixture(140)
     raw[0]=1.2
-    with pytest.raises(ValueError,match="\[0,1\]"):
+    with pytest.raises(ValueError,match=r"\[0,1\]"):
         chronological_predictability_calibration(raw,y,pt,mt,locked_start=100,min_history=20)
 
 
