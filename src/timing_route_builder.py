@@ -79,42 +79,6 @@ def _prepare_rows(con: sqlite3.Connection, sport: str, allowed_leads: set[int]) 
         (sport,),
     ).fetchall()
 
-    # At most one settled prediction per event/target lead: keep the prediction
-    # closest to its intended cutoff. This prevents the 5-minute scheduler from
-    # overweighting a single event.
-    grouped: dict[str, dict[int, dict]] = defaultdict(dict)
-    for row in query:
-        pid,event_id,cutoff,generated,pb,event_time,competition_id,name,status,outcome=row
-        lead = _lead_from_row(event_time, cutoff)
-        if lead is None:
-            continue
-        target = min(allowed_leads, key=lambda x: abs(float(x) - lead)) if allowed_leads else None
-        if target is None or abs(float(target) - lead) > 6.0:
-            continue
-        profile = resolve_profile(sport, competition_id, name)
-        if not profile.get("matched"):
-            continue
-        try:
-            p = float(pb)
-        except (TypeError, ValueError):
-            continue
-        if not math.isfinite(p) or not 0.0 < p < 1.0:
-            continue
-        correct_y = 1 if outcome == "B" else 0
-        item = {
-            "event_id": str(event_id),
-            "time": str(event_time),
-            "prediction_id": str(pid),
-            "p": p,
-            "y": correct_y,
-            "competition_id": str(competition_id or ""),
-            "profile_id": str(profile["profile_id"]),
-            "target_lead": int(target),
-            "actual_lead": float(lead),
-        }
-        existing = grouped[item["profile_id"]].get(int(target))
-        if existing is None or abs(item["actual_lead"] - target) < abs(existing["actual_lead"] - target):
-            grouped[item["profile_id"]][int(target)] = item
     buckets: dict[str, dict[int, dict[str, dict]]] = defaultdict(lambda: defaultdict(dict))
     for row in query:
         pid,event_id,cutoff,generated,pb,event_time,competition_id,name,status,outcome=row
