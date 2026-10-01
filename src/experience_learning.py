@@ -150,8 +150,14 @@ def build_memory(
     accuracy_lb_threshold = float(thresholds.get("accuracy_wilson_lower_bound", 0.55))
     high_conf_lb_threshold = float(thresholds.get("high_confidence_accuracy_wilson_lower_bound", 0.60))
 
-    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    validated_rows: list[dict[str, Any]] = []
     for row in rows:
+        normalized = _validate_row(row)
+        if normalized is not None:
+            validated_rows.append(normalized)
+
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in validated_rows:
         groups[_group_key(
             row.get("sport"),
             row.get("competition_profile"),
@@ -216,7 +222,7 @@ def build_memory(
         "mode": "SHADOW_ONLY",
         "promotion_gate": False,
         "source": {
-            "settlement_rows": len(rows),
+            "settlement_rows": len(validated_rows),
             "groups": len(memory),
             "review_groups": review_count,
             "source_settled_through_utc": max((x["settled_at_utc"] for x in rows), default=None),
