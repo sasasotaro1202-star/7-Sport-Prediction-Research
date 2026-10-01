@@ -25,6 +25,7 @@ if not SPORTS:
 HEAD_TO_HEAD_SPORTS=tuple(SPORTS)
 MULTICLASS_SPORTS=()
 PIT_LEAD_MINUTES=60
+PREDICTION_LEAD_MINUTES_DEFAULT=60
 F1_CURRENT_ROSTER_URL="https://www.formula1.com/en/drivers"
 
 _F1_ROSTER_CACHE=None
@@ -96,24 +97,36 @@ def _apply_calibration(p, calibrator, method):
     return p
 
 
-def _future_events(c,s,now):
-    return {
-        row[0]: {'event_id':row[0],'event_time_utc':row[1],'status':row[2],
-                 'participant_count':int(row[3] or 0)}
-        for row in c.execute(
-            """SELECT e.event_id,e.event_time_utc,e.status,
-                      (SELECT COUNT(DISTINCT ep.participant_id)
-                         FROM event_participant ep
-                        WHERE ep.event_id=e.event_id
-                          AND ep.participant_id IS NOT NULL)
-                 FROM event e
-                WHERE e.sport=?
-                  AND e.event_time_utc IS NOT NULL
-                ORDER BY e.event_time_utc,e.event_id""",(s,)
-        ).fetchall()
-        if row[1] and _after_cutoff(row[1],now,PIT_LEAD_MINUTES)
-        and str(row[2] or '').upper() not in {'COMPLETED','FINISHED','POST','FINAL','CANCELLED','VOID'}
-    }
+def _future_events(c,s,now,min_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAULT,max_lead_minutes=None):
+    """Return future events inside an explicit generation window."""
+    out={}
+    for row in c.execute(
+        """SELECT e.event_id,e.event_time_utc,e.status,
+                  (SELECT COUNT(DISTINCT ep.participant_id)
+                     FROM event_participant ep
+                    WHERE ep.event_id=e.event_id
+                      AND ep.participant_id IS NOT NULL)
+             FROM event e
+            WHERE e.sport=?
+              AND e.event_time_utc IS NOT NULL
+            ORDER BY e.event_time_utc,e.event_id""",(s,)
+    ).fetchall():
+        if not row[1] or str(row[2] or '').upper() in {'COMPLETED','FINISHED','POST','FINAL','CANCELLED','VOID'}:
+            continue
+        try:
+            dt=datetime.fromisoformat(str(row[1]).replace('Z','+00:00'))
+            if dt.tzinfo is None:
+                dt=dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+        lead=(dt-now).total_seconds()/60.0
+        if lead < float(min_lead_minutes):
+            continue
+        if max_lead_minutes is not None and lead > float(max_lead_minutes):
+            continue
+        out[row[0]]={'event_id':row[0],'event_time_utc':row[1],'status':row[2],
+                     'participant_count':int(row[3] or 0),'lead_minutes':lead}
+    return out
 
 
 def _after_cutoff(ts,now,lead_minutes):
@@ -133,6 +146,26 @@ def _after_now(ts,now):
         return dt>now
     except Exception:
         return False
+
+
+def _prediction_timing(event_time,now,target_lead_minutes):
+    dt=datetime.fromisoformat(str(event_time).replace('Z','+00:00'))
+    if dt.tzinfo is None:
+        dt=dt.replace(tzinfo=timezone.utc)
+    target_cutoff=dt-__import__('datetime').timedelta(minutes=int(target_lead_minutes))
+    actual_lead=(dt-now).total_seconds()/60.0
+    if now < target_cutoff:
+        status='EARLY'
+    elif now <= target_cutoff + __import__('datetime').timedelta(minutes=2):
+        status='ON_TIME'
+    else:
+        status='LATE'
+    return {
+        'target_lead_minutes':int(target_lead_minutes),
+        'actual_lead_minutes':round(float(actual_lead),3),
+        'target_cutoff_at_utc':target_cutoff.isoformat(),
+        'status':status,
+    }
 
 
 def _prediction_id(event_id, model_version, cutoff):
