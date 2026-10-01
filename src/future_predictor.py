@@ -718,6 +718,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 "prediction_timing": timing,
                 "timing_selection_status": selection_status,
                 "feature_pit_lead_minutes": PIT_LEAD_MINUTES,
+                "experience_shadow": experience_shadow,
                 "routing": {
                     "status": router_status,
                     "competition_specific": route_active,
