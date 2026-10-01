@@ -243,6 +243,7 @@ def _fit_oos(items: list[dict], features: list[str], candidates: list[str], mini
         "sport": items[0]["sport"],
         "season_scope": _periods(items),
         "model_name": best,
+        "model_version": f"competition-route-{hashlib.sha256((items[0]["profile_id"] + "|" + best + "|" + items[pre_n - 1]["time"]).encode("utf-8")).hexdigest()[:16]}",
         "strategy": "competition_specific_model",
         "model_scope": "competition_specific;frozen_holdout_accepted",
         "feature_names": list(features),
@@ -251,6 +252,7 @@ def _fit_oos(items: list[dict], features: list[str], candidates: list[str], mini
         "git_commit_sha": _git_sha(),
         "artifact_path": rel_artifact,
         "quality_status": "ACCEPTED_LOCKED_HOLDOUT",
+        "holdout_used_for_selection": False,
         "oos": {
             "rows": pre_n,
             "baseline_logloss": baseline["logloss"],
