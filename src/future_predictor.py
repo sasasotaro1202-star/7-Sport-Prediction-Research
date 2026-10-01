@@ -11,6 +11,7 @@ from src import experience_learning
 from src import competition_route_registry as competition_route
 from src import timing_route_registry as timing_route
 from src.competition_profiles import resolve_profile
+from src import prediction_method_policy
 
 ROOT=Path(__file__).resolve().parents[1]
 DB=ROOT/'data/db/sports_v45.sqlite'
@@ -334,6 +335,7 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'confidence':'LOW','action_state':'PASS',
             'situation':{'status':'PIT_SAFE','quality':{'evidence_count':sa+sb,'conflict_rate':None,'freshness_score':None},'experience_shadow':experience_shadow,'policy':'historical outcomes only; no current unavailable information inferred'},
             'experience_shadow':experience_shadow,
+            'prediction_method_policy':method_policy,
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
@@ -697,6 +699,19 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         situation['experience_shadow']=experience_shadow
         confidence=_prediction_confidence(p,situation)
         action_state=_prediction_action(confidence,situation)
+        method_policy=prediction_method_policy.select_method(
+            sport=s,
+            participant_count=int(meta.get('participant_count') or 0),
+            selected_lead_minutes=selected_lead,
+            competition_profile=competition_profile,
+            strategy=strategy,
+            router_status=router_status,
+            competition_specific=route_active,
+            probability=p,
+            situation=situation,
+            experience_shadow=experience_shadow,
+            multiclass=False,
+        )
         a,b=c.execute(
             """SELECT GROUP_CONCAT(CASE WHEN side='A' THEN canonical_name END),
                       GROUP_CONCAT(CASE WHEN side='B' THEN canonical_name END)
@@ -719,6 +734,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 "timing_selection_status": selection_status,
                 "feature_pit_lead_minutes": PIT_LEAD_MINUTES,
                 "experience_shadow": experience_shadow,
+                "prediction_method_policy": method_policy,
                 "routing": {
                     "status": router_status,
                     "competition_specific": route_active,
