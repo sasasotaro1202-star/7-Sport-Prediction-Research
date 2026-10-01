@@ -41,6 +41,7 @@ def main() -> int:
     assert '"signal_strength"' in discovery
     assert "code_low_signal_leads" in discovery
     assert "github_code_low_signal_ratio" in discovery
+    assert '"query", "full_name"' not in discovery or '"query", "full_name"' not in discovery.split("def _discovery_signal_strength",1)[1].split("return",1)[0]
     assert "low_signal_discovery_is_quarantined_not_deleted" in discovery
     assert 'return 0 if status != "FAILED" else 2' in discovery
     assert 'selection_action' in controller
