@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
+import tempfile
 
 from src.competition_profiles import resolve_profile
 from src.future_predictor import _future_events, _prediction_timing
@@ -70,11 +72,47 @@ def main() -> None:
         ("p1","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=2)).isoformat(),"test","test")
     )
     c.commit()
-    ar = audit(
-        __import__("pathlib").Path("/tmp/nonexistent.sqlite"),
-        "basketball", now, 5, 40, 30
-    )
-    assert ar["status"] == "NO_DATABASE"
+    fd, name = tempfile.mkstemp(prefix="pre-event-guideline-", suffix=".sqlite")
+    __import__("os").close(fd)
+    db = Path(name)
+    try:
+        disk = sqlite3.connect(db)
+        disk.executescript("""
+            CREATE TABLE event(
+                event_id TEXT PRIMARY KEY,
+                sport TEXT,
+                event_time_utc TEXT,
+                status TEXT,
+                name TEXT,
+                competition_id TEXT
+            );
+            CREATE TABLE event_participant(
+                event_id TEXT,
+                participant_id TEXT,
+                side TEXT
+            );
+            CREATE TABLE forward_prediction(
+                prediction_id TEXT PRIMARY KEY,
+                event_id TEXT,
+                market TEXT,
+                prediction_cutoff_at_utc TEXT,
+                created_at_utc TEXT,
+                strategy TEXT,
+                model_version TEXT
+            );
+        """)
+        disk.execute("INSERT INTO event VALUES (?,?,?,?,?,?)", ("b1","basketball",t30,"SCHEDULED","B.LEAGUE","B.LEAGUE"))
+        disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","a","A"))
+        disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","b","B"))
+        disk.execute("INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)", ("p1","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=2)).isoformat(),"test","test"))
+        disk.commit()
+        disk.close()
+        ar = audit(db, "basketball", now, 25, 40, 30)
+        assert ar["status"] == "PASS", ar
+        assert ar["predicted_in_guideline_window"] == 1, ar
+        assert not ar["missing_predictions"], ar
+    finally:
+        db.unlink(missing_ok=True)
     c.close()
     c.close()
     print("PRE_EVENT_PREDICTION_CONTRACT=PASS")
