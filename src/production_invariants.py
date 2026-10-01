@@ -675,7 +675,7 @@ def main():
             'competition route loader lacks artifact path guard/fallback')
     require('COMPETITION_SPECIFIC_ACCEPTED' in future_src and 'competition_specific_model' in future_src,
             'future predictor does not expose explicit competition-specific accepted route state')
-    require('src.competition_route_builder' in workflow and 'competition_routes.json' in workflow,
+    require('python -m src.competition_route_builder' in workflow,
             'production workflow does not build competition-specific routes before release')
     require('test_competition_routing.py' in lightweight_src,
             'competition routing regression is not wired into Lightweight Regression')
