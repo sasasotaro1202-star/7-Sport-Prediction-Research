@@ -596,6 +596,8 @@ def main():
             'case-risk shadow must be prohibited from mutating prediction, route, or action')
     require('test_case_risk_shadow.py' in lightweight_src,
             'case-risk shadow bridge regression is not wired into Lightweight Regression')
+    require('test_safe_prior_method_policy_binding.py' in lightweight_src,
+            'safe-prior target-aware method-policy binding regression is not wired into Lightweight Regression')
     require('prediction_method_policy.select_method' in future_src and
             ('"prediction_method_policy":method_policy' in future_src
              or "'prediction_method_policy':method_policy" in future_src),
