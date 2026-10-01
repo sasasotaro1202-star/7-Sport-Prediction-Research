@@ -53,8 +53,32 @@ def test_future_knowledge_time_fails_closed():
         raise AssertionError("expected fail-closed knowledge-time error")
 
 
+def test_inconsistent_source_settlement_time_fails_closed():
+    memory = _memory()
+    memory["source"]["source_settled_through_utc"] = "2026-10-01T10:00:01+00:00"
+    try:
+        build(memory, "2026-10-01T11:00:00+00:00")
+    except RuntimeError as exc:
+        assert str(exc) == "EXPERIENCE_BRIDGE_SOURCE_SETTLEMENT_TIME_INCONSISTENT"
+    else:
+        raise AssertionError("expected fail-closed source settlement-time error")
+
+
+def test_row_missing_source_settlement_time_fails_closed():
+    memory = _memory()
+    memory["memory"][0].pop("source_settled_through_utc")
+    try:
+        build(memory, "2026-10-01T11:00:00+00:00")
+    except RuntimeError as exc:
+        assert str(exc) == "EXPERIENCE_BRIDGE_ROW_MISSING_SOURCE_SETTLEMENT_TIME"
+    else:
+        raise AssertionError("expected fail-closed row provenance error")
+
+
 if __name__ == "__main__":
     test_review_row_creates_prospective_candidate()
     test_healthy_row_creates_no_candidate()
     test_future_knowledge_time_fails_closed()
+    test_inconsistent_source_settlement_time_fails_closed()
+    test_row_missing_source_settlement_time_fails_closed()
     print("experience_research_bridge tests passed")
