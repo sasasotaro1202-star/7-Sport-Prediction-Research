@@ -70,6 +70,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_experience_research_bridge.py
       - name: Dual learning cycle contract
         run: PYTHONPATH=. python scripts/test_dual_learning_cycle.py
+      - name: Prediction method meta-policy regression
+        run: PYTHONPATH=. python scripts/test_prediction_method_policy.py
       - name: Import canonical modules
         run: |
           python - <<'PY'
