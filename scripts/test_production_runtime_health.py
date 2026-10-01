@@ -87,6 +87,9 @@ def main() -> int:
     assert report["status"] == "PASS"
     assert report["health_state"] == "LONG_RUNNING"
     assert report["promotion_gate"] is False
+    assert report["attention_required"] is False
+    assert report["failure_detected"] is False
+    assert report["warnings"] == []
     assert report["production_run"]["head_sha_matches_current_main"] is True
     assert report["jobs"]["active"] == ["merge"]
     assert report["artifacts"]["production_route_observability_present"] is True
@@ -102,6 +105,9 @@ def main() -> int:
     assert stale_report["health_state"] == "STALE_RISK"
     assert stale_report["production_run"]["head_sha_matches_current_main"] is False
     assert stale_report["artifacts"]["production_route_observability_present"] is False
+    assert stale_report["attention_required"] is True
+    assert "main_sha_mismatch" in stale_report["warnings"]
+    assert "production_route_artifact_missing" in stale_report["warnings"]
 
     print("PRODUCTION_RUNTIME_HEALTH=PASS")
     return 0
