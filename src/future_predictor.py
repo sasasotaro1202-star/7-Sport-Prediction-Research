@@ -7,6 +7,7 @@ from src import dynamic_model_router as router
 from src import matchday_intelligence_oos as matchday_intelligence
 from src import research_cycle_v4 as base
 from src import prediction_experience as experience
+from src import experience_learning
 from src import competition_route_registry as competition_route
 from src import timing_route_registry as timing_route
 from src.competition_profiles import resolve_profile
@@ -288,6 +289,14 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
         timing=_prediction_timing(event_time,now,selected_lead)
         timing['selection_status']=selection_status
         cutoff=timing['target_cutoff_at_utc']
+        strategy_name='safe_prior' if not timing_shadow else f'timing_shadow_{selected_lead}__safe_prior'
+        experience_shadow=experience_learning.shadow_signal(
+            now,s,
+            str(competition_profile.get('profile_id') or 'UNKNOWN'),
+            strategy_name,
+            0.5,
+            selected_lead,
+        )
         sa,wa,rate_a=_prior_record(c,s,a[0],cutoff)
         sb,wb,rate_b=_prior_record(c,s,b[0],cutoff)
         denom=max(rate_a+rate_b,1e-12)
@@ -301,9 +310,9 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'prediction_timing':timing,
             'timing_selection_status':selection_status,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
+            'experience_shadow':experience_shadow,
             'fallback_policy':'pit_safe_historical_prior_v2_retrieval_pit',
         }
-        strategy_name='safe_prior' if not timing_shadow else f'timing_shadow_{selected_lead}__safe_prior'
         pid=_persist_forward_prediction(
             c,eid,s,cutoff,now,1.0-pb,pb,strategy_name,'safe-prior-v1',
             'pit-safe-historical-win-rate-v1',features
@@ -323,7 +332,8 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'prediction_timing':timing,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'confidence':'LOW','action_state':'PASS',
-            'situation':{'status':'PIT_SAFE','quality':{'evidence_count':sa+sb,'conflict_rate':None,'freshness_score':None},'policy':'historical outcomes only; no current unavailable information inferred'},
+            'situation':{'status':'PIT_SAFE','quality':{'evidence_count':sa+sb,'conflict_rate':None,'freshness_score':None},'experience_shadow':experience_shadow,'policy':'historical outcomes only; no current unavailable information inferred'},
+            'experience_shadow':experience_shadow,
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
@@ -674,6 +684,17 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         timing['selection_status']=selection_status
         cutoff=timing['target_cutoff_at_utc']
         situation=_matchday_situation(eid,t,cutoff)
+        # Experience is an advisory, PIT-gated shadow signal. It cannot alter
+        # probability, model route, timing, or action_state in production.
+        experience_shadow=experience_learning.shadow_signal(
+            now,s,
+            str(competition_profile.get('profile_id') or 'UNKNOWN'),
+            strategy,
+            max(float(p),1.0-float(p)),
+            selected_lead,
+        )
+        situation=dict(situation)
+        situation['experience_shadow']=experience_shadow
         confidence=_prediction_confidence(p,situation)
         action_state=_prediction_action(confidence,situation)
         a,b=c.execute(
@@ -723,6 +744,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             'confidence':confidence,
             'action_state':action_state,
             'situation':situation,
+            'experience_shadow':experience_shadow,
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED' if outputs else 'NO_FUTURE_EVENTS',
