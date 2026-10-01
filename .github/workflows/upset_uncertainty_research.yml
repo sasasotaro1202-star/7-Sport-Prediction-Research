@@ -1,0 +1,66 @@
+name: Upset Uncertainty Research
+
+on:
+  push:
+    branches:
+      - research/upset-uncertainty-layer-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upset-uncertainty-research
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  research:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        sport: [basketball, ufc]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - run: mkdir -p data/db results
+      - name: Restore latest safe database cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: upset-research-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            nine-sport-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-target-db-v4-${{ matrix.sport }}-
+            pit-history-seed-${{ matrix.sport }}-
+      - name: Validate database
+        run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }}
+      - name: Compile source
+        run: python -m compileall -q src
+      - name: Regression
+        run: PYTHONPATH=. python scripts/test_upset_uncertainty_oos.py
+      - name: Run causal OOS upset-risk research
+        run: PYTHONPATH=. python -m src.upset_uncertainty_oos --sport ${{ matrix.sport }}
+      - name: Run isolated chronological risk-threshold sweep
+        run: PYTHONPATH=. python scripts/sweep_upset_risk_threshold_oos.py --sport ${{ matrix.sport }}
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: upset-uncertainty-${{ matrix.sport }}-${{ github.run_id }}
+          path: |
+            results/upset_uncertainty_oos.json
+            results/upset_threshold_sweep_${{ matrix.sport }}.json
+          retention-days: 14
