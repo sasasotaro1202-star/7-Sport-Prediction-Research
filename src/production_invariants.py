@@ -659,7 +659,7 @@ def main():
             'pre-event policy does not permit bounded adaptive timing around the guideline')
     require("cron: '3-58/5 * * * *'" in pre_event_wf and '--lead-minutes 30' in pre_event_wf,
             'pre-event workflow is not scheduled at the required 5-minute cadence with 30-minute target')
-    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 60' in pre_event_wf,
+    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 180' in pre_event_wf,
             'pre-event workflow lacks the bounded late-recovery generation window')
     require('--target-scope-only' in pre_event_wf and 'competition_profile_required' in pre_event_wf,
             'pre-event workflow is not restricted to explicit competition scope')
