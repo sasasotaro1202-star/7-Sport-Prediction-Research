@@ -132,6 +132,18 @@ def load_settled_rows(settlements_dir: Path = SETTLEMENTS_DIR) -> list[dict[str,
                 normalized = _validate_row(row)
                 if normalized is not None:
                     rows.append(normalized)
+    deduped: dict[str, dict[str, Any]] = {}
+    for normalized in rows:
+        prediction_id = normalized["prediction_id"]
+        if not prediction_id:
+            raise RuntimeError("EXPERIENCE_LEARNING_MISSING_PREDICTION_ID")
+        previous = deduped.get(prediction_id)
+        if previous is None:
+            deduped[prediction_id] = normalized
+            continue
+        if previous != normalized:
+            raise RuntimeError("EXPERIENCE_LEARNING_DUPLICATE_CONFLICT")
+    rows = list(deduped.values())
     rows.sort(key=lambda x: (x["settled_at_utc"], x["prediction_id"]))
     return rows
 
@@ -142,7 +154,8 @@ def build_memory(
     policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     policy = policy or _policy()
-    generated = _parse_utc(generated_at_utc or utc_now()).isoformat()
+    generated_dt = _parse_utc(generated_at_utc or utc_now())
+    generated = generated_dt.isoformat()
     minimums = policy.get("minimums") or {}
     thresholds = policy.get("review_thresholds") or {}
     min_rows = int(minimums.get("group_rows", 20))
@@ -151,10 +164,24 @@ def build_memory(
     high_conf_lb_threshold = float(thresholds.get("high_confidence_accuracy_wilson_lower_bound", 0.60))
 
     validated_rows: list[dict[str, Any]] = []
+    deduped: dict[str, dict[str, Any]] = {}
     for row in rows:
         normalized = _validate_row(row)
-        if normalized is not None:
-            validated_rows.append(normalized)
+        if normalized is None:
+            continue
+        prediction_id = normalized["prediction_id"]
+        if not prediction_id:
+            raise RuntimeError("EXPERIENCE_LEARNING_MISSING_PREDICTION_ID")
+        previous = deduped.get(prediction_id)
+        if previous is not None:
+            if previous != normalized:
+                raise RuntimeError("EXPERIENCE_LEARNING_DUPLICATE_CONFLICT")
+            continue
+        settled_at = _parse_utc(normalized["settled_at_utc"])
+        if settled_at > generated_dt:
+            raise RuntimeError("EXPERIENCE_LEARNING_FUTURE_SETTLEMENT")
+        deduped[prediction_id] = normalized
+        validated_rows.append(normalized)
 
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in validated_rows:

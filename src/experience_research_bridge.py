@@ -43,6 +43,16 @@ def build(memory: dict[str, Any], generated_at_utc: str | None = None) -> dict[s
     if knowledge_time > generated:
         raise RuntimeError("EXPERIENCE_BRIDGE_KNOWLEDGE_TIME_IN_FUTURE")
 
+    source = memory.get("source") or {}
+    source_settled_value = source.get("source_settled_through_utc")
+    source_settled_time = None
+    if source_settled_value not in (None, ""):
+        source_settled_time = _parse_utc(source_settled_value)
+        if source_settled_time > knowledge_time:
+            raise RuntimeError("EXPERIENCE_BRIDGE_SOURCE_SETTLEMENT_TIME_INCONSISTENT")
+        if source_settled_time > generated:
+            raise RuntimeError("EXPERIENCE_BRIDGE_SOURCE_SETTLEMENT_TIME_IN_FUTURE")
+
     candidates = []
     for item in memory.get("memory") or []:
         if not isinstance(item, dict):
@@ -52,6 +62,12 @@ def build(memory: dict[str, Any], generated_at_utc: str | None = None) -> dict[s
         item_knowledge_time = _parse_utc(item.get("knowledge_available_at_utc"))
         if item_knowledge_time > generated:
             raise RuntimeError("EXPERIENCE_BRIDGE_ROW_KNOWLEDGE_TIME_IN_FUTURE")
+        item_source_settled = item.get("source_settled_through_utc")
+        if item_source_settled in (None, ""):
+            raise RuntimeError("EXPERIENCE_BRIDGE_ROW_MISSING_SOURCE_SETTLEMENT_TIME")
+        item_source_settled_time = _parse_utc(item_source_settled)
+        if item_source_settled_time > item_knowledge_time:
+            raise RuntimeError("EXPERIENCE_BRIDGE_ROW_SOURCE_SETTLEMENT_TIME_INCONSISTENT")
         candidates.append({
             "candidate_id": _candidate_id(item),
             "status": "DISCOVERED_EXPERIENCE_HYPOTHESIS",
@@ -93,7 +109,7 @@ def build(memory: dict[str, Any], generated_at_utc: str | None = None) -> dict[s
         "mode": "PROSPECTIVE_ONLY",
         "promotion_gate": False,
         "source_memory_version": memory.get("version"),
-        "source_settled_through_utc": (memory.get("source") or {}).get("source_settled_through_utc"),
+        "source_settled_through_utc": source_settled_value,
         "candidate_count": len(candidates),
         "candidates": candidates,
         "safety": {

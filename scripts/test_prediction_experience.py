@@ -301,6 +301,44 @@ class PredictionExperienceTests(unittest.TestCase):
             finally:
                 pe.PREDICTIONS_DIR = old_dir
 
+    def test_settlement_loader_rejects_conflicting_duplicate_ids(self):
+        with tempfile.TemporaryDirectory() as td:
+            old_dir = pe.SETTLEMENTS_DIR
+            try:
+                pe.SETTLEMENTS_DIR = Path(td) / "settlements"
+                pe.SETTLEMENTS_DIR.mkdir(parents=True)
+                row = {
+                    "prediction_id": "s-conflict",
+                    "settlement_status": "SCORED",
+                    "correct": True,
+                    "actual_outcome": "A",
+                }
+                other = dict(row, correct=False)
+                path = pe.SETTLEMENTS_DIR / "2026-10-01.jsonl"
+                path.write_text(
+                    json.dumps(row) + "\n" + json.dumps(other) + "\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(RuntimeError, "CONFLICTING_SETTLEMENT_DUPLICATE"):
+                    pe._load_settlements()
+            finally:
+                pe.SETTLEMENTS_DIR = old_dir
+
+    def test_settlement_loader_rejects_missing_prediction_id(self):
+        with tempfile.TemporaryDirectory() as td:
+            old_dir = pe.SETTLEMENTS_DIR
+            try:
+                pe.SETTLEMENTS_DIR = Path(td) / "settlements"
+                pe.SETTLEMENTS_DIR.mkdir(parents=True)
+                (pe.SETTLEMENTS_DIR / "2026-10-01.jsonl").write_text(
+                    json.dumps({"settlement_status": "SCORED"}) + "\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(RuntimeError, "INVALID_SETTLEMENT_MISSING_PREDICTION_ID"):
+                    pe._load_settlements()
+            finally:
+                pe.SETTLEMENTS_DIR = old_dir
+
 
 if __name__ == "__main__":
     unittest.main()
