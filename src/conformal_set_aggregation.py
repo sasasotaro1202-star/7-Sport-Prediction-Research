@@ -127,7 +127,7 @@ def online_aggregate(
         )
         prior = [j for j in range(i) if pt[j] < pt[i] and mature[j] <= pt[i]]
         calibration_counts.append(len(prior))
-        eligible = len(prior) >= int(min_calibration)
+        eligible = bool(prior) and len(prior) >= int(min_calibration)
         eligible_flags.append(eligible)
         weight_history.append(w.tolist())
 
@@ -214,7 +214,6 @@ def block_coverage_metrics(
         int(y) in {int(x) for x in ps}
         for ps, y in zip(prediction_sets, outcomes)
     ]))
-    nominal_shortfall = max(0.0, overall - 0.0)
     worst = min(block_coverages) if block_coverages else float("nan")
     return {
         "rows": int(n),
