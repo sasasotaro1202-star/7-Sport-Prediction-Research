@@ -64,6 +64,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_prediction_scope_runtime.py
       - name: Prediction experience ledger test
         run: PYTHONPATH=. python scripts/test_prediction_experience.py
+      - name: Experience learning loop regression
+        run: PYTHONPATH=. python scripts/test_experience_learning.py
       - name: Import canonical modules
         run: |
           python - <<'PY'
