@@ -653,13 +653,13 @@ def main():
     pre_event_audit=(ROOT/'src/pre_event_prediction_audit.py').read_text(encoding='utf-8')
     require((ROOT/'.github/workflows/pre_event_prediction.yml').exists(),
             '30-minute pre-event prediction workflow is missing')
-    require('"target_lead_minutes": 30' in pre_event_policy and '"guideline_target_minutes": 30' in pre_event_policy,
+    require('"target_lead_minutes": 30' in pre_event_policy and '"guideline_only": true' in pre_event_policy,
             'pre-event policy does not define a 30-minute timing guideline')
-    require('"allow_timing_deviation": true' in pre_event_policy and '"max_guideline_deviation_minutes": 15' in pre_event_policy,
+    require('"guideline_tolerance_minutes": 15' in pre_event_policy and '"selection_mode": "adaptive-capable;30m-default"' in pre_event_policy,
             'pre-event policy does not permit bounded adaptive timing around the guideline')
     require("cron: '3-58/5 * * * *'" in pre_event_wf and '--lead-minutes 30' in pre_event_wf,
             'pre-event workflow is not scheduled at the required 5-minute cadence with 30-minute target')
-    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 40' in pre_event_wf,
+    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 60' in pre_event_wf,
             'pre-event workflow lacks the bounded late-recovery generation window')
     require('--target-scope-only' in pre_event_wf and 'competition_profile_required' in pre_event_wf,
             'pre-event workflow is not restricted to explicit competition scope')
