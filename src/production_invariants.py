@@ -577,6 +577,15 @@ def main():
             'target-aware prediction method policy is missing fail-closed production settings')
     require('select_method' in method_policy_src and 'predictability_proxy' in method_policy_src,
             'target-aware prediction method policy lacks method selection/predictability state')
+    require('evaluate_temporal_memory_router_from_folds' in router_src
+            and 'evaluate_frozen_holdout_temporal_memory_router_from_folds' in router_src,
+            'temporal similarity memory router candidate is missing chronological/frozen-holdout evaluators')
+    require('temporal_memory_router' in strict_src
+            and 'temporal_memory_router_holdout' in strict_src
+            and 'temporal_memory_accept' in strict_src,
+            'strict research cycle does not persist temporal memory routing evidence')
+    require('test_temporal_memory_router.py' in lightweight_src,
+            'temporal similarity memory router regression is not wired into Lightweight Regression')
     require('prediction_method_policy.select_method' in future_src and
             ('"prediction_method_policy":method_policy' in future_src
              or "'prediction_method_policy':method_policy" in future_src),
