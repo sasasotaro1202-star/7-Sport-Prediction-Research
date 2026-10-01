@@ -13,9 +13,14 @@ on:
 permissions:
   contents: read
 
+# Ensure repository-root imports resolve when test files are executed by pytest.
+
 concurrency:
   group: predictability-calibration-research
   cancel-in-progress: true
+
+env:
+  PYTHONPATH: .
 
 jobs:
   contract:
@@ -33,7 +38,9 @@ jobs:
       - name: Compile
         run: python -m compileall -q src/predictability_calibration_oos.py
       - name: Unit tests
-        run: python scripts/test_predictability_calibration_oos.py
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Run unit tests
+        run: python -m pytest -q scripts/test_predictability_calibration_oos.py
       - name: Synthetic frozen-suffix smoke
         run: |
           python - <<'PY'
