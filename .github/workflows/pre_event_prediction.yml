@@ -13,7 +13,7 @@ env:
 
 jobs:
   pre_event:
-    name: 30m Prediction / ${{ matrix.sport }}
+    name: Adaptive Prediction / ${{ matrix.sport }}
     strategy:
       fail-fast: false
       max-parallel: 5
@@ -23,7 +23,7 @@ jobs:
       group: pre-event-prediction-${{ matrix.sport }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -48,12 +48,15 @@ jobs:
           assert p['scheduler']['target_lead_minutes'] == 30
           assert p['scheduler']['cron_utc'] == '3-58/5 * * * *'
           assert p['scheduler']['generation_window']['min_lead_minutes'] == 5
-          assert p['scheduler']['generation_window']['max_lead_minutes'] == 60
+          assert p['scheduler']['generation_window']['max_lead_minutes'] == 180
+          assert p['scheduler']['guideline_target_minutes'] == 30
+          assert p['scheduler']['guideline_tolerance_minutes'] == 15
+          assert p['scheduler']['guideline_only'] is True
           assert p['scheduler']['guideline_only'] is True
           assert p['scheduler']['guideline_tolerance_minutes'] == 15
           assert p['scope']['active_prediction_scope_only'] is True
           assert p['scope']['competition_profile_required'] is True
-          assert p['pit']['prediction_cutoff'] == 'event_time_minus_target_lead'
+          assert p['pit']['prediction_cutoff'] == 'event_time_minus_selected_lead'
           print('PRE_EVENT_POLICY=PASS')
           PY
 
@@ -88,7 +91,7 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Generate around-30-minute prediction lane
+      - name: Generate adaptive prediction lane
         id: predict
         run: |
           set -uo pipefail
@@ -97,8 +100,9 @@ jobs:
               --sport ${{ matrix.sport }} \
               --lead-minutes 30 \
               --min-lead-minutes 5 \
-              --max-lead-minutes 60 \
-              --target-scope-only; then
+              --max-lead-minutes 180 \
+              --target-scope-only \
+              --adaptive-timing; then
             echo 'future_prediction=OK'
           else
             rc=$?
@@ -106,6 +110,36 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
+      - name: Generate one rotating timing-shadow lane
+        id: timing_shadow
+        run: |
+          set -uo pipefail
+          rc=0
+          slot=$(( ($(date -u +%s) / 900) % 5 ))
+          case "$slot" in
+            0) lead=60 ;;
+            1) lead=45 ;;
+            2) lead=20 ;;
+            3) lead=15 ;;
+            4) lead=90 ;;
+          esac
+          min_lead=$((lead - 3))
+          max_lead=$((lead + 3))
+          if [ "$min_lead" -lt 5 ]; then min_lead=5; fi
+          echo "TIMING_SHADOW_TARGET lead=$lead window=${min_lead}-${max_lead}"
+          if timeout --signal=TERM 240s python -m src.future_predictor \
+              --sport ${{ matrix.sport }} \
+              --lead-minutes "$lead" \
+              --min-lead-minutes "$min_lead" \
+              --max-lead-minutes "$max_lead" \
+              --target-scope-only \
+              --timing-shadow; then
+            echo 'timing_shadow=OK'
+          else
+            rc=$?
+            echo "timing_shadow=FAILED exit=$rc"
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
       - name: Score accumulated prediction experience
         id: experience
         run: |
@@ -129,7 +163,7 @@ jobs:
               --db data/db/sports_v45.sqlite \
               --target-lead-minutes 30 \
               --min-lead-minutes 5 \
-              --max-lead-minutes 40; then
+              --max-lead-minutes 180; then
             echo 'pre_event_audit=OK'
           else
             rc=$?
