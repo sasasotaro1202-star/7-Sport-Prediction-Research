@@ -495,7 +495,12 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
         out: dict[str, Any] = {}
         groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for row in scored:
-            groups[str(row.get(field) or "UNKNOWN")].append(row)
+            value = row.get(field)
+            if isinstance(value, dict):
+                key = str(value.get("profile_id") or value.get("status") or "UNKNOWN")
+            else:
+                key = str(value or "UNKNOWN")
+            groups[key].append(row)
         for key, vals in sorted(groups.items()):
             out[key] = metrics(vals)
         return out
@@ -526,6 +531,10 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
         "by_sport": {sport: metrics(vals) for sport, vals in sorted(sport_groups.items())},
         "by_strategy": grouped("strategy"),
         "by_competition_profile": grouped("competition_profile"),
+        "by_prediction_timing_status": {
+            key: metrics(vals)
+            for key, vals in _group_rows(scored, "prediction_timing_status").items()
+        },
         "by_confidence": grouped("confidence"),
         "by_probability_bucket": grouped("probability_bucket"),
         "by_action_state": grouped("action_state"),
@@ -536,6 +545,18 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
         "repeated_error_patterns": _patterns(scored),
         "available_next_cycle_signals": _next_cycle_signals(scored),
     }
+
+
+def _group_rows(rows: list[dict[str, Any]], field: str) -> dict[str, list[dict[str, Any]]]:
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        value = row.get(field)
+        if isinstance(value, dict):
+            key = str(value.get("status") or value.get("profile_id") or "UNKNOWN")
+        else:
+            key = str(value or "UNKNOWN")
+        groups[key].append(row)
+    return groups
 
 
 def _patterns(scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -695,7 +716,10 @@ def score_archive() -> dict[str, Any]:
         settled = dict(base)
         settled.update(result)
         settled.update(prof)
+        timing = pred.get("prediction_timing")
+        timing_status = timing.get("status") if isinstance(timing, dict) else None
         settled.update({
+            "prediction_timing_status": timing_status or "UNKNOWN",
             "settlement_status": "SCORED",
             "settlement_source": source_out,
             "settled_at_utc": utc_now(),
