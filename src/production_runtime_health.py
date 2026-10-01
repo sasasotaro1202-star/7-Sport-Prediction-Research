@@ -107,13 +107,34 @@ def _latest_production_run(api_base: str, repository: str, token: str, workflow:
     ]
     if not candidates:
         raise RuntimeError("PRODUCTION_RUN_NOT_FOUND")
-    candidates.sort(
-        key=lambda run: (
+
+    def sort_key(run: dict[str, Any]) -> tuple[datetime, int]:
+        return (
             _utc(run.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc),
             int(run.get("id") or 0),
-        ),
-        reverse=True,
-    )
+        )
+
+    # The canonical workflow allows one newer run to remain queued behind an
+    # older in-progress run. Monitor the active execution first so a queued
+    # successor cannot hide a still-running predecessor.
+    active = [
+        run for run in candidates
+        if str(run.get("status") or "").strip().lower() == "in_progress"
+    ]
+    if active:
+        active.sort(key=sort_key, reverse=True)
+        return active[0]
+
+    queued = [
+        run for run in candidates
+        if str(run.get("status") or "").strip().lower()
+        in {"queued", "requested", "waiting", "pending"}
+    ]
+    if queued:
+        queued.sort(key=sort_key, reverse=True)
+        return queued[0]
+
+    candidates.sort(key=sort_key, reverse=True)
     return candidates[0]
 
 
