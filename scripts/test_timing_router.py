@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from src.timing_route_registry import DEFAULT_LEAD, resolve_lead
+import src.timing_route_builder as timing_builder
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> int:
     policy = json.loads((ROOT / "config/PREDICTION_TIMING_POLICY.json").read_text(encoding="utf-8"))
     assert DEFAULT_LEAD == 30
+    assert timing_builder.DEFAULT_LEAD == 30
+    assert callable(timing_builder.build)
     assert policy["default_preferred_lead_minutes"] == 30
     assert 30 in policy["allowed_lead_minutes"]
     assert policy["selection"]["require_oos_timing_evidence_for_nondefault"] is True
