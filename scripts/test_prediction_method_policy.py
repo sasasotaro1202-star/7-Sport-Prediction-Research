@@ -59,7 +59,7 @@ def test_experience_never_changes_probability_or_route():
     assert result["experience"]["used_to_change_probability"] is False
     assert result["experience"]["used_to_change_model_route"] is False
     assert result["information"]["next_action"] == "study_repeated_error_pattern"
-    assert result["output"]["update_action"] == "revise_when_new_information_arrives"
+    assert result["output"]["update_action"] == "recompute_candidate"
 
 
 def test_policy_hash_is_present_and_stable():
