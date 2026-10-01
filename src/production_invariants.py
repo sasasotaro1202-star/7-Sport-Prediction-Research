@@ -586,6 +586,16 @@ def main():
             'strict research cycle does not persist temporal memory routing evidence')
     require('test_temporal_memory_router.py' in lightweight_src,
             'temporal similarity memory router regression is not wired into Lightweight Regression')
+    require('_case_risk_shadow' in future_src and 'case_risk_shadow' in future_src,
+            'future predictor lacks the PIT-safe case-risk shadow bridge')
+    require('case_risk_model_names' in strict_src and 'RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY' in strict_src,
+            'case-risk research model provenance is not persisted with explicit shadow-only status')
+    require("'used_to_change_probability':False" in future_src
+            and "'used_to_change_model_route':False" in future_src
+            and "'used_to_change_action':False" in future_src,
+            'case-risk shadow must be prohibited from mutating prediction, route, or action')
+    require('test_case_risk_shadow.py' in lightweight_src,
+            'case-risk shadow bridge regression is not wired into Lightweight Regression')
     require('prediction_method_policy.select_method' in future_src and
             ('"prediction_method_policy":method_policy' in future_src
              or "'prediction_method_policy':method_policy" in future_src),
