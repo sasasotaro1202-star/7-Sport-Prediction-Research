@@ -1,0 +1,60 @@
+name: Retrieval Local Conformal Research
+
+"on":
+  pull_request:
+    paths:
+      - "src/retrieval_local_conformal_oos.py"
+      - "scripts/test_retrieval_local_conformal_oos.py"
+      - ".github/workflows/retrieval_local_conformal_research.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retrieval-local-conformal-research
+  cancel-in-progress: true
+
+env:
+  PYTHONPATH: .
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check --retries 5 --timeout 60 numpy pytest
+      - name: Compile
+        run: python -m py_compile src/retrieval_local_conformal_oos.py scripts/test_retrieval_local_conformal_oos.py
+      - name: Unit tests
+        run: python -m pytest -q scripts/test_retrieval_local_conformal_oos.py
+      - name: Research safety smoke
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timedelta, timezone
+          import numpy as np
+          from src.retrieval_local_conformal_oos import retrieval_local_prediction_sets
+          n=70
+          base=datetime(2026,1,1,tzinfo=timezone.utc)
+          pt=[base+timedelta(hours=i) for i in range(n)]
+          mt=[t+timedelta(hours=1) for t in pt]
+          y=np.asarray([0,1,2]*24)[:n]
+          p=np.tile(np.asarray([[.80,.15,.05],[.10,.80,.10],[.05,.10,.85]]), (24,1))[:n]
+          x=np.column_stack([np.sin(np.arange(n)/7),np.cos(np.arange(n)/11),y*.02])
+          out=retrieval_local_prediction_sets(y,p,x,pt,mt,min_calibration=20,max_pool=40,k=20,class_names=("H","D","A"))
+          if out["production_effect"] != "none" or out["promotion_allowed"] is not False:
+              raise SystemExit("unsafe production semantics")
+          if not out["maturity_gate"]["same_prediction_time_excluded"]:
+              raise SystemExit("same-time maturity gate missing")
+          if out["pool_size"][-1] > 40 or out["retrieved_size"][-1] > 20:
+              raise SystemExit("bounded retrieval contract failed")
+          print({"status":out["status"],"eligible_rows":out["eligible_rows"],"method":out["method"]})
+          PY
