@@ -19,13 +19,13 @@ class WorkflowContractTests(unittest.TestCase):
             {"basketball", "volleyball", "ufc", "rizin", "valorant"},
         )
 
-    def test_24h_workflow_does_not_self_trigger_on_workflow_edits(self):
+    def test_24h_workflow_is_not_per_commit(self):
         text = (ROOT / ".github" / "workflows" / "24h_autonomous_research.yml").read_text(
             encoding="utf-8"
         )
-        push = re.search(r"(?ms)^  push:\n(.*?)(?=^  schedule:|^  workflow_dispatch:|^\S)", text)
-        self.assertIsNotNone(push)
-        self.assertNotIn(".github/workflows/24h_autonomous_research.yml", push.group(1))
+        self.assertNotIn("\n  push:\n", text)
+        self.assertIn("\n  schedule:\n", text)
+        self.assertIn("\n  workflow_dispatch:\n", text)
 
     def test_all_stage_checkpoints_are_success_only(self):
         text = (ROOT / ".github" / "workflows" / "24h_autonomous_research.yml").read_text(
