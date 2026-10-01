@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import numpy as np
 import pytest
-from src.conformal_set_aggregation import online_aggregate, weighted_vote_set
+from src.conformal_set_aggregation import block_coverage_metrics, online_aggregate, weighted_vote_set
 
 def fixture(n=8):
     base=datetime(2026,1,1,tzinfo=timezone.utc)
@@ -55,3 +55,15 @@ def test_eligible_coverage_excludes_warmup():
     out = online_aggregate(sets, y, pt, mature, min_calibration=3)
     assert out["eligible_rows"] == 3
     assert np.isfinite(out["coverage_eligible"])
+
+
+def test_block_coverage_is_chronological_and_descriptive():
+    sets = [[0], [0], [1], [1], [0], [1], [1], [0]]
+    y = [0, 1, 1, 0, 0, 1, 0, 0]
+    report = block_coverage_metrics(sets, y, blocks=4)
+    assert report["rows"] == 8
+    assert report["blocks"] == 4
+    assert report["overall_coverage"] == 0.625
+    assert report["worst_block_coverage"] == 0.5
+    assert report["max_undercoverage"] == 0.125
+    assert report["guarantee_claimed"] is False
