@@ -712,6 +712,15 @@ def main():
             'prediction experience summary does not expose lead-specific learning')
     require('--adaptive-timing' in workflow and 'src.timing_route_builder' in workflow,
             'canonical production does not build/use adaptive timing routes')
+    observability_src=(ROOT/'src/prediction_route_observability.py').read_text(encoding='utf-8')
+    require('prediction_route_observability' in workflow and 'src.prediction_route_observability' in workflow,
+            'canonical production does not persist route observability after future inference')
+    require('late_generated' in observability_src and 'by_router_status' in observability_src,
+            'route observability does not expose late-generation and routing adoption states')
+    require('by_target_lead_minutes' in observability_src and 'by_competition_profile' in observability_src,
+            'route observability does not expose timing/competition adoption dimensions')
+    require('test_prediction_route_observability.py' in lightweight_src,
+            'route observability regression is not wired into Lightweight Regression')
     require('by_prediction_timing_status' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
             'prediction experience summary does not track pre-event timing quality')
     require('test_pre_event_prediction.py' in lightweight_src,
