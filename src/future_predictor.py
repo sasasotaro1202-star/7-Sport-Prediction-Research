@@ -225,8 +225,12 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
     return starts,wins,(wins+1.0)/(starts+2.0)
 
 
-def _safe_prior_binary(c,s,now):
-    future=_future_events(c,s,now)
+def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False):
+    future=_future_events(
+        c,s,now,
+        min_lead_minutes=prediction_lead_minutes if min_lead_minutes is None else min_lead_minutes,
+        max_lead_minutes=max_lead_minutes,
+    )
     outputs=[]
     for eid,meta in future.items():
         if meta['participant_count']!=2:
@@ -235,20 +239,25 @@ def _safe_prior_binary(c,s,now):
         if not a or not b:
             continue
         event_time=meta['event_time_utc']
-        cutoff=(datetime.fromisoformat(str(event_time).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
+        event_name,competition_id,season,stage=event_row if event_row else ("","","","")
+        competition_profile=resolve_profile(s,competition_id,event_name)
+        if target_scope_only and not competition_profile.get('matched'):
+            continue
+        timing=_prediction_timing(event_time,now,prediction_lead_minutes)
+        cutoff=timing['target_cutoff_at_utc']
         sa,wa,rate_a=_prior_record(c,s,a[0],cutoff)
         sb,wb,rate_b=_prior_record(c,s,b[0],cutoff)
         denom=max(rate_a+rate_b,1e-12)
         pb=float(np.clip(rate_b/denom,1e-6,1-1e-6))
-        event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
-        event_name,competition_id,season,stage=event_row if event_row else ("","","","")
-        competition_profile=resolve_profile(s,competition_id,event_name)
         features={
             'prior_starts_a':sa,'prior_wins_a':wa,'prior_win_rate_a':rate_a,
             'prior_starts_b':sb,'prior_wins_b':wb,'prior_win_rate_b':rate_b,
             'competition_profile':competition_profile,
             'season':season,
             'stage':stage,
+            'prediction_timing':timing,
+            'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'fallback_policy':'pit_safe_historical_prior_v2_retrieval_pit',
         }
         pid=_persist_forward_prediction(
@@ -267,6 +276,8 @@ def _safe_prior_binary(c,s,now):
             'strategy':'safe_prior','router_status':'SAFE_PRIOR_FALLBACK',
             'prediction_id':pid,'models':['historical_prior'],'ensemble_weights':None,
             'model_version':'safe-prior-v1','feature_version':'pit-safe-historical-win-rate-v1',
+            'prediction_timing':timing,
+            'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'confidence':'LOW','action_state':'PASS',
             'situation':{'status':'PIT_SAFE','quality':{'evidence_count':sa+sb,'conflict_rate':None,'freshness_score':None},'policy':'historical outcomes only; no current unavailable information inferred'},
             'generated_at_utc':now.isoformat(),
@@ -274,12 +285,17 @@ def _safe_prior_binary(c,s,now):
     return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
 
 
-def _safe_prior_f1(c,now):
-    future=_future_events(c,'f1',now)
+def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False):
+    future=_future_events(
+        c,'f1',now,
+        min_lead_minutes=prediction_lead_minutes if min_lead_minutes is None else min_lead_minutes,
+        max_lead_minutes=max_lead_minutes,
+    )
     outputs=[]
     for eid,meta in future.items():
         event_time=meta['event_time_utc']
-        cutoff=(datetime.fromisoformat(str(event_time).replace('Z','+00:00'))-__import__('datetime').timedelta(minutes=PIT_LEAD_MINUTES)).isoformat()
+        timing=_prediction_timing(event_time,now,prediction_lead_minutes)
+        cutoff=timing['target_cutoff_at_utc']
         drivers=c.execute(
             """SELECT DISTINCT ep.participant_id,p.canonical_name
                  FROM event_participant ep
@@ -347,6 +363,8 @@ def _safe_prior_f1(c,now):
             'feature_version':'pit-safe-f1-driver-win-prior-v1','drivers':probs,
             'field_source':field_source,'field_status':field_status,
             'field_roster_retrieved_at_utc':roster_retrieved.isoformat() if roster_retrieved else None,
+            'prediction_timing':timing,
+            'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'confidence':'LOW','action_state':'PASS','generated_at_utc':now.isoformat(),
             'policy':'F1 multiclass safe prior; only pre-event completed driver results are used; current roster fallback is explicitly not event-confirmed',
         })
@@ -460,15 +478,16 @@ def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strateg
     return pid
 
 
-def predict_sport(c,s,now):
+def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAULT,
+                  min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False):
     # Every sport is a mandatory prediction lane. F1 has distinct multiclass semantics;
     # sports without an accepted production artifact use an explicit PIT-safe historical-prior
     # prediction instead of silently disappearing from the output.
     if s=='f1':
-        return _safe_prior_f1(c,now)
+        return _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
     artifact_path=MODELS/f'{s}_current.joblib'
     if not artifact_path.is_file() or artifact_path.stat().st_size<=0:
-        return _safe_prior_binary(c,s,now)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only)
     try:
         artifact=joblib.load(artifact_path)
     except Exception:
@@ -498,7 +517,11 @@ def predict_sport(c,s,now):
         # Never synthesize missing model features. Use the PIT-safe fallback
         # instead, which depends only on pre-event verified historical outcomes.
         return _safe_prior_binary(c,s,now)
-    future=_future_events(c,s,now)
+    future=_future_events(
+        c,s,now,
+        min_lead_minutes=prediction_lead_minutes if min_lead_minutes is None else min_lead_minutes,
+        max_lead_minutes=max_lead_minutes,
+    )
     outputs=[]
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     use_router=router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and artifact.get('dynamic_router') is not None
@@ -553,6 +576,10 @@ def predict_sport(c,s,now):
         event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
         event_name,competition_id,season,stage=event_row if event_row else ("","","","")
         competition_profile=resolve_profile(s,competition_id,event_name)
+        if target_scope_only and not competition_profile.get('matched'):
+            continue
+        timing=_prediction_timing(t,now,prediction_lead_minutes)
+        cutoff=timing['target_cutoff_at_utc']
         situation=_matchday_situation(eid,t,cutoff)
         confidence=_prediction_confidence(p,situation)
         action_state=_prediction_action(confidence,situation)
@@ -571,6 +598,8 @@ def predict_sport(c,s,now):
                 "competition_profile": competition_profile,
                 "season": season,
                 "stage": stage,
+                "prediction_timing": timing,
+                "feature_pit_lead_minutes": PIT_LEAD_MINUTES,
             }
         )
         outputs.append({
@@ -586,6 +615,8 @@ def predict_sport(c,s,now):
             'ensemble_weights':dict(weights) if strategy!='contextual_router' else None,
             'model_version':artifact.get('model_version'),
             'feature_version':artifact.get('feature_version') or 'unknown',
+            'prediction_timing':timing,
+            'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'confidence':confidence,
             'action_state':action_state,
             'situation':situation,
@@ -596,7 +627,21 @@ def predict_sport(c,s,now):
 
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--sport',choices=SPORTS);args=ap.parse_args()
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--sport',choices=SPORTS)
+    ap.add_argument('--lead-minutes',type=int,default=PREDICTION_LEAD_MINUTES_DEFAULT)
+    ap.add_argument('--min-lead-minutes',type=int,default=None)
+    ap.add_argument('--max-lead-minutes',type=int,default=None)
+    ap.add_argument('--target-scope-only',action='store_true')
+    args=ap.parse_args()
+    if args.lead_minutes <= 0:
+        raise SystemExit('lead-minutes must be positive')
+    if args.min_lead_minutes is not None and args.min_lead_minutes < 0:
+        raise SystemExit('min-lead-minutes must be non-negative')
+    if args.max_lead_minutes is not None and args.max_lead_minutes <= 0:
+        raise SystemExit('max-lead-minutes must be positive')
+    if args.min_lead_minutes is not None and args.max_lead_minutes is not None and args.min_lead_minutes > args.max_lead_minutes:
+        raise SystemExit('min-lead-minutes cannot exceed max-lead-minutes')
     now=utc_now()
     sports=[args.sport] if args.sport else list(SPORTS)
     results=[]
@@ -607,7 +652,15 @@ def main():
             continue
         con=sqlite3.connect(db_path)
         try:
-            results.append(predict_sport(con,s,now))
+            results.append(
+                predict_sport(
+                    con,s,now,
+                    prediction_lead_minutes=args.lead_minutes,
+                    min_lead_minutes=args.min_lead_minutes,
+                    max_lead_minutes=args.max_lead_minutes,
+                    target_scope_only=args.target_scope_only,
+                )
+            )
             # Export both newly-created and previously persisted forward predictions.
             experience.archive_forward_prediction_db(con, s, now.isoformat())
             con.commit()
@@ -615,7 +668,18 @@ def main():
             results.append({'sport':s,'status':'PREDICTION_BLOCKED_RUNTIME','reason':type(exc).__name__})
         finally:
             con.close()
-    report={'generated_at_utc':now.isoformat(),'policy':'active-scope-mandatory; accepted-artifact-first; PIT-safe research features; explicit safe-prior fallback; F1 multiclass safe-prior lane; gated contextual routing; frozen-holdout-validated calibration; event-confidence-v1; matchday-situation-v1','sports':results}
+    report={
+        'generated_at_utc':now.isoformat(),
+        'policy':'active-scope-mandatory; accepted-artifact-first; PIT-safe research features; explicit safe-prior fallback; F1 multiclass safe-prior lane; gated contextual routing; frozen-holdout-validated calibration; event-confidence-v1; matchday-situation-v1; configurable-pre-event-generation-window-v1',
+        'prediction_schedule':{
+            'target_lead_minutes':args.lead_minutes,
+            'min_lead_minutes':args.min_lead_minutes if args.min_lead_minutes is not None else args.lead_minutes,
+            'max_lead_minutes':args.max_lead_minutes,
+            'target_scope_only':bool(args.target_scope_only),
+            'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
+        },
+        'sports':results
+    }
     archive_status=experience.archive_predictions(results, now.isoformat())
     report['experience_archive']=archive_status
     OUT.parent.mkdir(parents=True,exist_ok=True)
