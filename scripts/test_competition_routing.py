@@ -48,7 +48,7 @@ def main() -> int:
 
     workflow = (ROOT / ".github/workflows/v4_5_15_production.yml").read_text(encoding="utf-8")
     assert "src.competition_route_builder" in workflow
-    assert "competition_routes.json" in workflow
+    assert "python -m src.competition_route_builder" in workflow
 
     print("COMPETITION_SPECIFIC_ROUTING=PASS")
     return 0
