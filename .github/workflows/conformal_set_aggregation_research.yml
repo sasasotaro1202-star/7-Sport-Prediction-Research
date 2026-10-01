@@ -1,0 +1,35 @@
+name: Conformal Set Aggregation Research
+
+on:
+  pull_request:
+    paths:
+      - "src/conformal_set_aggregation.py"
+      - "scripts/test_conformal_set_aggregation.py"
+      - ".github/workflows/conformal_set_aggregation_research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conformal-set-aggregation-research
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install focused dependencies
+        run: python -m pip install --disable-pip-version-check --retries 5 --timeout 60 numpy pytest
+      - name: Compile
+        run: python -m py_compile src/conformal_set_aggregation.py scripts/test_conformal_set_aggregation.py
+      - name: Regression
+        run: python -m pytest -q scripts/test_conformal_set_aggregation.py
