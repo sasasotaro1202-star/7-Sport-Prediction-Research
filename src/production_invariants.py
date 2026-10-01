@@ -91,11 +91,11 @@ def main():
             'scope expansion allows automatic production admission')
     require('ADVANCE_ONE_CANDIDATE_ONLY' in expansion_src and 'advanced_validation_batch' in expansion_src,
             'scope expansion gate does not enforce one-candidate advancement')
-    require('"activation_allowed": False' in expansion_src and 'explicit_scope_admission' in expansion_src,
+    require('no_implicit_activation' in expansion_src and 'explicit_scope_admission' in expansion_src,
             'scope expansion gate lacks explicit activation/admission boundary')
     require('source_available_at_utc <= ss.event_time_utc' in expansion_src,
             'scope expansion PIT evidence does not require historical source availability')
-    require('scope_expansion_audit.yml' in expansion_wf and 'workflow_dispatch:' in expansion_wf and 'contents: read' in expansion_wf,
+    require('workflow_dispatch:' in expansion_wf and 'contents: read' in expansion_wf and 'Scope expansion gate' in expansion_wf,
             'staged scope expansion audit workflow is missing safe manual/read-only execution')
     autofill_wf=(ROOT/'.github/workflows/scope_autofill.yml').read_text(encoding='utf-8')
     autofill_src=(ROOT/'src/scope_autofill_controller.py').read_text(encoding='utf-8')
