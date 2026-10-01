@@ -164,13 +164,24 @@ def build_memory(
     high_conf_lb_threshold = float(thresholds.get("high_confidence_accuracy_wilson_lower_bound", 0.60))
 
     validated_rows: list[dict[str, Any]] = []
+    deduped: dict[str, dict[str, Any]] = {}
     for row in rows:
         normalized = _validate_row(row)
-        if normalized is not None:
-            settled_at = _parse_utc(normalized["settled_at_utc"])
-            if settled_at > generated_dt:
-                raise RuntimeError("EXPERIENCE_LEARNING_FUTURE_SETTLEMENT")
-            validated_rows.append(normalized)
+        if normalized is None:
+            continue
+        prediction_id = normalized["prediction_id"]
+        if not prediction_id:
+            raise RuntimeError("EXPERIENCE_LEARNING_MISSING_PREDICTION_ID")
+        previous = deduped.get(prediction_id)
+        if previous is not None:
+            if previous != normalized:
+                raise RuntimeError("EXPERIENCE_LEARNING_DUPLICATE_CONFLICT")
+            continue
+        settled_at = _parse_utc(normalized["settled_at_utc"])
+        if settled_at > generated_dt:
+            raise RuntimeError("EXPERIENCE_LEARNING_FUTURE_SETTLEMENT")
+        deduped[prediction_id] = normalized
+        validated_rows.append(normalized)
 
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in validated_rows:
