@@ -90,11 +90,28 @@ def select_method(
         confidence = "LOW"
 
     disagreement = _safe_float((situation.get("uncertainty") or {}).get("model_disagreement"))
-    if disagreement is not None and disagreement >= float(selection["high_disagreement"]):
+    entropy_denominator = 0.6931471805599453
+    entropy = 0.0
+    if 0.0 < float(probability) < 1.0:
+        p = float(probability)
+        entropy = -(p * __import__("math").log(p) + (1.0 - p) * __import__("math").log(1.0 - p)) / entropy_denominator
+    disagreement_component = 0.0 if disagreement is None else min(max(disagreement * 4.0, 0.0), 1.0)
+    predictability = max(
+        0.0,
+        min(
+            1.0,
+            1.0
+            - float(selection["predictability_entropy_weight"]) * entropy
+            - float(selection["predictability_disagreement_weight"]) * disagreement_component,
+        ),
+    )
+    if (
+        predictability < float(selection["predictability_medium"])
+        or (disagreement is not None and disagreement >= float(selection["high_disagreement"]))
+        or confidence == "LOW"
+    ):
         uncertainty = "HIGH"
-    elif confidence == "LOW":
-        uncertainty = "HIGH"
-    elif confidence == "MEDIUM":
+    elif predictability < float(selection["predictability_high"]) or confidence == "MEDIUM":
         uncertainty = "MEDIUM"
     else:
         uncertainty = "LOW"
@@ -152,6 +169,11 @@ def select_method(
         "uncertainty": {
             "confidence": confidence,
             "model_disagreement": disagreement,
+            "predictability_proxy": {
+                "score": predictability,
+                "method": "entropy_disagreement_proxy",
+                "calibrated": False,
+            },
             "level": uncertainty,
         },
         "output": {
