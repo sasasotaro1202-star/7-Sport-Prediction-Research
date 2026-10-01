@@ -30,6 +30,7 @@ def test_same_prediction_time_is_excluded():
     pt[4]=pt[3]
     out=online_aggregate(sets,y,pt,mature,min_calibration=0)
     assert out["calibration_counts"][4] < 4
+    assert out["eligible_flags"][0] is False
 
 def test_prediction_time_must_have_timezone():
     sets,y,pt,mature=fixture(3)
