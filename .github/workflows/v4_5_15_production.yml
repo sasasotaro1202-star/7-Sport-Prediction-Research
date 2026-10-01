@@ -333,6 +333,18 @@ jobs:
         run: |
           set -euo pipefail
           python -m src.future_predictor --adaptive-timing --lead-minutes 30 --min-lead-minutes 5 --max-lead-minutes 180 --target-scope-only
+      - name: Production route observability
+        run: |
+          set -euo pipefail
+          python -m src.prediction_route_observability
+      - name: Upload production route observability
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-route-observability-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: results/research/production_route_observability.json
       - name: Score and accumulate prediction experience
         run: python -m src.prediction_experience --score-only
       - name: Production invariants
