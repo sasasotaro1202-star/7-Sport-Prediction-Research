@@ -134,6 +134,44 @@ class PredictionExperienceTests(unittest.TestCase):
         self.assertEqual(row["predicted_outcome"], "A")
         self.assertTrue(row["correct"])
 
+    def test_summary_groups_competition_and_prediction_timing(self):
+        rows = [
+            {
+                "settlement_status": "SCORED",
+                "correct": True,
+                "logloss": 0.2,
+                "brier": 0.1,
+                "sport": "basketball",
+                "strategy": "router",
+                "confidence": "MEDIUM",
+                "action_state": "SECONDARY",
+                "probability_bucket": "0.70-0.80",
+                "experience_class": "CORRECT_NONHIGH_CONF",
+                "competition_profile": {"profile_id": "basketball:bleague"},
+                "prediction_timing_status": "EARLY",
+            },
+            {
+                "settlement_status": "SCORED",
+                "correct": False,
+                "logloss": 1.2,
+                "brier": 0.8,
+                "sport": "basketball",
+                "strategy": "router",
+                "confidence": "HIGH",
+                "action_state": "PRIMARY",
+                "probability_bucket": "0.80-0.90",
+                "experience_class": "WRONG_OVERCONFIDENT",
+                "competition_profile": {"profile_id": "basketball:asian_games"},
+                "prediction_timing_status": "LATE",
+            },
+        ]
+        summary = pe._summary(rows, 2, {})
+        self.assertIn("basketball:bleague", summary["by_competition_profile"])
+        self.assertIn("basketball:asian_games", summary["by_competition_profile"])
+        self.assertIn("EARLY", summary["by_prediction_timing_status"])
+        self.assertIn("LATE", summary["by_prediction_timing_status"])
+
+
     def test_probability_bucket_and_case_profile(self):
         self.assertEqual(pe._bucket_probability(0.82), "0.80-0.90")
         profile = pe._case_profile(
