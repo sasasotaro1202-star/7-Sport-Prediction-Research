@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -142,10 +143,10 @@ def select_method(
         information_action = "verify_or_resolve_conflicting_sources"
     elif freshness is not None and freshness < float(selection["stale_freshness_score"]):
         information_action = "refresh_pit_safe_sources"
-    elif uncertainty == "HIGH":
-        information_action = "acquire_high_value_information_candidate"
     elif experience_review:
         information_action = "study_repeated_error_pattern"
+    elif uncertainty == "HIGH":
+        information_action = "acquire_high_value_information_candidate"
 
     update_action = (
         "abstain_or_fallback"
@@ -158,9 +159,13 @@ def select_method(
     )
 
     target_profile_id, target_profile = _target_profile(sport, participant_count, multiclass)
+    policy_hash = hashlib.sha256(
+        json.dumps(policy, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
     return {
         "version": "prediction-method-meta-policy-v1",
+        "policy_hash": policy_hash,
         "status": "SELECTED",
         "sport": sport,
         "target": {
