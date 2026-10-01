@@ -117,8 +117,10 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
 
             if pred is None:
                 report["missing_predictions"].append({
+
                     **item,
                     "reason": "NO_PREDICTION_IN_GUIDELINE_WINDOW",
+                    "error_code": "NO_GUIDELINE_PREDICTION",
                 })
                 continue
 
