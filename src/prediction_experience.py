@@ -640,6 +640,88 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
     }
 
 
+def _group_rows(rows: list[dict[str, Any]], field: str) -> dict[str, list[dict[str, Any]]]:
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        value = row.get(field)
+        if isinstance(value, dict):
+            key = str(value.get("status") or value.get("profile_id") or "UNKNOWN")
+        else:
+            key = str(value or "UNKNOWN")
+        groups[key].append(row)
+    return groups
+
+
+def _patterns(scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in scored:
+        if row.get("correct"):
+            continue
+        key = "|".join(
+            [
+                str(row.get("sport") or "UNKNOWN"),
+                str(row.get("strategy") or "UNKNOWN"),
+                str(row.get("probability_bucket") or "UNKNOWN"),
+                str(row.get("conflict_bucket") or "UNKNOWN"),
+            ]
+        )
+        groups[key].append(row)
+
+    patterns: list[dict[str, Any]] = []
+    for key, vals in groups.items():
+        if len(vals) < 3:
+            continue
+        sports, strategy, prob_bucket, conflict_bucket = key.split("|", 3)
+        patterns.append(
+            {
+                "sport": sports,
+                "strategy": strategy,
+                "probability_bucket": prob_bucket,
+                "conflict_bucket": conflict_bucket,
+                "wrong_n": len(vals),
+                "mean_max_probability": round(
+                    sum(float(v.get("max_probability") or 0.0) for v in vals) / len(vals), 6
+                ),
+            }
+        )
+    patterns.sort(key=lambda x: (-x["wrong_n"], -x["mean_max_probability"], x["sport"]))
+    return patterns[:50]
+
+
+def _next_cycle_signals(scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_key: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in scored:
+        key = "|".join(
+            [
+                str(row.get("sport") or "UNKNOWN"),
+                str(row.get("strategy") or "UNKNOWN"),
+                str(row.get("probability_bucket") or "UNKNOWN"),
+            ]
+        )
+        by_key[key].append(row)
+    out = []
+    for key, vals in by_key.items():
+        if len(vals) < 5:
+            continue
+        acc = sum(bool(v.get("correct")) for v in vals) / len(vals)
+        if acc >= 0.60:
+            continue
+        sport, strategy, bucket = key.split("|", 2)
+        out.append(
+            {
+                "sport": sport,
+                "strategy": strategy,
+                "probability_bucket": bucket,
+                "n": len(vals),
+                "accuracy": round(acc, 6),
+                "reason": "historical_context_underperformance_requires_research_validation",
+                "safe_use": "research_signal_only",
+            }
+        )
+    out.sort(key=lambda x: (x["accuracy"], -x["n"], x["sport"]))
+    return out[:30]
+
+
 def score_archive() -> dict[str, Any]:
     predictions = _load_jsonl_dir(PREDICTIONS_DIR)
     conns = _connect_dbs()
