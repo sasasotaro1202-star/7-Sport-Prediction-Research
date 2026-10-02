@@ -54,6 +54,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_basketball_official_error_diagnostics.py
       - name: Production safe continuation regression
         run: PYTHONPATH=. python scripts/test_production_safe_continuation.py
+      - name: Production failure-memory recovery contract
+        run: PYTHONPATH=. python scripts/test_production_failure_memory.py
       - name: Continuous scope autofill regression
         run: PYTHONPATH=. python scripts/test_scope_autofill.py
       - name: Staged scope expansion policy regression
