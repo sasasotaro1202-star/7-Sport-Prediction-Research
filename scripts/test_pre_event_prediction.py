@@ -19,7 +19,6 @@ def main() -> None:
             sport TEXT,
             event_time_utc TEXT,
             status TEXT,
-            name TEXT,
             competition_id TEXT
         );
         CREATE TABLE event_participant(
@@ -32,13 +31,13 @@ def main() -> None:
     t30 = (now + timedelta(minutes=30)).isoformat()
     t50 = (now + timedelta(minutes=50)).isoformat()
     c.executemany(
-        "INSERT INTO event VALUES (?,?,?,?,?,?)",
+        "INSERT INTO event VALUES (?,?,?,?,?)",
         [
-            ("b1", "basketball", t30, "SCHEDULED", "B.LEAGUE", "B.LEAGUE"),
-            ("b2", "basketball", t30, "SCHEDULED", "Other League", "OTHER LEAGUE"),
-            ("b3", "basketball", t50, "SCHEDULED", "B.LEAGUE", "B.LEAGUE"),
-            ("v1", "volleyball", t30, "SCHEDULED", "Asian Games Volleyball", "Asian Games Volleyball"),
-            ("x1", "basketball", t30, "COMPLETED", "B.LEAGUE", "B.LEAGUE"),
+            ("b1", "basketball", t30, "SCHEDULED", "B.LEAGUE"),
+            ("b2", "basketball", t30, "SCHEDULED", "OTHER LEAGUE"),
+            ("b3", "basketball", t50, "SCHEDULED", "B.LEAGUE"),
+            ("v1", "volleyball", t30, "SCHEDULED", "Asian Games Volleyball"),
+            ("x1", "basketball", t30, "COMPLETED", "B.LEAGUE"),
         ],
     )
     c.commit()
@@ -84,7 +83,6 @@ def main() -> None:
                 sport TEXT,
                 event_time_utc TEXT,
                 status TEXT,
-                name TEXT,
                 competition_id TEXT
             );
             CREATE TABLE event_participant(
@@ -102,7 +100,7 @@ def main() -> None:
                 model_version TEXT
             );
         """)
-        disk.execute("INSERT INTO event VALUES (?,?,?,?,?,?)", ("b1","basketball",t30,"SCHEDULED","B.LEAGUE","B.LEAGUE"))
+        disk.execute("INSERT INTO event VALUES (?,?,?,?,?,?)", ("b1","basketball",t30,"SCHEDULED","B.LEAGUE"))
         disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","a","A"))
         disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","b","B"))
         disk.execute("INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)", ("p1","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=2)).isoformat(),"test","test"))
