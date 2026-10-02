@@ -114,6 +114,13 @@ def main() -> None:
         db.unlink(missing_ok=True)
     c.close()
     c.close()
+    policy = __import__("json").loads(
+        (Path(__file__).resolve().parents[1] / "config/PRE_EVENT_PREDICTION_POLICY.json").read_text(encoding="utf-8")
+    )
+    assert policy["scheduler"]["target_lead_minutes"] == 60
+    assert policy["scheduler"]["guideline_tolerance_minutes"] == 15
+    assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
+    assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
     print("PRE_EVENT_PREDICTION_CONTRACT=PASS")
 
 
