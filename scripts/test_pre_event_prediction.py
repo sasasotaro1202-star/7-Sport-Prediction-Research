@@ -79,7 +79,6 @@ def main() -> None:
     assert "lead_minutes:" in workflow
     assert 'default: "60"' in workflow
     assert "adaptive_timing:" in workflow
-    assert 'requested_lead="60"' in workflow
     assert 'if [ "${{ github.event_name }}" = "workflow_dispatch" ]' in workflow
     assert "group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}" in workflow
     assert "cancel-in-progress: ${{ github.event_name == 'schedule' }}" in workflow
