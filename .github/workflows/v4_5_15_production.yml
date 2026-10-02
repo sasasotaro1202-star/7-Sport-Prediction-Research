@@ -93,14 +93,21 @@ jobs:
               backfill_json="$(mktemp)"
               if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --official-only >"$backfill_json"; then
                 official_rows="$(jq -r '.official // 0' "$backfill_json")"
-                if [ "$official_rows" -gt 0 ]; then
+                official_errors="$(jq -r '(.official_errors // []) | length' "$backfill_json")"
+                official_status="$(jq -r '.official_status // "UNKNOWN"' "$backfill_json")"
+                if [ "$official_rows" -gt 0 ] && [ "$official_errors" -eq 0 ]; then
                   echo "basketball_backfill_status=OK official_rows=$official_rows"
+                elif [ "$official_rows" -gt 0 ] && [ "$official_errors" -gt 0 ]; then
+                  echo "basketball_backfill_status=PARTIAL_SOURCE_ERROR official_rows=$official_rows errors=$official_errors"
+                elif [ "$official_rows" -eq 0 ] && [ "$official_errors" -gt 0 ]; then
+                  backfill_rc=12
+                  echo "basketball_backfill_status=SOURCE_ERROR errors=$official_errors"
                 elif [ "$official_rows" -eq 0 ]; then
                   backfill_rc=10
-                  echo 'basketball_backfill_status=NO_DATA'
+                  echo "basketball_backfill_status=NO_DATA"
                 else
                   backfill_rc=11
-                  echo 'basketball_backfill_status=UNPARSEABLE'
+                  echo "basketball_backfill_status=UNPARSEABLE status=$official_status"
                 fi
               else
                 backfill_rc=$?
