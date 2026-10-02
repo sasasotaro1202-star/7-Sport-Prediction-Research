@@ -100,7 +100,7 @@ def main() -> None:
                 model_version TEXT
             );
         """)
-        disk.execute("INSERT INTO event VALUES (?,?,?,?,?,?)", ("b1","basketball",t30,"SCHEDULED","B.LEAGUE"))
+        disk.execute("INSERT INTO event VALUES (?,?,?,?,?)", ("b1","basketball",t30,"SCHEDULED","B.LEAGUE"))
         disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","a","A"))
         disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","b","B"))
         disk.execute("INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)", ("p1","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=2)).isoformat(),"test","test"))
