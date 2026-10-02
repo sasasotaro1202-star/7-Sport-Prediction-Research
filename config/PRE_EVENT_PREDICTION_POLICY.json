@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "policy": "pre-event-prediction-v1",
+  "version": 2,
+  "policy": "pre-event-prediction-v2",
   "scheduler": {
     "cron_utc": "3-58/5 * * * *",
     "minimum_interval_minutes": 5,
@@ -8,14 +8,16 @@
     "generation_window": {
       "min_lead_minutes": 5,
       "max_lead_minutes": 180,
-      "late_recovery": true
+      "late_recovery": true,
+      "scheduled_min_lead_minutes": 45,
+      "scheduled_max_lead_minutes": 75
     },
-    "guideline_target_minutes": 30,
+    "guideline_target_minutes": 60,
     "guideline_tolerance_minutes": 15,
-    "target_lead_minutes": 30,
-    "note": "30 minutes is a target/guideline, not an exact requirement; actual generation may move earlier or later when freshness, information availability, predictability, source reliability, or recovery conditions justify it.",
+    "target_lead_minutes": 60,
+    "note": "60 minutes is the scheduled target/guideline. Scheduled generation accepts a 45-75 minute lead window. User-requested manual predictions may specify another lead.",
     "guideline_only": true,
-    "selection_mode": "adaptive-capable;30m-default"
+    "selection_mode": "scheduled-60m-default;manual-lead-configurable"
   },
   "scope": {
     "active_prediction_scope_only": true,
@@ -34,7 +36,9 @@
     "score_verified_outcomes_only": true,
     "store_competition_context": true,
     "research_signals_only_until_oos_validation": true,
-    "shadow_timing_rotation": true
+    "shadow_timing_rotation": true,
+    "mature_event_unit_required": true,
+    "revision_count_is_not_an_experience_sample": true
   },
   "safety": {
     "production_model_promotion": false,
@@ -42,5 +46,5 @@
     "missing_prediction_is_explicit_gap": true,
     "no_failure_hiding": true
   },
-  "explanation": "30 minutes is the preferred default, not a hard deadline. Actual prediction timing may be earlier/later when an evidence-backed timing policy selects it; audit accepts the configured guideline tolerance."
+  "explanation": "Scheduled predictions target approximately one hour before the event. Non-default horizons remain research-controlled, while explicit user requests may use another lead through the fresh-prediction entrypoint."
 }
