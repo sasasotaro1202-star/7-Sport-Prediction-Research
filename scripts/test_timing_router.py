@@ -40,6 +40,8 @@ def main() -> int:
     assert "--timing-shadow" in workflow
     assert "lead_minutes" in workflow
     assert "60" in workflow
+    assert "pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}" in workflow
+    assert "cancel-in-progress: ${{ github.event_name == 'schedule' }}" in workflow
 
     production = (ROOT / ".github/workflows/v4_5_15_production.yml").read_text(encoding="utf-8")
     assert "--lead-minutes 60 --min-lead-minutes 45 --max-lead-minutes 75 --target-scope-only" in production
