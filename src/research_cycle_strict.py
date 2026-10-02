@@ -194,6 +194,48 @@ def _temporal_calibration_candidate(p, y):
             'required_logloss_improvement':required,
             'validation_folds':[(int(a),int(b)) for a,b in folds]}
 
+def _rank_valid_oos_candidates(oos):
+    """Return only finite, schema-valid OOS candidates plus rejection evidence."""
+    if not isinstance(oos, dict):
+        raise TypeError("oos_candidate_scores_must_be_object")
+    required = ("robust_objective", "brier", "ece", "logloss")
+    valid = {}
+    rejected = {}
+    for name, score in oos.items():
+        if not isinstance(score, dict):
+            rejected[str(name)] = {
+                "status": "REJECTED",
+                "reason": "oos_score_not_object",
+                "type": type(score).__name__,
+            }
+            continue
+        bad = []
+        for key in required:
+            try:
+                value = float(score[key])
+            except (KeyError, TypeError, ValueError):
+                bad.append(key)
+                continue
+            if not np.isfinite(value):
+                bad.append(key)
+        if bad:
+            rejected[str(name)] = {
+                "status": "REJECTED",
+                "reason": "oos_score_invalid_metrics",
+                "missing_or_nonfinite_metrics": bad,
+            }
+            continue
+        valid[str(name)] = score
+    ranked = sorted(
+        valid,
+        key=lambda name: (
+            float(valid[name]["robust_objective"]),
+            float(valid[name]["brier"]),
+            float(valid[name]["ece"]),
+        ),
+    )
+    return ranked, rejected
+
 def _write_result(s, payload):
     """Persist every research outcome, including DEFERRED/REJECTED states."""
     RESULTS.mkdir(parents=True,exist_ok=True)
@@ -768,7 +810,18 @@ def train(s):
       score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']+0.15*regime_excess
       oos[name]=score
      if not oos:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
-     rank=_rank_oos_candidates(oos)
+     rank,invalid_oos_candidates=_rank_valid_oos_candidates(oos)
+     if invalid_oos_candidates:
+      print('OOS_CANDIDATE_REJECTED '+_json_dump(invalid_oos_candidates,sort_keys=True),flush=True)
+     if not rank:
+      return _write_result(s,{
+       'sport':s,
+       'status':'DEFERRED',
+       'reason':'no_valid_oos_candidate_scores',
+       'rows':len(rows),
+       'invalid_oos_candidates':invalid_oos_candidates,
+       'selection_oos':oos,
+      })
      top_rank=rank[:4]
      cands=[(n,) for n in top_rank]+list(combinations(top_rank,2))+list(combinations(top_rank,3))
      scores={}
