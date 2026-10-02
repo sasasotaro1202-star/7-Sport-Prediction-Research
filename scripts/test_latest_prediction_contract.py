@@ -55,6 +55,40 @@ def test_timeout_is_bounded_and_fail_closed():
     print("LATEST_PREDICTION_TIMEOUT=PASS")
 
 
+def test_prediction_timing_args():
+    lead, args = latest_prediction._prediction_timing_args(None, False)
+    assert lead == 60
+    assert args == [
+        "--lead-minutes", "60",
+        "--min-lead-minutes", "45",
+        "--max-lead-minutes", "75",
+    ]
+
+    lead, args = latest_prediction._prediction_timing_args(30, False)
+    assert lead == 30
+    assert args == [
+        "--lead-minutes", "30",
+        "--min-lead-minutes", "15",
+        "--max-lead-minutes", "45",
+    ]
+
+    lead, args = latest_prediction._prediction_timing_args(90, True)
+    assert lead == 90
+    assert args == [
+        "--lead-minutes", "90",
+        "--min-lead-minutes", "5",
+        "--max-lead-minutes", "180",
+        "--adaptive-timing",
+    ]
+
+    try:
+        latest_prediction._prediction_timing_args(181, False)
+    except RuntimeError as exc:
+        assert str(exc) == "INVALID_LEAD_MINUTES:181"
+    else:
+        raise AssertionError("lead > 180 must fail closed")
+
+
 def main():
     policy = json.loads(
         (ROOT / "config/PREDICTION_FRESHNESS_POLICY.json").read_text(encoding="utf-8")
@@ -63,8 +97,14 @@ def main():
         (ROOT / "config/PROJECT_SCOPE_POLICY.json").read_text(encoding="utf-8")
     )
     src = (ROOT / "src/latest_prediction.py").read_text(encoding="utf-8")
+    timing = json.loads(
+        (ROOT / "config/PREDICTION_TIMING_POLICY.json").read_text(encoding="utf-8")
+    )
 
     assert policy["refresh_before_every_prediction_request"] is True
+    assert timing["default_preferred_lead_minutes"] == 60
+    assert timing["selection"]["production_default"] == 60
+    assert timing["scheduler"]["target_lead_minutes"] == 60
     assert policy["reuse_stored_prediction_output"] is False
     assert policy["stale_output_action"] == "FAIL_CLOSED"
 
@@ -95,6 +135,11 @@ def main():
         "COMMAND_TIMEOUT",
         "start_new_session",
         "_terminate_process_tree",
+        "--lead-minutes",
+        "--min-lead-minutes",
+        "--max-lead-minutes",
+        "requested_lead_minutes",
+        "adaptive_timing",
     )
     for marker in required:
         assert marker in src, marker
@@ -104,6 +149,7 @@ def main():
     assert "reuse_stored_prediction_output" in src
 
     test_timeout_is_bounded_and_fail_closed()
+    test_prediction_timing_args()
     print("LATEST_PREDICTION_CONTRACT=PASS")
 
 

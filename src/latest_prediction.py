@@ -210,10 +210,42 @@ def verify_latest_main() -> str:
         )
     return current
 
+def _prediction_timing_args(
+    lead_minutes: int | None,
+    adaptive_timing: bool,
+) -> tuple[int, list[str]]:
+    selected_lead = 60 if lead_minutes is None else int(lead_minutes)
+    if selected_lead < 5 or selected_lead > 180:
+        raise RuntimeError(f"INVALID_LEAD_MINUTES:{selected_lead}")
+    if adaptive_timing:
+        return selected_lead, [
+            "--lead-minutes",
+            str(selected_lead),
+            "--min-lead-minutes",
+            "5",
+            "--max-lead-minutes",
+            "180",
+            "--adaptive-timing",
+        ]
+    tolerance = 15
+    minimum = max(5, selected_lead - tolerance)
+    maximum = min(180, selected_lead + tolerance)
+    return selected_lead, [
+        "--lead-minutes",
+        str(selected_lead),
+        "--min-lead-minutes",
+        str(minimum),
+        "--max-lead-minutes",
+        str(maximum),
+    ]
+
+
 def request_latest(
     sports: list[str] | None = None,
     days_back: int = 30,
     days_forward: int = 7,
+    lead_minutes: int | None = None,
+    adaptive_timing: bool = False,
 ) -> dict:
     main_sha = verify_latest_main()
     policy = read_json(FRESHNESS_PATH)
@@ -232,6 +264,11 @@ def request_latest(
     request_id = request_started.strftime("%Y%m%dT%H%M%S.%fZ")
     archive_dir = ARCHIVE_ROOT / request_id
     archive_dir.mkdir(parents=True, exist_ok=False)
+
+    selected_lead, predictor_timing_args = _prediction_timing_args(
+        lead_minutes,
+        adaptive_timing,
+    )
 
     reports = []
     try:
@@ -254,7 +291,14 @@ def request_latest(
             collection = _verify_collection(sport, request_started)
 
             _run(
-                [sys.executable, "-m", "src.future_predictor", "--sport", sport],
+                [
+                    sys.executable,
+                    "-m",
+                    "src.future_predictor",
+                    "--sport",
+                    sport,
+                    *predictor_timing_args,
+                ],
                 timeout_seconds=_command_timeout_seconds(),
             )
             prediction = _verify_prediction(sport, request_started)
@@ -272,6 +316,8 @@ def request_latest(
                     "sport": sport,
                     "collection_timestamp_utc": collection.get("timestamp_utc"),
                     "prediction_generated_at_utc": prediction.get("generated_at_utc"),
+                    "requested_lead_minutes": selected_lead,
+                    "adaptive_timing": adaptive_timing,
                     "stored_prediction_reused": False,
                 }
             )
@@ -299,6 +345,8 @@ def request_latest(
         "status": "FRESH_REQUEST_VERIFIED",
         "active_scope": scope,
         "sports": reports,
+        "requested_lead_minutes": selected_lead,
+        "adaptive_timing": adaptive_timing,
         "stored_prediction_reused": False,
         "policy": "fresh-prediction-request-v1",
         "archive_dir": str(archive_dir.relative_to(ROOT)),
@@ -317,12 +365,25 @@ def main() -> int:
     parser.add_argument("--sport", action="append", help="Active-scope sport; repeatable.")
     parser.add_argument("--days-back", type=int, default=30)
     parser.add_argument("--days-forward", type=int, default=7)
+    parser.add_argument(
+        "--lead-minutes",
+        type=int,
+        default=60,
+        help="Requested prediction horizon in minutes before the event (default: 60).",
+    )
+    parser.add_argument(
+        "--adaptive-timing",
+        action="store_true",
+        help="Allow an accepted timing route to override the requested default within the full 5-180 minute window.",
+    )
     args = parser.parse_args()
 
     manifest = request_latest(
         sports=args.sport,
         days_back=args.days_back,
         days_forward=args.days_forward,
+        lead_minutes=args.lead_minutes,
+        adaptive_timing=args.adaptive_timing,
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
     return 0

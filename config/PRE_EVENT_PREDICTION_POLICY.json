@@ -10,12 +10,12 @@
       "max_lead_minutes": 180,
       "late_recovery": true
     },
-    "guideline_target_minutes": 30,
+    "guideline_target_minutes": 60,
     "guideline_tolerance_minutes": 15,
-    "target_lead_minutes": 30,
-    "note": "30 minutes is a target/guideline, not an exact requirement; actual generation may move earlier or later when freshness, information availability, predictability, source reliability, or recovery conditions justify it.",
+    "target_lead_minutes": 60,
+    "note": "60 minutes is the default target/guideline; actual generation may move earlier or later when an accepted timing route or freshness/information policy justifies it.",
     "guideline_only": true,
-    "selection_mode": "adaptive-capable;30m-default"
+    "selection_mode": "adaptive-capable;60m-default"
   },
   "scope": {
     "active_prediction_scope_only": true,
@@ -42,5 +42,5 @@
     "missing_prediction_is_explicit_gap": true,
     "no_failure_hiding": true
   },
-  "explanation": "30 minutes is the preferred default, not a hard deadline. Actual prediction timing may be earlier/later when an evidence-backed timing policy selects it; audit accepts the configured guideline tolerance."
+  "explanation": "60 minutes is the preferred default target. Actual prediction timing may be earlier/later when an evidence-backed timing policy selects it; manual requests may specify another lead."
 }
