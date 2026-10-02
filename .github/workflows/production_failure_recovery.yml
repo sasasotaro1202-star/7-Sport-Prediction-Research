@@ -2,9 +2,6 @@ name: Production Failure Recovery
 
 on:
   workflow_run:
-    # Recover only production/data workflows. Validator and watchdog
-    # completions are intentionally excluded to prevent recursive skipped-run
-    # storms and needless scheduler churn.
     workflows:
       - Active-Scope Target v4.5.15 Production
       - PIT History Expansion
@@ -13,16 +10,187 @@ on:
     types: [completed]
 
 permissions:
-  actions: write
-  contents: read
+  actions: read
+  contents: write
 
 concurrency:
-  group: production-failure-recovery-${{ github.event.workflow_run.id }}
+  group: production-failure-memory-writer
   cancel-in-progress: false
 
 jobs:
-  retry-transient-failure:
+  record-failure-memory:
     if: >-
+      (
+        github.event.workflow_run.conclusion == 'failure' ||
+        github.event.workflow_run.conclusion == 'timed_out' ||
+        github.event.workflow_run.conclusion == 'startup_failure'
+      ) &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out current main for append-only failure memory
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Capture failed-run log
+        env:
+          GH_TOKEN: \${{ github.token }}
+          RUN_ID: \${{ github.event.workflow_run.id }}
+          REPOSITORY: \${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-artifacts
+          if gh run view "$RUN_ID" --repo "$REPOSITORY" --log > recovery-artifacts/source-run.log 2> recovery-artifacts/source-run-log-error.txt; then
+            log_capture_status="CAPTURED"
+          else
+            log_capture_status="FAILED"
+            printf 'Log capture failed for run %s; see source-run-log-error.txt.\n' "$RUN_ID" > recovery-artifacts/source-run.log
+          fi
+          printf '%s\n' "$log_capture_status" > recovery-artifacts/log_capture_status.txt
+
+      - name: Append structured failure memory record
+        env:
+          RUN_ID: \${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: \${{ github.event.workflow_run.run_attempt }}
+          WORKFLOW_NAME: \${{ github.event.workflow.name }}
+          WORKFLOW_ID: \${{ github.event.workflow.id }}
+          HEAD_SHA: \${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: \${{ github.event.workflow_run.head_branch }}
+          CONCLUSION: \${{ github.event.workflow_run.conclusion }}
+          RUN_URL: \${{ github.event.workflow_run.html_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          conclusion = os.environ["CONCLUSION"]
+          failure_class = {
+              "failure": "WORKFLOW_FAILURE",
+              "timed_out": "TIMED_OUT",
+              "startup_failure": "STARTUP_FAILURE",
+          }.get(conclusion, "UNKNOWN_WORKFLOW_FAILURE")
+
+          log_capture = Path("recovery-artifacts/log_capture_status.txt").read_text(
+              encoding="utf-8"
+          ).strip()
+
+          record = {
+              "schema_version": 1,
+              "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+              "record_id": f"run-{os.environ['RUN_ID']}-attempt-{os.environ['RUN_ATTEMPT']}",
+              "workflow_name": os.environ["WORKFLOW_NAME"],
+              "workflow_id": int(os.environ["WORKFLOW_ID"]),
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_attempt": int(os.environ["RUN_ATTEMPT"]),
+              "head_sha": os.environ["HEAD_SHA"],
+              "head_branch": os.environ["HEAD_BRANCH"],
+              "conclusion": conclusion,
+              "failure_class": failure_class,
+              "classification_basis": "workflow_run_conclusion_only",
+              "source_run_url": os.environ["RUN_URL"],
+              "log_capture_status": log_capture,
+              "recovery_policy": "bounded_retry_or_fresh_current_main_run",
+              "memory_status": "DETECTED",
+          }
+
+          path = Path("results/failure_memory.jsonl")
+          path.parent.mkdir(parents=True, exist_ok=True)
+
+          existing_ids = set()
+          if path.exists():
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  if not line.strip():
+                      continue
+                  try:
+                      old = json.loads(line)
+                  except json.JSONDecodeError as exc:
+                      raise SystemExit(
+                          f"failure memory contains invalid JSON and will not be overwritten: {exc}"
+                      )
+                  if old.get("record_id"):
+                      existing_ids.add(str(old["record_id"]))
+
+          if record["record_id"] not in existing_ids:
+              with path.open("a", encoding="utf-8") as handle:
+                  handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+              print(json.dumps(record, ensure_ascii=False, sort_keys=True))
+          else:
+              print(json.dumps({
+                  "record_id": record["record_id"],
+                  "memory_status": "ALREADY_RECORDED",
+              }, ensure_ascii=False, sort_keys=True))
+          PY
+
+      - name: Validate failure memory JSONL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("results/failure_memory.jsonl")
+          assert path.is_file(), "failure memory file missing"
+          lines = [x for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+          assert lines, "failure memory file is empty"
+          records = [json.loads(x) for x in lines]
+          assert all(r.get("schema_version") == 1 for r in records)
+          assert len({r["record_id"] for r in records}) == len(records)
+          print(f"FAILURE_MEMORY_RECORDS={len(records)}")
+          PY
+
+      - name: Commit failure memory to current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- results/failure_memory.jsonl; then
+            echo "FAILURE_MEMORY_COMMIT=NO_CHANGE"
+            exit 0
+          fi
+
+          git add results/failure_memory.jsonl
+          git commit -m "ops: record production failure memory"
+          pushed=0
+          for attempt in 1 2; do
+            if git push origin HEAD:main; then
+              pushed=1
+              echo "FAILURE_MEMORY_PUSH=PASS attempt=$attempt"
+              break
+            fi
+            if [ "$attempt" -eq 1 ]; then
+              echo "FAILURE_MEMORY_PUSH_RETRY=TRUE"
+              git fetch origin main
+              git rebase origin/main
+            fi
+          done
+          if [ "$pushed" -ne 1 ]; then
+            echo "FAILURE_MEMORY_PUSH=FAILED" >&2
+            exit 1
+          fi
+
+      - name: Upload source-run failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-failure-evidence-\${{ github.event.workflow_run.id }}-attempt-\${{ github.event.workflow_run.run_attempt }}
+          path: recovery-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
+  retry-transient-failure:
+    needs: record-failure-memory
+    if: >-
+      always() &&
       (
         github.event.workflow_run.conclusion == 'failure' ||
         github.event.workflow_run.conclusion == 'timed_out' ||
@@ -35,22 +203,22 @@ jobs:
     steps:
       - name: Recover once without replaying a stale SHA
         env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          ORIGINAL_SHA: ${{ github.event.workflow_run.head_sha }}
-          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
-          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: \${{ github.token }}
+          RUN_ID: \${{ github.event.workflow_run.id }}
+          ORIGINAL_SHA: \${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_ID: \${{ github.event.workflow_run.workflow_id }}
+          REPOSITORY: \${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
-          current_sha="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          echo "Recovery target: ${REPOSITORY} run ${RUN_ID} original_sha=${ORIGINAL_SHA} current_main=${current_sha}"
-          if [ "${current_sha}" != "${ORIGINAL_SHA}" ]; then
+          current_sha="$(gh api "repos/$REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          echo "Recovery target: $REPOSITORY run $RUN_ID original_sha=$ORIGINAL_SHA current_main=$current_sha"
+          if [ "$current_sha" != "$ORIGINAL_SHA" ]; then
             echo "STALE_FAILED_RUN=TRUE; starting one fresh bounded run on current main."
-            gh workflow run "${WORKFLOW_ID}" --ref main --repo "${REPOSITORY}"
+            gh workflow run "$WORKFLOW_ID" --ref main --repo "$REPOSITORY"
             echo "Requested fresh run for the current main SHA."
           else
             echo "STALE_FAILED_RUN=FALSE; retrying failed jobs once."
-            gh run rerun "${RUN_ID}" --failed --repo "${REPOSITORY}"
+            gh run rerun "$RUN_ID" --failed --repo "$REPOSITORY"
             echo "Requested one bounded retry of failed jobs."
           fi
