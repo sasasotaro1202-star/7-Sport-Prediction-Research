@@ -137,7 +137,11 @@ jobs:
           guard_rc=0
           guard_file="results/v45/collection_guard_${{ matrix.sport }}.json"
           if python -m src.collection_guard --sport ${{ matrix.sport }}; then
-            guard_status="$(jq -r '.status // "UNKNOWN"' "$guard_file" 2>/dev/null || echo UNKNOWN)"
+            if [ -s "$guard_file" ]; then
+              guard_status="$(jq -r '.status // "UNKNOWN"' "$guard_file")"
+            else
+              guard_status="UNKNOWN"
+            fi
             case "$guard_status" in
               PASS|PARTIAL) echo "collection_guard_status=$guard_status" ;;
               DEFERRED) echo 'collection_guard_status=DEFERRED' ;;
