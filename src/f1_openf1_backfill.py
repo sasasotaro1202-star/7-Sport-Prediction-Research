@@ -7,16 +7,45 @@ BASE='https://api.openf1.org/v1'
 
 def sid(*x): return hashlib.sha256('|'.join('' if v is None else str(v) for v in x).encode()).hexdigest()[:32]
 
-def get(path,params=None,timeout=45,retries=4):
+def get(path,params=None,timeout=45,retries=5):
     last=None
     for i in range(retries+1):
         try:
-            r=requests.get(BASE+path,params=params or {},timeout=timeout,headers={'User-Agent':'SevenSportResearchEngine/4.6'})
+            r=requests.get(
+                BASE+path,
+                params=params or {},
+                timeout=(min(15, timeout), timeout),
+                headers={'User-Agent':'SevenSportResearchEngine/4.6'},
+            )
+            status = int(r.status_code)
+            if status == 429 or 500 <= status < 600:
+                last=requests.HTTPError(f'transient_http_status={status}',response=r)
+                if i<retries:
+                    retry_after=r.headers.get('Retry-After')
+                    try:
+                        wait=min(8.0,max(1.0*(2**i),float(retry_after)))
+                    except (TypeError,ValueError):
+                        wait=min(8.0,1.0*(2**i))
+                    time.sleep(wait)
+                    continue
             r.raise_for_status(); return r.json(),r.url
-        except Exception as e:
+        except (
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.ReadTimeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as e:
             last=e
             if i<retries:
-                time.sleep(min(8.0, (2 ** i) + random.uniform(0.2, 1.0)))
+                time.sleep(min(8.0,1.0*(2**i)))
+        except requests.HTTPError as e:
+            status=getattr(getattr(e,'response',None),'status_code',None)
+            if status == 429 or (isinstance(status,int) and 500 <= status < 600):
+                last=e
+                if i<retries:
+                    time.sleep(min(8.0,1.0*(2**i)))
+                    continue
+            raise
     raise last
 
 def num(x):
