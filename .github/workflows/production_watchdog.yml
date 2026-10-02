@@ -245,6 +245,43 @@ jobs:
           else
             echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest active_any=$active_any seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok lightweight_ok=$lightweight_ok main=$main_sha"
           fi
+      - name: Ensure pre-event T-60 prediction heartbeat
+        if: steps.rescue_guard.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          state=$(gh run list --workflow "pre_event_prediction.yml" --limit 100 --json databaseId,status,event,createdAt,headSha)
+          active=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
+          latest_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')
+          latest_any_created=$(printf '%s' "$state" | jq -r '[.[] | .createdAt] | sort | last // ""')
+          dispatch=false
+          reason="active=$active latest_created=$latest_created"
+          if [ "$active" -eq 0 ]; then
+            reference_created="$latest_created"
+            if [ -z "$reference_created" ]; then reference_created="$latest_any_created"; fi
+            if [ -z "$reference_created" ]; then
+              dispatch=true
+              reason="no_pre_event_run_observed"
+            else
+              created_ts=$(date -u -d "$reference_created" +%s)
+              now=$(date -u +%s)
+              age=$((now-created_ts))
+              if [ "$age" -ge 480 ]; then
+                dispatch=true
+                reason="last_pre_event_run_age=${age}s"
+              fi
+            fi
+          fi
+          if [ "$dispatch" = true ]; then
+            echo "DISPATCH_PRE_EVENT_T60 main=$main_sha reason=$reason"
+            gh workflow run pre_event_prediction.yml --ref main
+          else
+            echo "PRE_EVENT_HEARTBEAT_OK main=$main_sha $reason"
+          fi
+
       - name: Backfill a missed 9-hour PIT boundary once per boundary window
         if: steps.rescue_guard.outputs.eligible == 'true'
         env:
