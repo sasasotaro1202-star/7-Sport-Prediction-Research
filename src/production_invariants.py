@@ -282,6 +282,12 @@ def main():
             'watchdog does not verify same-SHA validator status before dispatch')
     require('\n  push:' not in watchdog,
             'production watchdog should not duplicate validator-completion monitoring with push triggers')
+    require(
+        'workflows:\n      - Active-Scope Target v4.5.15 Production' in watchdog
+        and '      - Production Safety Audit' not in watchdog
+        and '      - Lightweight Regression and Safety Checks' not in watchdog,
+        'production watchdog completion trigger must be limited to canonical production only'
+    )
     require('cron: \'*/5 * * * *\'' in watchdog,
             'production watchdog does not have the configured 5-minute recovery cadence')
     require("cron: '*/5 * * * *'" in watchdog,
