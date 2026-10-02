@@ -17,7 +17,7 @@ def main() -> int:
 
     m.get = fail_get
     try:
-        total, errors, attempted = m.collect_official(DummyConnection(), [2026])
+        total, errors, attempted, empty_pages = m.collect_official(DummyConnection(), [2026])
     finally:
         m.get = original_get
 
@@ -25,6 +25,7 @@ def main() -> int:
     assert attempted == 12, attempted
     assert len(errors) == 12, len(errors)
     assert all(e["error_type"] == "RuntimeError" for e in errors)
+    assert empty_pages == 0
     assert all(e["url"].startswith("https://www.bleague.jp/schedule/") for e in errors)
     # Also verify parser-zero is a distinct status without network access.
     calls = {"n": 0}
