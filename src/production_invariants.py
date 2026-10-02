@@ -16,6 +16,7 @@ def main():
             'Reproducibility manifest must count Boxing through the dedicated event-table path')
     readme=(ROOT/'README.md').read_text(encoding='utf-8')
     strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
+    research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
 
     m=re.search(r"SPORTS=\(([^)]*)\)",research)
     actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
@@ -432,9 +433,20 @@ def main():
     require('bootstrap_p05_improvement' in strict_src and 'bootstrap_prob_improvement' in strict_src,
             'ensemble selection lacks fold-block bootstrap stability evidence')
     regime_pos=strict_src.find('def _regime_robust_objective')
-    oos_pos=strict_src.find('oos={}',regime_pos if regime_pos>=0 else 0)
-    require(regime_pos>=0 and oos_pos>=0 and regime_pos<oos_pos,
-            'regime robustness scorer must be defined before model selection invokes it')
+    first_regime_call=min(
+        p for p in (
+            strict_src.find('_regime_robust_objective((name,),None)'),
+            strict_src.find('_regime_robust_objective(spec,None)'),
+        )
+        if p >= 0
+    ) if any(
+        strict_src.find(token) >= 0
+        for token in ('_regime_robust_objective((name,),None)', '_regime_robust_objective(spec,None)')
+    ) else -1
+    require(
+        regime_pos>=0 and first_regime_call>=0 and regime_pos<first_regime_call,
+        'regime robustness scorer must be defined before model selection invokes it'
+    )
     require('window_fracs=(0.55,0.60,0.65)' in strict_src and 'robust_window_objective' in strict_src,
             'multi-window walk-forward robustness selection is missing')
     require('__age_days' in research_base and '__median' in research_base and '__iqr' in research_base,'research features lack freshness/robust-stat signals')
