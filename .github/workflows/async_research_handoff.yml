@@ -1,0 +1,69 @@
+name: Async Research Handoff
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Long-running workflow to start asynchronously"
+        required: true
+        type: choice
+        options:
+          - production
+          - pre_event
+          - research_24h
+        default: production
+      ref:
+        description: "Git ref to run (normally main)"
+        required: true
+        type: string
+        default: main
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: async-research-handoff
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: "Dispatch only / return immediately"
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Validate target and dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ inputs.target }}
+          REF: ${{ inputs.ref }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${TARGET}" in
+            production)
+              WORKFLOW="v4_5_15_production.yml"
+              ;;
+            pre_event)
+              WORKFLOW="pre_event_prediction.yml"
+              ;;
+            research_24h)
+              WORKFLOW="24h_autonomous_research.yml"
+              ;;
+            *)
+              echo "UNSUPPORTED_TARGET target=${TARGET}" >&2
+              exit 2
+              ;;
+          esac
+
+          test -n "${REF}" || {
+            echo "EMPTY_REF" >&2
+            exit 2
+          }
+
+          echo "ASYNC_HANDOFF_REQUESTED target=${TARGET} workflow=${WORKFLOW} ref=${REF}"
+          gh workflow run "${WORKFLOW}" --repo "${REPO}" --ref "${REF}"
+          echo "ASYNC_HANDOFF_DISPATCHED target=${TARGET} workflow=${WORKFLOW} ref=${REF}"
+          echo "CHAT_SAFE: launcher exits without waiting for downstream completion."
