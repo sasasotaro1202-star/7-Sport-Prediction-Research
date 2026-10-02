@@ -214,6 +214,10 @@ def request_latest(
     sports: list[str] | None = None,
     days_back: int = 30,
     days_forward: int = 7,
+    lead_minutes: int = 60,
+    min_lead_minutes: int | None = None,
+    max_lead_minutes: int | None = None,
+    prediction_origin: str = "ON_DEMAND_REQUEST",
 ) -> dict:
     main_sha = verify_latest_main()
     policy = read_json(FRESHNESS_PATH)
@@ -228,6 +232,14 @@ def request_latest(
     if invalid:
         raise RuntimeError(f"OUT_OF_SCOPE:{','.join(invalid)}")
 
+    if not 5 <= int(lead_minutes) <= 180:
+        raise RuntimeError("INVALID_LEAD_MINUTES:must_be_between_5_and_180")
+    if min_lead_minutes is None:
+        min_lead_minutes = max(5, int(lead_minutes) - 15)
+    if max_lead_minutes is None:
+        max_lead_minutes = min(180, int(lead_minutes) + 15)
+    if int(min_lead_minutes) > int(max_lead_minutes):
+        raise RuntimeError("INVALID_LEAD_WINDOW:min_greater_than_max")
     request_started = utc_now()
     request_id = request_started.strftime("%Y%m%dT%H%M%S.%fZ")
     archive_dir = ARCHIVE_ROOT / request_id
@@ -254,7 +266,22 @@ def request_latest(
             collection = _verify_collection(sport, request_started)
 
             _run(
-                [sys.executable, "-m", "src.future_predictor", "--sport", sport],
+                [
+                    sys.executable,
+                    "-m",
+                    "src.future_predictor",
+                    "--sport",
+                    sport,
+                    "--lead-minutes",
+                    str(int(lead_minutes)),
+                    "--min-lead-minutes",
+                    str(int(min_lead_minutes)),
+                    "--max-lead-minutes",
+                    str(int(max_lead_minutes)),
+                    "--target-scope-only",
+                    "--prediction-origin",
+                    prediction_origin,
+                ],
                 timeout_seconds=_command_timeout_seconds(),
             )
             prediction = _verify_prediction(sport, request_started)
@@ -272,6 +299,8 @@ def request_latest(
                     "sport": sport,
                     "collection_timestamp_utc": collection.get("timestamp_utc"),
                     "prediction_generated_at_utc": prediction.get("generated_at_utc"),
+                    "target_lead_minutes": int(lead_minutes),
+                    "prediction_origin": prediction_origin,
                     "stored_prediction_reused": False,
                 }
             )
@@ -299,6 +328,10 @@ def request_latest(
         "status": "FRESH_REQUEST_VERIFIED",
         "active_scope": scope,
         "sports": reports,
+        "target_lead_minutes": int(lead_minutes),
+        "min_lead_minutes": int(min_lead_minutes),
+        "max_lead_minutes": int(max_lead_minutes),
+        "prediction_origin": prediction_origin,
         "stored_prediction_reused": False,
         "policy": "fresh-prediction-request-v1",
         "archive_dir": str(archive_dir.relative_to(ROOT)),
@@ -317,12 +350,24 @@ def main() -> int:
     parser.add_argument("--sport", action="append", help="Active-scope sport; repeatable.")
     parser.add_argument("--days-back", type=int, default=30)
     parser.add_argument("--days-forward", type=int, default=7)
+    parser.add_argument("--lead-minutes", type=int, default=60)
+    parser.add_argument("--min-lead-minutes", type=int, default=None)
+    parser.add_argument("--max-lead-minutes", type=int, default=None)
+    parser.add_argument(
+        "--prediction-origin",
+        choices=["AUTOMATED_SCHEDULE", "ON_DEMAND_REQUEST", "TIMING_SHADOW"],
+        default="ON_DEMAND_REQUEST",
+    )
     args = parser.parse_args()
 
     manifest = request_latest(
         sports=args.sport,
         days_back=args.days_back,
         days_forward=args.days_forward,
+        lead_minutes=args.lead_minutes,
+        min_lead_minutes=args.min_lead_minutes,
+        max_lead_minutes=args.max_lead_minutes,
+        prediction_origin=args.prediction_origin,
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
     return 0
