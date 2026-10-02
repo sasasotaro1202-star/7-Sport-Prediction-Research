@@ -31,8 +31,11 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, ufc, rizin]
     concurrency:
-      group: pre-event-prediction-${{ matrix.sport }}
-      cancel-in-progress: true
+      # Scheduled runs serialize/cancel only within the scheduled lane.
+      # Explicit manual requests use a separate lane and are never cancelled by
+      # the five-minute scheduler.
+      group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}
+      cancel-in-progress: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
