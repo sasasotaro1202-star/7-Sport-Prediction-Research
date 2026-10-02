@@ -661,6 +661,12 @@ def main():
             'canonical production workflow does not invoke the dual learning cycle')
     require('test_prediction_method_policy.py' in lightweight_src and 'test_dual_learning_cycle.py' in lightweight_src,
             'dual learning and method policy tests are not wired into lightweight CI')
+    require(
+        'PYTHONPATH=. python scripts/test_experience_learning.py' in workflow
+        and 'PYTHONPATH=. python scripts/test_experience_research_bridge.py' in workflow
+        and 'PYTHONPATH=. python scripts/test_dual_learning_cycle.py' in workflow,
+        'production experience regression scripts lack explicit repository import path',
+    )
     require("apply_cal = None if strategy=='contextual_router' else cal" in future_src,
             'future predictor can apply ensemble calibration to Router output distribution')
     gate_src=(ROOT/'src/production_release_gate.py').read_text(encoding='utf-8')
@@ -815,6 +821,13 @@ def main():
             'timing route registry lacks accepted-route/default fallback states')
     require('--adaptive-timing' in pre_event_wf and '--timing-shadow' in pre_event_wf,
             'pre-event workflow does not execute adaptive and shadow timing lanes')
+    require(
+        'e.event_time_utc,e.competition_id,' in timing_builder
+        and 'e.name' not in timing_builder,
+        'timing route builder still depends on removed event.name schema column',
+    )
+    require('test_timing_route_schema.py' in lightweight_src,
+            'canonical timing route schema regression is not wired into Lightweight Regression')
     require('"max_lead": 180' not in pre_event_wf or 'max_lead=180' in pre_event_wf,
             'pre-event workflow lacks the 180-minute timing ceiling')
 
