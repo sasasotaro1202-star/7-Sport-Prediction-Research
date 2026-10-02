@@ -63,6 +63,23 @@ def _periods(items: list[dict]) -> list[str]:
     return sorted({str(x["time"])[:4] for x in items if x.get("time")})
 
 
+def _load_event_metadata(con: sqlite3.Connection, sport: str) -> dict[str, dict[str, str]]:
+    """Load competition metadata from the canonical v45 event schema."""
+    return {
+        str(eid): {
+            "event_id": str(eid),
+            "competition_id": str(comp or ""),
+            "season": str(season or ""),
+            "stage": str(stage or ""),
+            "time": str(t or ""),
+        }
+        for eid, comp, season, stage, t in con.execute(
+            "SELECT event_id,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
+            (sport,),
+        ).fetchall()
+    }
+
+
 def _fit_oos(items: list[dict], features: list[str], candidates: list[str], minimums: dict, symmetric: bool):
     items = sorted(items, key=lambda x: (x["time"], x["event_id"]))
     n = len(items)
@@ -298,25 +315,13 @@ def build_route_registry(db_path: Path | None = None, sports: list[str] | None =
 
         for sport in active:
             rows, features = base.build(con, sport)
-            event_meta = {
-                str(eid): {
-                    "name": str(name or ""),
-                    "competition_id": str(comp or ""),
-                    "season": str(season or ""),
-                    "stage": str(stage or ""),
-                    "time": str(t or ""),
-                }
-                for eid, name, comp, season, stage, t in con.execute(
-                    "SELECT event_id,name,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
-                    (sport,),
-                ).fetchall()
-            }
+            event_meta = _load_event_metadata(con, sport)
             groups = {}
             for eid, t, label, feats in rows:
                 meta = event_meta.get(str(eid), {})
                 if not meta.get("competition_id"):
                     continue
-                profile = resolve_research_profile(sport, meta.get("competition_id"), meta.get("name"))
+                profile = resolve_research_profile(sport, meta.get("competition_id"))
                 if not profile.get("matched"):
                     continue
                 profile_id = str(profile["profile_id"])
