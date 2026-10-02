@@ -48,25 +48,38 @@ def clean(x):
     return re.sub(r"\s+", " ", str(x or "")).strip()
 
 
-def get(url, timeout=30):
+def get(url, timeout=45):
     # Network/transient failures must not silently erase an otherwise valid
-    # historical partition. Retry boundedly with backoff while preserving the
-    # original retrieval timestamp as the provenance observation time.
+    # historical partition. Retry boundedly with exponential backoff while
+    # preserving the retrieval timestamp as the provenance observation.
+    import time
     last = None
-    for attempt in range(4):
+    for attempt in range(5):
         try:
             r = requests.get(
                 url,
                 headers={"User-Agent": UA, "Accept-Language": "ja,en;q=0.8"},
-                timeout=timeout,
+                timeout=(min(15, int(timeout)), int(timeout)),
             )
+            status = int(r.status_code)
+            if status == 429 or 500 <= status < 600:
+                raise requests.HTTPError(f"transient_http_status={status}", response=r)
             r.raise_for_status()
             return r.text, utcnow(), r.headers
-        except (requests.RequestException, TimeoutError) as exc:
+        except (
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.ReadTimeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as exc:
             last = exc
-            if attempt < 3:
-                import time
-                time.sleep(1.5 * (2 ** attempt))
+        except requests.HTTPError as exc:
+            last = exc
+            status = getattr(getattr(exc, 'response', None), 'status_code', None)
+            if status != 429 and not (isinstance(status, int) and 500 <= status < 600):
+                raise
+        if attempt < 4:
+            time.sleep(min(8.0, 1.0 * (2 ** attempt)))
     raise last
 
 
