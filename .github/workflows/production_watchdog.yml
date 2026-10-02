@@ -8,13 +8,12 @@ on:
   workflow_run:
     workflows:
       - Active-Scope Target v4.5.15 Production
-      - Production Safety Audit
-      - Lightweight Regression and Safety Checks
     types: [completed]
-  # Keep completion-trigger recovery only for the canonical production run and
-  # the two direct production-dispatch gates. The 5-minute heartbeat still polls
-  # all validator state; excluding low-value research/health completions prevents
-  # rapid watchdog event storms from consuming Actions runner capacity.
+  # Completion-trigger recovery is limited to the canonical production run.
+  # Production Safety Audit and Lightweight Regression are already polled by
+  # the 5-minute heartbeat below; triggering a watchdog for every validator
+  # completion can create a pending-run replacement storm without improving
+  # recovery latency materially.
 
 permissions:
   actions: write
