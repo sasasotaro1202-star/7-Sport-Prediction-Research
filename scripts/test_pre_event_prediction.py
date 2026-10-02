@@ -64,7 +64,7 @@ def main() -> None:
 
     assert resolve_profile("basketball", "B.LEAGUE", "B.LEAGUE")["matched"]
     assert not resolve_profile("basketball", "Other League", "Other League")["matched"]
-    # 30 minutes is a guideline: a prediction with a nearby cutoff is acceptable.
+    # 60 minutes is the default guideline: a prediction with a nearby cutoff is acceptable.
     c.execute("CREATE TABLE forward_prediction( prediction_id TEXT PRIMARY KEY, event_id TEXT, market TEXT, prediction_cutoff_at_utc TEXT, created_at_utc TEXT, strategy TEXT, model_version TEXT )")
     cutoff_early = now + timedelta(minutes=15)
     c.execute(
@@ -100,7 +100,7 @@ def main() -> None:
                 model_version TEXT
             );
         """)
-        disk.execute("INSERT INTO event VALUES (?,?,?,?,?)", ("b1","basketball",t30,"SCHEDULED","B.LEAGUE"))
+        disk.execute("INSERT INTO event VALUES (?,?,?,?,?)", ("b1","basketball",(now + timedelta(minutes=60)).isoformat(),"SCHEDULED","B.LEAGUE"))
         disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","a","A"))
         disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","b","B"))
         disk.execute("INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)", ("p1","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=2)).isoformat(),"test","test"))
