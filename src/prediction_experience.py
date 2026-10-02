@@ -483,9 +483,70 @@ def _score_f1(pred: dict[str, Any], winner_id: str | None) -> dict[str, Any] | N
     }
 
 
+def _parse_utc(value: Any) -> datetime | None:
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _canonical_event_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """
+    Reduce scored prediction snapshots to one deterministic experience sample per
+    event/market. Raw snapshots remain in the settlement ledger; this view is
+    used for canonical performance metrics so timing-shadow/revision snapshots
+    cannot inflate the event sample count.
+    """
+    groups: dict[tuple[str, str, str], list[tuple[datetime, datetime, str, dict[str, Any]]]] = defaultdict(list)
+    excluded_invalid_timing = 0
+    for row in rows:
+        sport = str(row.get("sport") or "")
+        event_id = str(row.get("event_id") or "")
+        market = str(row.get("market") or "winner_binary")
+        event_time = _parse_utc(row.get("event_time_utc"))
+        cutoff = _parse_utc(row.get("prediction_cutoff_at_utc"))
+        generated = _parse_utc(row.get("generated_at_utc"))
+        if not sport or not event_id or event_time is None or cutoff is None:
+            excluded_invalid_timing += 1
+            continue
+        if cutoff > event_time or (generated is not None and generated > event_time):
+            excluded_invalid_timing += 1
+            continue
+        groups[(sport, event_id, market)].append(
+            (cutoff, generated or cutoff, str(row.get("prediction_id") or ""), row)
+        )
+
+    selected: list[dict[str, Any]] = []
+    for candidates in groups.values():
+        _, _, _, row = max(candidates, key=lambda item: (item[0], item[1], item[2]))
+        selected.append(row)
+
+    selected.sort(
+        key=lambda row: (
+            str(row.get("sport") or ""),
+            str(row.get("event_id") or ""),
+            str(row.get("market") or ""),
+            str(row.get("prediction_cutoff_at_utc") or ""),
+            str(row.get("prediction_id") or ""),
+        )
+    )
+    return selected, {
+        "canonical_event_markets": len(selected),
+        "excluded_invalid_timing": excluded_invalid_timing,
+        "snapshot_rows": len(rows),
+    }
+
+
 def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Counter[str]) -> dict[str, Any]:
-    scored = [r for r in rows if r.get("settlement_status") == "SCORED"]
-    correct = [r for r in scored if r.get("correct") is True]
+    snapshot_scored = [r for r in rows if r.get("settlement_status") == "SCORED"]
+    canonical_scored, canonical_stats = _canonical_event_rows(snapshot_scored)
+    correct = [r for r in canonical_scored if r.get("correct") is True]
+    snapshot_correct = [r for r in snapshot_scored if r.get("correct") is True]
 
     def metrics(items: list[dict[str, Any]]) -> dict[str, Any]:
         n = len(items)
@@ -499,10 +560,10 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
             "brier": round(sum(float(x["brier"]) for x in items) / n, 6),
         }
 
-    def grouped(field: str) -> dict[str, Any]:
+    def grouped(field: str, source: list[dict[str, Any]]) -> dict[str, Any]:
         out: dict[str, Any] = {}
         groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for row in scored:
+        for row in source:
             value = row.get(field)
             if isinstance(value, dict):
                 key = str(value.get("profile_id") or value.get("status") or "UNKNOWN")
@@ -513,136 +574,70 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
             out[key] = metrics(vals)
         return out
 
+    def grouped_target_lead(source: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            key: metrics(vals)
+            for key, vals in sorted(
+                _group_rows(source, "target_lead_minutes").items(),
+                key=lambda item: item[0],
+            )
+        }
+
     sport_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in scored:
+    canonical_sport_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in snapshot_scored:
         sport_groups[str(row.get("sport") or "UNKNOWN")].append(row)
+    for row in canonical_scored:
+        canonical_sport_groups[str(row.get("sport") or "UNKNOWN")].append(row)
 
     wrong = sorted(
-        [r for r in scored if not r.get("correct")],
+        [r for r in snapshot_scored if not r.get("correct")],
         key=lambda r: (
             -float(r.get("max_probability") or 0.0),
             str(r.get("settled_at_utc") or ""),
         ),
         reverse=False,
     )
-
-    recent = sorted(scored, key=lambda r: str(r.get("settled_at_utc") or ""), reverse=True)
+    recent = sorted(snapshot_scored, key=lambda r: str(r.get("settled_at_utc") or ""), reverse=True)
+    recent_canonical = sorted(
+        canonical_scored,
+        key=lambda r: str(r.get("settled_at_utc") or ""),
+        reverse=True,
+    )
 
     return {
         "generated_at_utc": utc_now(),
         "prediction_archive_total": predictions_total,
-        "resolved_scored_total": len(scored),
+        "resolved_scored_total": len(snapshot_scored),
         "correct_total": len(correct),
+        "snapshot_correct_total": len(snapshot_correct),
         "unresolved_total": sum(unresolved.values()),
-        "unresolved_reasons": dict(unresolved),
-        "overall": metrics(scored),
-        "by_sport": {sport: metrics(vals) for sport, vals in sorted(sport_groups.items())},
-        "by_strategy": grouped("strategy"),
-        "by_competition_profile": grouped("competition_profile"),
-        "by_prediction_timing_status": {
-            key: metrics(vals)
-            for key, vals in _group_rows(scored, "prediction_timing_status").items()
-        },
-        "by_target_lead_minutes": {
-            key: metrics(vals)
-            for key, vals in sorted(
-                _group_rows(scored, "target_lead_minutes").items(),
-                key=lambda item: item[0],
-            )
-        },
-        "by_confidence": grouped("confidence"),
-        "by_probability_bucket": grouped("probability_bucket"),
-        "by_action_state": grouped("action_state"),
-        "by_experience_class": grouped("experience_class"),
-        "by_experience_shadow": grouped("experience_shadow"),
+        "overall": metrics(canonical_scored),
+        "snapshot_overall": metrics(snapshot_scored),
+        "canonical_event_sample_total": canonical_stats["canonical_event_markets"],
+        "canonical_excluded_invalid_timing": canonical_stats["excluded_invalid_timing"],
+        "canonical_selection_policy": "latest_valid_pre_event_prediction_per_event_market_by_cutoff_then_generation_then_prediction_id",
+        "by_sport": {sport: metrics(vals) for sport, vals in sorted(canonical_sport_groups.items())},
+        "snapshot_by_sport": {sport: metrics(vals) for sport, vals in sorted(sport_groups.items())},
+        "by_strategy": grouped("strategy", snapshot_scored),
+        "by_competition_profile": grouped("competition_profile", snapshot_scored),
+        "by_prediction_timing_status": grouped("prediction_timing_status", snapshot_scored),
+        "by_target_lead_minutes": grouped_target_lead(snapshot_scored),
+        "canonical_by_competition_profile": grouped("competition_profile", canonical_scored),
+        "canonical_by_prediction_timing_status": grouped("prediction_timing_status", canonical_scored),
+        "canonical_by_target_lead_minutes": grouped_target_lead(canonical_scored),
+        "by_confidence": grouped("confidence", snapshot_scored),
+        "by_probability_bucket": grouped("probability_bucket", snapshot_scored),
+        "by_action_state": grouped("action_state", snapshot_scored),
+        "by_experience_class": grouped("experience_class", snapshot_scored),
+        "by_experience_shadow": grouped("experience_shadow", snapshot_scored),
         "recent_100": metrics(recent[:100]),
         "recent_20": metrics(recent[:20]),
+        "recent_canonical_100": metrics(recent_canonical[:100]),
         "recent_wrong": wrong[:50],
-        "repeated_error_patterns": _patterns(scored),
-        "available_next_cycle_signals": _next_cycle_signals(scored),
+        "repeated_error_patterns": _patterns(snapshot_scored),
+        "available_next_cycle_signals": _next_cycle_signals(snapshot_scored),
     }
-
-
-def _group_rows(rows: list[dict[str, Any]], field: str) -> dict[str, list[dict[str, Any]]]:
-    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in rows:
-        value = row.get(field)
-        if isinstance(value, dict):
-            key = str(value.get("status") or value.get("profile_id") or "UNKNOWN")
-        else:
-            key = str(value or "UNKNOWN")
-        groups[key].append(row)
-    return groups
-
-
-def _patterns(scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in scored:
-        if row.get("correct"):
-            continue
-        key = "|".join(
-            [
-                str(row.get("sport") or "UNKNOWN"),
-                str(row.get("strategy") or "UNKNOWN"),
-                str(row.get("probability_bucket") or "UNKNOWN"),
-                str(row.get("conflict_bucket") or "UNKNOWN"),
-            ]
-        )
-        groups[key].append(row)
-
-    patterns: list[dict[str, Any]] = []
-    for key, vals in groups.items():
-        if len(vals) < 3:
-            continue
-        sports, strategy, prob_bucket, conflict_bucket = key.split("|", 3)
-        patterns.append(
-            {
-                "sport": sports,
-                "strategy": strategy,
-                "probability_bucket": prob_bucket,
-                "conflict_bucket": conflict_bucket,
-                "wrong_n": len(vals),
-                "mean_max_probability": round(
-                    sum(float(v.get("max_probability") or 0.0) for v in vals) / len(vals), 6
-                ),
-            }
-        )
-    patterns.sort(key=lambda x: (-x["wrong_n"], -x["mean_max_probability"], x["sport"]))
-    return patterns[:50]
-
-
-def _next_cycle_signals(scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    by_key: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in scored:
-        key = "|".join(
-            [
-                str(row.get("sport") or "UNKNOWN"),
-                str(row.get("strategy") or "UNKNOWN"),
-                str(row.get("probability_bucket") or "UNKNOWN"),
-            ]
-        )
-        by_key[key].append(row)
-    out = []
-    for key, vals in by_key.items():
-        if len(vals) < 5:
-            continue
-        acc = sum(bool(v.get("correct")) for v in vals) / len(vals)
-        if acc >= 0.60:
-            continue
-        sport, strategy, bucket = key.split("|", 2)
-        out.append(
-            {
-                "sport": sport,
-                "strategy": strategy,
-                "probability_bucket": bucket,
-                "n": len(vals),
-                "accuracy": round(acc, 6),
-                "reason": "historical_context_underperformance_requires_research_validation",
-                "safe_use": "research_signal_only",
-            }
-        )
-    out.sort(key=lambda x: (x["accuracy"], -x["n"], x["sport"]))
-    return out[:30]
 
 
 def score_archive() -> dict[str, Any]:
