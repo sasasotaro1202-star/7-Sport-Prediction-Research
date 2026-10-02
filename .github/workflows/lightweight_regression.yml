@@ -50,6 +50,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_production_runtime_health.py
       - name: Competition-specific routing regression
         run: PYTHONPATH=. python scripts/test_competition_routing.py
+      - name: Production safe continuation regression
+        run: PYTHONPATH=. python scripts/test_production_safe_continuation.py
       - name: Continuous scope autofill regression
         run: PYTHONPATH=. python scripts/test_scope_autofill.py
       - name: Staged scope expansion policy regression
