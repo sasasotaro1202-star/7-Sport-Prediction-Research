@@ -828,6 +828,11 @@ def main():
             'prediction experience summary does not expose lead-specific learning')
     require('--adaptive-timing' in workflow and 'src.timing_route_builder' in workflow,
             'canonical production does not build/use adaptive timing routes')
+    require(
+        'src.future_predictor --adaptive-timing --lead-minutes 60 --min-lead-minutes 45 --max-lead-minutes 75 --target-scope-only'
+        in workflow,
+        'canonical hourly production is not centered on the T-60 target with bounded adaptive timing'
+    )
     observability_src=(ROOT/'src/prediction_route_observability.py').read_text(encoding='utf-8')
     require('prediction_route_observability' in workflow and 'src.prediction_route_observability' in workflow,
             'canonical production does not persist route observability after future inference')
