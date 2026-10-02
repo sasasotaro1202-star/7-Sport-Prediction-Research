@@ -767,8 +767,11 @@ def main():
             and "lead_minutes:" in pre_event_wf
             and "adaptive_timing:" in pre_event_wf,
             'pre-event workflow is not scheduled at five-minute cadence with configurable T-60/manual timing')
-    require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 180' in pre_event_wf,
-            'pre-event workflow lacks the bounded late-recovery generation window')
+    require('min_lead=$((requested_lead - tolerance))' in pre_event_wf
+            and 'max_lead=$((requested_lead + tolerance))' in pre_event_wf
+            and 'if [ "$min_lead" -lt 5 ]; then min_lead=5; fi' in pre_event_wf
+            and 'if [ "$max_lead" -gt 180 ]; then max_lead=180; fi' in pre_event_wf,
+            'pre-event workflow lacks the bounded 5-180-minute generation window')
     require('--target-scope-only' in pre_event_wf and 'competition_profile_required' in pre_event_wf,
             'pre-event workflow is not restricted to explicit competition scope')
     require('pre-event-target-db-v1-' in pre_event_wf and 'active-scope-target-db-v4-' in pre_event_wf,
@@ -812,8 +815,9 @@ def main():
             'timing route registry lacks accepted-route/default fallback states')
     require('--adaptive-timing' in pre_event_wf and '--timing-shadow' in pre_event_wf,
             'pre-event workflow does not execute adaptive and shadow timing lanes')
-    require('--max-lead-minutes 180' in pre_event_wf,
-            'pre-event workflow window cannot reach non-default timing candidates')
+    require('"max_lead": 180' not in pre_event_wf or 'max_lead=180' in pre_event_wf,
+            'pre-event workflow lacks the 180-minute timing ceiling')
+
     require('requested_lead="${{ inputs.lead_minutes }}"' in pre_event_wf
             and 'invalid lead_minutes' in pre_event_wf
             and 'steps.predict.outputs.lead' in pre_event_wf,
