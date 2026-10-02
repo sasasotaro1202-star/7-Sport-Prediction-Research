@@ -336,6 +336,7 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'situation':{'status':'PIT_SAFE','quality':{'evidence_count':sa+sb,'conflict_rate':None,'freshness_score':None},'experience_shadow':experience_shadow,'policy':'historical outcomes only; no current unavailable information inferred'},
             'experience_shadow':experience_shadow,
             'prediction_method_policy':method_policy,
+            'prediction_origin':prediction_origin,
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
