@@ -184,6 +184,10 @@ def main():
     for step_id in allowed_optional_ids:
         require(f'steps.{step_id}.outcome' in final_block,
                 f'final failure verdict does not inspect step outcome: {step_id}')
+    for step_id in ('pit_replay','independent_leakage','future_prediction','route_observability',
+                    'production_invariants','compile_check','persist_outputs'):
+        require(f'steps.{step_id}.outcome' in final_block,
+                f'final failure verdict does not inspect blocking/output step outcome: {step_id}')
     require('PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL' in final_block,
             'final production verdict does not fail explicitly on partial failure')
     require(bad_shell not in all_wf,'failure-hiding shell fallback detected in workflow set')
