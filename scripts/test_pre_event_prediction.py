@@ -71,19 +71,25 @@ def main() -> None:
     ).read_text(encoding="utf-8")
     assert policy["scheduler"]["target_lead_minutes"] == 60
     assert policy["scheduler"]["guideline_target_minutes"] == 60
-    assert policy["scheduler"]["selection_mode"] == "adaptive-capable;60m-default"
-    assert "--lead-minutes 60" in workflow
-    assert "--target-lead-minutes 60" in workflow
+    assert policy["scheduler"]["selection_mode"] == "scheduled-60m-default;manual-lead-configurable"
+    assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
+    assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
+    assert 'requested_lead="60"' in workflow
+    assert '--lead-minutes "$requested_lead"' in workflow
     assert "lead_minutes:" in workflow
     assert 'default: "60"' in workflow
     assert "adaptive_timing:" in workflow
     assert 'requested_lead="60"' in workflow
     assert 'if [ "${{ github.event_name }}" = "workflow_dispatch" ]' in workflow
+    assert "group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}" in workflow
+    assert "cancel-in-progress: ${{ github.event_name == 'schedule' }}" in workflow
     assert 'requested_lead="${{ inputs.lead_minutes }}"' in workflow
     assert 'if [ "${{ inputs.adaptive_timing }}" = "true" ]' in workflow
     assert "invalid lead_minutes" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "args+=(--adaptive-timing)" in workflow
+    assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' in workflow
+    assert '--target-lead-minutes "${{ steps.predict.outputs.lead }}"' in workflow
     assert "cron: '3-58/5 * * * *'" in workflow
     assert resolve_profile("basketball", "B.LEAGUE", "B.LEAGUE")["matched"]
     assert not resolve_profile("basketball", "Other League", "Other League")["matched"]
