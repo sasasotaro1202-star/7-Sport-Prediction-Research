@@ -62,6 +62,19 @@ def main() -> None:
     late = _prediction_timing(t30, late_now, 30)
     assert late["status"] == "LATE", late
 
+    policy = __import__("json").loads(
+        (Path(__file__).resolve().parents[1] / "config/PRE_EVENT_PREDICTION_POLICY.json").read_text(encoding="utf-8")
+    )
+    workflow = (
+        Path(__file__).resolve().parents[1]
+        / ".github/workflows/pre_event_prediction.yml"
+    ).read_text(encoding="utf-8")
+    assert policy["scheduler"]["target_lead_minutes"] == 60
+    assert policy["scheduler"]["guideline_target_minutes"] == 60
+    assert policy["scheduler"]["selection_mode"] == "adaptive-capable;60m-default"
+    assert "--lead-minutes 60" in workflow
+    assert "--target-lead-minutes 60" in workflow
+    assert "cron: '3-58/5 * * * *'" in workflow
     assert resolve_profile("basketball", "B.LEAGUE", "B.LEAGUE")["matched"]
     assert not resolve_profile("basketball", "Other League", "Other League")["matched"]
     # 60 minutes is the default guideline: a prediction with a nearby cutoff is acceptable.
