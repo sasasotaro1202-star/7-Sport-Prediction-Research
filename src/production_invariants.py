@@ -16,6 +16,8 @@ def main():
             'Reproducibility manifest must count Boxing through the dedicated event-table path')
     readme=(ROOT/'README.md').read_text(encoding='utf-8')
     strict_src=(ROOT/'src/research_cycle_strict.py').read_text(encoding='utf-8')
+    # Load the canonical research base before any repository-wide contract checks use it.
+    research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
 
     m=re.search(r"SPORTS=\(([^)]*)\)",research)
     actual=set(re.findall(r'[a-z0-9]+',m.group(1))) if m else set()
@@ -244,6 +246,10 @@ def main():
     )
     require('timeout --signal=TERM 900s python -m src.independent_leakage_audit' in workflow,
             'independent leakage audit lacks a bounded runtime budget')
+    require("V45_HTTP_TIMEOUT" in research_base and "V45_HTTP_RETRIES" in research_base,
+            'shared HTTP layer must expose bounded timeout/retry controls')
+    require("requests.exceptions.ReadTimeout" in research_base and "requests.exceptions.ConnectTimeout" in research_base,
+            'shared HTTP layer must retry network timeout classes explicitly')
     require('source failures degrade explicitly' in workflow,'resilient source-failure policy missing')
     require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
     require('--days-forward 7' in workflow and "ap.add_argument('--days-forward'" in (ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8'),
@@ -370,7 +376,6 @@ def main():
         'Boxing research lane is not wired to an explicit deferred handler before the generic gate')
     require("DEFERRED_SPORTS=('tennis','f1','rugby','boxing')" in strict_src and 'ALL_SPORTS=SPORTS' in strict_src,
             'Strict research does not declare the full nine-sport lane set alongside explicit gated model lanes')
-    research_base=(ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8')
     require('__recent_winrate_5' in research_base and '__recent_winrate_20' in research_base,'research features lack recent-form signals')
     require('__opponent_elo_mean_5' in research_base and '__opponent_elo_mean_20' in research_base,'research features lack opponent-strength signals')
     require('__elo_fast' in research_base and '__elo_slow' in research_base,'research features lack multi-timescale rating signals')
