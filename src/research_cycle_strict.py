@@ -194,6 +194,48 @@ def _temporal_calibration_candidate(p, y):
             'required_logloss_improvement':required,
             'validation_folds':[(int(a),int(b)) for a,b in folds]}
 
+def _rank_valid_oos_candidates(oos):
+    """Return valid OOS candidate names plus explicit rejection evidence.
+    
+    Candidate failures are isolated from ranking rather than converted into
+    synthetic metrics or allowed to crash the research lane.
+    """
+    if not isinstance(oos,dict):
+        raise TypeError("oos_candidate_scores_must_be_object")
+    invalid={}
+    rankable={}
+    required_metrics=("robust_objective","brier","ece","logloss")
+    for candidate_name,candidate_score in oos.items():
+        if not isinstance(candidate_score,dict):
+            invalid[str(candidate_name)]={
+                "reason":"oos_score_not_object",
+                "type":type(candidate_score).__name__,
+                "status":"REJECTED",
+            }
+            continue
+        missing_metrics=[
+            metric_name for metric_name in required_metrics
+            if metric_name not in candidate_score
+            or not np.isfinite(float(candidate_score[metric_name]))
+        ]
+        if missing_metrics:
+            invalid[str(candidate_name)]={
+                "reason":"oos_score_invalid_metrics",
+                "missing_or_nonfinite_metrics":missing_metrics,
+                "status":"REJECTED",
+            }
+            continue
+        rankable[str(candidate_name)]=candidate_score
+    ranked=sorted(
+        rankable,
+        key=lambda k:(
+            float(rankable[k]["robust_objective"]),
+            float(rankable[k]["brier"]),
+            float(rankable[k]["ece"]),
+        ),
+    )
+    return ranked,invalid
+
 def _write_result(s, payload):
     """Persist every research outcome, including DEFERRED/REJECTED states."""
     RESULTS.mkdir(parents=True,exist_ok=True)
@@ -749,38 +791,18 @@ def train(s):
      # Fail closed on malformed/failed candidate scores. A broken challenger must
      # never be converted into a successful rank entry, and one malformed score
      # must not abort the entire historical research lane.
-     invalid_oos_candidates={}
-     rankable_oos={}
-     for candidate_name,candidate_score in oos.items():
-      if not isinstance(candidate_score,dict):
-       invalid_oos_candidates[candidate_name]={
-        'reason':'oos_score_not_object',
-        'type':type(candidate_score).__name__,
-        'status':'REJECTED',
-       }
-       continue
-      required_metrics=('robust_objective','brier','ece','logloss')
-      missing_metrics=[m for m in required_metrics if m not in candidate_score or not np.isfinite(float(candidate_score[m]))]
-      if missing_metrics:
-       invalid_oos_candidates[candidate_name]={
-        'reason':'oos_score_invalid_metrics',
-        'missing_or_nonfinite_metrics':missing_metrics,
-        'status':'REJECTED',
-       }
-       continue
-      rankable_oos[candidate_name]=candidate_score
+     rank,invalid_oos_candidates=_rank_valid_oos_candidates(oos)
      if invalid_oos_candidates:
       print('OOS_CANDIDATE_REJECTED '+json.dumps(invalid_oos_candidates,ensure_ascii=False,sort_keys=True),flush=True)
-     if not rankable_oos:
+     if not rank:
       return _write_result(s,{
        'sport':s,
        'status':'DEFERRED',
        'reason':'no_valid_oos_candidate_scores',
        'rows':len(rows),
        'invalid_oos_candidates':invalid_oos_candidates,
+       'selection_oos':oos,
       })
-     oos['invalid_candidates']=invalid_oos_candidates
-     rank=sorted(rankable_oos,key=lambda k:(float(rankable_oos[k]['robust_objective']),float(rankable_oos[k]['brier']),float(rankable_oos[k]['ece'])) )
      top_rank=rank[:4]
      cands=[(n,) for n in top_rank]+list(combinations(top_rank,2))+list(combinations(top_rank,3))
      scores={}
