@@ -312,6 +312,7 @@ jobs:
       - name: Outcomes
         run: python -m src.outcome_backfill
       - name: Strict PIT replay
+        id: pit_replay
         run: |
           set -euo pipefail
           timeout --signal=TERM 2700s python -m src.pit_replay_builder
@@ -346,6 +347,7 @@ jobs:
             models/research/**
 
       - name: Independent leakage audit after model generation
+        id: independent_leakage
         run: |
           set -euo pipefail
           timeout --signal=TERM 900s python -m src.independent_leakage_audit
@@ -373,10 +375,12 @@ jobs:
           timeout --signal=TERM 1200s python -m src.timing_route_builder
 
       - name: Future prediction inference
+        id: future_prediction
         run: |
           set -euo pipefail
           python -m src.future_predictor --adaptive-timing --lead-minutes 30 --min-lead-minutes 5 --max-lead-minutes 180 --target-scope-only
       - name: Production route observability
+        id: route_observability
         run: |
           set -euo pipefail
           python -m src.prediction_route_observability
@@ -413,6 +417,7 @@ jobs:
         continue-on-error: true
         run: python scripts/test_dual_learning_cycle.py
       - name: Production invariants
+        id: production_invariants
         run: python -m src.production_invariants
       - name: Compile check
         id: compile_check
@@ -529,6 +534,10 @@ jobs:
           DUAL_LEARNING_CONTRACT: ${{ steps.dual_learning_contract.outcome }}
           PRODUCTION_INVARIANTS: ${{ steps.production_invariants.outcome }}
           COMPILE_CHECK: ${{ steps.compile_check.outcome }}
+          PIT_REPLAY: ${{ steps.pit_replay.outcome }}
+          INDEPENDENT_LEAKAGE: ${{ steps.independent_leakage.outcome }}
+          FUTURE_PREDICTION: ${{ steps.future_prediction.outcome }}
+          ROUTE_OBSERVABILITY: ${{ steps.route_observability.outcome }}
           PERSIST_OUTPUTS: ${{ steps.persist_outputs.outcome }}
         run: |
           set -euo pipefail
@@ -539,6 +548,10 @@ jobs:
             echo "FINAL_STAGE_${stage}=${result}"
             if [ "$result" = "failure" ]; then failed=1; fi
           }
+          report PIT_REPLAY "$PIT_REPLAY"
+          report INDEPENDENT_LEAKAGE "$INDEPENDENT_LEAKAGE"
+          report FUTURE_PREDICTION "$FUTURE_PREDICTION"
+          report ROUTE_OBSERVABILITY "$ROUTE_OBSERVABILITY"
           report DUAL_LEARNING "$DUAL_LEARNING"
           report COMPETITION_OOS "$COMPETITION_OOS"
           report COMPETITION_ROUTES "$COMPETITION_ROUTES"
