@@ -518,6 +518,26 @@ def evaluate_recent_weighted_router_holdout_from_folds(
         "policy":"research_only; weights fitted from pre-holdout OOF loss history; frozen holdout labels score-only",
     }
 
+def _rank_oos_candidates(oos):
+    """Rank model candidates only; non-score metadata must remain outside this mapping."""
+    if not isinstance(oos, dict) or not oos:
+        return []
+    invalid = [
+        str(name)
+        for name, score in oos.items()
+        if not isinstance(score, dict) or 'robust_objective' not in score
+    ]
+    if invalid:
+        raise RuntimeError("invalid_oos_candidate_entries:" + ",".join(invalid))
+    return sorted(
+        oos,
+        key=lambda k: (
+            oos[k]['robust_objective'],
+            oos[k]['brier'],
+            oos[k]['ece'],
+        ),
+    )
+
 def train(s):
     if s=='f1':
      return _write_result(s,f1())
@@ -714,8 +734,10 @@ def train(s):
       return base_ll,excess,regime_scores
 
      oos={}
-     oos['window_signature']=oos_window_signature
-     oos['window_signature_rule']='exact chronological test-start/test-end windows'
+     oos_window_metadata={
+      'window_signature':oos_window_signature,
+      'window_signature_rule':'exact chronological test-start/test-end windows',
+     }
      for name in names:
       p=np.asarray(oof_probs[name],float)
       score=base.metric(oof_y,p)
@@ -746,7 +768,7 @@ def train(s):
       score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']+0.15*regime_excess
       oos[name]=score
      if not oos:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
-     rank=sorted(oos,key=lambda k:(oos[k]['robust_objective'],oos[k]['brier'],oos[k]['ece']))
+     rank=_rank_oos_candidates(oos)
      top_rank=rank[:4]
      cands=[(n,) for n in top_rank]+list(combinations(top_rank,2))+list(combinations(top_rank,3))
      scores={}
