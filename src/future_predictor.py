@@ -277,9 +277,9 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
         if not a or not b:
             continue
         event_time=meta['event_time_utc']
-        event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
-        event_name,competition_id,season,stage=event_row if event_row else ("","","","")
-        competition_profile=resolve_profile(s,competition_id,event_name)
+        event_row=c.execute("SELECT competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
+        competition_id,season,stage=event_row if event_row else ("","","")
+        competition_profile=resolve_profile(s,competition_id,None)
         if target_scope_only and not competition_profile.get('matched'):
             continue
         selected_lead,selection_status=_select_prediction_lead(s,competition_profile,prediction_lead_minutes,adaptive_timing,timing_shadow)
@@ -609,9 +609,9 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 'reason': 'F1 requires a gated per-driver multiclass winner artifact; binary A/B artifacts are never accepted'
             }
 
-        event_row=c.execute("SELECT name,competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
-        event_name,competition_id,season,stage=event_row if event_row else ("","","","")
-        competition_profile=resolve_profile(s,competition_id,event_name)
+        event_row=c.execute("SELECT competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
+        competition_id,season,stage=event_row if event_row else ("","","")
+        competition_profile=resolve_profile(s,competition_id,None)
         if target_scope_only and not competition_profile.get('matched'):
             continue
         selected_lead,selection_status=_select_prediction_lead(s,competition_profile,prediction_lead_minutes,adaptive_timing,timing_shadow)
