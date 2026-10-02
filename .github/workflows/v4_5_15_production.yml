@@ -292,7 +292,8 @@ jobs:
       - name: Competition-level chronological OOS evaluation
         run: |
           set -euo pipefail
-          timeout --signal=TERM 2400s python -m src.competition_profile_oos
+          mkdir -p results/research
+          timeout --signal=TERM 2400s python -m src.competition_profile_oos 2>&1 | tee results/research/competition_profile_oos.log
 
       # Preserve partial strict-research outputs even when the research step times out.
       # These are diagnostics only; they never publish model artifacts.
