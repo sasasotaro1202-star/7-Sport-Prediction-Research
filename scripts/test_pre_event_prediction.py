@@ -74,7 +74,7 @@ def main() -> None:
     assert policy["scheduler"]["selection_mode"] == "scheduled-60m-default;manual-lead-configurable"
     assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
     assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
-    assert 'requested_lead="60"' in workflow
+    assert "requested_lead='60'" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "lead_minutes:" in workflow
     assert 'default: "60"' in workflow
