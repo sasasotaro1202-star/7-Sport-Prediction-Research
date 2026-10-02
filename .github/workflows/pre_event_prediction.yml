@@ -146,6 +146,24 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
+      - name: Generate adaptive timing research lane
+        id: adaptive_research
+        run: |
+          set -uo pipefail
+          rc=0
+          if timeout --signal=TERM 240s python -m src.future_predictor \
+              --sport ${{ matrix.sport }} \
+              --lead-minutes 60 \
+              --min-lead-minutes 5 \
+              --max-lead-minutes 180 \
+              --target-scope-only \
+              --adaptive-timing; then
+            echo 'adaptive_timing_research=OK'
+          else
+            rc=$?
+            echo "adaptive_timing_research=FAILED exit=$rc"
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
       - name: Generate one rotating timing-shadow lane
         id: timing_shadow
         run: |
@@ -248,9 +266,10 @@ jobs:
           predict_rc='${{ steps.predict.outputs.rc }}'
           experience_rc='${{ steps.experience.outputs.rc }}'
           shadow_rc='${{ steps.timing_shadow.outputs.rc }}'
+          adaptive_rc='${{ steps.adaptive_research.outputs.rc }}'
           audit_rc='${{ steps.audit.outputs.rc }}'
           db_rc='${{ steps.dbguard.outputs.rc }}'
-          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=${{ steps.timing.outputs.lead }} window=${{ steps.timing.outputs.min_lead }}-${{ steps.timing.outputs.max_lead }} schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
+          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=${{ steps.timing.outputs.lead }} window=${{ steps.timing.outputs.min_lead }}-${{ steps.timing.outputs.max_lead }} schedule_rc=$collect_rc predict_rc=$predict_rc adaptive_rc=$adaptive_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
           if [ "$shadow_rc" -ne 0 ]; then
             echo "TIMING_SHADOW_STATUS=DEGRADED exit=$shadow_rc"
           else
