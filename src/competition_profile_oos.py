@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -15,6 +18,8 @@ OUT = ROOT / "results/research/competition_profiles.json"
 
 
 def _safe(v):
+    if isinstance(v, (bool, np.bool_)):
+        return bool(v)
     if isinstance(v, (np.floating, float)):
         return float(v) if np.isfinite(v) else None
     if isinstance(v, (np.integer, int)):
@@ -134,6 +139,21 @@ def _evaluate_group(items: list[dict], feature_names: list[str], candidates: lis
     }
 
 
+def _failure_payload(exc: Exception, *, sport: str | None = None) -> dict:
+    return {
+        "status": "FAILED",
+        "failure_class": "competition_profile_oos_exception",
+        "sport": sport,
+        "error": {
+            "type": type(exc).__name__,
+            "message": str(exc),
+            "traceback": traceback.format_exc(),
+        },
+        "github_run_id": os.getenv("GITHUB_RUN_ID"),
+        "git_commit_sha": os.getenv("GITHUB_SHA"),
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
 def main() -> int:
     import argparse
     ap = argparse.ArgumentParser()
@@ -153,75 +173,117 @@ def main() -> int:
         active_sports = [args.sport]
 
     db_path = Path(args.db).resolve()
-    con = sqlite3.connect(db_path)
-    try:
-        report = {
-            "version": "competition-aware-research-v1",
-            "status": "EVALUATED",
-            "production_route_enabled": False,
-            "policy": policy,
-            "sports": {},
-            "identity_audit": {},
-        }
-        for sport in active_sports:
-            rows, feature_names = base.build(con, sport)
-            event_meta = {
-                str(eid): {
-                    "event_id": str(eid),
-                    "name": str(name or ""),
-                    "competition_id": str(comp or ""),
-                    "season": str(season or ""),
-                    "stage": str(stage or ""),
-                    "time": str(t or ""),
-                }
-                for eid, name, comp, season, stage, t in con.execute(
-                    "SELECT event_id,name,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
-                    (sport,),
-                ).fetchall()
-            }
-            grouped = {}
-            identity = {"built_rows": len(rows), "matched_rows": 0, "unknown_competition_rows": 0, "missing_competition_rows": 0}
-            for eid, t, label, feats in rows:
-                meta = event_meta.get(str(eid), {})
-                profile = resolve_research_profile(sport, meta.get("competition_id"), meta.get("name"))
-                if profile["matched"]:
-                    identity["matched_rows"] += 1
-                    key = profile["profile_id"]
-                    grouped.setdefault(key, {
-                        "profile": profile,
-                        "items": [],
-                    })["items"].append({
-                        "event_id": str(eid), "time": str(t), "label": int(label), "features": feats,
-                        "season": meta.get("season") or str(t)[:4],
-                    })
-                else:
-                    if meta.get("competition_id"):
-                        identity["unknown_competition_rows"] += 1
-                    else:
-                        identity["missing_competition_rows"] += 1
-            report["identity_audit"][sport] = {
-                **identity,
-                "recognized_ratio": (identity["matched_rows"] / max(identity["built_rows"], 1)),
-            }
-            sport_profiles = {}
-            for profile_id, payload in grouped.items():
-                profile = payload["profile"]
-                sport_profiles[profile_id] = {
-                    "profile": profile,
-                    "evaluation": _evaluate_group(
-                        payload["items"],
-                        feature_names,
-                        ["logistic", "extra_trees", "hist_gb", "hist_gb_shallow", "lightgbm", "lightgbm_missing"],
-                        policy["minimums"],
-                    ),
-                }
-            report["sports"][sport] = sport_profiles
-
-        output_path = Path(args.out) if args.out else (
-            ROOT / "results/research" / (
-                f"competition_profiles_{args.sport}.json" if args.sport else "competition_profiles.json"
-            )
+    output_path = Path(args.out) if args.out else (
+        ROOT / "results/research" / (
+            f"competition_profiles_{args.sport}.json" if args.sport else "competition_profiles.json"
         )
+    )
+    report = {
+        "version": "competition-aware-research-v1",
+        "status": "EVALUATED",
+        "production_route_enabled": False,
+        "policy": policy,
+        "sports": {},
+        "identity_audit": {},
+        "failures": [],
+        "partial": False,
+    }
+    failures = []
+    con = None
+    try:
+        con = sqlite3.connect(db_path)
+        for sport in active_sports:
+            try:
+                rows, feature_names = base.build(con, sport)
+                event_meta = {
+                    str(eid): {
+                        "event_id": str(eid),
+                        "name": str(name or ""),
+                        "competition_id": str(comp or ""),
+                        "season": str(season or ""),
+                        "stage": str(stage or ""),
+                        "time": str(t or ""),
+                    }
+                    for eid, name, comp, season, stage, t in con.execute(
+                        "SELECT event_id,name,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
+                        (sport,),
+                    ).fetchall()
+                }
+                grouped = {}
+                identity = {
+                    "built_rows": len(rows),
+                    "matched_rows": 0,
+                    "unknown_competition_rows": 0,
+                    "missing_competition_rows": 0,
+                }
+                for eid, t, label, feats in rows:
+                    meta = event_meta.get(str(eid), {})
+                    profile = resolve_research_profile(sport, meta.get("competition_id"), meta.get("name"))
+                    if profile["matched"]:
+                        identity["matched_rows"] += 1
+                        key = profile["profile_id"]
+                        grouped.setdefault(key, {
+                            "profile": profile,
+                            "items": [],
+                        })["items"].append({
+                            "event_id": str(eid),
+                            "time": str(t),
+                            "label": int(label),
+                            "features": feats,
+                            "season": meta.get("season") or str(t)[:4],
+                        })
+                    else:
+                        if meta.get("competition_id"):
+                            identity["unknown_competition_rows"] += 1
+                        else:
+                            identity["missing_competition_rows"] += 1
+
+                report["identity_audit"][sport] = {
+                    **identity,
+                    "recognized_ratio": (identity["matched_rows"] / max(identity["built_rows"], 1)),
+                }
+                sport_profiles = {}
+                for profile_id, payload in grouped.items():
+                    profile = payload["profile"]
+                    sport_profiles[profile_id] = {
+                        "profile": profile,
+                        "evaluation": _evaluate_group(
+                            payload["items"],
+                            feature_names,
+                            [
+                                "logistic",
+                                "extra_trees",
+                                "hist_gb",
+                                "hist_gb_shallow",
+                                "lightgbm",
+                                "lightgbm_missing",
+                            ],
+                            policy["minimums"],
+                        ),
+                    }
+                report["sports"][sport] = sport_profiles
+            except Exception as exc:
+                failure = _failure_payload(exc, sport=sport)
+                failures.append(failure)
+                report["sports"][sport] = failure
+                report["partial"] = True
+                continue
+
+        if failures:
+            report["status"] = "FAILED"
+            report["failures"] = failures
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False),
+            encoding="utf-8",
+        )
+        print(json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False))
+    except Exception as exc:
+        failure = _failure_payload(exc)
+        failures.append(failure)
+        report["status"] = "FAILED"
+        report["partial"] = True
+        report["failures"] = failures
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
             json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False),
@@ -229,8 +291,9 @@ def main() -> int:
         )
         print(json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False))
     finally:
-        con.close()
-    return 0
+        if con is not None:
+            con.close()
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
