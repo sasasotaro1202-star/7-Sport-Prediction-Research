@@ -44,9 +44,14 @@ def counts(c, tables=('event','participant','event_participant','match_stats','s
 
 class HTTP:
     def __init__(self):
-        self.timeout = float(os.getenv('V45_HTTP_TIMEOUT','15'))
-        self.retries = int(os.getenv('V45_HTTP_RETRIES','2'))
-        self.delay = float(os.getenv('V45_REQUEST_DELAY','0.05'))
+        # Public endpoints can be slow or intermittently unavailable. Use a
+        # bounded read timeout plus retries/backoff rather than failing on the
+        # first transient delay; never wait indefinitely.
+        self.timeout = max(5.0, float(os.getenv('V45_HTTP_TIMEOUT','45')))
+        self.retries = max(0, int(os.getenv('V45_HTTP_RETRIES','4')))
+        self.delay = max(0.0, float(os.getenv('V45_REQUEST_DELAY','0.05')))
+        self.backoff_base = max(0.1, float(os.getenv('V45_HTTP_BACKOFF_BASE','1.0')))
+        self.backoff_max = max(self.backoff_base, float(os.getenv('V45_HTTP_BACKOFF_MAX','8.0')))
         self.max_workers = max(1, int(os.getenv('V45_HTTP_WORKERS','8')))
         self.cache_dir = ROOT / 'data/raw/http_cache'
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -67,18 +72,50 @@ class HTTP:
         last = None
         for n in range(self.retries + 1):
             try:
-                if self.delay: time.sleep(self.delay)
-                r = requests.get(url, headers={'User-Agent':UA,'Accept-Language':'en-US,en;q=0.8,ja;q=0.6'}, timeout=self.timeout)
+                if self.delay:
+                    time.sleep(self.delay)
+                r = requests.get(
+                    url,
+                    headers={'User-Agent':UA,'Accept-Language':'en-US,en;q=0.8,ja;q=0.6'},
+                    timeout=(min(15.0, self.timeout), self.timeout),
+                )
+                status = int(r.status_code)
+                if status == 429 or 500 <= status < 600:
+                    last = requests.HTTPError(f'transient_http_status={status} url={url}', response=r)
+                    if n < self.retries:
+                        retry_after = r.headers.get('Retry-After')
+                        try:
+                            wait = min(self.backoff_max, max(self.backoff_base * (2 ** n), float(retry_after)))
+                        except (TypeError, ValueError):
+                            wait = min(self.backoff_max, self.backoff_base * (2 ** n))
+                        time.sleep(wait)
+                        continue
                 r.raise_for_status()
                 txt = r.text
                 now = utcnow()
                 try:
-                    cp.write_text(json.dumps({'status':r.status_code,'text':txt,'retrieved_at_utc':now,'headers':dict(r.headers)}, ensure_ascii=False), encoding='utf-8')
-                except Exception: pass
+                    cp.write_text(
+                        json.dumps(
+                            {'status':status,'text':txt,'retrieved_at_utc':now,'headers':dict(r.headers)},
+                            ensure_ascii=False,
+                        ),
+                        encoding='utf-8',
+                    )
+                except Exception:
+                    pass
                 return txt, now, dict(r.headers)
-            except Exception as e:
+            except (
+                requests.exceptions.ConnectTimeout,
+                requests.exceptions.ReadTimeout,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ChunkedEncodingError,
+            ) as e:
                 last = e
-                if n < self.retries: time.sleep(min(1.5 * (n + 1), 5))
+                if n < self.retries:
+                    time.sleep(min(self.backoff_max, self.backoff_base * (2 ** n)))
+            except requests.RequestException as e:
+                last = e
+                raise
         raise last
 
     def text(self, url): return self.get(url)[0]
