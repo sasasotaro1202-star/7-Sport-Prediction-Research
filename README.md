@@ -79,10 +79,10 @@ X data is isolated from the production model: collection → PIT storage → ind
 ### Canonical production
 `.github/workflows/v4_5_15_production.yml` runs only the five active prediction lanes. Research-only/deferred extensions are isolated from the canonical production prediction path.
 
-### Automatic 30-minute pre-event prediction
-`.github/workflows/pre_event_prediction.yml` runs every 5 minutes (UTC, offset from the top of the hour) for the five active sports. It refreshes upcoming schedules, generates a prediction tied to the event-time-minus-30-minute PIT cutoff, audits every active-scope event in the 5–40 minute recovery window, and preserves the sport-scoped database for the next production cycle. Missing 30-minute predictions are recorded explicitly as coverage gaps; late/early generation timing is tracked rather than hidden.
+### Automatic T-60 pre-event prediction
+`.github/workflows/pre_event_prediction.yml` runs every 5 minutes (UTC, offset from the top of the hour) for the five active sports. It refreshes upcoming schedules, generates the default prediction around the event-time-minus-60-minute PIT cutoff (with the configured ±15-minute guideline tolerance), audits every active-scope event in the bounded 5–180 minute window, and preserves the sport-scoped database for the next production cycle. Missing T-60 predictions are recorded explicitly as coverage gaps; late/early generation timing is tracked rather than hidden.
 
-The 30-minute lane does not promote models. Its outputs are appended to the forward-prediction experience ledger, scored only against verified outcomes, and summarized by competition profile and prediction timing for future research/OOS selection.
+The T-60 lane does not promote models. Its outputs are appended to the forward-prediction experience ledger, scored only against verified outcomes, and summarized by competition profile and prediction timing for future research/OOS selection.
 
 ### Rugby / Boxing coverage guards
 `.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby remains coverage-only until its sport-specific PIT/OOS/release path is proven.
@@ -114,4 +114,4 @@ The system is optimized for production accuracy first: runtime improvements come
 
 30分前の本番推論では、`competition_specific_accepted → sport_incumbent → safe_prior` の順でfail-closedにフォールバックします。新しい大会IDの自動発見は研究フロンティアとして扱い、本番対象への暗黙的なscope拡張は行いません。
 ### 予測時刻は30分固定ではない
-予測開始時刻の30分は標準的なguidelineです。実際のProduction Timingは、競技×大会の過去予測を使って、15/20/30/45/60/90分などの候補を比較します。非デフォルト時刻は、paired chronological OOS、frozen holdout、bootstrap、PIT gateを通過したTiming Routeだけが使用され、証拠不足時は30分へ戻ります。別時刻のshadow予測はローテーション収集し、将来のTiming Route学習に利用します。
+予測開始時刻の60分を標準的なguidelineとします。実際のProduction Timingは、競技×大会の過去予測を使って、15/20/30/45/60/90分などの候補を比較します。非デフォルト時刻は、paired chronological OOS、frozen holdout、bootstrap、PIT gateを通過したTiming Routeだけが使用され、証拠不足時は60分へ戻ります。別時刻のshadow予測はローテーション収集し、将来のTiming Route学習に利用します。
