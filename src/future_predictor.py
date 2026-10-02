@@ -312,6 +312,7 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'timing_selection_status':selection_status,
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'experience_shadow':experience_shadow,
+            'prediction_origin':prediction_origin,
             'fallback_policy':'pit_safe_historical_prior_v2_retrieval_pit',
         }
         pid=_persist_forward_prediction(
@@ -754,6 +755,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 "timing_selection_status": selection_status,
                 "feature_pit_lead_minutes": PIT_LEAD_MINUTES,
                 "experience_shadow": experience_shadow,
+                "prediction_origin": prediction_origin,
                 "prediction_method_policy": method_policy,
                 "routing": {
                     "status": router_status,
