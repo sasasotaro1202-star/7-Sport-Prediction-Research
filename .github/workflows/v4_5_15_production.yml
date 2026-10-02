@@ -90,7 +90,34 @@ jobs:
               # Official data is refreshed every run. Historical corpus refresh is
               # intentionally throttled to the 03:17 UTC run so the hourly path
               # stays fast while provenance research continues automatically.
-              if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --official-only; then echo 'basketball_backfill_status=OK'; else backfill_rc=$?; echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"; fi
+              backfill_json="$(mktemp)"
+              if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --official-only >"$backfill_json"; then
+                cat "$backfill_json"
+                official_rows="$(python - "$backfill_json" <<'PY'
+import json, sys
+from pathlib import Path
+try:
+    data=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+    print(int(data.get("official") or 0))
+except Exception:
+    print(-1)
+PY
+)"
+                if [ "$official_rows" -gt 0 ]; then
+                  echo "basketball_backfill_status=OK official_rows=$official_rows"
+                elif [ "$official_rows" -eq 0 ]; then
+                  backfill_rc=10
+                  echo 'basketball_backfill_status=NO_DATA'
+                else
+                  backfill_rc=11
+                  echo 'basketball_backfill_status=UNPARSEABLE'
+                fi
+              else
+                backfill_rc=$?
+                if [ -s "$backfill_json" ]; then cat "$backfill_json"; fi
+                echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"
+              fi
+              rm -f "$backfill_json"
               if [ "$(date -u +%H)" = "03" ]; then
                 if timeout --signal=TERM 900s python -m src.basketball_cdn_backfill --historical; then
                   echo 'basketball_historical_status=OK'
@@ -118,11 +145,32 @@ jobs:
               ;;
           esac
           guard_rc=0
-          if python -m src.collection_guard --sport ${{ matrix.sport }}; then echo 'collection_guard_status=OK'; else guard_rc=$?; echo "collection_guard_status=FAILED exit=$guard_rc"; fi
+          guard_rc=0
+          guard_output="$(mktemp)"
+          if python -m src.collection_guard --sport ${{ matrix.sport }} >"$guard_output"; then
+            cat "$guard_output"
+            guard_status="$(python - "$guard_output" <<'PY'
+import json, sys
+from pathlib import Path
+try:
+    print(str(json.loads(Path(sys.argv[1]).read_text(encoding='utf-8')).get("status") or "UNKNOWN"))
+except Exception:
+    print("UNKNOWN")
+PY
+)"
+            case "$guard_status" in
+              PASS|PARTIAL) echo "collection_guard_status=$guard_status" ;;
+              DEFERRED) echo 'collection_guard_status=DEFERRED' ;;
+              *) echo "collection_guard_status=UNKNOWN status=$guard_status" ;;
+            esac
+          else
+            guard_rc=$?
+            if [ -s "$guard_output" ]; then cat "$guard_output"; fi
+            echo "collection_guard_status=FAILED exit=$guard_rc"
+          fi
+          rm -f "$guard_output"
           if [ "$guard_rc" -ne 0 ]; then echo 'ERROR: collection guard failed; refusing to mark partition healthy.' >&2; exit "$guard_rc"; fi
           if [ "$collector_rc" -ne 0 ] && [ "$backfill_rc" -ne 0 ]; then echo 'WARNING: all collection paths degraded; release gate will decide whether coverage is safe.' >&2; fi
-          exit 0
-      - name: Save database
         if: success()
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
