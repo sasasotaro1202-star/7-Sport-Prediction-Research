@@ -2,6 +2,17 @@ name: Pre-Event Adaptive Timing Prediction
 
 on:
   workflow_dispatch:
+    inputs:
+      lead_minutes:
+        description: "Prediction horizon in minutes before the event (5-180)."
+        required: false
+        default: "60"
+        type: string
+      adaptive_timing:
+        description: "Allow accepted timing routes to override the requested lead."
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '3-58/5 * * * *'
 
@@ -87,6 +98,8 @@ jobs:
             rc=$?
             echo "schedule_refresh=DEGRADED exit=$rc"
           fi
+          echo "requested_lead_minutes=$requested_lead" >> "$GITHUB_OUTPUT"
+          echo "adaptive_timing=$adaptive" >> "$GITHUB_OUTPUT"
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Generate adaptive prediction lane
@@ -94,13 +107,30 @@ jobs:
         run: |
           set -uo pipefail
           rc=0
-          if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor \
-              --sport ${{ matrix.sport }} \
-              --lead-minutes 60 \
-              --min-lead-minutes 5 \
-              --max-lead-minutes 180 \
-              --target-scope-only \
-              --adaptive-timing; then
+          requested_lead="60"
+          adaptive="1"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            requested_lead="${{ inputs.lead_minutes }}"
+            if [ "${{ inputs.adaptive_timing }}" = "true" ]; then adaptive="1"; else adaptive="0"; fi
+          fi
+          case "$requested_lead" in
+            ""|*[!0-9]*) echo "invalid lead_minutes=$requested_lead" >&2; exit 2 ;;
+          esac
+          if [ "$requested_lead" -lt 5 ] || [ "$requested_lead" -gt 180 ]; then
+            echo "invalid lead_minutes=$requested_lead (must be 5-180)" >&2
+            exit 2
+          fi
+          args=(
+            --sport "${{ matrix.sport }}"
+            --lead-minutes "$requested_lead"
+            --min-lead-minutes 5
+            --max-lead-minutes 180
+            --target-scope-only
+          )
+          if [ "$adaptive" = "1" ]; then
+            args+=(--adaptive-timing)
+          fi
+          if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor "${args[@]}"; then
             echo 'future_prediction=OK'
           else
             rc=$?
