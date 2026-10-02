@@ -813,8 +813,10 @@ def main():
             'pre-event audit does not validate the selected timing route')
     require('by_target_lead_minutes' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
             'prediction experience summary does not expose lead-specific learning')
-    require('--adaptive-timing' in workflow and 'src.timing_route_builder' in workflow,
-            'canonical production does not build/use adaptive timing routes')
+    require('--lead-minutes 60 --min-lead-minutes 45 --max-lead-minutes 75 --target-scope-only' in workflow,
+            'canonical production does not use the scheduled T-60 prediction lane')
+    require('src.timing_route_builder' in workflow and 'timing_routes.json' in workflow,
+            'canonical production does not build/persist the research timing-route artifact')
     observability_src=(ROOT/'src/prediction_route_observability.py').read_text(encoding='utf-8')
     require('prediction_route_observability' in workflow and 'src.prediction_route_observability' in workflow,
             'canonical production does not persist route observability after future inference')
