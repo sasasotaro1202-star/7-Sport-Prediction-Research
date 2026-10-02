@@ -45,11 +45,11 @@ jobs:
           python - <<'PY'
           import json
           p=json.load(open('config/PRE_EVENT_PREDICTION_POLICY.json',encoding='utf-8'))
-          assert p['scheduler']['target_lead_minutes'] == 30
+          assert p['scheduler']['target_lead_minutes'] == 60
           assert p['scheduler']['cron_utc'] == '3-58/5 * * * *'
           assert p['scheduler']['generation_window']['min_lead_minutes'] == 5
           assert p['scheduler']['generation_window']['max_lead_minutes'] == 180
-          assert p['scheduler']['guideline_target_minutes'] == 30
+          assert p['scheduler']['guideline_target_minutes'] == 60
           assert p['scheduler']['guideline_tolerance_minutes'] == 15
           assert p['scope']['active_prediction_scope_only'] is True
           assert p['scope']['competition_profile_required'] is True
@@ -95,11 +95,11 @@ jobs:
           rc=0
           if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor \
               --sport ${{ matrix.sport }} \
-              --lead-minutes 30 \
+              --lead-minutes 60 \
               --min-lead-minutes 5 \
-              --max-lead-minutes 180 \
+              --max-lead-minutes 75 \
               --target-scope-only \
-              --adaptive-timing; then
+              --prediction-origin AUTOMATED_SCHEDULE; then
             echo 'future_prediction=OK'
           else
             rc=$?
@@ -114,8 +114,8 @@ jobs:
           rc=0
           slot=$(( ($(date -u +%s) / 900) % 5 ))
           case "$slot" in
-            0) lead=60 ;;
-            1) lead=45 ;;
+            0) lead=45 ;;
+            1) lead=30 ;;
             2) lead=20 ;;
             3) lead=15 ;;
             4) lead=90 ;;
@@ -130,7 +130,8 @@ jobs:
               --min-lead-minutes "$min_lead" \
               --max-lead-minutes "$max_lead" \
               --target-scope-only \
-              --timing-shadow; then
+              --timing-shadow \
+              --prediction-origin TIMING_SHADOW; then
             echo 'timing_shadow=OK'
           else
             rc=$?
@@ -158,9 +159,9 @@ jobs:
           if python -m src.pre_event_prediction_audit \
               --sport ${{ matrix.sport }} \
               --db data/db/sports_v45.sqlite \
-              --target-lead-minutes 30 \
+              --target-lead-minutes 60 \
               --min-lead-minutes 5 \
-              --max-lead-minutes 180; then
+              --max-lead-minutes 75; then
             echo 'pre_event_audit=OK'
           else
             rc=$?
