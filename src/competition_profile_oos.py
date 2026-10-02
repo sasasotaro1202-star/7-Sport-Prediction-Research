@@ -18,6 +18,8 @@ OUT = ROOT / "results/research/competition_profiles.json"
 
 
 def _safe(v):
+    if isinstance(v, (bool, np.bool_)):
+        return bool(v)
     if isinstance(v, (np.floating, float)):
         return float(v) if np.isfinite(v) else None
     if isinstance(v, (np.integer, int)):
