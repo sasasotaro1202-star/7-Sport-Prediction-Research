@@ -746,7 +746,41 @@ def train(s):
       score['robust_objective']=score['robust_window_objective']+0.05*score['fold_logloss_std']+0.15*regime_excess
       oos[name]=score
      if not oos:return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_valid_walk_forward_folds','rows':len(rows)})
-     rank=sorted(oos,key=lambda k:(oos[k]['robust_objective'],oos[k]['brier'],oos[k]['ece']))
+     # Fail closed on malformed/failed candidate scores. A broken challenger must
+     # never be converted into a successful rank entry, and one malformed score
+     # must not abort the entire historical research lane.
+     invalid_oos_candidates={}
+     rankable_oos={}
+     for candidate_name,candidate_score in oos.items():
+      if not isinstance(candidate_score,dict):
+       invalid_oos_candidates[candidate_name]={
+        'reason':'oos_score_not_object',
+        'type':type(candidate_score).__name__,
+        'status':'REJECTED',
+       }
+       continue
+      required_metrics=('robust_objective','brier','ece','logloss')
+      missing_metrics=[m for m in required_metrics if m not in candidate_score or not np.isfinite(float(candidate_score[m]))]
+      if missing_metrics:
+       invalid_oos_candidates[candidate_name]={
+        'reason':'oos_score_invalid_metrics',
+        'missing_or_nonfinite_metrics':missing_metrics,
+        'status':'REJECTED',
+       }
+       continue
+      rankable_oos[candidate_name]=candidate_score
+     if invalid_oos_candidates:
+      print('OOS_CANDIDATE_REJECTED '+json.dumps(invalid_oos_candidates,ensure_ascii=False,sort_keys=True),flush=True)
+     if not rankable_oos:
+      return _write_result(s,{
+       'sport':s,
+       'status':'DEFERRED',
+       'reason':'no_valid_oos_candidate_scores',
+       'rows':len(rows),
+       'invalid_oos_candidates':invalid_oos_candidates,
+      })
+     oos['invalid_candidates']=invalid_oos_candidates
+     rank=sorted(rankable_oos,key=lambda k:(float(rankable_oos[k]['robust_objective']),float(rankable_oos[k]['brier']),float(rankable_oos[k]['ece'])) )
      top_rank=rank[:4]
      cands=[(n,) for n in top_rank]+list(combinations(top_rank,2))+list(combinations(top_rank,3))
      scores={}
