@@ -195,55 +195,71 @@ def main() -> int:
             try:
                 rows, feature_names = base.build(con, sport)
                 event_meta = {
-                str(eid): {
-                    "event_id": str(eid),
-                    "name": str(name or ""),
-                    "competition_id": str(comp or ""),
-                    "season": str(season or ""),
-                    "stage": str(stage or ""),
-                    "time": str(t or ""),
+                    str(eid): {
+                        "event_id": str(eid),
+                        "name": str(name or ""),
+                        "competition_id": str(comp or ""),
+                        "season": str(season or ""),
+                        "stage": str(stage or ""),
+                        "time": str(t or ""),
+                    }
+                    for eid, name, comp, season, stage, t in con.execute(
+                        "SELECT event_id,name,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
+                        (sport,),
+                    ).fetchall()
                 }
-                for eid, name, comp, season, stage, t in con.execute(
-                    "SELECT event_id,name,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
-                    (sport,),
-                ).fetchall()
-            }
-            grouped = {}
-            identity = {"built_rows": len(rows), "matched_rows": 0, "unknown_competition_rows": 0, "missing_competition_rows": 0}
-            for eid, t, label, feats in rows:
-                meta = event_meta.get(str(eid), {})
-                profile = resolve_research_profile(sport, meta.get("competition_id"), meta.get("name"))
-                if profile["matched"]:
-                    identity["matched_rows"] += 1
-                    key = profile["profile_id"]
-                    grouped.setdefault(key, {
-                        "profile": profile,
-                        "items": [],
-                    })["items"].append({
-                        "event_id": str(eid), "time": str(t), "label": int(label), "features": feats,
-                        "season": meta.get("season") or str(t)[:4],
-                    })
-                else:
-                    if meta.get("competition_id"):
-                        identity["unknown_competition_rows"] += 1
+                grouped = {}
+                identity = {
+                    "built_rows": len(rows),
+                    "matched_rows": 0,
+                    "unknown_competition_rows": 0,
+                    "missing_competition_rows": 0,
+                }
+                for eid, t, label, feats in rows:
+                    meta = event_meta.get(str(eid), {})
+                    profile = resolve_research_profile(sport, meta.get("competition_id"), meta.get("name"))
+                    if profile["matched"]:
+                        identity["matched_rows"] += 1
+                        key = profile["profile_id"]
+                        grouped.setdefault(key, {
+                            "profile": profile,
+                            "items": [],
+                        })["items"].append({
+                            "event_id": str(eid),
+                            "time": str(t),
+                            "label": int(label),
+                            "features": feats,
+                            "season": meta.get("season") or str(t)[:4],
+                        })
                     else:
-                        identity["missing_competition_rows"] += 1
-            report["identity_audit"][sport] = {
-                **identity,
-                "recognized_ratio": (identity["matched_rows"] / max(identity["built_rows"], 1)),
-            }
-            sport_profiles = {}
-            for profile_id, payload in grouped.items():
-                profile = payload["profile"]
-                sport_profiles[profile_id] = {
-                    "profile": profile,
-                    "evaluation": _evaluate_group(
-                        payload["items"],
-                        feature_names,
-                        ["logistic", "extra_trees", "hist_gb", "hist_gb_shallow", "lightgbm", "lightgbm_missing"],
-                        policy["minimums"],
-                    ),
+                        if meta.get("competition_id"):
+                            identity["unknown_competition_rows"] += 1
+                        else:
+                            identity["missing_competition_rows"] += 1
+
+                report["identity_audit"][sport] = {
+                    **identity,
+                    "recognized_ratio": (identity["matched_rows"] / max(identity["built_rows"], 1)),
                 }
+                sport_profiles = {}
+                for profile_id, payload in grouped.items():
+                    profile = payload["profile"]
+                    sport_profiles[profile_id] = {
+                        "profile": profile,
+                        "evaluation": _evaluate_group(
+                            payload["items"],
+                            feature_names,
+                            [
+                                "logistic",
+                                "extra_trees",
+                                "hist_gb",
+                                "hist_gb_shallow",
+                                "lightgbm",
+                                "lightgbm_missing",
+                            ],
+                            policy["minimums"],
+                        ),
+                    }
                 report["sports"][sport] = sport_profiles
             except Exception as exc:
                 failure = _failure_payload(exc, sport=sport)
