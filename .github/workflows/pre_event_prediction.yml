@@ -31,8 +31,11 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, ufc, rizin]
     concurrency:
-      group: pre-event-prediction-${{ matrix.sport }}
-      cancel-in-progress: true
+      # Scheduled runs may cancel an older scheduled run for the same sport.
+      # Manual requests use a separate concurrency group and are not cancelled
+      # by the five-minute scheduler.
+      group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}
+      cancel-in-progress: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -98,17 +101,16 @@ jobs:
             rc=$?
             echo "schedule_refresh=DEGRADED exit=$rc"
           fi
-          echo "requested_lead_minutes=$requested_lead" >> "$GITHUB_OUTPUT"
-          echo "adaptive_timing=$adaptive" >> "$GITHUB_OUTPUT"
+
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Generate adaptive prediction lane
+      - name: Generate requested prediction lane
         id: predict
         run: |
           set -uo pipefail
           rc=0
-          requested_lead="60"
-          adaptive="1"
+          requested_lead='60'
+          adaptive='1'
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             requested_lead="${{ inputs.lead_minutes }}"
             if [ "${{ inputs.adaptive_timing }}" = "true" ]; then adaptive="1"; else adaptive="0"; fi
@@ -120,11 +122,17 @@ jobs:
             echo "invalid lead_minutes=$requested_lead (must be 5-180)" >&2
             exit 2
           fi
+          tolerance=15
+          min_lead=$((requested_lead - tolerance))
+          max_lead=$((requested_lead + tolerance))
+          if [ "$min_lead" -lt 5 ]; then min_lead=5; fi
+          if [ "$max_lead" -gt 180 ]; then max_lead=180; fi
+          echo "requested lead=$requested_lead window=${min_lead}-${max_lead} adaptive=$adaptive"
           args=(
             --sport "${{ matrix.sport }}"
             --lead-minutes "$requested_lead"
-            --min-lead-minutes 5
-            --max-lead-minutes 180
+            --min-lead-minutes "$min_lead"
+            --max-lead-minutes "$max_lead"
             --target-scope-only
           )
           if [ "$adaptive" = "1" ]; then
