@@ -1,0 +1,221 @@
+name: On-Demand Fresh Prediction Request
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: "Active-scope sport or comma-separated sports; use all for the full active scope."
+        required: false
+        default: "all"
+        type: string
+      lead_minutes:
+        description: "Requested prediction lead in minutes (5-180)."
+        required: false
+        default: "60"
+        type: string
+      tolerance_minutes:
+        description: "Allowed generation window around the requested lead."
+        required: false
+        default: "15"
+        type: string
+      days_back:
+        description: "Historical collection lookback."
+        required: false
+        default: "30"
+        type: string
+      days_forward:
+        description: "Schedule collection horizon."
+        required: false
+        default: "7"
+        type: string
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  request:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.user.login == github.repository_owner && startsWith(github.event.issue.title, '[PREDICTION REQUEST]')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: prediction-experience-single-writer
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+
+      - name: Verify current main before fresh inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          git reset --hard origin/main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+
+      - name: Parse and validate request
+        id: request
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_SPORT: ${{ inputs.sport }}
+          INPUT_LEAD: ${{ inputs.lead_minutes }}
+          INPUT_TOLERANCE: ${{ inputs.tolerance_minutes }}
+          INPUT_DAYS_BACK: ${{ inputs.days_back }}
+          INPUT_DAYS_FORWARD: ${{ inputs.days_forward }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, re, json
+          event = os.environ.get("EVENT_NAME", "")
+          body = os.environ.get("ISSUE_BODY", "") if event == "issues" else ""
+          def field(name, default):
+              if event == "issues":
+                  m = re.search(rf"(?im)^\s*{re.escape(name)}\s*[:=]\s*(\S+)\s*$", body)
+                  return m.group(1) if m else default
+              env_name = {"sport":"INPUT_SPORT","lead_minutes":"INPUT_LEAD","tolerance_minutes":"INPUT_TOLERANCE","days_back":"INPUT_DAYS_BACK","days_forward":"INPUT_DAYS_FORWARD"}[name]
+              return os.environ.get(env_name) or default
+          sport_raw = field("sport", "all")
+          lead = int(field("lead_minutes", "60"))
+          tolerance = int(field("tolerance_minutes", "15"))
+          days_back = int(field("days_back", "30"))
+          days_forward = int(field("days_forward", "7"))
+          scope = json.loads(open("config/PROJECT_SCOPE_POLICY.json", encoding="utf-8").read())["active_prediction_scope"]
+          requested = scope if sport_raw.strip().lower() == "all" else [x.strip().lower() for x in sport_raw.split(",") if x.strip()]
+          if not requested or any(x not in scope for x in requested): raise SystemExit("OUT_OF_SCOPE_REQUEST")
+          if not 5 <= lead <= 180: raise SystemExit("INVALID_LEAD_MINUTES")
+          if tolerance < 0 or tolerance > 30: raise SystemExit("INVALID_TOLERANCE_MINUTES")
+          if lead - tolerance < 5 or lead + tolerance > 180: raise SystemExit("REQUEST_WINDOW_OUT_OF_BOUNDS")
+          if days_back < 0 or days_forward < 0: raise SystemExit("INVALID_COLLECTION_HORIZON")
+          print("sports_json=" + json.dumps(requested, separators=(",", ":")))
+          print("lead_minutes=" + str(lead))
+          print("min_lead_minutes=" + str(max(5, lead - tolerance)))
+          print("max_lead_minutes=" + str(min(180, lead + tolerance)))
+          print("days_back=" + str(days_back))
+          print("days_forward=" + str(days_forward))
+          print("issue_number=" + os.environ.get("ISSUE_NUMBER", ""))
+          PY
+
+      - name: Execute fresh requested prediction
+        id: predict
+        env:
+          SPORTS_JSON: ${{ steps.request.outputs.sports_json }}
+          LEAD_MINUTES: ${{ steps.request.outputs.lead_minutes }}
+          MIN_LEAD: ${{ steps.request.outputs.min_lead_minutes }}
+          MAX_LEAD: ${{ steps.request.outputs.max_lead_minutes }}
+          DAYS_BACK: ${{ steps.request.outputs.days_back }}
+          DAYS_FORWARD: ${{ steps.request.outputs.days_forward }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          mapfile -t sports < <(python -c 'import json,os; print("\n".join(json.loads(os.environ["SPORTS_JSON"])))')
+          args=()
+          for sport in "${sports[@]}"; do args+=(--sport "$sport"); done
+          rc=0
+          if python -m src.latest_prediction "${args[@]}" --days-back "$DAYS_BACK" --days-forward "$DAYS_FORWARD" --lead-minutes "$LEAD_MINUTES" --min-lead-minutes "$MIN_LEAD" --max-lead-minutes "$MAX_LEAD" --prediction-origin ON_DEMAND_REQUEST > results/on_demand_prediction_manifest.json; then
+            echo "ON_DEMAND_PREDICTION=PASS"
+          else
+            rc=$?
+            echo "ON_DEMAND_PREDICTION=FAILED exit=$rc"
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Score matured experience
+        id: experience
+        shell: bash
+        run: |
+          set -uo pipefail
+          rc=0
+          if python -m src.prediction_experience --score-only; then echo "EXPERIENCE_SCORING=PASS"; else rc=$?; echo "EXPERIENCE_SCORING=FAILED exit=$rc"; fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Snapshot experience before main sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/on-demand-experience
+          mkdir -p /tmp/on-demand-experience
+          if [ -d results/experience ]; then cp -a results/experience/. /tmp/on-demand-experience/; fi
+          if [ -f results/experience_summary.json ]; then cp results/experience_summary.json /tmp/on-demand-experience/experience_summary.json; fi
+
+      - name: Synchronize current main before single-writer commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          git reset --hard origin/main
+          mkdir -p results/experience
+          cp -a /tmp/on-demand-experience/. results/experience/ 2>/dev/null || true
+          if [ -f /tmp/on-demand-experience/experience_summary.json ]; then cp /tmp/on-demand-experience/experience_summary.json results/experience_summary.json; fi
+
+      - name: Commit on-demand experience
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/experience results/experience_summary.json
+          git diff --cached --check
+          if git diff --cached --quiet; then echo 'ON_DEMAND_EXPERIENCE_NO_CHANGE'; exit 0; fi
+          git commit -m 'chore: persist on-demand prediction experience'
+          for attempt in 1 2 3; do
+            git fetch origin main --depth=1
+            if [ "$(git rev-parse HEAD~1)" != "$(git rev-parse origin/main)" ]; then
+              git reset --soft origin/main
+              git add results/experience results/experience_summary.json
+              git diff --cached --check
+              git commit -m 'chore: persist on-demand prediction experience'
+            fi
+            if git push origin HEAD:main; then echo "ON_DEMAND_EXPERIENCE_PUSH=PASS attempt=$attempt"; exit 0; fi
+            if [ "$attempt" -eq 3 ]; then echo 'ON_DEMAND_EXPERIENCE_PUSH=FAILED' >&2; exit 1; fi
+          done
+
+      - name: Publish request artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: on-demand-prediction-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            results/on_demand_prediction_manifest.json
+            results/prediction_eligibility.json
+            results/future_predictions.json
+            results/experience_summary.json
+
+      - name: Reply to authenticated issue request
+        if: github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REQUEST_STATUS: ${{ steps.predict.outcome }}
+          EXPERIENCE_STATUS: ${{ steps.experience.outcome }}
+          LEAD: ${{ steps.request.outputs.lead_minutes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE_NUMBER" --body "Prediction request status: $REQUEST_STATUS
+Requested lead: ${LEAD} minutes
+Experience scoring: $EXPERIENCE_STATUS
+See the workflow artifact for the fresh prediction manifest."
