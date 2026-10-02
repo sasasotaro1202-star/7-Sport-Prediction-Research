@@ -1,3 +1,390 @@
+# Canonical production workflow. Source outages degrade coverage; unsafe models are never published.
+name: Active-Scope Target v4.5.15 Production
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+  # Production runs continuously on the hourly schedule or manually. PIT
+  # expansion is intentionally decoupled so a completed historical replay does
+  # not create a second heavy production run behind the next hourly slot.
+permissions:
+  contents: write
+concurrency:
+  # Keep an active canonical run intact. At most one newer run waits behind it;
+  # stale-SHA guards stop an old run before mutable publication if main advances.
+  group: active-scope-target-canonical-production
+  cancel-in-progress: false
+env:
+  PYTHONUNBUFFERED: '1'
+jobs:
+  collect:
+    name: Collect ${{ matrix.sport }}
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        sport: [valorant, basketball, volleyball, ufc, rizin]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # Full history is required for safe recovery of the last accepted
+          # frozen-holdout model when the current run has a transient PIT outage.
+          fetch-depth: 0
+      - name: Verify merge run SHA is current main before mutable work
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          if [ "$GITHUB_SHA" != "$main_sha" ]; then
+            echo "STALE_MERGE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
+            exit 1
+          fi
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Verify workflow SHA is current main before any mutable work
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          if [ "$GITHUB_SHA" != "$main_sha" ]; then
+            echo "STALE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
+            exit 1
+          fi
+
+      - name: Install dependencies with transient-network retry
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - run: mkdir -p data/raw/http_cache data/db results models
+      - name: Restore latest safe database cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: active-scope-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
+          restore-keys: |
+            pre-event-target-db-v1-${{ matrix.sport }}-
+            scope-autofill-db-v1-${{ matrix.sport }}-
+            active-scope-target-db-v4-${{ matrix.sport }}-pit-
+            active-scope-target-db-v4-${{ matrix.sport }}-
+      - name: Validate/repair restored database before collection
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
+      - name: Initialize schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+      - name: Incremental collector (source failures degrade explicitly)
+        run: |
+          set -uo pipefail
+          collector_rc=0
+          if python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 3 --days-forward 7; then echo 'collector_status=OK'; else collector_rc=$?; echo "collector_status=DEGRADED collector_exit=$collector_rc"; fi
+          backfill_rc=0
+          case '${{ matrix.sport }}' in
+            basketball)
+              # Official data is refreshed every run. Historical corpus refresh is
+              # intentionally throttled to the 03:17 UTC run so the hourly path
+              # stays fast while provenance research continues automatically.
+              backfill_json="$(mktemp)"
+              if timeout --signal=TERM 300s python -m src.basketball_cdn_backfill --official-only >"$backfill_json"; then
+                official_rows="$(jq -r '.official // 0' "$backfill_json")"
+                official_errors="$(jq -r '(.official_errors // []) | length' "$backfill_json")"
+                official_requests="$(jq -r '.official_requests // 0' "$backfill_json")"
+                official_empty_pages="$(jq -r '.official_empty_pages // 0' "$backfill_json")"
+                official_status="$(jq -r '.official_status // "UNKNOWN"' "$backfill_json")"
+                if [ "$official_rows" -gt 0 ] && [ "$official_errors" -eq 0 ]; then
+                  echo "basketball_backfill_status=OK official_rows=$official_rows"
+                elif [ "$official_rows" -gt 0 ] && [ "$official_errors" -gt 0 ]; then
+                  echo "basketball_backfill_status=PARTIAL_SOURCE_ERROR official_rows=$official_rows errors=$official_errors"
+                elif [ "$official_rows" -eq 0 ] && [ "$official_errors" -gt 0 ]; then
+                  backfill_rc=12
+                  echo "basketball_backfill_status=SOURCE_ERROR errors=$official_errors"
+                elif [ "$official_rows" -eq 0 ] && [ "$official_empty_pages" -eq "$official_requests" ] && [ "$official_requests" -gt 0 ]; then
+                  backfill_rc=13
+                  echo "basketball_backfill_status=PARSER_ZERO pages=$official_empty_pages"
+                elif [ "$official_rows" -eq 0 ]; then
+                  backfill_rc=10
+                  echo 'basketball_backfill_status=NO_DATA'
+                else
+                  backfill_rc=11
+                  echo "basketball_backfill_status=UNPARSEABLE status=$official_status"
+                fi
+              else
+                backfill_rc=$?
+                echo "basketball_backfill_status=DEGRADED exit=$backfill_rc"
+              fi
+              if [ -s "$backfill_json" ]; then cat "$backfill_json"; fi
+              rm -f "$backfill_json"
+              if [ "$(date -u +%H)" = "03" ]; then
+                if timeout --signal=TERM 900s python -m src.basketball_cdn_backfill --historical; then
+                  echo 'basketball_historical_status=OK'
+                  if timeout --signal=TERM 600s python -m src.bleaguer_git_provenance --db data/db/sports_v45.sqlite --workers 6; then
+                    echo 'basketball_provenance_status=OK'
+                  else
+                    echo "basketball_provenance_status=DEGRADED exit=$?"
+                  fi
+                else
+                  echo "basketball_historical_status=DEGRADED exit=$?"
+                fi
+              else
+                echo 'basketball_historical_status=THROTTLED'
+              fi
+              ;;
+            volleyball) if timeout --signal=TERM 300s python -m src.volleyball_fivb_vis_backfill; then echo 'volleyball_backfill_status=OK'; else backfill_rc=$?; echo "volleyball_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
+            valorant) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports valorant; then echo 'valorant_backfill_status=OK'; else backfill_rc=$?; echo "valorant_backfill_status=DEGRADED exit=$backfill_rc"; fi; if timeout --signal=TERM 300s python -m src.valorant_git_provenance; then echo 'valorant_provenance_status=OK'; else echo "valorant_provenance_status=DEGRADED exit=$?"; fi ;;
+            rizin) if timeout --signal=TERM 300s python -m src.public_history_backfill --sports rizin; then echo 'rizin_backfill_status=OK'; else backfill_rc=$?; echo "rizin_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
+            ufc) if timeout --signal=TERM 120s python -m src.ufc_api_backfill --limit 200; then echo 'ufc_backfill_status=OK'; else backfill_rc=$?; echo "ufc_backfill_status=DEGRADED exit=$backfill_rc"; fi ;;
+            rugby)
+              if timeout --signal=TERM 600s python -m src.rugby_production --max-pages 150; then echo 'rugby_collection_status=OK'; else backfill_rc=$?; echo "rugby_collection_status=DEGRADED exit=$backfill_rc"; fi
+              ;;
+            boxing)
+              if timeout --signal=TERM 600s python -m src.boxing_production --ingest-history; then echo 'boxing_collection_status=OK'; else backfill_rc=$?; echo "boxing_collection_status=DEGRADED exit=$backfill_rc"; fi
+              ;;
+          esac
+          guard_rc=0
+          guard_file="results/v45/collection_guard_${{ matrix.sport }}.json"
+          if python -m src.collection_guard --sport ${{ matrix.sport }}; then
+            if [ -s "$guard_file" ]; then
+              guard_status="$(jq -r '.status // "UNKNOWN"' "$guard_file")"
+            else
+              guard_status="UNKNOWN"
+            fi
+            case "$guard_status" in
+              PASS|PARTIAL) echo "collection_guard_status=$guard_status" ;;
+              DEFERRED) echo 'collection_guard_status=DEFERRED' ;;
+              *) echo "collection_guard_status=UNKNOWN status=$guard_status" ;;
+            esac
+          else
+            guard_rc=$?
+            echo "collection_guard_status=FAILED exit=$guard_rc"
+          fi
+          if [ "$guard_rc" -ne 0 ]; then echo 'ERROR: collection guard failed; refusing to mark partition healthy.' >&2; exit "$guard_rc"; fi
+          if [ "$collector_rc" -ne 0 ] && [ "$backfill_rc" -ne 0 ]; then echo 'WARNING: all collection paths degraded; release gate will decide whether coverage is safe.' >&2; fi
+          exit 0
+      - name: Save database
+        if: success()
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: active-scope-target-db-v4-${{ matrix.sport }}-${{ github.run_id }}
+  merge:
+    name: Merge, research, and release gate
+    needs: collect
+    # Merge only after the full collector matrix completes successfully.
+    # Source outages are represented inside successful collector jobs as explicit
+    # DEGRADATION states; cancellation must never be treated as usable coverage.
+    if: needs.collect.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 225
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # Full history is required for safe recovery of the last accepted
+          # frozen-holdout model when the current run has a transient PIT outage.
+          fetch-depth: 0
+      - name: Verify merge workflow SHA is current main before any mutable work
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          if [ "$GITHUB_SHA" != "$main_sha" ]; then
+            echo "STALE_MERGE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies with transient-network retry
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - run: mkdir -p hourly-artifacts/{valorant,basketball,volleyball,ufc,rizin} data/db results models
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Restore VALORANT
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: active-scope-target-db-v4-valorant-${{ github.run_id }}
+      - name: Materialize VALORANT partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'VALORANT_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute('SELECT COUNT(*) FROM event WHERE sport=\'valorant\'').fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/valorant/sports_v45.sqlite; echo "VALORANT_PARTITION=PASS events=$events"; else echo "VALORANT_PARTITION=DEFERRED events=$events"; fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Restore Basketball
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: active-scope-target-db-v4-basketball-${{ github.run_id }}
+      - name: Materialize Basketball partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'BASKETBALL_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute('SELECT COUNT(*) FROM event WHERE sport=\'basketball\'').fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/basketball/sports_v45.sqlite; echo "BASKETBALL_PARTITION=PASS events=$events"; else echo "BASKETBALL_PARTITION=DEFERRED events=$events"; fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Restore Volleyball
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: active-scope-target-db-v4-volleyball-${{ github.run_id }}
+      - name: Materialize Volleyball partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'VOLLEYBALL_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute('SELECT COUNT(*) FROM event WHERE sport=\'volleyball\'').fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/volleyball/sports_v45.sqlite; echo "VOLLEYBALL_PARTITION=PASS events=$events"; else echo "VOLLEYBALL_PARTITION=DEFERRED events=$events"; fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Materialize Tennis partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'TENNIS_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='tennis'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/tennis/sports_v45.sqlite; echo "TENNIS_PARTITION=PASS events=$events"; else echo "TENNIS_PARTITION=DEFERRED events=$events"; fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Materialize F1 partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'F1_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute(\"SELECT COUNT(*) FROM event WHERE sport='f1'\").fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/f1/sports_v45.sqlite; echo "F1_PARTITION=PASS events=$events"; else echo "F1_PARTITION=DEFERRED events=$events"; fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Restore UFC
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: active-scope-target-db-v4-ufc-${{ github.run_id }}
+      - name: Materialize UFC partition when coverage exists
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then echo 'UFC_PARTITION=DEFERRED_NO_DB'; exit 0; fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute('SELECT COUNT(*) FROM event WHERE sport=\'ufc\'').fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then cp data/db/sports_v45.sqlite hourly-artifacts/ufc/sports_v45.sqlite; echo "UFC_PARTITION=PASS events=$events"; else echo "UFC_PARTITION=DEFERRED events=$events"; fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Restore RIZIN
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: active-scope-target-db-v4-rizin-${{ github.run_id }}
+      - name: Materialize RIZIN partition only when coverage is actually present
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then
+            echo 'RIZIN_PARTITION=DEFERRED_NO_DB'
+            exit 0
+          fi
+          events=$(python -c "import sqlite3; c=sqlite3.connect('data/db/sports_v45.sqlite'); print(c.execute('SELECT COUNT(*) FROM event WHERE sport=\'rizin\'').fetchone()[0]); c.close()")
+          if [ "$events" -gt 0 ]; then
+            cp data/db/sports_v45.sqlite hourly-artifacts/rizin/sports_v45.sqlite
+            echo "RIZIN_PARTITION=PASS events=$events"
+          else
+            echo "RIZIN_PARTITION=DEFERRED events=$events"
+          fi
+      - name: Clear merge working database
+        run: rm -f data/db/sports_v45.sqlite
+      - name: Active prediction scope
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          scope=json.loads(Path('config/PROJECT_SCOPE_POLICY.json').read_text(encoding='utf-8'))['active_prediction_scope']
+          expected=['basketball','volleyball','ufc','rizin','valorant']
+          assert scope == expected, f'ACTIVE_SCOPE_MISMATCH expected={expected} actual={scope}'
+          print('ACTIVE_SCOPE=' + ','.join(scope))
+          PY
+      - name: Verify restored partitions are valid and non-empty
+        run: |
+          set -euo pipefail
+          for sport in valorant basketball volleyball ufc rizin; do
+            if [ -s "hourly-artifacts/$sport/sports_v45.sqlite" ]; then
+              python -m src.partition_cache_guard --db "hourly-artifacts/$sport/sports_v45.sqlite" --sport "$sport"
+            else
+              echo "$sport"_PARTITION=DEFERRED
+            fi
+          done
+      - name: Merge partitions
+        run: python -m src.merge_partition_dbs --input-dir hourly-artifacts
+      - name: Scope-bound robust adapters
+        run: python -m src.robust_sport_adapters_v4
+      - name: Outcomes
+        run: python -m src.outcome_backfill
+      - name: Strict PIT replay
+        id: pit_replay
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 2700s python -m src.pit_replay_builder
+
+      - name: Parallel experience and historical learning
+        id: dual_learning
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=30s 10800s python -m src.dual_learning_cycle
+
+      - name: Competition-level chronological OOS evaluation
+        id: competition_oos
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p results/research
+          timeout --signal=TERM 2400s python -m src.competition_profile_oos 2>&1 | tee results/research/competition_profile_oos.log
+
+      # Preserve partial strict-research outputs even when the research step times out.
+      # These are diagnostics only; they never publish model artifacts.
+      - name: Preserve partial research checkpoint artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: active-scope-research-checkpoint-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            results/research/**
+            results/v45/**
+            models/research/**
+
+      - name: Independent leakage audit after model generation
+        id: independent_leakage
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 900s python -m src.independent_leakage_audit
+
+      - name: Build competition-specific production routes
+        id: competition_routes
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 2400s python -m src.competition_route_builder
+
+      - name: Quality report (non-failing coverage mode)
+        run: python -m src.quality_gate
+      - name: Reproducibility manifest
+        run: python -m src.reproducibility_manifest
+      - name: Release gate
+        id: release_gate
+        continue-on-error: true
+        run: python -m src.production_release_gate
+      - name: Build adaptive prediction timing routes
+        id: timing_routes
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM 1200s python -m src.timing_route_builder
 
       - name: Future prediction inference
         id: future_prediction
@@ -14,3 +401,188 @@
           python -m src.prediction_route_observability
       - name: Upload production route observability
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-route-observability-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: results/research/production_route_observability.json
+      - name: Score and accumulate prediction experience
+        id: experience_score
+        continue-on-error: true
+        run: python -m src.prediction_experience --score-only
+      - name: Learn from settled prediction experience (shadow)
+        id: experience_learning
+        continue-on-error: true
+        run: python -m src.experience_learning
+      - name: Build prospective experience research candidates
+        id: experience_bridge
+        continue-on-error: true
+        run: python -m src.experience_research_bridge
+      - name: Experience learning regression
+        id: experience_learning_regression
+        continue-on-error: true
+        run: python scripts/test_experience_learning.py
+      - name: Experience research bridge regression
+        id: experience_bridge_regression
+        continue-on-error: true
+        run: python scripts/test_experience_research_bridge.py
+      - name: Dual learning cycle contract
+        id: dual_learning_contract
+        continue-on-error: true
+        run: python scripts/test_dual_learning_cycle.py
+      - name: Production invariants
+        id: production_invariants
+        run: python -m src.production_invariants
+      - name: Compile check
+        id: compile_check
+        run: python -m compileall -q src
+      - name: Persist safe outputs
+        id: persist_outputs
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if python -c "import json; from pathlib import Path; p=Path('results/release_gate.json'); raise SystemExit(0 if p.exists() and json.loads(p.read_text()).get('publish') is True else 1)"; then
+            git add results
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          gate=json.loads(Path('results/release_gate.json').read_text())
+          artifacts=gate.get('publishable_artifacts') or []
+          for rel in artifacts:
+              p=Path(rel)
+              if not rel.startswith('models/') or '..' in p.parts:
+                  raise SystemExit(f'UNSAFE_PUBLISH_PATH:{rel}')
+              if not p.is_file() or p.stat().st_size <= 0:
+                  raise SystemExit(f'PUBLISHABLE_ARTIFACT_MISSING:{rel}')
+              print(f'RELEASE_GATED_ARTIFACT={rel}')
+          print(f'RELEASE_GATED_ARTIFACT_COUNT={len(artifacts)}')
+          PY
+            while IFS= read -r rel; do
+              [ -n "$rel" ] || continue
+              git add -- "$rel"
+            done < <(python - <<'PY'
+          import json
+          from pathlib import Path
+          for rel in json.loads(Path('results/release_gate.json').read_text()).get('publishable_artifacts') or []:
+              print(rel)
+          PY
+            )
+            echo 'release_gate=READY: only explicitly release-gated model artifacts may be published'
+          else
+            git add results
+            echo 'release_gate!=READY: model artifacts remain uncommitted and are not published'
+          fi
+          git diff --cached --check
+          if git diff --cached --quiet; then exit 0; fi
+          git fetch origin main
+          ensure_main_unchanged() {
+            local main_sha
+            main_sha=$(git rev-parse origin/main)
+            if [ "$GITHUB_SHA" != "$main_sha" ]; then
+              echo "STALE_PUBLISH_RUN source=$GITHUB_SHA current_main=$main_sha"
+              return 1
+            fi
+          }
+          ensure_main_unchanged
+          git commit -m 'chore: update active-scope research results'
+          git fetch origin main
+          ensure_main_unchanged
+          rebase_with_generated_output_resolution() {
+            if git rebase --autostash origin/main; then
+              return 0
+            fi
+            if ! conflicts=$(git diff --name-only --diff-filter=U); then
+              echo 'ERROR: unable to inspect rebase conflicts.' >&2
+              return 1
+            fi
+            if [ -n "$conflicts" ] && ! printf '%s\n' "$conflicts" | grep -Ev '^(results/|models/)' | grep -q .; then
+              echo 'INFO: resolving generated-output-only rebase conflict in favor of this completed run.'
+              printf '%s\n' "$conflicts" | while IFS= read -r f; do
+                [ -n "$f" ] || continue
+                git checkout --theirs -- "$f"
+                git add -- "$f"
+              done
+              GIT_EDITOR=true git -c core.editor=true rebase --continue
+              return $?
+            fi
+            if ! git rebase --abort; then
+              echo 'ERROR: failed to abort conflicting rebase.' >&2
+              return 1
+            fi
+            echo 'ERROR: main advanced with a non-generated-file conflict.' >&2
+            return 1
+          }
+          ensure_main_unchanged
+          if ! rebase_with_generated_output_resolution; then
+            exit 1
+          fi
+          ensure_main_unchanged
+          for attempt in 1 2 3; do
+            ensure_main_unchanged
+            if git push origin HEAD:main; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            git fetch origin main
+            ensure_main_unchanged
+            if ! rebase_with_generated_output_resolution; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+
+      - name: Final production failure verdict
+        id: final_failure_verdict
+        if: always()
+        env:
+          DUAL_LEARNING: ${{ steps.dual_learning.outcome }}
+          COMPETITION_OOS: ${{ steps.competition_oos.outcome }}
+          COMPETITION_ROUTES: ${{ steps.competition_routes.outcome }}
+          RELEASE_GATE: ${{ steps.release_gate.outcome }}
+          TIMING_ROUTES: ${{ steps.timing_routes.outcome }}
+          EXPERIENCE_SCORE: ${{ steps.experience_score.outcome }}
+          EXPERIENCE_LEARNING: ${{ steps.experience_learning.outcome }}
+          EXPERIENCE_BRIDGE: ${{ steps.experience_bridge.outcome }}
+          EXPERIENCE_LEARNING_REGRESSION: ${{ steps.experience_learning_regression.outcome }}
+          EXPERIENCE_BRIDGE_REGRESSION: ${{ steps.experience_bridge_regression.outcome }}
+          DUAL_LEARNING_CONTRACT: ${{ steps.dual_learning_contract.outcome }}
+          PRODUCTION_INVARIANTS: ${{ steps.production_invariants.outcome }}
+          COMPILE_CHECK: ${{ steps.compile_check.outcome }}
+          PIT_REPLAY: ${{ steps.pit_replay.outcome }}
+          INDEPENDENT_LEAKAGE: ${{ steps.independent_leakage.outcome }}
+          FUTURE_PREDICTION: ${{ steps.future_prediction.outcome }}
+          ROUTE_OBSERVABILITY: ${{ steps.route_observability.outcome }}
+          PERSIST_OUTPUTS: ${{ steps.persist_outputs.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          report() {
+            local stage="$1"
+            local result="$2"
+            echo "FINAL_STAGE_${stage}=${result}"
+            if [ "$result" = "failure" ]; then failed=1; fi
+          }
+          report PIT_REPLAY "$PIT_REPLAY"
+          report INDEPENDENT_LEAKAGE "$INDEPENDENT_LEAKAGE"
+          report FUTURE_PREDICTION "$FUTURE_PREDICTION"
+          report ROUTE_OBSERVABILITY "$ROUTE_OBSERVABILITY"
+          report DUAL_LEARNING "$DUAL_LEARNING"
+          report COMPETITION_OOS "$COMPETITION_OOS"
+          report COMPETITION_ROUTES "$COMPETITION_ROUTES"
+          report RELEASE_GATE "$RELEASE_GATE"
+          report TIMING_ROUTES "$TIMING_ROUTES"
+          report EXPERIENCE_SCORE "$EXPERIENCE_SCORE"
+          report EXPERIENCE_LEARNING "$EXPERIENCE_LEARNING"
+          report EXPERIENCE_BRIDGE "$EXPERIENCE_BRIDGE"
+          report EXPERIENCE_LEARNING_REGRESSION "$EXPERIENCE_LEARNING_REGRESSION"
+          report EXPERIENCE_BRIDGE_REGRESSION "$EXPERIENCE_BRIDGE_REGRESSION"
+          report DUAL_LEARNING_CONTRACT "$DUAL_LEARNING_CONTRACT"
+          report PRODUCTION_INVARIANTS "$PRODUCTION_INVARIANTS"
+          report COMPILE_CHECK "$COMPILE_CHECK"
+          report PERSIST_OUTPUTS "$PERSIST_OUTPUTS"
+          if [ "$failed" -ne 0 ]; then
+            echo "PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL; safe outputs were attempted but one or more stages failed." >&2
+            exit 1
+          fi
+          echo "PRODUCTION_FINAL_VERDICT=PASS"
