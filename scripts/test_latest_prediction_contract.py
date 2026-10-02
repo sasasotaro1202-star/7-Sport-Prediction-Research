@@ -63,8 +63,14 @@ def main():
         (ROOT / "config/PROJECT_SCOPE_POLICY.json").read_text(encoding="utf-8")
     )
     src = (ROOT / "src/latest_prediction.py").read_text(encoding="utf-8")
+    timing = json.loads(
+        (ROOT / "config/PREDICTION_TIMING_POLICY.json").read_text(encoding="utf-8")
+    )
 
     assert policy["refresh_before_every_prediction_request"] is True
+    assert timing["default_preferred_lead_minutes"] == 60
+    assert timing["selection"]["production_default"] == 60
+    assert timing["scheduler"]["target_lead_minutes"] == 60
     assert policy["reuse_stored_prediction_output"] is False
     assert policy["stale_output_action"] == "FAIL_CLOSED"
 
@@ -95,6 +101,11 @@ def main():
         "COMMAND_TIMEOUT",
         "start_new_session",
         "_terminate_process_tree",
+        "--lead-minutes",
+        "--min-lead-minutes",
+        "--max-lead-minutes",
+        "requested_lead_minutes",
+        "adaptive_timing",
     )
     for marker in required:
         assert marker in src, marker
