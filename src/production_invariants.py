@@ -879,6 +879,19 @@ def main():
             'T-60 pre-event prediction regression is not wired into Lightweight Regression')
     require('pre_event_prediction.yml' in (ROOT/'README.md').read_text(encoding='utf-8'),
             'README does not document the automatic T-60 prediction lane')
+    require(
+        'Ensure pre-event T-60 prediction heartbeat' in watchdog
+        and 'gh run list --workflow "pre_event_prediction.yml"' in watchdog
+        and 'DISPATCH_PRE_EVENT_T60' in watchdog
+        and 'gh workflow run pre_event_prediction.yml --ref main' in watchdog,
+        'production watchdog lacks pre-event T-60 recovery dispatch',
+    )
+    require(
+        '[ "$active" -eq 0 ]' in watchdog
+        and '[ "$age" -ge 480 ]' in watchdog
+        and 'main_sha' in watchdog,
+        'pre-event watchdog lacks active-run, freshness, or main-SHA guards',
+    )
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
         for x in FAILURES: print(f'- {x}')
