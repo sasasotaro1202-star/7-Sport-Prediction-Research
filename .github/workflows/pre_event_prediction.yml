@@ -128,6 +128,10 @@ jobs:
           if [ "$min_lead" -lt 5 ]; then min_lead=5; fi
           if [ "$max_lead" -gt 180 ]; then max_lead=180; fi
           echo "requested lead=$requested_lead window=${min_lead}-${max_lead} adaptive=$adaptive"
+          echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"
+          echo "min_lead=$min_lead" >> "$GITHUB_OUTPUT"
+          echo "max_lead=$max_lead" >> "$GITHUB_OUTPUT"
+          echo "adaptive=$adaptive" >> "$GITHUB_OUTPUT"
           args=(
             --sport "${{ matrix.sport }}"
             --lead-minutes "$requested_lead"
@@ -197,9 +201,9 @@ jobs:
           if python -m src.pre_event_prediction_audit \
               --sport ${{ matrix.sport }} \
               --db data/db/sports_v45.sqlite \
-              --target-lead-minutes 60 \
-              --min-lead-minutes 5 \
-              --max-lead-minutes 180; then
+              --target-lead-minutes "${{ steps.predict.outputs.lead }}" \
+              --min-lead-minutes "${{ steps.predict.outputs.min_lead }}" \
+              --max-lead-minutes "${{ steps.predict.outputs.max_lead }}"; then
             echo 'pre_event_audit=OK'
           else
             rc=$?
@@ -250,7 +254,11 @@ jobs:
           shadow_rc='${{ steps.timing_shadow.outputs.rc }}'
           audit_rc='${{ steps.audit.outputs.rc }}'
           db_rc='${{ steps.dbguard.outputs.rc }}'
-          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
+          lead='${{ steps.predict.outputs.lead }}'
+          min_lead='${{ steps.predict.outputs.min_lead }}'
+          max_lead='${{ steps.predict.outputs.max_lead }}'
+          adaptive='${{ steps.predict.outputs.adaptive }}'
+          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=$lead window=${min_lead}-${max_lead} adaptive=$adaptive schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
           if [ "$shadow_rc" -ne 0 ]; then
             echo "TIMING_SHADOW_STATUS=DEGRADED exit=$shadow_rc"
           else
