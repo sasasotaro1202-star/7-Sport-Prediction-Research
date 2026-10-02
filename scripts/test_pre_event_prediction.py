@@ -74,6 +74,16 @@ def main() -> None:
     assert policy["scheduler"]["selection_mode"] == "adaptive-capable;60m-default"
     assert "--lead-minutes 60" in workflow
     assert "--target-lead-minutes 60" in workflow
+    assert "lead_minutes:" in workflow
+    assert 'default: "60"' in workflow
+    assert "adaptive_timing:" in workflow
+    assert 'requested_lead="60"' in workflow
+    assert 'if [ "${{ github.event_name }}" = "workflow_dispatch" ]' in workflow
+    assert 'requested_lead="${{ inputs.lead_minutes }}"' in workflow
+    assert 'if [ "${{ inputs.adaptive_timing }}" = "true" ]' in workflow
+    assert "invalid lead_minutes" in workflow
+    assert '--lead-minutes "$requested_lead"' in workflow
+    assert "args+=(--adaptive-timing)" in workflow
     assert "cron: '3-58/5 * * * *'" in workflow
     assert resolve_profile("basketball", "B.LEAGUE", "B.LEAGUE")["matched"]
     assert not resolve_profile("basketball", "Other League", "Other League")["matched"]
