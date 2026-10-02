@@ -62,7 +62,7 @@ def _prepare_rows(con: sqlite3.Connection, sport: str, allowed_leads: set[int]) 
     query = con.execute(
         """
         SELECT fp.prediction_id,fp.event_id,fp.prediction_cutoff_at_utc,fp.generated_at_utc,
-               fp.probability_side_b, e.event_time_utc,e.competition_id,e.name,
+               fp.probability_side_b, e.event_time_utc,e.competition_id,
                eo.outcome_status,eo.outcome
           FROM forward_prediction fp
           JOIN event e ON e.event_id=fp.event_id
@@ -81,14 +81,14 @@ def _prepare_rows(con: sqlite3.Connection, sport: str, allowed_leads: set[int]) 
 
     buckets: dict[str, dict[int, dict[str, dict]]] = defaultdict(lambda: defaultdict(dict))
     for row in query:
-        pid,event_id,cutoff,generated,pb,event_time,competition_id,name,status,outcome=row
+        pid,event_id,cutoff,generated,pb,event_time,competition_id,status,outcome=row
         lead = _lead_from_row(event_time, cutoff)
         if lead is None:
             continue
         target = min(allowed_leads, key=lambda x: abs(float(x) - lead)) if allowed_leads else None
         if target is None or abs(float(target) - lead) > 6.0:
             continue
-        profile = resolve_profile(sport, competition_id, name)
+        profile = resolve_profile(sport, competition_id, None)
         if not profile.get("matched"):
             continue
         try:
