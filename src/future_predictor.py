@@ -41,7 +41,7 @@ def _timing_policy() -> dict:
         return json.loads(path.read_text(encoding='utf-8'))
     except Exception:
         return {
-            'default_preferred_lead_minutes': 30,
+            'default_preferred_lead_minutes': 60,
             'allowed_lead_minutes': [15, 20, 30, 45, 60, 90],
             'bounds': {'minimum_lead_minutes': 5, 'maximum_lead_minutes': 180},
         }
@@ -263,7 +263,7 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
     return starts,wins,(wins+1.0)/(starts+2.0)
 
 
-def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,adaptive_timing=False,timing_shadow=False):
+def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,adaptive_timing=False,timing_shadow=False,prediction_origin="ON_DEMAND_REQUEST"):
     future=_future_events(
         c,s,now,
         min_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[0],
@@ -341,7 +341,7 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
     return {'sport':s,'status':'PREDICTED_SAFE_PRIOR' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
 
 
-def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,adaptive_timing=False,timing_shadow=False):
+def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,adaptive_timing=False,timing_shadow=False,prediction_origin="ON_DEMAND_REQUEST"):
     future=_future_events(
         c,'f1',now,
         min_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[0],
@@ -430,6 +430,7 @@ def _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes=None,max_lead_
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
             'confidence':'LOW','action_state':'PASS','generated_at_utc':now.isoformat(),
             'policy':'F1 multiclass safe prior; only pre-event completed driver results are used; current roster fallback is explicitly not event-confirmed',
+            'prediction_origin':prediction_origin,
         })
     return {'sport':'f1','status':'PREDICTED_SAFE_PRIOR_MULTICLASS' if outputs else 'NO_FUTURE_EVENTS','predictions':outputs,'count':len(outputs)}
 
@@ -543,15 +544,15 @@ def _persist_forward_prediction(c, event_id, sport, cutoff, now, pa, pb, strateg
 
 def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAULT,
                   min_lead_minutes=None,max_lead_minutes=None,target_scope_only=False,
-                  adaptive_timing=False,timing_shadow=False):
+                  adaptive_timing=False,timing_shadow=False,prediction_origin="ON_DEMAND_REQUEST"):
     # Every sport is a mandatory prediction lane. F1 has distinct multiclass semantics;
     # sports without an accepted production artifact use an explicit PIT-safe historical-prior
     # prediction instead of silently disappearing from the output.
     if s=='f1':
-        return _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
+        return _safe_prior_f1(c,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow,prediction_origin)
     artifact_path=MODELS/f'{s}_current.joblib'
     if not artifact_path.is_file() or artifact_path.stat().st_size<=0:
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow,prediction_origin)
     try:
         artifact=joblib.load(artifact_path)
     except Exception:
@@ -780,6 +781,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             'action_state':action_state,
             'situation':situation,
             'experience_shadow':experience_shadow,
+            'prediction_origin':prediction_origin,
             'generated_at_utc':now.isoformat(),
         })
     return {'sport':s,'status':'PREDICTED' if outputs else 'NO_FUTURE_EVENTS',
@@ -795,6 +797,7 @@ def main():
     ap.add_argument('--target-scope-only',action='store_true')
     ap.add_argument('--adaptive-timing',action='store_true')
     ap.add_argument('--timing-shadow',action='store_true')
+    ap.add_argument('--prediction-origin',choices=['AUTOMATED_SCHEDULE','ON_DEMAND_REQUEST','TIMING_SHADOW'],default='ON_DEMAND_REQUEST')
     args=ap.parse_args()
     if args.lead_minutes <= 0:
         raise SystemExit('lead-minutes must be positive')
@@ -823,6 +826,7 @@ def main():
                     target_scope_only=args.target_scope_only,
                     adaptive_timing=args.adaptive_timing,
                     timing_shadow=args.timing_shadow,
+                    prediction_origin=args.prediction_origin,
                 )
             )
             # Export both newly-created and previously persisted forward predictions.
