@@ -1,0 +1,18 @@
+{
+  "version": "experience-research-bridge-v1",
+  "generated_at_utc": "2026-10-02T21:19:15.308848+00:00",
+  "knowledge_available_at_utc": "2026-10-02T21:19:15.255167+00:00",
+  "pit_status": "PASS",
+  "mode": "PROSPECTIVE_ONLY",
+  "promotion_gate": false,
+  "source_memory_version": "experience-learning-v1",
+  "source_settled_through_utc": null,
+  "candidate_count": 0,
+  "candidates": [],
+  "safety": {
+    "uses_outcomes_for_hypothesis_generation": true,
+    "reuses_outcomes_in_historical_oos": false,
+    "production_model_change": false,
+    "automatic_promotion": false
+  }
+}

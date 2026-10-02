@@ -1,0 +1,44 @@
+{
+  "version": "dual-learning-cycle-v1",
+  "status": "SUCCESS",
+  "started_at_utc": "2026-10-02T20:46:46.943713+00:00",
+  "sport": null,
+  "parallel": true,
+  "lanes": {
+    "experience": {
+      "purpose": "learn_from_matured_prediction_experience_only",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "-m",
+        "src.experience_learning"
+      ],
+      "log": "dual_learning_logs/experience_learning.log",
+      "pid": 2558,
+      "started_at_utc": "2026-10-02T20:46:46.944514+00:00",
+      "returncode": 0,
+      "finished_at_utc": "2026-10-02T21:17:54.712642+00:00"
+    },
+    "historical": {
+      "purpose": "learn_from_historical_games_with_chronological_oos",
+      "command": [
+        "/opt/hostedtoolcache/Python/3.12.14/x64/bin/python",
+        "-m",
+        "src.research_cycle_strict"
+      ],
+      "log": "dual_learning_logs/historical_research.log",
+      "pid": 2559,
+      "started_at_utc": "2026-10-02T20:46:46.945019+00:00",
+      "returncode": 0,
+      "finished_at_utc": "2026-10-02T21:17:54.712642+00:00"
+    }
+  },
+  "safety": {
+    "experience_outcomes_reused_in_historical_oos": false,
+    "historical_oos_used_for_experience_memory": false,
+    "production_model_changed_by_this_orchestrator": false,
+    "automatic_promotion": false,
+    "failure_handling": "fail_closed_no_success_masking"
+  },
+  "finished_at_utc": "2026-10-02T21:17:54.712642+00:00",
+  "duration_seconds": 1867.769
+}

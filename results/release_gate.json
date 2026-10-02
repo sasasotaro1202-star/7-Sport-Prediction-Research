@@ -9,6 +9,7 @@
     "boxing": "No free historical boxing source currently proves source availability before the 60-minute prediction cutoff; public/current schedule data is not historical PIT evidence.",
     "valorant": "insufficient_strict_PIT_rows",
     "basketball": "insufficient_strict_PIT_rows",
+    "volleyball": "insufficient_strict_PIT_rows",
     "rizin": "insufficient_strict_PIT_rows"
   },
   "coverage": {
@@ -31,13 +32,13 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "volleyball": {
-      "events": 21213,
-      "timed_events": 21213,
-      "completed_events": 21213,
-      "resolved_outcomes": 19587,
-      "verified_model_outcomes": 19587,
-      "accepted_models": 1,
-      "model_safety": "OK"
+      "events": 21229,
+      "timed_events": 21229,
+      "completed_events": 21229,
+      "resolved_outcomes": 19605,
+      "verified_model_outcomes": 19605,
+      "accepted_models": 0,
+      "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "tennis": {
       "events": 0,
@@ -98,11 +99,8 @@
       "model_safety": "DEFERRED:No free historical boxing source currently proves source availability before the 60-minute prediction cutoff; public/current schedule data is not historical PIT evidence."
     }
   },
-  "coverage_warnings": [
-    "volleyball:completed_event_outcome_gap:1626"
-  ],
+  "coverage_warnings": [],
   "publishable_artifacts": [
-    "models/research/volleyball_current.joblib",
     "models/research/ufc_current.joblib"
   ],
   "policy": "source outages degrade coverage explicitly; unsafe or unverified models are never published; a sport may be explicitly DEFERRED only when its coverage report proves zero persisted events/snapshots and gives a concrete reason; future scheduled events do not require outcomes; explicit VOID results are resolved but excluded from model labels; F1 uses source-backed finishing positions rather than binary A/B outcomes; Boxing remains deferred until free PIT-safe historical evidence exists",

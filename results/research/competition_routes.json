@@ -1,0 +1,399 @@
+{
+  "version": "competition-specific-production-route-v1",
+  "status": "READY_NO_ACCEPTED_ROUTES",
+  "production_scope": [
+    "basketball",
+    "volleyball",
+    "ufc",
+    "rizin",
+    "valorant"
+  ],
+  "policy": {
+    "version": 1,
+    "policy": "competition-specific-production-routing-v1",
+    "research_scope": {
+      "explicit_competition_id_required": 1,
+      "dynamic_research_discovery_for_active_sports": 1,
+      "no_implicit_production_activation": 1
+    },
+    "minimums": {
+      "rows": 180,
+      "pre_holdout_train_rows": 90,
+      "folds": 4,
+      "min_test_rows_per_fold": 15,
+      "holdout_rows": 30,
+      "periods": 2
+    },
+    "selection": {
+      "primary": "logloss",
+      "secondary": [
+        "brier",
+        "ece",
+        "accuracy"
+      ],
+      "min_relative_logloss_improvement": 0.03,
+      "min_folds_not_worse": 0.7,
+      "holdout_logloss_not_worse": 1,
+      "holdout_brier_tolerance": 0.001,
+      "holdout_ece_tolerance": 0.01,
+      "bootstrap_samples": 600,
+      "bootstrap_probability_improvement": 0.9,
+      "require_pit_clean_before_route": 1,
+      "require_frozen_holdout": 1
+    },
+    "candidates": [
+      "logistic",
+      "extra_trees",
+      "hist_gb",
+      "hist_gb_shallow",
+      "extra_trees_missing",
+      "hist_gb_missing",
+      "lightgbm",
+      "lightgbm_missing"
+    ],
+    "artifacts": {
+      "directory": "models/competition",
+      "registry": "results/research/competition_routes.json"
+    },
+    "fallback_chain": [
+      "competition_specific_accepted",
+      "sport_incumbent",
+      "safe_prior"
+    ],
+    "production": {
+      "route_registry_status_required": "READY",
+      "route_entry_status_required": "ACCEPTED_LOCKED_HOLDOUT",
+      "production_scope_still_requires_explicit_active_target": 1
+    }
+  },
+  "routes": {},
+  "blocked": {
+    "basketball": {},
+    "volleyball": {
+      "volleyball:asian_games": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 66,
+        "pre_holdout_rows": 36,
+        "holdout_rows": 30,
+        "periods": [
+          "2026"
+        ]
+      }
+    },
+    "ufc": {
+      "ufc:competition:ortiz_vs_shamrock_3_the_final_chapter": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 9,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 9,
+        "periods": [
+          "2006"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_a_champion_will_be_crowned_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 2,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 2,
+        "periods": [
+          "2014"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_a_new_world_champion_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 7,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 7,
+        "periods": [
+          "2017"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_american_top_team_vs_blackzilians_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 10,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 10,
+        "periods": [
+          "2015"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_heavy_hitters_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 10,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 10,
+        "periods": [
+          "2018"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_heavyweights_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 6,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 6,
+        "periods": [
+          "2009"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_live_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 5,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 5,
+        "periods": [
+          "2012"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_redemption_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 12,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 12,
+        "periods": [
+          "2017"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_bisping_vs_team_miller_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 3,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 3,
+        "periods": [
+          "2011"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_carwin_vs_team_nelson_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 10,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 10,
+        "periods": [
+          "2012"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_couture_vs_team_liddell_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 1,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 1,
+        "periods": [
+          "2005"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_edgar_vs_team_penn_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 7,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 7,
+        "periods": [
+          "2014"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_gsp_vs_team_koscheck_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 5,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 5,
+        "periods": [
+          "2010"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_franklin_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 3,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 3,
+        "periods": [
+          "2005"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_serra_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 3,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 3,
+        "periods": [
+          "2007"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_joanna_vs_team_cl_udia_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 10,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 10,
+        "periods": [
+          "2016"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_jones_vs_team_sonnen_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 6,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 6,
+        "periods": [
+          "2013"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_lesnar_vs_team_dos_santos_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 6,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 6,
+        "periods": [
+          "2011"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_liddell_vs_team_ortiz_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 5,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 5,
+        "periods": [
+          "2010"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_mcgregor_vs_team_faber_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 8,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 8,
+        "periods": [
+          "2015"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_nogueira_vs_team_mir_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 2,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 2,
+        "periods": [
+          "2008"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_ortiz_vs_team_shamrock_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 4,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 4,
+        "periods": [
+          "2006"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_pulver_vs_team_penn_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 7,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 7,
+        "periods": [
+          "2007"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_rampage_vs_team_forrest_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 8,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 8,
+        "periods": [
+          "2008"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_team_rousey_vs_team_tate_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 4,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 4,
+        "periods": [
+          "2013"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_the_comeback_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 9,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 9,
+        "periods": [
+          "2006"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_tournament_of_champions_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 13,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 13,
+        "periods": [
+          "2016"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_undefeated_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 7,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 7,
+        "periods": [
+          "2018"
+        ]
+      },
+      "ufc:competition:the_ultimate_fighter_united_states_vs_united_kingdom_finale": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 7,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 7,
+        "periods": [
+          "2009"
+        ]
+      },
+      "ufc:promotion": {
+        "status": "INSUFFICIENT_VALID_CANDIDATES",
+        "rows": 8527,
+        "candidate_results": {}
+      }
+    },
+    "rizin": {
+      "rizin:competition:14_vs_1r_2_19": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 10,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 10,
+        "periods": [
+          "2019"
+        ]
+      },
+      "rizin:competition:1_win_vs_ryota_renseigym_lose_3r_2_0_tko": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 12,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 12,
+        "periods": [
+          "2018"
+        ]
+      },
+      "rizin:competition:4_iska_iiska_3_5r_57_0kg_lose_vs_win_2r_2_19_ko": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 13,
+        "pre_holdout_rows": 0,
+        "holdout_rows": 13,
+        "periods": [
+          "2019"
+        ]
+      },
+      "rizin:promotion": {
+        "status": "INSUFFICIENT_DATA",
+        "rows": 47,
+        "pre_holdout_rows": 17,
+        "holdout_rows": 30,
+        "periods": [
+          "2016",
+          "2017",
+          "2019",
+          "2025"
+        ]
+      }
+    },
+    "valorant": {}
+  },
+  "pit_gate": {
+    "required": 1,
+    "status": "PENDING_PRODUCTION_INDEPENDENT_AUDIT"
+  },
+  "source_git_sha": "a5fa2dd24accc770b0345c81097ee27808f1af4e"
+}

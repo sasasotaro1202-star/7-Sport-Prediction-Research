@@ -1,0 +1,19 @@
+{
+  "version": "adaptive-prediction-timing-v1",
+  "status": "READY_NO_ACCEPTED_ROUTES",
+  "routes": {},
+  "blocked": {},
+  "pit_gate": {
+    "status": "PASS",
+    "bad_rows": 0
+  },
+  "default_lead_minutes": 60,
+  "allowed_lead_minutes": [
+    15,
+    20,
+    30,
+    45,
+    60,
+    90
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "version": "production-route-observability-v1",
+  "status": "PASS",
+  "generated_at_utc": "2026-10-02T21:19:13.900514+00:00",
+  "source": {
+    "db": "data/db/sports_v45.sqlite",
+    "active_sports": [
+      "valorant",
+      "basketball",
+      "volleyball",
+      "ufc",
+      "rizin"
+    ],
+    "prediction_rows": 0,
+    "malformed_feature_rows": 0
+  },
+  "runtime_integrity": {
+    "late_generated_total": 0,
+    "prediction_rows_missing_routing_metadata": 0,
+    "prediction_rows_missing_timing_metadata": 0,
+    "prediction_rows_missing_competition_profile": 0
+  },
+  "route_registry": {
+    "status": "READY_NO_ACCEPTED_ROUTES",
+    "route_count": 0,
+    "accepted_route_count": 0,
+    "accepted_routes": []
+  },
+  "timing_registry": {
+    "status": "READY_NO_ACCEPTED_ROUTES",
+    "route_count": 0,
+    "accepted_route_count": 0,
+    "accepted_routes": []
+  },
+  "by_router_status": {},
+  "by_strategy": {},
+  "by_timing_selection_status": {},
+  "by_target_lead_minutes": {},
+  "by_competition_profile": {},
+  "by_sport": {
+    "valorant": {
+      "predictions": 0,
+      "late_generated": 0,
+      "competition_specific_accepted": 0,
+      "sport_incumbent_fallback": 0,
+      "safe_prior": 0,
+      "by_router_status": {},
+      "by_timing_selection_status": {},
+      "by_target_lead_minutes": {},
+      "by_competition_profile": {}
+    },
+    "basketball": {
+      "predictions": 0,
+      "late_generated": 0,
+      "competition_specific_accepted": 0,
+      "sport_incumbent_fallback": 0,
+      "safe_prior": 0,
+      "by_router_status": {},
+      "by_timing_selection_status": {},
+      "by_target_lead_minutes": {},
+      "by_competition_profile": {}
+    },
+    "volleyball": {
+      "predictions": 0,
+      "late_generated": 0,
+      "competition_specific_accepted": 0,
+      "sport_incumbent_fallback": 0,
+      "safe_prior": 0,
+      "by_router_status": {},
+      "by_timing_selection_status": {},
+      "by_target_lead_minutes": {},
+      "by_competition_profile": {}
+    },
+    "ufc": {
+      "predictions": 0,
+      "late_generated": 0,
+      "competition_specific_accepted": 0,
+      "sport_incumbent_fallback": 0,
+      "safe_prior": 0,
+      "by_router_status": {},
+      "by_timing_selection_status": {},
+      "by_target_lead_minutes": {},
+      "by_competition_profile": {}
+    },
+    "rizin": {
+      "predictions": 0,
+      "late_generated": 0,
+      "competition_specific_accepted": 0,
+      "sport_incumbent_fallback": 0,
+      "safe_prior": 0,
+      "by_router_status": {},
+      "by_timing_selection_status": {},
+      "by_target_lead_minutes": {},
+      "by_competition_profile": {}
+    }
+  },
+  "latest_prediction_generated_at_utc": null,
+  "latest_prediction_cutoff_at_utc": null
+}
