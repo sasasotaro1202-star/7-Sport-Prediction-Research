@@ -52,6 +52,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_competition_routing.py
       - name: Production safe continuation regression
         run: PYTHONPATH=. python scripts/test_production_safe_continuation.py
+      - name: Production failure ledger regression
+        run: PYTHONPATH=. python scripts/test_production_failure_ledger.py
       - name: Continuous scope autofill regression
         run: PYTHONPATH=. python scripts/test_scope_autofill.py
       - name: Staged scope expansion policy regression
