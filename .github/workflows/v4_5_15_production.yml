@@ -317,11 +317,15 @@ jobs:
           timeout --signal=TERM 2700s python -m src.pit_replay_builder
 
       - name: Parallel experience and historical learning
+        id: dual_learning
+        continue-on-error: true
         run: |
           set -euo pipefail
           timeout --signal=TERM --kill-after=30s 10800s python -m src.dual_learning_cycle
 
       - name: Competition-level chronological OOS evaluation
+        id: competition_oos
+        continue-on-error: true
         run: |
           set -euo pipefail
           mkdir -p results/research
@@ -347,6 +351,8 @@ jobs:
           timeout --signal=TERM 900s python -m src.independent_leakage_audit
 
       - name: Build competition-specific production routes
+        id: competition_routes
+        continue-on-error: true
         run: |
           set -euo pipefail
           timeout --signal=TERM 2400s python -m src.competition_route_builder
@@ -356,8 +362,12 @@ jobs:
       - name: Reproducibility manifest
         run: python -m src.reproducibility_manifest
       - name: Release gate
+        id: release_gate
+        continue-on-error: true
         run: python -m src.production_release_gate
       - name: Build adaptive prediction timing routes
+        id: timing_routes
+        continue-on-error: true
         run: |
           set -euo pipefail
           timeout --signal=TERM 1200s python -m src.timing_route_builder
@@ -379,22 +389,37 @@ jobs:
           retention-days: 14
           path: results/research/production_route_observability.json
       - name: Score and accumulate prediction experience
+        id: experience_score
+        continue-on-error: true
         run: python -m src.prediction_experience --score-only
       - name: Learn from settled prediction experience (shadow)
+        id: experience_learning
+        continue-on-error: true
         run: python -m src.experience_learning
       - name: Build prospective experience research candidates
+        id: experience_bridge
+        continue-on-error: true
         run: python -m src.experience_research_bridge
       - name: Experience learning regression
+        id: experience_learning_regression
+        continue-on-error: true
         run: python scripts/test_experience_learning.py
       - name: Experience research bridge regression
+        id: experience_bridge_regression
+        continue-on-error: true
         run: python scripts/test_experience_research_bridge.py
       - name: Dual learning cycle contract
+        id: dual_learning_contract
+        continue-on-error: true
         run: python scripts/test_dual_learning_cycle.py
       - name: Production invariants
         run: python -m src.production_invariants
       - name: Compile check
+        id: compile_check
         run: python -m compileall -q src
       - name: Persist safe outputs
+        id: persist_outputs
+        if: always()
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
@@ -486,3 +511,50 @@ jobs:
             fi
             sleep $((attempt * 5))
           done
+
+      - name: Final production failure verdict
+        id: final_failure_verdict
+        if: always()
+        env:
+          DUAL_LEARNING: ${{ steps.dual_learning.outcome }}
+          COMPETITION_OOS: ${{ steps.competition_oos.outcome }}
+          COMPETITION_ROUTES: ${{ steps.competition_routes.outcome }}
+          RELEASE_GATE: ${{ steps.release_gate.outcome }}
+          TIMING_ROUTES: ${{ steps.timing_routes.outcome }}
+          EXPERIENCE_SCORE: ${{ steps.experience_score.outcome }}
+          EXPERIENCE_LEARNING: ${{ steps.experience_learning.outcome }}
+          EXPERIENCE_BRIDGE: ${{ steps.experience_bridge.outcome }}
+          EXPERIENCE_LEARNING_REGRESSION: ${{ steps.experience_learning_regression.outcome }}
+          EXPERIENCE_BRIDGE_REGRESSION: ${{ steps.experience_bridge_regression.outcome }}
+          DUAL_LEARNING_CONTRACT: ${{ steps.dual_learning_contract.outcome }}
+          PRODUCTION_INVARIANTS: ${{ steps.production_invariants.outcome }}
+          COMPILE_CHECK: ${{ steps.compile_check.outcome }}
+          PERSIST_OUTPUTS: ${{ steps.persist_outputs.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          report() {
+            local stage="$1"
+            local result="$2"
+            echo "FINAL_STAGE_${stage}=${result}"
+            if [ "$result" = "failure" ]; then failed=1; fi
+          }
+          report DUAL_LEARNING "$DUAL_LEARNING"
+          report COMPETITION_OOS "$COMPETITION_OOS"
+          report COMPETITION_ROUTES "$COMPETITION_ROUTES"
+          report RELEASE_GATE "$RELEASE_GATE"
+          report TIMING_ROUTES "$TIMING_ROUTES"
+          report EXPERIENCE_SCORE "$EXPERIENCE_SCORE"
+          report EXPERIENCE_LEARNING "$EXPERIENCE_LEARNING"
+          report EXPERIENCE_BRIDGE "$EXPERIENCE_BRIDGE"
+          report EXPERIENCE_LEARNING_REGRESSION "$EXPERIENCE_LEARNING_REGRESSION"
+          report EXPERIENCE_BRIDGE_REGRESSION "$EXPERIENCE_BRIDGE_REGRESSION"
+          report DUAL_LEARNING_CONTRACT "$DUAL_LEARNING_CONTRACT"
+          report PRODUCTION_INVARIANTS "$PRODUCTION_INVARIANTS"
+          report COMPILE_CHECK "$COMPILE_CHECK"
+          report PERSIST_OUTPUTS "$PERSIST_OUTPUTS"
+          if [ "$failed" -ne 0 ]; then
+            echo "PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL; safe outputs were attempted but one or more stages failed." >&2
+            exit 1
+          fi
+          echo "PRODUCTION_FINAL_VERDICT=PASS"
