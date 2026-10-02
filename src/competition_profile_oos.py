@@ -198,14 +198,13 @@ def main() -> int:
                 event_meta = {
                     str(eid): {
                         "event_id": str(eid),
-                        "name": str(name or ""),
                         "competition_id": str(comp or ""),
                         "season": str(season or ""),
                         "stage": str(stage or ""),
                         "time": str(t or ""),
                     }
-                    for eid, name, comp, season, stage, t in con.execute(
-                        "SELECT event_id,name,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
+                    for eid, comp, season, stage, t in con.execute(
+                        "SELECT event_id,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
                         (sport,),
                     ).fetchall()
                 }
@@ -218,7 +217,7 @@ def main() -> int:
                 }
                 for eid, t, label, feats in rows:
                     meta = event_meta.get(str(eid), {})
-                    profile = resolve_research_profile(sport, meta.get("competition_id"), meta.get("name"))
+                    profile = resolve_research_profile(sport, meta.get("competition_id"))
                     if profile["matched"]:
                         identity["matched_rows"] += 1
                         key = profile["profile_id"]
