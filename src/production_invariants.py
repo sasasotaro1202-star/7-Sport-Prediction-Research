@@ -756,10 +756,17 @@ def main():
             'T-60 pre-event prediction workflow is missing')
     require('"target_lead_minutes": 60' in pre_event_policy and '"guideline_only": true' in pre_event_policy,
             'pre-event policy does not define a 60-minute timing guideline')
-    require('"guideline_tolerance_minutes": 15' in pre_event_policy and '"selection_mode": "adaptive-capable;60m-default"' in pre_event_policy,
-            'pre-event policy does not permit bounded adaptive timing around the T-60 guideline')
-    require("cron: '3-58/5 * * * *'" in pre_event_wf and '--lead-minutes 60' in pre_event_wf,
-            'pre-event workflow is not scheduled at the required 5-minute cadence with T-60 target')
+    require('"guideline_tolerance_minutes": 15' in pre_event_policy
+            and '"scheduled_min_lead_minutes": 45' in pre_event_policy
+            and '"scheduled_max_lead_minutes": 75' in pre_event_policy
+            and '"selection_mode": "scheduled-60m-default;manual-lead-configurable"' in pre_event_policy,
+            'pre-event policy does not define bounded scheduled/manual timing')
+    require("cron: '3-58/5 * * * *'" in pre_event_wf
+            and "requested_lead='60'" in pre_event_wf
+            and '--lead-minutes "$requested_lead"' in pre_event_wf
+            and "lead_minutes:" in pre_event_wf
+            and "adaptive_timing:" in pre_event_wf,
+            'pre-event workflow is not scheduled at five-minute cadence with configurable T-60/manual timing')
     require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 180' in pre_event_wf,
             'pre-event workflow lacks the bounded late-recovery generation window')
     require('--target-scope-only' in pre_event_wf and 'competition_profile_required' in pre_event_wf,
@@ -807,6 +814,10 @@ def main():
             'pre-event workflow does not execute adaptive and shadow timing lanes')
     require('--max-lead-minutes 180' in pre_event_wf,
             'pre-event workflow window cannot reach non-default timing candidates')
+    require('requested_lead="${{ inputs.lead_minutes }}"' in pre_event_wf
+            and 'invalid lead_minutes' in pre_event_wf
+            and 'steps.predict.outputs.lead' in pre_event_wf,
+            'pre-event manual horizon input is not fail-closed or not propagated to audit')
     require('resolve_lead' in pre_event_audit,
             'pre-event audit does not validate the selected timing route')
     require('by_target_lead_minutes' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
