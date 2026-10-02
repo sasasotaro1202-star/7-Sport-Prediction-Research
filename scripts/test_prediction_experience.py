@@ -172,6 +172,83 @@ class PredictionExperienceTests(unittest.TestCase):
         self.assertIn("LATE", summary["by_prediction_timing_status"])
 
 
+    def test_summary_canonicalizes_multiple_snapshots_per_event(self):
+        rows = [
+            {
+                "settlement_status": "SCORED",
+                "correct": True,
+                "logloss": 0.15,
+                "brier": 0.05,
+                "sport": "basketball",
+                "event_id": "event-1",
+                "market": "winner_binary",
+                "prediction_id": "p60",
+                "event_time_utc": "2026-09-30T10:00:00+00:00",
+                "prediction_cutoff_at_utc": "2026-09-30T09:00:00+00:00",
+                "generated_at_utc": "2026-09-30T09:01:00+00:00",
+                "target_lead_minutes": 60,
+                "competition_profile": {"profile_id": "basketball:bleague"},
+            },
+            {
+                "settlement_status": "SCORED",
+                "correct": False,
+                "logloss": 1.50,
+                "brier": 0.90,
+                "sport": "basketball",
+                "event_id": "event-1",
+                "market": "winner_binary",
+                "prediction_id": "p30",
+                "event_time_utc": "2026-09-30T10:00:00+00:00",
+                "prediction_cutoff_at_utc": "2026-09-30T09:30:00+00:00",
+                "generated_at_utc": "2026-09-30T09:31:00+00:00",
+                "target_lead_minutes": 30,
+                "competition_profile": {"profile_id": "basketball:bleague"},
+            },
+        ]
+        summary = pe._summary(rows, 2, {})
+        self.assertEqual(summary["resolved_scored_total"], 2)
+        self.assertEqual(summary["canonical_event_sample_total"], 1)
+        self.assertEqual(summary["overall"]["n"], 1)
+        self.assertEqual(summary["snapshot_overall"]["n"], 2)
+        self.assertFalse(summary["overall"]["accuracy"] == summary["snapshot_overall"]["accuracy"])
+        self.assertEqual(summary["canonical_by_target_lead_minutes"]["30"]["n"], 1)
+        self.assertEqual(summary["snapshot_correct_total"], 1)
+        self.assertEqual(summary["correct_total"], 0)
+
+    def test_canonical_excludes_invalid_timing_without_replacing_with_zero(self):
+        rows = [
+            {
+                "settlement_status": "SCORED",
+                "correct": True,
+                "logloss": 0.2,
+                "brier": 0.1,
+                "sport": "ufc",
+                "event_id": "event-valid",
+                "market": "winner_binary",
+                "prediction_id": "valid",
+                "event_time_utc": "2026-09-30T10:00:00+00:00",
+                "prediction_cutoff_at_utc": "2026-09-30T09:00:00+00:00",
+                "generated_at_utc": "2026-09-30T09:01:00+00:00",
+            },
+            {
+                "settlement_status": "SCORED",
+                "correct": False,
+                "logloss": 2.0,
+                "brier": 1.0,
+                "sport": "ufc",
+                "event_id": "event-invalid",
+                "market": "winner_binary",
+                "prediction_id": "invalid",
+                "event_time_utc": "2026-09-30T10:00:00+00:00",
+                "prediction_cutoff_at_utc": "2026-09-30T11:00:00+00:00",
+                "generated_at_utc": "2026-09-30T11:01:00+00:00",
+            },
+        ]
+        summary = pe._summary(rows, 2, {})
+        self.assertEqual(summary["canonical_event_sample_total"], 1)
+        self.assertEqual(summary["canonical_excluded_invalid_timing"], 1)
+        self.assertEqual(summary["overall"]["n"], 1)
+
     def test_probability_bucket_and_case_profile(self):
         self.assertEqual(pe._bucket_probability(0.82), "0.80-0.90")
         profile = pe._case_profile(
