@@ -815,6 +815,13 @@ def main():
             'timing route registry lacks accepted-route/default fallback states')
     require('--adaptive-timing' in pre_event_wf and '--timing-shadow' in pre_event_wf,
             'pre-event workflow does not execute adaptive and shadow timing lanes')
+    require(
+        'e.event_time_utc,e.competition_id,' in timing_builder
+        and 'e.name' not in timing_builder,
+        'timing route builder still depends on removed event.name schema column',
+    )
+    require('test_timing_route_schema.py' in lightweight_src,
+            'canonical timing route schema regression is not wired into Lightweight Regression')
     require('"max_lead": 180' not in pre_event_wf or 'max_lead=180' in pre_event_wf,
             'pre-event workflow lacks the 180-minute timing ceiling')
 
