@@ -45,12 +45,13 @@ jobs:
           python - <<'PY'
           import json
           p=json.load(open('config/PRE_EVENT_PREDICTION_POLICY.json',encoding='utf-8'))
-          assert p['scheduler']['target_lead_minutes'] == 30
+          assert p['scheduler']['target_lead_minutes'] == 60
           assert p['scheduler']['cron_utc'] == '3-58/5 * * * *'
           assert p['scheduler']['generation_window']['min_lead_minutes'] == 5
           assert p['scheduler']['generation_window']['max_lead_minutes'] == 180
-          assert p['scheduler']['guideline_target_minutes'] == 30
+          assert p['scheduler']['guideline_target_minutes'] == 60
           assert p['scheduler']['guideline_tolerance_minutes'] == 15
+          assert p['scheduler']['selection_mode'] == 'adaptive-capable;60m-default'
           assert p['scope']['active_prediction_scope_only'] is True
           assert p['scope']['competition_profile_required'] is True
           assert p['pit']['prediction_cutoff'] == 'event_time_minus_selected_lead'
@@ -95,7 +96,7 @@ jobs:
           rc=0
           if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor \
               --sport ${{ matrix.sport }} \
-              --lead-minutes 30 \
+              --lead-minutes 60 \
               --min-lead-minutes 5 \
               --max-lead-minutes 180 \
               --target-scope-only \
@@ -158,7 +159,7 @@ jobs:
           if python -m src.pre_event_prediction_audit \
               --sport ${{ matrix.sport }} \
               --db data/db/sports_v45.sqlite \
-              --target-lead-minutes 30 \
+              --target-lead-minutes 60 \
               --min-lead-minutes 5 \
               --max-lead-minutes 180; then
             echo 'pre_event_audit=OK'
