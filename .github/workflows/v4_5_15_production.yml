@@ -390,7 +390,7 @@ jobs:
         id: future_prediction
         run: |
           set -euo pipefail
-          python -m src.future_predictor --adaptive-timing --lead-minutes 30 --min-lead-minutes 5 --max-lead-minutes 180 --target-scope-only
+          python -m src.future_predictor --lead-minutes 60 --min-lead-minutes 45 --max-lead-minutes 75 --target-scope-only
       - name: Production route observability
         id: route_observability
         run: |

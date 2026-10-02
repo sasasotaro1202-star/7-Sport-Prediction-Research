@@ -10,7 +10,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: upset-uncertainty-research
+  # Cancel only an older run for the same PR/ref. Different PRs must not
+  # cancel each other's research evidence.
+  group: upset-uncertainty-research-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:

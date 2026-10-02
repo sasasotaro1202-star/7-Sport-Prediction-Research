@@ -214,6 +214,8 @@ def request_latest(
     sports: list[str] | None = None,
     days_back: int = 30,
     days_forward: int = 7,
+    lead_minutes: int = 60,
+    tolerance_minutes: int = 15,
 ) -> dict:
     main_sha = verify_latest_main()
     policy = read_json(FRESHNESS_PATH)
@@ -221,6 +223,15 @@ def request_latest(
         raise RuntimeError("FRESHNESS_POLICY_REFRESH_DISABLED")
     if policy.get("reuse_stored_prediction_output") is not False:
         raise RuntimeError("FRESHNESS_POLICY_ALLOWS_STALE_REUSE")
+
+    lead = int(lead_minutes)
+    tolerance = int(tolerance_minutes)
+    if lead < 5 or lead > 180:
+        raise RuntimeError(f"INVALID_LEAD_MINUTES:{lead}")
+    if tolerance < 0 or tolerance > 60:
+        raise RuntimeError(f"INVALID_LEAD_TOLERANCE_MINUTES:{tolerance}")
+    min_lead = max(5, lead - tolerance)
+    max_lead = min(180, lead + tolerance)
 
     scope = active_scope()
     requested = list(sports or scope)
@@ -254,7 +265,19 @@ def request_latest(
             collection = _verify_collection(sport, request_started)
 
             _run(
-                [sys.executable, "-m", "src.future_predictor", "--sport", sport],
+                [
+                    sys.executable,
+                    "-m",
+                    "src.future_predictor",
+                    "--sport",
+                    sport,
+                    "--lead-minutes",
+                    str(lead),
+                    "--min-lead-minutes",
+                    str(min_lead),
+                    "--max-lead-minutes",
+                    str(max_lead),
+                ],
                 timeout_seconds=_command_timeout_seconds(),
             )
             prediction = _verify_prediction(sport, request_started)
@@ -299,6 +322,12 @@ def request_latest(
         "status": "FRESH_REQUEST_VERIFIED",
         "active_scope": scope,
         "sports": reports,
+        "requested_lead_minutes": lead,
+        "lead_tolerance_minutes": tolerance,
+        "effective_lead_window_minutes": {
+            "min": min_lead,
+            "max": max_lead,
+        },
         "stored_prediction_reused": False,
         "policy": "fresh-prediction-request-v1",
         "archive_dir": str(archive_dir.relative_to(ROOT)),
@@ -317,12 +346,26 @@ def main() -> int:
     parser.add_argument("--sport", action="append", help="Active-scope sport; repeatable.")
     parser.add_argument("--days-back", type=int, default=30)
     parser.add_argument("--days-forward", type=int, default=7)
+    parser.add_argument(
+        "--lead-minutes",
+        type=int,
+        default=60,
+        help="Requested prediction lead before event; 60 is the automated default.",
+    )
+    parser.add_argument(
+        "--lead-tolerance-minutes",
+        type=int,
+        default=15,
+        help="Allowed generation tolerance around the requested lead.",
+    )
     args = parser.parse_args()
 
     manifest = request_latest(
         sports=args.sport,
         days_back=args.days_back,
         days_forward=args.days_forward,
+        lead_minutes=args.lead_minutes,
+        tolerance_minutes=args.lead_tolerance_minutes,
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
     return 0

@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "results/research/timing_routes.json"
-DEFAULT_LEAD = 30
+DEFAULT_LEAD = 60
 
 
 def load_registry() -> dict:

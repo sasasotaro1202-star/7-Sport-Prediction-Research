@@ -15,7 +15,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: scope-boundary-guard
+  # Cancel only an older guard for the same ref; unrelated branches must not
+  # cancel each other's scope-boundary evidence.
+  group: scope-boundary-guard-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

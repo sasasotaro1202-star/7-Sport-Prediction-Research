@@ -1,7 +1,7 @@
 {
-  "version": 2,
-  "policy": "adaptive-prediction-timing-v1",
-  "default_preferred_lead_minutes": 30,
+  "version": 3,
+  "policy": "adaptive-prediction-timing-v2",
+  "default_preferred_lead_minutes": 60,
   "allowed_lead_minutes": [
     15,
     20,
@@ -16,7 +16,7 @@
   },
   "selection": {
     "mode": "research_then_production",
-    "production_default": 30,
+    "production_default": 60,
     "choose_from_allowed_leads_only": true,
     "optimize_for": [
       "information_value",
@@ -38,7 +38,7 @@
     "bootstrap_samples": 600
   },
   "actions": {
-    "initial_prediction": "preferred_or_selected_lead",
+    "initial_prediction": "scheduled_60m_or_explicit_user_lead",
     "refresh": "allowed_when_expected_prediction_change_or_uncertainty_reduction_justifies_cost",
     "late_recovery": true,
     "abstain_or_fallback": true
@@ -52,11 +52,11 @@
     "feature_cutoff_must_not_exceed_prediction_cutoff": true
   },
   "scheduler": {
-    "guideline_target_minutes": 30,
+    "guideline_target_minutes": 60,
     "guideline_tolerance_minutes": 15,
-    "target_lead_minutes": 30,
+    "target_lead_minutes": 60,
     "guideline_only": true,
-    "selection_mode": "adaptive-capable;30m-default",
+    "selection_mode": "scheduled-60m-default;manual-lead-configurable",
     "shadow_rotation_minutes": 15,
     "shadow_leads_minutes": [
       60,
