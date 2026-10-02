@@ -114,4 +114,4 @@ The system is optimized for production accuracy first: runtime improvements come
 
 30分前の本番推論では、`competition_specific_accepted → sport_incumbent → safe_prior` の順でfail-closedにフォールバックします。新しい大会IDの自動発見は研究フロンティアとして扱い、本番対象への暗黙的なscope拡張は行いません。
 ### 予測時刻は30分固定ではない
-自動Productionの標準targetはT-60分です。scheduled laneは45–75分の明示的windowで予測し、非デフォルト時刻はpaired chronological OOS、frozen holdout、bootstrap、PIT gateを通過したTiming Routeの研究対象として分離します。別時刻のadaptive/shadow予測はローテーション収集し、将来のTiming Route学習に利用します。ユーザー要求時はfresh prediction entrypointへ希望leadを指定できます。
+自動Productionの標準targetはT-60分です。scheduled laneは45–75分の明示的windowで予測し、非デフォルト時刻はpaired chronological OOS、frozen holdout、bootstrap、PIT gateを通過したTiming Routeの研究対象として分離します。別時刻のadaptive/shadow予測はローテーション収集し、将来のTiming Route学習に利用します。ユーザー要求時はfresh prediction entrypointへ希望leadを指定できます。例: `python -m src.latest_prediction --sport basketball --lead-minutes 30 --lead-tolerance-minutes 10`。この場合も指定leadに応じたprediction cutoffを再計算し、古いpredictionを再利用しません。
