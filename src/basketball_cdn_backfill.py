@@ -135,16 +135,25 @@ def parse_schedule_page(c, html, retrieved, url, season_year, month):
 
 def collect_official(c, season_years):
     total = 0
+    errors = []
+    requests_attempted = 0
     for season_year in season_years:
         for month in range(1, 13):
             url = BLEAGUE_SCHEDULE.format(month=month, season_year=season_year)
+            requests_attempted += 1
             try:
                 html, retrieved, _ = get(url)
                 total += parse_schedule_page(c, html, retrieved, url, season_year, month)
-            except Exception:
-                continue
+            except Exception as exc:
+                errors.append({
+                    "season_year": int(season_year),
+                    "month": int(month),
+                    "url": url,
+                    "error_type": type(exc).__name__,
+                    "error": repr(exc),
+                })
         c.commit()
-    return total
+    return total, errors, requests_attempted
 
 
 def collect_historical_bleaguer(c):
@@ -230,9 +239,21 @@ def main():
     ap.add_argument("--historical", action="store_true")
     a = ap.parse_args()
     c = connect()
-    report = {"version": "v4.6-basketball-scope-correct", "official": 0, "historical": 0, "warnings": []}
+    report = {
+        "version": "v4.6-basketball-scope-correct",
+        "official": 0,
+        "official_requests": 0,
+        "official_errors": [],
+        "historical": 0,
+        "warnings": [],
+    }
     try:
-        report["official"] = collect_official(c, SEASONS[-2:])
+        report["official"], report["official_errors"], report["official_requests"] = collect_official(c, SEASONS[-2:])
+        report["official_status"] = (
+            "ERROR" if report["official_errors"] and report["official"] == 0
+            else "PARTIAL" if report["official_errors"]
+            else "OK"
+        )
         if a.historical or not a.official_only:
             report["historical"], report["warnings"] = collect_historical_bleaguer(c)
         c.commit()
