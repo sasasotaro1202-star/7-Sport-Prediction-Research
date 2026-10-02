@@ -483,8 +483,90 @@ def _score_f1(pred: dict[str, Any], winner_id: str | None) -> dict[str, Any] | N
     }
 
 
+def _canonical_event_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        if row.get("settlement_status") != "SCORED":
+            continue
+        sport = str(row.get("sport") or "UNKNOWN")
+        event_id = str(row.get("event_id") or "")
+        market = str(row.get("market") or "winner_binary")
+        if event_id:
+            groups[(sport, event_id, market)].append(row)
+
+    origin_priority = {
+        "AUTOMATED_SCHEDULE": 0,
+        "ON_DEMAND_REQUEST": 1,
+        "TIMING_SHADOW": 2,
+    }
+
+    def numeric_lead(row: dict[str, Any]) -> int:
+        value = row.get("target_lead_minutes")
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 10_000
+
+    def valid_pre_cutoff(row: dict[str, Any]) -> bool:
+        generated = row.get("generated_at_utc")
+        cutoff = row.get("prediction_cutoff_at_utc")
+        if not generated or not cutoff:
+            return False
+        try:
+            return str(generated) <= str(cutoff)
+        except Exception:
+            return False
+
+    canonical: list[dict[str, Any]] = []
+    for key, candidates in groups.items():
+        valid = [row for row in candidates if valid_pre_cutoff(row)]
+        pool = valid or candidates
+        pool = sorted(
+            pool,
+            key=lambda row: (
+                origin_priority.get(str(row.get("prediction_origin") or ""), 3),
+                abs(numeric_lead(row) - 60),
+                str(row.get("prediction_cutoff_at_utc") or ""),
+                str(row.get("generated_at_utc") or ""),
+                str(row.get("prediction_id") or ""),
+            ),
+            reverse=False,
+        )
+        # After origin/target selection, prefer the most recent valid cutoff/generation.
+        top_origin = origin_priority.get(str(pool[0].get("prediction_origin") or ""), 3)
+        top_distance = abs(numeric_lead(pool[0]) - 60)
+        tied = [
+            row for row in pool
+            if origin_priority.get(str(row.get("prediction_origin") or ""), 3) == top_origin
+            and abs(numeric_lead(row) - 60) == top_distance
+        ]
+        chosen = max(
+            tied,
+            key=lambda row: (
+                str(row.get("prediction_cutoff_at_utc") or ""),
+                str(row.get("generated_at_utc") or ""),
+                str(row.get("prediction_id") or ""),
+            ),
+        )
+        chosen = dict(chosen)
+        chosen["canonical_event_key"] = "|".join(key)
+        chosen["canonical_reason"] = (
+            "prefer_automated_schedule_t60_then_nearest_target_lead_then_latest_valid_prediction"
+        )
+        canonical.append(chosen)
+    canonical.sort(
+        key=lambda row: (
+            str(row.get("sport") or ""),
+            str(row.get("event_id") or ""),
+            str(row.get("prediction_id") or ""),
+        )
+    )
+    return canonical
+
+
 def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Counter[str]) -> dict[str, Any]:
-    scored = [r for r in rows if r.get("settlement_status") == "SCORED"]
+    snapshot_scored = [r for r in rows if r.get("settlement_status") == "SCORED"]
+    scored = _canonical_event_rows(snapshot_scored)
     correct = [r for r in scored if r.get("correct") is True]
 
     def metrics(items: list[dict[str, Any]]) -> dict[str, Any]:
@@ -532,10 +614,20 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
         "generated_at_utc": utc_now(),
         "prediction_archive_total": predictions_total,
         "resolved_scored_total": len(scored),
+        "resolved_scored_snapshot_total": len(snapshot_scored),
+        "canonical_event_total": len(scored),
+        "canonicalization": {
+            "unit": "sport|event_id|market",
+            "primary_origin": "AUTOMATED_SCHEDULE",
+            "primary_target_lead_minutes": 60,
+            "validity": "generated_at_utc<=prediction_cutoff_at_utc",
+            "snapshot_metrics_remain_available": True,
+        },
         "correct_total": len(correct),
         "unresolved_total": sum(unresolved.values()),
         "unresolved_reasons": dict(unresolved),
         "overall": metrics(scored),
+        "snapshot_overall": metrics(snapshot_scored),
         "by_sport": {sport: metrics(vals) for sport, vals in sorted(sport_groups.items())},
         "by_strategy": grouped("strategy"),
         "by_competition_profile": grouped("competition_profile"),
@@ -560,6 +652,13 @@ def _summary(rows: list[dict[str, Any]], predictions_total: int, unresolved: Cou
         "recent_wrong": wrong[:50],
         "repeated_error_patterns": _patterns(scored),
         "available_next_cycle_signals": _next_cycle_signals(scored),
+        "snapshot_by_target_lead_minutes": {
+            key: metrics(vals)
+            for key, vals in sorted(
+                _group_rows(snapshot_scored, "target_lead_minutes").items(),
+                key=lambda item: item[0],
+            )
+        },
     }
 
 
@@ -684,6 +783,7 @@ def score_archive() -> dict[str, Any]:
             "prediction_timing": pred.get("prediction_timing"),
             "feature_pit_lead_minutes": pred.get("feature_pit_lead_minutes"),
             "experience_shadow": pred.get("experience_shadow"),
+            "prediction_origin": pred.get("prediction_origin"),
         }
 
         c = conns.get(sport)
