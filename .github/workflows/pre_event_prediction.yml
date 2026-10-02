@@ -23,7 +23,7 @@ jobs:
       group: pre-event-prediction-${{ matrix.sport }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -80,7 +80,7 @@ jobs:
         run: |
           set -uo pipefail
           rc=0
-          if timeout --signal=TERM 150s python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 0 --days-forward 7; then
+          if timeout --signal=TERM --kill-after=30s 270s python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 0 --days-forward 7; then
             echo 'schedule_refresh=OK'
           else
             rc=$?
@@ -93,7 +93,7 @@ jobs:
         run: |
           set -uo pipefail
           rc=0
-          if timeout --signal=TERM 240s python -m src.future_predictor \
+          if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor \
               --sport ${{ matrix.sport }} \
               --lead-minutes 30 \
               --min-lead-minutes 5 \
