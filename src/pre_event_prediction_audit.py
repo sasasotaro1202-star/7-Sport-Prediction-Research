@@ -37,7 +37,7 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
         "generated_at_utc": now.isoformat(),
         "sport": sport,
         "target_lead_minutes": target_lead,
-        "default_guideline_minutes": 30,
+        "default_guideline_minutes": 60,
         "timing_route_accepted_events": 0,
         "window": {"min_lead_minutes": min_lead, "max_lead_minutes": max_lead},
         "guideline_tolerance_minutes": 15,
@@ -164,7 +164,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sport", required=True)
     parser.add_argument("--db", default="data/db/sports_v45.sqlite")
-    parser.add_argument("--target-lead-minutes", type=int, default=30)
+    parser.add_argument("--target-lead-minutes", type=int, default=60)
     parser.add_argument("--min-lead-minutes", type=float, default=5.0)
     parser.add_argument("--max-lead-minutes", type=float, default=180.0)
     args = parser.parse_args()
