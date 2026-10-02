@@ -244,6 +244,10 @@ def main():
     )
     require('timeout --signal=TERM 900s python -m src.independent_leakage_audit' in workflow,
             'independent leakage audit lacks a bounded runtime budget')
+    require("V45_HTTP_TIMEOUT" in research_base and "V45_HTTP_RETRIES" in research_base,
+            'shared HTTP layer must expose bounded timeout/retry controls')
+    require("requests.exceptions.ReadTimeout" in research_base and "requests.exceptions.ConnectTimeout" in research_base,
+            'shared HTTP layer must retry network timeout classes explicitly')
     require('source failures degrade explicitly' in workflow,'resilient source-failure policy missing')
     require('collector_status=DEGRADED' in workflow,'collector degradation is not explicitly recorded')
     require('--days-forward 7' in workflow and "ap.add_argument('--days-forward'" in (ROOT/'src/seven_sport_production.py').read_text(encoding='utf-8'),
