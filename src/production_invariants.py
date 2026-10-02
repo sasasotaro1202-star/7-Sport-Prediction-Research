@@ -309,6 +309,19 @@ def main():
             'accelerated research final fit must exclude frozen holdout')
     require('final.fit(X,y)' not in accelerated,
             'accelerated research must never fit final model on full dataset including holdout')
+    failure_recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
+    require('production_failure_ledger' in failure_recovery,
+            'production failure recovery does not persist failure memory')
+    require('contents: write' in failure_recovery,
+            'failure ledger recovery workflow cannot persist repo-native failure memory')
+    require('group: production-failure-memory' in failure_recovery,
+            'failure ledger lacks global single-writer concurrency')
+    require('actions/runs/${RUN_ID}/jobs' in failure_recovery,
+            'failure ledger does not inspect failed workflow jobs')
+    require('git add results/failure_ledger.jsonl' in failure_recovery,
+            'failure ledger is not persisted as an explicit result file')
+    require('git add results models' not in failure_recovery,
+            'failure ledger recovery must not use unrestricted generated-model publication')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require("gh run list --workflow \"production_invariants.yml\"" in watchdog and "gh run list --workflow \"production_safety_audit.yml\"" in watchdog,
             'watchdog does not verify same-SHA validator status before dispatch')
