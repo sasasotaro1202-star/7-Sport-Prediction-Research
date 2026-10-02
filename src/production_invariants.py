@@ -162,7 +162,30 @@ def main():
     require(bad_kfold not in all_py,'generic K-fold detected under src/')
     require(bad_shuffle not in all_py,'shuffle=True detected under src/')
     require(bad_random_split not in all_py,'random_split detected under src/')
-    require(bad_continue not in all_wf,'failure-hiding continue-on-error detected in workflow set')
+    # continue-on-error is permitted only for explicitly allowlisted optional/research
+    # stages in the canonical production workflow, and every such stage must feed
+    # the final explicit failure verdict. Other workflows remain strict.
+    allowed_optional_ids=('dual_learning','competition_oos','competition_routes','release_gate','timing_routes',
+                          'experience_score','experience_learning','experience_bridge',
+                          'experience_learning_regression','experience_bridge_regression','dual_learning_contract')
+    noncanonical_workflows=all_wf.replace(workflow,'')
+    require(bad_continue not in noncanonical_workflows,
+            'failure-hiding continue-on-error detected outside canonical production workflow')
+    for step_id in allowed_optional_ids:
+        require(f'id: {step_id}' in workflow,
+                f'canonical workflow missing allowlisted continue-on-error step id: {step_id}')
+        pos=workflow.find(f'id: {step_id}')
+        require(bad_continue in workflow[pos:pos+700],
+                f'allowlisted step missing explicit continue-on-error: {step_id}')
+    require('id: final_failure_verdict' in workflow and 'if: always()' in workflow,
+            'canonical workflow lacks final explicit failure verdict')
+    final_start=workflow.find('id: final_failure_verdict')
+    final_block=workflow[final_start:]
+    for step_id in allowed_optional_ids:
+        require(f'steps.{step_id}.outcome' in final_block,
+                f'final failure verdict does not inspect step outcome: {step_id}')
+    require('PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL' in final_block,
+            'final production verdict does not fail explicitly on partial failure')
     require(bad_shell not in all_wf,'failure-hiding shell fallback detected in workflow set')
     require(bad_publish not in all_wf,'unrestricted generated-model publication detected in workflow set')
     compact=research.replace(' ','')
@@ -364,7 +387,10 @@ def main():
             'PIT cadence guard must preserve the exact 9-hour epoch phase')
     require('echo \'run=false\' >> "$GITHUB_OUTPUT"' in pit_workflow,
             'PIT cadence guard must fail closed by skipping non-boundary wakes')
-    require('continue-on-error: true' not in workflow,'workflow uses hidden continue-on-error')
+    pit_block=workflow[workflow.find('- name: Strict PIT replay'):workflow.find('- name: Parallel experience and historical learning')]
+    audit_block=workflow[workflow.find('- name: Independent leakage audit after model generation'):workflow.find('- name: Build competition-specific production routes')]
+    require(bad_continue not in pit_block,'Strict PIT replay must remain blocking')
+    require(bad_continue not in audit_block,'independent leakage audit must remain blocking')
     future_src=(ROOT/'src/future_predictor.py').read_text(encoding='utf-8')
     require((ROOT/'src/future_predictor.py').exists(),'future prediction inference module is missing')
     require('src.future_predictor' in workflow,'canonical production workflow does not execute future prediction inference')
