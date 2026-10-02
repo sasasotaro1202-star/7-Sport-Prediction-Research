@@ -23,6 +23,11 @@ def main() -> int:
     assert classify_job({"status": "completed", "conclusion": "success"}) == "SUCCESS"
     assert classify_job({"status": "completed", "conclusion": "failure"}) == "FAILURE"
 
+    from pathlib import Path
+    workflow = Path('.github/workflows/production_runtime_health.yml').read_text(encoding='utf-8')
+    assert '\\${{' not in workflow
+    assert 'name: production-runtime-health-${{ github.run_id }}' in workflow
+
     from src.production_runtime_health import _latest_production_run
 
     import src.production_runtime_health as health
