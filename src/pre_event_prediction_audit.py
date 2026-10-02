@@ -63,7 +63,7 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
             return report
 
         rows = c.execute(
-            """SELECT e.event_id,e.event_time_utc,e.status,e.name,e.competition_id,
+            """SELECT e.event_id,e.event_time_utc,e.status,e.competition_id,
                       (SELECT COUNT(DISTINCT ep.participant_id)
                          FROM event_participant ep
                         WHERE ep.event_id=e.event_id
@@ -83,7 +83,7 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
             lead = (event_dt - now).total_seconds() / 60.0
             if lead < min_lead or lead > max_lead:
                 continue
-            profile = target_event(sport, row["name"], row["competition_id"])
+            profile = target_event(sport, None, row["competition_id"])
             if not profile.get("matched"):
                 continue
             target.append((row, event_dt, lead, profile))
