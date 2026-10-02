@@ -2,6 +2,17 @@ name: Pre-Event Adaptive Timing Prediction
 
 on:
   workflow_dispatch:
+    inputs:
+      lead_minutes:
+        description: "Prediction horizon in minutes before the event (5-180)."
+        required: false
+        default: "60"
+        type: string
+      adaptive_timing:
+        description: "Allow accepted timing routes to override the requested lead."
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '3-58/5 * * * *'
 
@@ -20,8 +31,11 @@ jobs:
       matrix:
         sport: [valorant, basketball, volleyball, ufc, rizin]
     concurrency:
-      group: pre-event-prediction-${{ matrix.sport }}
-      cancel-in-progress: true
+      # Scheduled runs may cancel an older scheduled run for the same sport.
+      # Manual requests use a separate concurrency group and are not cancelled
+      # by the five-minute scheduler.
+      group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}
+      cancel-in-progress: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -87,20 +101,48 @@ jobs:
             rc=$?
             echo "schedule_refresh=DEGRADED exit=$rc"
           fi
+
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Generate adaptive prediction lane
+      - name: Generate requested prediction lane
         id: predict
         run: |
           set -uo pipefail
           rc=0
-          if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor \
-              --sport ${{ matrix.sport }} \
-              --lead-minutes 60 \
-              --min-lead-minutes 5 \
-              --max-lead-minutes 180 \
-              --target-scope-only \
-              --adaptive-timing; then
+          requested_lead='60'
+          adaptive='1'
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            requested_lead="${{ inputs.lead_minutes }}"
+            if [ "${{ inputs.adaptive_timing }}" = "true" ]; then adaptive="1"; else adaptive="0"; fi
+          fi
+          case "$requested_lead" in
+            ""|*[!0-9]*) echo "invalid lead_minutes=$requested_lead" >&2; exit 2 ;;
+          esac
+          if [ "$requested_lead" -lt 5 ] || [ "$requested_lead" -gt 180 ]; then
+            echo "invalid lead_minutes=$requested_lead (must be 5-180)" >&2
+            exit 2
+          fi
+          tolerance=15
+          min_lead=$((requested_lead - tolerance))
+          max_lead=$((requested_lead + tolerance))
+          if [ "$min_lead" -lt 5 ]; then min_lead=5; fi
+          if [ "$max_lead" -gt 180 ]; then max_lead=180; fi
+          echo "requested lead=$requested_lead window=${min_lead}-${max_lead} adaptive=$adaptive"
+          echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"
+          echo "min_lead=$min_lead" >> "$GITHUB_OUTPUT"
+          echo "max_lead=$max_lead" >> "$GITHUB_OUTPUT"
+          echo "adaptive=$adaptive" >> "$GITHUB_OUTPUT"
+          args=(
+            --sport "${{ matrix.sport }}"
+            --lead-minutes "$requested_lead"
+            --min-lead-minutes "$min_lead"
+            --max-lead-minutes "$max_lead"
+            --target-scope-only
+          )
+          if [ "$adaptive" = "1" ]; then
+            args+=(--adaptive-timing)
+          fi
+          if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor "${args[@]}"; then
             echo 'future_prediction=OK'
           else
             rc=$?
@@ -159,9 +201,9 @@ jobs:
           if python -m src.pre_event_prediction_audit \
               --sport ${{ matrix.sport }} \
               --db data/db/sports_v45.sqlite \
-              --target-lead-minutes 60 \
-              --min-lead-minutes 5 \
-              --max-lead-minutes 180; then
+              --target-lead-minutes "${{ steps.predict.outputs.lead }}" \
+              --min-lead-minutes "${{ steps.predict.outputs.min_lead }}" \
+              --max-lead-minutes "${{ steps.predict.outputs.max_lead }}"; then
             echo 'pre_event_audit=OK'
           else
             rc=$?
@@ -212,7 +254,11 @@ jobs:
           shadow_rc='${{ steps.timing_shadow.outputs.rc }}'
           audit_rc='${{ steps.audit.outputs.rc }}'
           db_rc='${{ steps.dbguard.outputs.rc }}'
-          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
+          lead='${{ steps.predict.outputs.lead }}'
+          min_lead='${{ steps.predict.outputs.min_lead }}'
+          max_lead='${{ steps.predict.outputs.max_lead }}'
+          adaptive='${{ steps.predict.outputs.adaptive }}'
+          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=$lead window=${min_lead}-${max_lead} adaptive=$adaptive schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
           if [ "$shadow_rc" -ne 0 ]; then
             echo "TIMING_SHADOW_STATUS=DEGRADED exit=$shadow_rc"
           else
