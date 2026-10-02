@@ -1,75 +1,49 @@
 from __future__ import annotations
 
-import ast
 import json
-from pathlib import Path
 
-import numpy as np
-
-
-ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "src" / "research_cycle_strict.py"
-
-
-def _extract_rank_logic():
-    tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
-    train = next(
-        node for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "train"
-    )
-    for node in ast.walk(train):
-        if isinstance(node, ast.Assign):
-            if any(isinstance(t, ast.Name) and t.id == "rank" for t in node.targets):
-                return node
-    raise AssertionError("rank assignment not found")
+from src.research_cycle_strict import _rank_valid_oos_candidates
 
 
 def test_malformed_candidate_is_rejected_without_typeerror():
-    source = SOURCE.read_text(encoding="utf-8")
-    assert "invalid_oos_candidates" in source
-    assert "oos_score_not_object" in source
-    assert "oos_score_invalid_metrics" in source
-    assert "no_valid_oos_candidate_scores" in source
-    ast.parse(source)
-
-
-def test_expected_ranking_contract_rejects_string_score():
-    oos = {
-        "good": {
-            "robust_objective": 0.68,
-            "brier": 0.24,
-            "ece": 0.03,
-            "logloss": 0.68,
-        },
-        "broken": "TRAIN_FAILED",
-    }
-
-    invalid = {}
-    rankable = {}
-    for name, score in oos.items():
-        if not isinstance(score, dict):
-            invalid[name] = {"reason": "oos_score_not_object", "status": "REJECTED"}
-            continue
-        required = ("robust_objective", "brier", "ece", "logloss")
-        missing = [m for m in required if m not in score or not np.isfinite(float(score[m]))]
-        if missing:
-            invalid[name] = {
-                "reason": "oos_score_invalid_metrics",
-                "missing_or_nonfinite_metrics": missing,
-                "status": "REJECTED",
-            }
-            continue
-        rankable[name] = score
-
-    rank = sorted(
-        rankable,
-        key=lambda k: (
-            float(rankable[k]["robust_objective"]),
-            float(rankable[k]["brier"]),
-            float(rankable[k]["ece"]),
-        ),
+    ranked, invalid = _rank_valid_oos_candidates(
+        {
+            "good": {
+                "robust_objective": 0.68,
+                "brier": 0.24,
+                "ece": 0.03,
+                "logloss": 0.68,
+            },
+            "broken": "TRAIN_FAILED",
+            "nan_metric": {
+                "robust_objective": float("nan"),
+                "brier": 0.24,
+                "ece": 0.03,
+                "logloss": 0.68,
+            },
+        }
     )
 
-    assert rank == ["good"]
+    assert ranked == ["good"]
+    assert invalid["broken"]["reason"] == "oos_score_not_object"
+    assert invalid["nan_metric"]["reason"] == "oos_score_invalid_metrics"
     assert invalid["broken"]["status"] == "REJECTED"
+    assert invalid["nan_metric"]["status"] == "REJECTED"
     json.dumps(invalid, ensure_ascii=False)
+
+
+def test_no_valid_candidates_is_fail_closed():
+    ranked, invalid = _rank_valid_oos_candidates(
+        {
+            "broken_a": "TRAIN_FAILED",
+            "broken_b": {"robust_objective": 0.6, "brier": 0.2, "ece": 0.02},
+        }
+    )
+    assert ranked == []
+    assert set(invalid) == {"broken_a", "broken_b"}
+
+
+if __name__ == "__main__":
+    test_malformed_candidate_is_rejected_without_typeerror()
+    test_no_valid_candidates_is_fail_closed()
+    print("strict OOS candidate fail-closed tests passed")
