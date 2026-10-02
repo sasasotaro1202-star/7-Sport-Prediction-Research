@@ -392,7 +392,8 @@ jobs:
           set -euo pipefail
           # Canonical hourly production is centered on T-60. Adaptive routing
           # may move within the bounded 45-75 minute window when a validated
-          # timing route is available.
+          # timing route is available. Manual non-default horizons remain isolated
+          # in the pre-event workflow and are not silently substituted here.
           python -m src.future_predictor --adaptive-timing --lead-minutes 60 --min-lead-minutes 45 --max-lead-minutes 75 --target-scope-only
       - name: Production route observability
         id: route_observability
