@@ -753,13 +753,15 @@ def main():
     pre_event_test=(ROOT/'scripts/test_pre_event_prediction.py').read_text(encoding='utf-8')
     pre_event_audit=(ROOT/'src/pre_event_prediction_audit.py').read_text(encoding='utf-8')
     require((ROOT/'.github/workflows/pre_event_prediction.yml').exists(),
-            '30-minute pre-event prediction workflow is missing')
-    require('"target_lead_minutes": 30' in pre_event_policy and '"guideline_only": true' in pre_event_policy,
-            'pre-event policy does not define a 30-minute timing guideline')
-    require('"guideline_tolerance_minutes": 15' in pre_event_policy and '"selection_mode": "adaptive-capable;30m-default"' in pre_event_policy,
+            '60-minute pre-event prediction workflow is missing')
+    require('"target_lead_minutes": 60' in pre_event_policy and '"guideline_only": true' in pre_event_policy,
+            'pre-event policy does not define a 60-minute timing guideline')
+    require('"guideline_tolerance_minutes": 15' in pre_event_policy and '"selection_mode": "scheduled-60m-default;manual-lead-configurable"' in pre_event_policy,
             'pre-event policy does not permit bounded adaptive timing around the guideline')
-    require("cron: '3-58/5 * * * *'" in pre_event_wf and '--lead-minutes 30' in pre_event_wf,
-            'pre-event workflow is not scheduled at the required 5-minute cadence with 30-minute target')
+    require("cron: '3-58/5 * * * *'" in pre_event_wf
+            and '--lead-minutes "${{ steps.timing.outputs.lead }}"' in pre_event_wf
+            and 'lead=60' in pre_event_wf,
+            'pre-event workflow is not scheduled at the required 5-minute cadence with a 60-minute default target')
     require('--min-lead-minutes 5' in pre_event_wf and '--max-lead-minutes 180' in pre_event_wf,
             'pre-event workflow lacks the bounded late-recovery generation window')
     require('--target-scope-only' in pre_event_wf and 'competition_profile_required' in pre_event_wf,
@@ -795,8 +797,8 @@ def main():
     timing_builder=(ROOT/'src/timing_route_builder.py').read_text(encoding='utf-8')
     timing_registry=(ROOT/'src/timing_route_registry.py').read_text(encoding='utf-8')
     timing_test=(ROOT/'scripts/test_timing_router.py').read_text(encoding='utf-8')
-    require('"default_preferred_lead_minutes": 30' in timing_policy and '"guideline_only": true' in pre_event_policy,
-            'adaptive timing policy does not retain 30-minute guideline as non-hard default')
+    require('"default_preferred_lead_minutes": 60' in timing_policy and '"guideline_only": true' in pre_event_policy,
+            'adaptive timing policy does not retain 60-minute guideline as non-hard default')
     require('"require_oos_timing_evidence_for_nondefault": true' in timing_policy and '"require_frozen_holdout_for_nondefault": true' in timing_policy,
             'adaptive timing policy permits unvalidated non-default timing')
     require('ACCEPTED_LOCKED_HOLDOUT' in timing_builder and 'frozen holdout is score-only' in timing_builder.lower(),
@@ -835,9 +837,10 @@ def main():
     require('by_prediction_timing_status' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
             'prediction experience summary does not track pre-event timing quality')
     require('test_pre_event_prediction.py' in lightweight_src,
-            '30-minute pre-event prediction regression is not wired into Lightweight Regression')
-    require('pre_event_prediction.yml' in (ROOT/'README.md').read_text(encoding='utf-8'),
-            'README does not document the automatic 30-minute prediction lane')
+            'pre-event prediction regression is not wired into Lightweight Regression')
+    readme_text=(ROOT/'README.md').read_text(encoding='utf-8')
+    require('pre_event_prediction.yml' in readme_text and ('60-minute' in readme_text or 'T-60' in readme_text),
+            'README does not document the automatic 60-minute prediction lane')
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
         for x in FAILURES: print(f'- {x}')
