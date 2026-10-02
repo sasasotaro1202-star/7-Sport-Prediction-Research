@@ -834,6 +834,14 @@ def main():
             'production runtime health regression is not wired into Lightweight Regression')
     require('by_prediction_timing_status' in (ROOT/'src/prediction_experience.py').read_text(encoding='utf-8'),
             'prediction experience summary does not track pre-event timing quality')
+    experience_src=(ROOT/'src/prediction_experience.py').read_text(encoding='utf-8')
+    require('def _canonical_event_rows' in experience_src
+            and 'canonical_event_sample_total' in experience_src
+            and 'snapshot_overall' in experience_src
+            and 'canonical_selection_policy' in experience_src,
+            'prediction experience metrics must expose canonical event-level units separately from snapshots')
+    require('latest_valid_pre_event_prediction_per_event_market' in experience_src,
+            'canonical experience selection policy is not explicitly defined')
     require('test_pre_event_prediction.py' in lightweight_src,
             'T-60 pre-event prediction regression is not wired into Lightweight Regression')
     require('pre_event_prediction.yml' in (ROOT/'README.md').read_text(encoding='utf-8'),
