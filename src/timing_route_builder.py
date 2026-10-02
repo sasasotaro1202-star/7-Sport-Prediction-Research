@@ -252,7 +252,7 @@ def _evaluate_profile(profile_id: str, leads: dict[int, dict[str, dict]], policy
             "fold_non_worse_rate": selected["fold_non_worse_rate"],
         },
         "candidate_results": results,
-        "policy": "timing route selected only from paired chronological OOS; frozen holdout is score-only; default 30m remains fail-closed fallback",
+        "policy": "timing route selected only from paired chronological OOS; frozen holdout is score-only; default 60m remains fail-closed fallback",
     }
 
 
