@@ -44,6 +44,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_competition_profile_oos_fail_closed.py
       - name: Adaptive timing router regression
         run: PYTHONPATH=. python scripts/test_timing_router.py
+      - name: Timing route canonical schema regression
+        run: PYTHONPATH=. python scripts/test_timing_route_schema.py
       - name: Production route observability regression
         run: PYTHONPATH=. python scripts/test_prediction_route_observability.py
       - name: Production runtime health regression
