@@ -198,14 +198,17 @@ def main() -> int:
                 event_meta = {
                     str(eid): {
                         "event_id": str(eid),
-                        "name": str(name or ""),
+                        # The canonical v45 event schema has no display-name column.
+                        # Competition identity is resolved from the explicit
+                        # competition_id only; absent identity remains unresolved.
+                        "name": "",
                         "competition_id": str(comp or ""),
                         "season": str(season or ""),
                         "stage": str(stage or ""),
                         "time": str(t or ""),
                     }
-                    for eid, name, comp, season, stage, t in con.execute(
-                        "SELECT event_id,name,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
+                    for eid, comp, season, stage, t in con.execute(
+                        "SELECT event_id,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
                         (sport,),
                     ).fetchall()
                 }
