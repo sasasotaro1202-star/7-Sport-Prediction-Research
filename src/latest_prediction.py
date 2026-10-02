@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import signal
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -21,6 +23,9 @@ FRESHNESS_PATH = ROOT / "config/PREDICTION_FRESHNESS_POLICY.json"
 COLLECTION_REPORT = ROOT / "results/v45/production_run.json"
 PREDICTION_REPORT = ROOT / "results/future_predictions.json"
 ARCHIVE_ROOT = ROOT / "results/latest_predictions"
+LATEST_PREDICTION_TIMEOUT_ENV = "V45_LATEST_PREDICTION_COMMAND_TIMEOUT_SECONDS"
+LATEST_PREDICTION_TIMEOUT_DEFAULT_SECONDS = 600.0
+TERMINATION_GRACE_SECONDS = 15.0
 
 
 def utc_now() -> datetime:
@@ -56,21 +61,88 @@ def active_scope() -> list[str]:
     return list(dict.fromkeys(scope))
 
 
-def _run(args: list[str], *, force_refresh: bool = False) -> None:
+def _command_timeout_seconds() -> float:
+    raw = os.getenv(
+        LATEST_PREDICTION_TIMEOUT_ENV,
+        str(LATEST_PREDICTION_TIMEOUT_DEFAULT_SECONDS),
+    )
+    try:
+        value = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"INVALID_{LATEST_PREDICTION_TIMEOUT_ENV}:{raw!r}"
+        ) from exc
+    if value <= 0:
+        raise RuntimeError(f"INVALID_{LATEST_PREDICTION_TIMEOUT_ENV}:{raw!r}")
+    return value
+
+
+def _signal_process_group(proc: subprocess.Popen[str], sig: int) -> None:
+    if os.name == "posix":
+        try:
+            os.killpg(os.getpgid(proc.pid), sig)
+            return
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+    try:
+        proc.send_signal(sig)
+    except (ProcessLookupError, OSError):
+        pass
+
+
+def _terminate_process_tree(proc: subprocess.Popen[str]) -> None:
+    """Terminate the child process and its descendants without leaving orphans."""
+    _signal_process_group(proc, signal.SIGTERM)
+    try:
+        proc.communicate(timeout=TERMINATION_GRACE_SECONDS)
+        return
+    except subprocess.TimeoutExpired:
+        _signal_process_group(proc, signal.SIGKILL)
+        proc.communicate()
+
+
+def _run(
+    args: list[str],
+    *,
+    force_refresh: bool = False,
+    timeout_seconds: float | None = None,
+) -> None:
     env = None
     if force_refresh:
-        env = dict(__import__("os").environ)
+        env = dict(os.environ)
         env["V45_FORCE_REFRESH"] = "1"
-    proc = subprocess.run(
+    timeout_value = (
+        _command_timeout_seconds() if timeout_seconds is None else float(timeout_seconds)
+    )
+    if timeout_value <= 0:
+        raise RuntimeError(f"INVALID_COMMAND_TIMEOUT:{timeout_value}")
+
+    proc = subprocess.Popen(
         args,
         cwd=ROOT,
         env=env,
         text=True,
-        capture_output=True,
-        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=(os.name == "posix"),
     )
-    sys.stdout.write(proc.stdout)
-    sys.stderr.write(proc.stderr)
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout_value)
+    except subprocess.TimeoutExpired:
+        _terminate_process_tree(proc)
+        stdout, stderr = proc.communicate()
+        if stdout:
+            sys.stdout.write(stdout)
+        if stderr:
+            sys.stderr.write(stderr)
+        raise RuntimeError(
+            f"COMMAND_TIMEOUT:{' '.join(args)}:timeout_seconds={timeout_value:g}"
+        )
+
+    if stdout:
+        sys.stdout.write(stdout)
+    if stderr:
+        sys.stderr.write(stderr)
     if proc.returncode != 0:
         raise RuntimeError(
             f"COMMAND_FAILED:{' '.join(args)}:returncode={proc.returncode}"
@@ -179,10 +251,14 @@ def request_latest(
                     str(int(days_forward)),
                 ],
                 force_refresh=True,
+                timeout_seconds=_command_timeout_seconds(),
             )
             collection = _verify_collection(sport, request_started)
 
-            _run([sys.executable, "-m", "src.future_predictor", "--sport", sport])
+            _run(
+                [sys.executable, "-m", "src.future_predictor", "--sport", sport],
+                timeout_seconds=_command_timeout_seconds(),
+            )
             prediction = _verify_prediction(sport, request_started)
 
             (archive_dir / f"{sport}_collection.json").write_text(
