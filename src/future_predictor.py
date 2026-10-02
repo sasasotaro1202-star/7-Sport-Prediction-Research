@@ -41,7 +41,7 @@ def _timing_policy() -> dict:
         return json.loads(path.read_text(encoding='utf-8'))
     except Exception:
         return {
-            'default_preferred_lead_minutes': 30,
+            'default_preferred_lead_minutes': 60,
             'allowed_lead_minutes': [15, 20, 30, 45, 60, 90],
             'bounds': {'minimum_lead_minutes': 5, 'maximum_lead_minutes': 180},
         }
