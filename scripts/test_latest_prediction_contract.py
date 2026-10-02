@@ -93,6 +93,10 @@ def main():
         "REMOTE_MAIN_UNAVAILABLE",
         "V45_LATEST_PREDICTION_COMMAND_TIMEOUT_SECONDS",
         "COMMAND_TIMEOUT",
+        "--lead-minutes",
+        "--lead-tolerance-minutes",
+        "requested_lead_minutes",
+        "effective_lead_window_minutes",
         "start_new_session",
         "_terminate_process_tree",
     )
