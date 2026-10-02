@@ -29,9 +29,9 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Run production runtime health audit
         env:
-          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: \${{ github.repository }}
-          GITHUB_API_URL: \${{ github.api_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
         run: |
           set -euo pipefail
           python -m src.production_runtime_health --output results/research/production_runtime_health.json
@@ -39,7 +39,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: production-runtime-health-\${{ github.run_id }}
+          name: production-runtime-health-${{ github.run_id }}
           if-no-files-found: warn
           retention-days: 14
           path: results/research/production_runtime_health.json
