@@ -558,11 +558,11 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
     except Exception:
         # A corrupt/unreadable artifact must never make the mandatory prediction
         # lane disappear. Fall back to the explicit PIT-safe prior.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow,prediction_origin)
     if artifact.get('quality_status') not in ('ACCEPTED_LOCKED_HOLDOUT','ACCEPTED_AFTER_LOCKED_HOLDOUT'):
         # Candidate/deferred artifacts are never used as production models, but
         # the event still receives the mandatory explicitly-labelled safe prior.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow,prediction_origin)
     features=list(artifact.get('features') or [])
     models=list(artifact.get('models') or [])
     names=list(artifact.get('model_names') or [])
@@ -572,7 +572,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
     router_status=str(artifact.get('dynamic_router_status') or 'FALLBACK_FIXED_ENSEMBLE')
     router_obj=artifact.get('dynamic_router')
     if router_status=='PRODUCTION_ROUTABLE_AFTER_GATES' and router_obj is None:
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow,prediction_origin)
     rows,_=base.build(c,s,include_unlabeled=True)
     available_features=set()
     for _,_,_,row_features in rows:
@@ -581,7 +581,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
     if missing_schema:
         # Never synthesize missing model features. Use the PIT-safe fallback
         # instead, which depends only on pre-event verified historical outcomes.
-        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
+        return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow,prediction_origin)
     future=_future_events(
         c,s,now,
         min_lead_minutes=_timing_window(prediction_lead_minutes,min_lead_minutes,max_lead_minutes,adaptive_timing)[0],
@@ -652,7 +652,7 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             model_weights=None
             model_disagreement=0.0
         elif missing_schema:
-            return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow)
+            return _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,target_scope_only,adaptive_timing,timing_shadow,prediction_origin)
         elif use_router and rref is not None and rnames and all(n in rmodels for n in rnames):
             rbase=[rmodels[n] for n in rnames]
             base_predictions=[]
