@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -134,6 +137,22 @@ def _evaluate_group(items: list[dict], feature_names: list[str], candidates: lis
     }
 
 
+def _failure_payload(exc: Exception, *, sport: str | None = None) -> dict:
+    return {
+        "status": "FAILED",
+        "failure_class": "competition_profile_oos_exception",
+        "sport": sport,
+        "error": {
+            "type": type(exc).__name__,
+            "message": str(exc),
+            "traceback": traceback.format_exc(),
+        },
+        "github_run_id": os.getenv("GITHUB_RUN_ID"),
+        "git_commit_sha": os.getenv("GITHUB_SHA"),
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def main() -> int:
     import argparse
     ap = argparse.ArgumentParser()
@@ -153,19 +172,29 @@ def main() -> int:
         active_sports = [args.sport]
 
     db_path = Path(args.db).resolve()
-    con = sqlite3.connect(db_path)
+    output_path = Path(args.out) if args.out else (
+        ROOT / "results/research" / (
+            f"competition_profiles_{args.sport}.json" if args.sport else "competition_profiles.json"
+        )
+    )
+    report = {
+        "version": "competition-aware-research-v1",
+        "status": "EVALUATED",
+        "production_route_enabled": False,
+        "policy": policy,
+        "sports": {},
+        "identity_audit": {},
+        "failures": [],
+        "partial": False,
+    }
+    failures = []
+    con = None
     try:
-        report = {
-            "version": "competition-aware-research-v1",
-            "status": "EVALUATED",
-            "production_route_enabled": False,
-            "policy": policy,
-            "sports": {},
-            "identity_audit": {},
-        }
+        con = sqlite3.connect(db_path)
         for sport in active_sports:
-            rows, feature_names = base.build(con, sport)
-            event_meta = {
+            try:
+                rows, feature_names = base.build(con, sport)
+                event_meta = {
                 str(eid): {
                     "event_id": str(eid),
                     "name": str(name or ""),
@@ -215,13 +244,29 @@ def main() -> int:
                         policy["minimums"],
                     ),
                 }
-            report["sports"][sport] = sport_profiles
+                report["sports"][sport] = sport_profiles
+            except Exception as exc:
+                failure = _failure_payload(exc, sport=sport)
+                failures.append(failure)
+                report["sports"][sport] = failure
+                report["partial"] = True
+                continue
 
-        output_path = Path(args.out) if args.out else (
-            ROOT / "results/research" / (
-                f"competition_profiles_{args.sport}.json" if args.sport else "competition_profiles.json"
-            )
+        if failures:
+            report["status"] = "FAILED"
+            report["failures"] = failures
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False),
+            encoding="utf-8",
         )
+        print(json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False))
+    except Exception as exc:
+        failure = _failure_payload(exc)
+        failures.append(failure)
+        report["status"] = "FAILED"
+        report["partial"] = True
+        report["failures"] = failures
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
             json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False),
@@ -229,8 +274,9 @@ def main() -> int:
         )
         print(json.dumps(_safe(report), ensure_ascii=False, indent=2, allow_nan=False))
     finally:
-        con.close()
-    return 0
+        if con is not None:
+            con.close()
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
