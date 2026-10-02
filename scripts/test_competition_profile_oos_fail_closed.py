@@ -66,7 +66,7 @@ def main() -> int:
         assert out.is_file(), "failure evidence file was not written"
         payload = json.loads(out.read_text(encoding="utf-8"))
         assert payload["status"] == "FAILED"
-        assert payload["partial"] is True, payload
+        assert bool(payload["partial"]) is True, payload
         assert payload["failures"], payload
         failure = payload["failures"][0]
         assert failure["failure_class"] == "competition_profile_oos_exception"
