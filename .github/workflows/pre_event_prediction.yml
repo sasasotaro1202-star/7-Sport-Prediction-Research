@@ -65,7 +65,9 @@ jobs:
           assert p['scheduler']['generation_window']['max_lead_minutes'] == 180
           assert p['scheduler']['guideline_target_minutes'] == 60
           assert p['scheduler']['guideline_tolerance_minutes'] == 15
-          assert p['scheduler']['selection_mode'] == 'adaptive-capable;60m-default'
+          assert p['scheduler']['selection_mode'] == 'scheduled-60m-default;manual-lead-configurable'
+          assert p['scheduler']['generation_window']['scheduled_min_lead_minutes'] == 45
+          assert p['scheduler']['generation_window']['scheduled_max_lead_minutes'] == 75
           assert p['scope']['active_prediction_scope_only'] is True
           assert p['scope']['competition_profile_required'] is True
           assert p['pit']['prediction_cutoff'] == 'event_time_minus_selected_lead'
