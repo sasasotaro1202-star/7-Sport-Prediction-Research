@@ -197,6 +197,12 @@ def main():
             'final production verdict does not fail explicitly on partial failure')
     require(bad_shell not in all_wf,'failure-hiding shell fallback detected in workflow set')
     require(bad_publish not in all_wf,'unrestricted generated-model publication detected in workflow set')
+    basketball_collector=(ROOT/'src/basketball_cdn_backfill.py').read_text(encoding='utf-8')
+    require('official_errors' in basketball_collector and 'error_type' in basketball_collector,
+            'B.LEAGUE official collector must persist source-error diagnostics instead of swallowing exceptions')
+    require('.official_errors // []' in workflow and 'PARTIAL_SOURCE_ERROR' in workflow
+            and 'SOURCE_ERROR' in workflow,
+            'canonical production workflow must classify B.LEAGUE source errors explicitly')
     compact=research.replace(' ','')
     require('final.fit(X_all,y_all)' not in compact,'frozen holdout must never fit on X_all/y_all')
     require('_load_or_create_frozen_holdout' in strict_src and 'holdout_event_ids' in strict_src,'immutable frozen holdout registry is missing')
