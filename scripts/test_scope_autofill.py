@@ -24,6 +24,8 @@ def main() -> int:
     assert MIN_VERIFIED == 80
     assert MIN_EXACT_PIT_RATIO == 0.95
     controller = (ROOT / "src/scope_autofill_controller.py").read_text(encoding="utf-8")
+    assert "SELECT event_id,event_time_utc,name,competition_id" not in controller
+    assert "selected = [r for r in rows if _is_target(sport, None, r[2])]" in controller
     assert '"rugby": ROOT / "data/db/rugby_v45.sqlite"' in controller
     assert '"boxing": ROOT / "data/db/boxing_v45.sqlite"' in controller
     assert 'tennis_v45.sqlite' not in controller
