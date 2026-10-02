@@ -127,8 +127,8 @@ def test_failed_job_sets_failure_signal():
             "created_at": "2026-10-01T23:00:00Z",
             "run_started_at": "2026-10-01T23:00:00Z",
         },
-        jobs_list=[{"name":"merge","status":"completed","conclusion":"failure"}],
-        artifacts_list=[{"name":"production-route-observability-12","expired":False}],
+        jobs=[{"name":"merge","status":"completed","conclusion":"failure"}],
+        artifacts=[{"name":"production-route-observability-12","expired":False}],
         current_main_sha="same",
         now=datetime(2026,10,2,0,0,tzinfo=timezone.utc),
     )
