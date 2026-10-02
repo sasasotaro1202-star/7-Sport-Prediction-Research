@@ -210,6 +210,36 @@ def verify_latest_main() -> str:
         )
     return current
 
+def _prediction_timing_args(
+    lead_minutes: int | None,
+    adaptive_timing: bool,
+) -> tuple[int, list[str]]:
+    selected_lead = 60 if lead_minutes is None else int(lead_minutes)
+    if selected_lead < 5 or selected_lead > 180:
+        raise RuntimeError(f"INVALID_LEAD_MINUTES:{selected_lead}")
+    if adaptive_timing:
+        return selected_lead, [
+            "--lead-minutes",
+            str(selected_lead),
+            "--min-lead-minutes",
+            "5",
+            "--max-lead-minutes",
+            "180",
+            "--adaptive-timing",
+        ]
+    tolerance = 15
+    minimum = max(5, selected_lead - tolerance)
+    maximum = min(180, selected_lead + tolerance)
+    return selected_lead, [
+        "--lead-minutes",
+        str(selected_lead),
+        "--min-lead-minutes",
+        str(minimum),
+        "--max-lead-minutes",
+        str(maximum),
+    ]
+
+
 def request_latest(
     sports: list[str] | None = None,
     days_back: int = 30,
@@ -235,34 +265,10 @@ def request_latest(
     archive_dir = ARCHIVE_ROOT / request_id
     archive_dir.mkdir(parents=True, exist_ok=False)
 
-    if lead_minutes is None:
-        selected_lead = 60
-    else:
-        selected_lead = int(lead_minutes)
-    if selected_lead < 5 or selected_lead > 180:
-        raise RuntimeError(f"INVALID_LEAD_MINUTES:{selected_lead}")
-    if adaptive_timing:
-        predictor_timing_args = [
-            "--lead-minutes",
-            str(selected_lead),
-            "--min-lead-minutes",
-            "5",
-            "--max-lead-minutes",
-            "180",
-            "--adaptive-timing",
-        ]
-    else:
-        tolerance = 15
-        minimum = max(5, selected_lead - tolerance)
-        maximum = min(180, selected_lead + tolerance)
-        predictor_timing_args = [
-            "--lead-minutes",
-            str(selected_lead),
-            "--min-lead-minutes",
-            str(minimum),
-            "--max-lead-minutes",
-            str(maximum),
-        ]
+    selected_lead, predictor_timing_args = _prediction_timing_args(
+        lead_minutes,
+        adaptive_timing,
+    )
 
     reports = []
     try:
