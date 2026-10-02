@@ -89,13 +89,13 @@ def metrics(sport: str) -> dict:
     con = sqlite3.connect(path)
     try:
         rows = con.execute(
-            """SELECT event_id,event_time_utc,name,competition_id
+            """SELECT event_id,event_time_utc,competition_id
                  FROM event
                 WHERE sport=?
              ORDER BY event_time_utc,event_id""",
             (sport,),
         ).fetchall()
-        selected = [r for r in rows if _is_target(sport, r[2], r[3])]
+        selected = [r for r in rows if _is_target(sport, None, r[2])]
         selected_ids = [str(r[0]) for r in selected]
         if selected_ids:
             marks = ",".join("?" * len(selected_ids))
@@ -110,7 +110,7 @@ def metrics(sport: str) -> dict:
             verified = 0
 
         exact = 0
-        for event_id, event_time, _name, _competition in selected:
+        for event_id, event_time, _competition in selected:
             if not event_time:
                 continue
             try:
