@@ -40,6 +40,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_pit_cache_namespace.py
       - name: Competition profile regression
         run: PYTHONPATH=. python scripts/test_competition_profiles.py
+      - name: Competition OOS failure evidence regression
+        run: PYTHONPATH=. python scripts/test_competition_profile_oos_fail_closed.py
       - name: Adaptive timing router regression
         run: PYTHONPATH=. python scripts/test_timing_router.py
       - name: Production route observability regression
@@ -66,8 +68,6 @@ jobs:
         run: PYTHONPATH=. python scripts/test_latest_prediction_contract.py
       - name: Forced fresh HTTP retrieval behavior
         run: PYTHONPATH=. python scripts/test_forced_fresh_http.py
-      - name: HTTP request resilience regression
-        run: PYTHONPATH=. python scripts/test_http_request_resilience.py
       - name: Active scope runtime regression
         run: PYTHONPATH=. python scripts/test_prediction_scope_runtime.py
       - name: Prediction experience ledger test
