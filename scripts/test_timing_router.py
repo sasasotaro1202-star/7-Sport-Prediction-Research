@@ -41,6 +41,10 @@ def main() -> int:
     assert "lead_minutes" in workflow
     assert "60" in workflow
 
+    production = (ROOT / ".github/workflows/v4_5_15_production.yml").read_text(encoding="utf-8")
+    assert "--lead-minutes 60 --min-lead-minutes 45 --max-lead-minutes 75 --target-scope-only" in production
+    assert "--adaptive-timing --lead-minutes 30" not in production
+
     audit = (ROOT / "src/pre_event_prediction_audit.py").read_text(encoding="utf-8")
     assert "resolve_lead" in audit
     assert "TIMING_ROUTE_ACCEPTED" in audit
