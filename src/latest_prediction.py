@@ -90,15 +90,14 @@ def _signal_process_group(proc: subprocess.Popen[str], sig: int) -> None:
         pass
 
 
-def _terminate_process_tree(proc: subprocess.Popen[str]) -> None:
-    """Terminate the child process and its descendants without leaving orphans."""
+def _terminate_process_tree(proc: subprocess.Popen[str]) -> tuple[str, str]:
+    """Terminate the child process and descendants, returning captured output."""
     _signal_process_group(proc, signal.SIGTERM)
     try:
-        proc.communicate(timeout=TERMINATION_GRACE_SECONDS)
-        return
+        return proc.communicate(timeout=TERMINATION_GRACE_SECONDS)
     except subprocess.TimeoutExpired:
         _signal_process_group(proc, signal.SIGKILL)
-        proc.communicate()
+        return proc.communicate()
 
 
 def _run(
@@ -129,8 +128,7 @@ def _run(
     try:
         stdout, stderr = proc.communicate(timeout=timeout_value)
     except subprocess.TimeoutExpired:
-        _terminate_process_tree(proc)
-        stdout, stderr = proc.communicate()
+        stdout, stderr = _terminate_process_tree(proc)
         if stdout:
             sys.stdout.write(stdout)
         if stderr:
