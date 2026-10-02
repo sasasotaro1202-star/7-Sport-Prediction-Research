@@ -96,7 +96,7 @@ jobs:
           if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor \
               --sport ${{ matrix.sport }} \
               --lead-minutes 60 \
-              --min-lead-minutes 5 \
+              --min-lead-minutes 45 \
               --max-lead-minutes 75 \
               --target-scope-only \
               --prediction-origin AUTOMATED_SCHEDULE; then
@@ -160,7 +160,7 @@ jobs:
               --sport ${{ matrix.sport }} \
               --db data/db/sports_v45.sqlite \
               --target-lead-minutes 60 \
-              --min-lead-minutes 5 \
+              --min-lead-minutes 45 \
               --max-lead-minutes 75; then
             echo 'pre_event_audit=OK'
           else
