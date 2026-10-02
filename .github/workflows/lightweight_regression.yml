@@ -52,6 +52,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_research_checkpoint_cache.py
       - name: Release gate fail-closed exit regression
         run: PYTHONPATH=. python scripts/test_release_gate_fail_closed.py
+      - name: Strict OOS candidate fail-closed regression
+        run: PYTHONPATH=. python scripts/test_strict_oos_candidate_fail_closed.py
       - name: Future predictor prediction-cutoff PIT test
         run: PYTHONPATH=. python scripts/test_future_predictor_pit_cutoff.py
       - name: Pre-event 30-minute prediction contract
