@@ -27,12 +27,18 @@ def main() -> int:
         block = text[start:start + 700]
         assert contract in block, f"missing nonblocking contract: {step_id}"
 
-    pit_start = text.index("- name: Strict PIT replay")
-    pit_block = text[pit_start:pit_start + 500]
+    def step_block(step_name: str) -> str:
+        marker = f"- name: {step_name}"
+        start = text.index(marker)
+        tail = text[start + len(marker):]
+        next_marker = tail.find("\n      - name:")
+        end = start + len(marker) + (next_marker if next_marker >= 0 else len(tail))
+        return text[start:end]
+
+    pit_block = step_block("Strict PIT replay")
     assert "continue-on-error: true" not in pit_block
 
-    audit_start = text.index("- name: Independent leakage audit after model generation")
-    audit_block = text[audit_start:audit_start + 700]
+    audit_block = step_block("Independent leakage audit after model generation")
     assert "continue-on-error: true" not in audit_block
 
     persist_start = text.index("- name: Persist safe outputs")
