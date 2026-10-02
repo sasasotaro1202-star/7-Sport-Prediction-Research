@@ -12,7 +12,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 
 from src.competition_profiles import resolve_research_profile
-from src.competition_route_builder import _artifact_name, _load_policy
+from src.competition_route_builder import _artifact_name, _load_event_metadata, _load_policy
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +41,25 @@ def main() -> int:
     joblib.dump(model, path)
     loaded = joblib.load(path)
     assert loaded.predict_proba(X).shape == (4, 2)
+
+    # Canonical v45 schema regression: event has competition_id but no display name.
+    import sqlite3
+    from src.storage.db_v45 import SCHEMA, _migrate
+    db = temp / "sports_v45.sqlite"
+    con = sqlite3.connect(db)
+    con.executescript(SCHEMA)
+    _migrate(con)
+    con.execute(
+        "INSERT INTO event(event_id,sport,competition_id,season,stage,event_time_utc,quality_status) VALUES (?,?,?,?,?,?,?)",
+        ("e1", "basketball", "B.LEAGUE", "2025-26", "league", "2026-01-01T00:00:00+00:00", "VERIFIED"),
+    )
+    con.commit()
+    metadata = _load_event_metadata(con, "basketball")
+    con.close()
+    assert metadata["e1"]["competition_id"] == "B.LEAGUE"
+    assert metadata["e1"]["season"] == "2025-26"
+    assert metadata["e1"]["stage"] == "league"
+    assert "name" not in metadata["e1"]
 
     future_src = (ROOT / "src/future_predictor.py").read_text(encoding="utf-8")
     assert "competition_route" in future_src
