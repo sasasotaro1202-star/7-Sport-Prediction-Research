@@ -66,8 +66,8 @@ def main() -> int:
     con.executescript(SCHEMA)
     _migrate(con)
     con.execute(
-        "INSERT INTO event(event_id,sport,competition_id,season,stage,event_time_utc,quality_status) VALUES (?,?,?,?,?,?,?)",
-        ("e1", "basketball", "B.LEAGUE", "2025-26", "league", "2026-01-01T00:00:00+00:00", "VERIFIED"),
+        "INSERT INTO event(event_id,sport,competition_id,season,stage,round,event_time_utc,event_type,quality_status) VALUES (?,?,?,?,?,?,?, ?, ?)",
+        ("e1", "basketball", "B.LEAGUE", "2025-26", "league", "quarterfinal", "2026-01-01T00:00:00+00:00", "match", "VERIFIED"),
     )
     con.commit()
     metadata = _load_event_metadata(con, "basketball")
@@ -75,6 +75,8 @@ def main() -> int:
     assert metadata["e1"]["competition_id"] == "B.LEAGUE"
     assert metadata["e1"]["season"] == "2025-26"
     assert metadata["e1"]["stage"] == "league"
+    assert metadata["e1"]["round"] == "quarterfinal"
+    assert metadata["e1"]["event_type"] == "match"
     assert "name" not in metadata["e1"]
 
 
