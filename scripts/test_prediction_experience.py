@@ -272,6 +272,17 @@ class PredictionExperienceTests(unittest.TestCase):
         self.assertEqual(result, {"added": 0, "skipped_existing": 0})
         con.close()
 
+    def test_db_path_map_covers_all_prediction_sports(self):
+        for sport in pe.SPORTS:
+            self.assertIn(sport, pe.DB_PATHS)
+        self.assertEqual(pe.DB_PATHS["basketball"], pe.SHARED_DB_PATH)
+        self.assertEqual(pe.DB_PATHS["ufc"], pe.SHARED_DB_PATH)
+        self.assertEqual(pe.DB_PATHS["volleyball"], pe.SHARED_DB_PATH)
+        self.assertEqual(pe.DB_PATHS["valorant"], pe.SHARED_DB_PATH)
+        self.assertEqual(pe.DB_PATHS["rizin"], pe.SHARED_DB_PATH)
+        self.assertNotEqual(pe.DB_PATHS["rugby"], pe.SHARED_DB_PATH)
+        self.assertNotEqual(pe.DB_PATHS["boxing"], pe.SHARED_DB_PATH)
+
     def test_archive_forward_prediction_db_exports_existing_rows(self):
         import sqlite3
 
