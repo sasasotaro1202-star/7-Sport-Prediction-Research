@@ -369,6 +369,8 @@ def main():
     require('production_watchdog.yml' in (ROOT/'.github/workflows/production_watchdog.yml').as_posix(),
             'production watchdog path invariant missing')
     recovery=(ROOT/'.github/workflows/production_failure_recovery.yml').read_text(encoding='utf-8')
+    require('branches:\n      - main' in recovery and 'types:\n      - completed' in recovery,
+            'failure recovery workflow must constrain workflow_run triggers to main/completed')
     require('PIT History Expansion' in recovery and 'Rugby Coverage Production' in recovery,
             'bounded recovery does not cover PIT and Rugby workflows')
     require('workflow_run:' not in workflow,
