@@ -400,10 +400,10 @@ def main():
             'Rugby coverage workflow should not create heavy push-triggered queue')
     require('boxing' in strict_src.lower() and 'DEFERRED_PIT' in strict_src,
             'Boxing must have an explicit fail-closed PIT deferred research path')
-    require("'push trigger: VALIDATION_ONLY_NO_HEAVY_EXPANSION'" in pit_workflow and 'event_name' in pit_workflow,
-            'PIT expansion should explicitly avoid heavy execution on push triggers')
-    require("minute_delta=$((delta / 60))" in pit_workflow,
-            'PIT cadence guard must tolerate normal GitHub schedule jitter at minute precision')
+    require("  push:" not in pit_workflow,
+            'PIT history expansion must not create push-triggered no-op runs')
+    require("Determine PIT expansion execution mode" in pit_workflow and "PIT_9H_MODE=SCHEDULED_00_47_09_47_18_47_UTC" in pit_workflow,
+            'PIT expansion must expose explicit scheduled/manual execution mode')
     watchdog=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('Backfill a missed 9-hour PIT boundary once per boundary window' in watchdog,
             'watchdog lacks missed 9-hour PIT recovery')
@@ -417,8 +417,8 @@ def main():
             'scheduled PIT expansion must retain its canonical 9-hour epoch label')
     require("minute_delta=$((delta / 60))" not in pit_workflow,
             'scheduled PIT expansion must not silently skip a delayed boundary after cron dispatch')
-    require('echo \'run=false\' >> "$GITHUB_OUTPUT"' in pit_workflow,
-            'PIT cadence guard must fail closed by skipping non-boundary wakes')
+    require("run=false" not in pit_workflow,
+            'PIT expansion must never silently succeed after a scheduled execution is skipped')
     pit_block=workflow[workflow.find('- name: Strict PIT replay'):workflow.find('- name: Parallel experience and historical learning')]
     audit_block=workflow[workflow.find('- name: Independent leakage audit after model generation'):workflow.find('- name: Build competition-specific production routes')]
     require(bad_continue not in pit_block,'Strict PIT replay must remain blocking')
