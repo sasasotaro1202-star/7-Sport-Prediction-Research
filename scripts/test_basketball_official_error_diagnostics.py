@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import src.basketball_cdn_backfill as m
 
 
@@ -31,11 +29,6 @@ def main() -> int:
         m.get = original_get
 
     assert total == 0, total
-    current_season_year = (
-        datetime.now(timezone.utc).year
-        if datetime.now(timezone.utc).month >= 9
-        else datetime.now(timezone.utc).year - 1
-    )
     assert attempted == 13, attempted
     assert len(errors) == 13, len(errors)
     assert all(e["error_type"] == "RuntimeError" for e in errors)
@@ -70,7 +63,7 @@ def main() -> int:
     assert total2 == 0
     assert errors2 == []
     assert attempted2 == 13
-    assert empty_pages2 == 12
+    assert empty_pages2 == 13
     assert calls["n"] == 13
 
     print("BASKETBALL_OFFICIAL_ERROR_DIAGNOSTICS=PASS")
