@@ -141,7 +141,7 @@ def main() -> int:
                 "source_id": "vlr-structure",
                 "name": "VLR",
                 "url": "https://example.invalid/matches",
-                "required_patterns": [r"/\d+/", r"match-item"],
+                "required_patterns": [r'href=["\']?/\d+/[^"\'?#\s]+', r"match-item"],
                 "required_signals": [],
                 "critical": True,
                 "pit_status": "UNPROVEN",
@@ -149,6 +149,24 @@ def main() -> int:
         )
         assert row["status"] == "REACHABLE_WITH_EXPECTED_SIGNALS"
         assert row["patterns_missing"] == []
+
+        # A bare number elsewhere in the page must not satisfy the VLR link contract.
+        audit.requests.Session = lambda: FakeSession(
+            FakeResponse(200, '<html><div class="match-item">2026 season</div></html>')
+        )
+        row = audit.probe_source(
+            {
+                "source_id": "vlr-negative",
+                "name": "VLR",
+                "url": "https://example.invalid/matches",
+                "required_patterns": [r'href=["\']?/\d+/[^"\'?#\s]+', r"match-item"],
+                "required_signals": [],
+                "critical": True,
+                "pit_status": "UNPROVEN",
+            }
+        )
+        assert row["status"] == "REACHABLE_SIGNALS_PARTIAL"
+        assert row["patterns_missing"] == [r'href=["\']?/\d+/[^"\'?#\s]+']
 
         policy = {
             "active_sports": {
