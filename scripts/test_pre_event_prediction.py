@@ -141,6 +141,11 @@ def main() -> None:
     assert "latest_created=" not in watchdog
     assert "Save validated pre-event database" in workflow
     assert "steps.dbguard.outputs.rc == '0'" in workflow
+    assert "Backfill a missed 9-hour PIT boundary once per boundary window" in watchdog
+    assert "attempt_in_boundary" in watchdog
+    assert '[ "$attempt_in_boundary" -eq 0 ]' in watchdog
+    assert "boundary_index" in watchdog
+    assert "boundary_epoch" in watchdog
     assert '[ "$age" -ge 1200 ]' in watchdog
     assert '[ "$age" -ge 480 ]' not in watchdog
     assert resolve_profile("basketball", "B.LEAGUE", "B.LEAGUE")["matched"]
