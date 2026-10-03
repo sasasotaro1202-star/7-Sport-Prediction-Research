@@ -951,7 +951,9 @@ def main():
         and 'latest_success_created' in watchdog
         and 'conclusion=="success"' in watchdog
         and 'last_successful_pre_event_run_age=' in watchdog
-        and 'no_successful_pre_event_run_age=' in watchdog
+        and 'no_successful_pre_event_heartbeat_retry_age=' in watchdog
+        and 'reference_type="successful_heartbeat"' in watchdog
+        and 'reference_type="attempt_cooldown"' in watchdog
         and 'main_sha' in watchdog,
         'pre-event watchdog lacks active-run, successful-heartbeat freshness, or main-SHA guards',
     )
