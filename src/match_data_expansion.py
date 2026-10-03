@@ -118,15 +118,18 @@ def parse_jsonld_event(html: str):
             "description": clean(item.get("description")),
         }
         teams = []
-        for key in ("homeTeam", "awayTeam", "competitor"):
-            val = item.get(key)
-            values = val if isinstance(val, list) else [val] if isinstance(val, dict) else []
-            for team in values:
-                if isinstance(team, dict) and team.get("name"):
-                    teams.append(clean(team["name"]))
-                elif isinstance(team, str):
-                    teams.append(clean(team))
-        out["teams"] = teams[:2]
+        home_team = item.get("homeTeam")
+        away_team = item.get("awayTeam")
+        val = item.get("competitor")
+        values = val if isinstance(val, list) else [val] if isinstance(val, dict) else []
+        for team in values:
+            if isinstance(team, dict) and team.get("name"):
+                teams.append(clean(team["name"]))
+            elif isinstance(team, str):
+                teams.append(clean(team))
+        out["home_team"] = clean(home_team.get("name") if isinstance(home_team, dict) else home_team)
+        out["away_team"] = clean(away_team.get("name") if isinstance(away_team, dict) else away_team)
+        out["teams"] = [x for x in (out["home_team"], out["away_team"]) if x] or teams[:2]
         return out
     return {}
 
@@ -254,7 +257,7 @@ def _exact_for_cutoff(retrieved: datetime, event_time: datetime | None, lead_min
 
 
 def _insert_stat(con, event_id, participant_id, team_id, sport, name, value_num, value_text,
-                 source, source_url, effective_at, quality):
+                 source, source_url, observed_at, effective_at, quality):
     stat_id = sid(
         "match-data-expansion-v1",
         event_id,
@@ -281,7 +284,7 @@ def _insert_stat(con, event_id, participant_id, team_id, sport, name, value_num,
             participant_id,
             team_id,
             sport,
-            _now().isoformat(),
+            observed_at,
             effective_at,
             name,
             value_num,
@@ -335,6 +338,8 @@ def _write_jsonld(con, event, html, retrieved, source, exact):
         "match.organizer": (None, data.get("organizer")),
         "match.event_status": (None, data.get("event_status")),
         "match.description": (None, data.get("description")),
+        "match.structured_home_team": (None, data.get("home_team")),
+        "match.structured_away_team": (None, data.get("away_team")),
     }
     written = 0
     for stat_name, (num, text_value) in values.items():
@@ -351,30 +356,13 @@ def _write_jsonld(con, event, html, retrieved, source, exact):
             clean(text_value),
             source,
             event["source_url"],
+            retrieved.isoformat(),
             retrieved.isoformat() if exact else None,
             "EXACT" if exact else "UNVERIFIABLE",
         )
         written += 1
-    for idx, team_name in enumerate(data.get("teams") or []):
-        if idx >= len(names):
-            break
-        participant_id = names[idx][1]
-        team_id = names[idx][2]
-        _insert_stat(
-            con,
-            event["event_id"],
-            participant_id,
-            team_id,
-            event["sport"],
-            "team.detail_name",
-            None,
-            team_name,
-            source,
-            event["source_url"],
-            retrieved.isoformat() if exact else None,
-            "EXACT" if exact else "UNVERIFIABLE",
-        )
-        written += 1
+    # Structured team roles remain event-level metadata; no implicit participant merge.
+
     return written
 
 
@@ -395,6 +383,7 @@ def _write_bleague(con, event, html, retrieved, exact):
         _insert_stat(
             con, event["event_id"], None, None, event["sport"], stat_name, num,
             text_value, "bleague-game-detail", event["source_url"],
+            retrieved.isoformat(),
             retrieved.isoformat() if exact else None,
             "EXACT" if exact else "UNVERIFIABLE",
         )
@@ -411,6 +400,7 @@ def _write_bleague(con, event, html, retrieved, exact):
             _insert_stat(
                 con, event["event_id"], participant_id, team_id, event["sport"],
                 key, value, None, "bleague-game-detail", event["source_url"],
+                retrieved.isoformat(),
                 retrieved.isoformat() if exact else None,
                 "EXACT" if exact else "UNVERIFIABLE",
             )
@@ -437,29 +427,20 @@ def _write_bleague(con, event, html, retrieved, exact):
                 con, event["event_id"], participant_id, team_id, event["sport"],
                 f"team.season_{metric.lower()}", value, None,
                 "bleague-game-detail", event["source_url"],
+                retrieved.isoformat(),
                 retrieved.isoformat() if exact else None,
                 "EXACT" if exact else "UNVERIFIABLE",
             )
             written += 1
 
-    for idx, side in enumerate(("A", "B")):
-        if idx >= len(names):
-            continue
-        participant_id, team_id = names[idx][1], names[idx][2]
-        _insert_stat(
-            con, event["event_id"], participant_id, team_id, event["sport"],
-            "match.side_is_home", 1.0 if side == "A" else 0.0, None,
-            "bleague-game-detail", event["source_url"],
-            retrieved.isoformat() if exact else None,
-            "EXACT" if exact else "UNVERIFIABLE",
-        )
-        written += 1
+
 
     for idx, name in enumerate(data.get("broadcasts") or []):
         _insert_stat(
             con, event["event_id"], None, None, event["sport"],
             f"match.broadcast.{idx + 1}", None, name,
             "bleague-game-detail", event["source_url"],
+            retrieved.isoformat(),
             retrieved.isoformat() if exact else None,
             "EXACT" if exact else "UNVERIFIABLE",
         )
@@ -557,7 +538,13 @@ def run(sport, horizon_days=14, max_events=40, lead_minutes=60):
     for row in selected:
         event = dict(row)
         source = DETAIL_SOURCE_BY_SPORT.get(sport, f"{urlparse(event['source_url']).netloc}-event-detail")
-        if _cache_fresh(con, source, event["source_url"]):
+        event_dt = _dt(event["event_time_utc"])
+        if event_dt is None:
+            cache_age = 45
+        else:
+            minutes_to_event = max(0.0, (event_dt - _now()).total_seconds() / 60.0)
+            cache_age = 5 if minutes_to_event <= 90 else 15 if minutes_to_event <= 360 else 45
+        if _cache_fresh(con, source, event["source_url"], max_age_minutes=cache_age):
             skipped_fresh += 1
             continue
         result = enrich_one(con, event, lead_minutes=lead_minutes)
