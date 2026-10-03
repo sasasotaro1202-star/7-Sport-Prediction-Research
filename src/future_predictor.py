@@ -786,6 +786,19 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             'predictions':outputs,'count':len(outputs)}
 
 
+def _resolve_cli_timing(lead_minutes: int | None, adaptive_timing: bool) -> tuple[int, bool]:
+    """Resolve CLI timing while preserving explicit manual-horizon authority."""
+    requested_lead = (
+        PREDICTION_LEAD_MINUTES_DEFAULT
+        if lead_minutes is None
+        else int(lead_minutes)
+    )
+    if requested_lead <= 0:
+        raise ValueError("lead-minutes must be positive")
+    effective_adaptive_timing = bool(adaptive_timing and lead_minutes is None)
+    return requested_lead, effective_adaptive_timing
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--sport',choices=SPORTS)
@@ -797,16 +810,13 @@ def main():
     ap.add_argument('--adaptive-timing',action='store_true')
     ap.add_argument('--timing-shadow',action='store_true')
     args=ap.parse_args()
-    requested_lead = (
-        PREDICTION_LEAD_MINUTES_DEFAULT
-        if args.lead_minutes is None
-        else int(args.lead_minutes)
-    )
-    # Explicit manual horizons must never be silently replaced by an adaptive route.
-    # Adaptive timing is available only when the caller omitted --lead-minutes.
-    effective_adaptive_timing = bool(args.adaptive_timing and args.lead_minutes is None)
-    if requested_lead <= 0:
-        raise SystemExit('lead-minutes must be positive')
+    try:
+        requested_lead, effective_adaptive_timing = _resolve_cli_timing(
+            args.lead_minutes,
+            args.adaptive_timing,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     if args.min_lead_minutes is not None and args.min_lead_minutes < 0:
         raise SystemExit('min-lead-minutes must be non-negative')
     if args.max_lead_minutes is not None and args.max_lead_minutes <= 0:
