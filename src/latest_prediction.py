@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import signal
+import sqlite3
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -255,6 +256,36 @@ def _score_experience() -> dict:
     }
 
 
+def _basketball_exact_snapshot_count() -> int:
+    db = ROOT / "data/db/sports_v45.sqlite"
+    if not db.is_file():
+        return 0
+    con = sqlite3.connect(db)
+    try:
+        row = con.execute("SELECT COUNT(*) FROM source_snapshot WHERE source='bleaguer-github' AND availability_status='EXACT' AND source_available_at_utc IS NOT NULL").fetchone()
+        return int(row[0] or 0)
+    finally:
+        con.close()
+
+
+def _ensure_basketball_pit_foundation(sport: str) -> dict:
+    """Bootstrap exact historical PIT evidence only for explicit fresh requests."""
+    if sport != "basketball":
+        return {"status": "NOT_APPLICABLE"}
+
+    before = _basketball_exact_snapshot_count()
+    if before > 0:
+        return {"status": "EXACT_PIT_FOUNDATION_PRESENT", "exact_snapshot_count": before, "bootstrapped": False}
+
+    db = ROOT / "data/db/sports_v45.sqlite"
+    _run([sys.executable, "-m", "src.basketball_cdn_backfill", "--historical"], force_refresh=True, timeout_seconds=_command_timeout_seconds())
+    _run([sys.executable, "-m", "src.bleaguer_git_provenance", "--db", str(db), "--workers", "6"], timeout_seconds=_command_timeout_seconds())
+    after = _basketball_exact_snapshot_count()
+    if after <= 0:
+        raise RuntimeError("BASKETBALL_EXACT_PIT_FOUNDATION_UNPROVEN")
+    return {"status": "EXACT_PIT_FOUNDATION_BOOTSTRAPPED", "exact_snapshot_count_before": before, "exact_snapshot_count_after": after, "bootstrapped": True}
+
+
 def _prediction_timing_args(
     lead_minutes: int | None,
     adaptive_timing: bool,
@@ -367,6 +398,7 @@ def request_latest(
                 timeout_seconds=_command_timeout_seconds(),
             )
             collection = _verify_collection(sport, request_started)
+            basketball_pit_foundation = _ensure_basketball_pit_foundation(sport)
 
             _run(
                 [
@@ -397,6 +429,7 @@ def request_latest(
                     "prediction_generated_at_utc": prediction.get("generated_at_utc"),
                     "requested_lead_minutes": selected_lead,
                     "effective_days_forward": effective_days_forward,
+                    "basketball_pit_foundation": basketball_pit_foundation,
                     "adaptive_timing": adaptive_timing,
                     "stored_prediction_reused": False,
                     "experience_archive_sync": experience_archive,
