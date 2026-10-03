@@ -281,6 +281,13 @@ def request_latest(
         adaptive_timing,
     )
 
+    # Manual horizons determine how far into the future the schedule collector
+    # must look. The default seven-day window is retained unless the requested
+    # horizon needs more coverage; there is no numeric upper cap here.
+    requested_forward_days = int(days_forward)
+    lead_required_days = int((selected_lead + 15 + 1439) // 1440)
+    effective_days_forward = max(requested_forward_days, lead_required_days)
+
     reports = []
     try:
         for sport in requested:
@@ -294,7 +301,7 @@ def request_latest(
                     "--days-back",
                     str(int(days_back)),
                     "--days-forward",
-                    str(int(days_forward)),
+                    str(effective_days_forward),
                 ],
                 force_refresh=True,
                 timeout_seconds=_command_timeout_seconds(),
@@ -328,6 +335,7 @@ def request_latest(
                     "collection_timestamp_utc": collection.get("timestamp_utc"),
                     "prediction_generated_at_utc": prediction.get("generated_at_utc"),
                     "requested_lead_minutes": selected_lead,
+                    "effective_days_forward": effective_days_forward,
                     "adaptive_timing": adaptive_timing,
                     "stored_prediction_reused": False,
                 }
@@ -357,6 +365,7 @@ def request_latest(
         "active_scope": scope,
         "sports": reports,
         "requested_lead_minutes": selected_lead,
+        "effective_days_forward": effective_days_forward,
         "adaptive_timing": adaptive_timing,
         "stored_prediction_reused": False,
         "policy": "fresh-prediction-request-v1",
@@ -379,7 +388,7 @@ def main() -> int:
     parser.add_argument(
         "--lead-minutes",
         type=int,
-        default=60,
+        default=None,
         help="Requested prediction horizon in minutes before the event. Any positive integer is accepted; no upper limit (default: 60).",
     )
     parser.add_argument(
