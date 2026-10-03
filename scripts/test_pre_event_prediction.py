@@ -91,15 +91,19 @@ def main() -> None:
     assert "assert p['scheduler']['selection_mode'] == 'scheduled-60m-default;manual-lead-configurable'" in workflow
     assert "Rebuild persistent prediction experience archive from DB" in workflow
     sync_pos = workflow.index("Rebuild persistent prediction experience archive from DB")
-    score_pos = workflow.index("Score accumulated prediction experience")
+    adaptive_pos = workflow.index("Generate adaptive timing research lane")
+    shadow_pos = workflow.index("Generate one rotating timing-shadow lane")
     predict_pos = workflow.index("Generate requested prediction lane")
-    assert sync_pos < predict_pos < score_pos
+    score_pos = workflow.index("Score accumulated prediction experience")
+    assert sync_pos < adaptive_pos < shadow_pos < predict_pos < score_pos
     assert "--archive-db-sport" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "lead_minutes:" in workflow
     assert "adaptive_timing:" not in workflow
     assert 'inputs.adaptive_timing' not in workflow
-    assert "--adaptive-timing" not in workflow
+    assert "--adaptive-timing" in workflow
+    assert "--timing-shadow" in workflow
+    assert "Generate adaptive timing research lane" in workflow
     assert 'default: "60"' in workflow
     assert 'if [ "${{ github.event_name }}" = "workflow_dispatch" ]' in workflow
     assert "group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}" in workflow
@@ -111,6 +115,7 @@ def main() -> None:
     assert "no artificial upper bound" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' in workflow
+    assert "adaptive_research_rc" in workflow
     assert '--target-lead-minutes "${{ steps.predict.outputs.lead }}"' in workflow
     assert "cron: '3-58/5 * * * *'" in workflow
     assert resolve_profile("basketball", "B.LEAGUE", "B.LEAGUE")["matched"]
