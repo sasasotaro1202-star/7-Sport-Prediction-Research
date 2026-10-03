@@ -7,14 +7,16 @@ For each immutable season CSV we:
   1. hash the current content,
   2. inspect the repository's commit history for that path,
   3. fetch candidate historical revisions,
-  4. find the earliest GitHub commit whose blob content exactly matches the
+  4. find historical GitHub commits whose blob content exactly matches the
      current content, and
-  5. only then mark matching source_snapshot rows EXACT.
+  5. record that as VERSION_EXACT evidence only.
 
-This proves that the exact bytes currently used by the collector were present
-in the public repository by the GitHub commit timestamp. If the content was
-later rewritten, or history cannot be established, the snapshot remains
-UNVERIFIABLE and research stays deferred.
+A Git commit timestamp is not, by itself, proof that the bytes were publicly
+reachable at that timestamp: a commit can be pushed after its authored/committed
+time. Therefore this tool deliberately never converts Git commit time into
+source_available_at_utc or strict-PIT EXACT status. Separate public-availability
+evidence (for example an independently timestamped archive capture) is required
+before PIT can consume the snapshot.
 """
 
 import argparse
@@ -284,7 +286,8 @@ def prove_path(path: str) -> dict[str, Any]:
                 event_provenance[schedule_key] = {
                     "schedule_key": schedule_key,
                     "provenance_commit_sha": sha,
-                    "source_available_at_utc": iso(commit_date),
+                    "commit_timestamp_utc": iso(commit_date),
+                    "publication_status": "UNPROVEN",
                     "content_hash": sha256_bytes(b),
                     "matched_team_ids": sorted(event_targets[schedule_key]),
                     "pinned_source_url": pinned_raw_url(path, sha),
@@ -296,7 +299,7 @@ def prove_path(path: str) -> dict[str, Any]:
 
     result: dict[str, Any] = {
         "path": path,
-        "status": "EXACT" if matches else "UNVERIFIABLE",
+        "status": "VERSION_EXACT_PUBLICATION_UNPROVEN" if matches else "UNVERIFIABLE",
         "current_hash": current_hash,
         "checked_at_utc": utcnow(),
         "commits_checked": len(commits),
@@ -306,11 +309,11 @@ def prove_path(path: str) -> dict[str, Any]:
     if matches:
         earliest_sha, earliest_date = sorted(matches, key=lambda x: x[1])[0]
         result.update({
-            "source_available_at_utc": iso(earliest_date),
             "provenance_commit_sha": earliest_sha,
+            "commit_timestamp_utc": iso(earliest_date),
             "repository": f"{OWNER}/{REPO}",
             "branch": BRANCH,
-            "matching_commits": len(matches),
+            "publication_status": "UNPROVEN",
         })
     else:
         result["reason"] = "no historical GitHub commit with identical bytes was found"
@@ -338,7 +341,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
     try:
         for p in proofs:
             url = f"{RAW_BASE}/{p['path']}"
-            if p["status"] == "EXACT":
+            if p["status"] == "VERSION_EXACT_PUBLICATION_UNPROVEN":
                 exact += 1
                 rows = con.execute(
                     "SELECT snapshot_id, provenance_json FROM source_snapshot "
@@ -355,13 +358,14 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         "repository": p["repository"],
                         "branch": p["branch"],
                         "commit_sha": p["provenance_commit_sha"],
-                        "commit_observed_at_utc": p["source_available_at_utc"],
+                        "commit_observed_at_utc": p["commit_timestamp_utc"],
+                        "publication_status": "UNPROVEN",
                         "exact_current_blob": True,
                     })
                     con.execute(
-                        "UPDATE source_snapshot SET source_available_at_utc=?, "
-                        "availability_status='EXACT', provenance_json=? WHERE snapshot_id=?",
-                        (p["source_available_at_utc"], json.dumps(old, ensure_ascii=False), snapshot_id),
+                        "UPDATE source_snapshot SET source_available_at_utc=NULL, "
+                        "availability_status='VERSION_EXACT_PUBLICATION_UNPROVEN', provenance_json=? WHERE snapshot_id=?",
+                        (json.dumps(old, ensure_ascii=False), snapshot_id),
                     )
                     updated += 1
 
@@ -399,7 +403,8 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     "schedule_key": ep["schedule_key"],
                     "matched_team_ids": ep.get("matched_team_ids", []),
                     "commit_sha": ep["provenance_commit_sha"],
-                    "commit_observed_at_utc": ep["source_available_at_utc"],
+                    "commit_observed_at_utc": ep["commit_timestamp_utc"],
+                    "publication_status": "UNPROVEN",
                     "exact_feature_rows_in_same_revision": True,
                     "source_url_pinned_to_commit": True,
                 }
@@ -415,7 +420,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         "bleaguer-github",
                         ep["pinned_source_url"],
                         p.get("checked_at_utc") or utcnow(),
-                        ep["source_available_at_utc"],
+                        None,
                         None,
                         ep["content_hash"],
                         None,
@@ -424,21 +429,16 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         json.dumps(provenance, ensure_ascii=False),
                     ),
                 )
-                result = con.execute(
-                    "UPDATE match_stats SET source_url=? "
-                    "WHERE sport='basketball' AND event_id=? AND source='bleaguer-github' AND source_url=?",
-                    (ep["pinned_source_url"], event_id, current_summary_url),
-                )
-                if result.rowcount > 0:
-                    event_stats_updated += int(result.rowcount)
-                    event_exact += 1
+                # Do not repoint match_stats to an unproven publication timestamp.
+                # Strict PIT remains fail-closed until a separate public-availability
+                # evidence layer upgrades this snapshot to TRUE EXACT.
         con.commit()
     finally:
         con.close()
     return {
         "exact_paths": exact,
         "snapshot_rows_updated": updated,
-        "event_exact_provenance": event_exact,
+        "event_version_provenance": event_exact,
         "event_stat_rows_repointed": event_stats_updated,
     }
 
@@ -463,7 +463,7 @@ def main() -> int:
         proofs = list(ex.map(prove_path, paths))
 
     result = {
-        "version": "github-identical-blob-v2-event-exact",
+        "version": "github-version-provenance-v3-publication-unproven",
         "checked_at_utc": utcnow(),
         "paths": proofs,
         "apply": apply(Path(args.db), proofs),
