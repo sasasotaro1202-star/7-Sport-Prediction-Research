@@ -880,6 +880,9 @@ def main():
     experience_src=(ROOT/'src/prediction_experience.py').read_text(encoding='utf-8')
     require('--archive-db-sport' in experience_src and 'archive_forward_prediction_db' in experience_src,
             'prediction experience lacks persistent forward-prediction DB reconstruction')
+    require('SHARED_DB_PATH' in experience_src and 'DB_PATHS' in experience_src
+            and 'basketball' in experience_src and 'ufc' in experience_src,
+            'prediction experience DB mapping does not cover shared active-scope sports')
     sync_marker='Rebuild persistent prediction experience archive from DB'
     predict_marker='Generate requested prediction lane'
     score_marker='Score accumulated prediction experience'
