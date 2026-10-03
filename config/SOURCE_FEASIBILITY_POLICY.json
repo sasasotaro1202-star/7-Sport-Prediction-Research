@@ -314,7 +314,7 @@
         "pit_status": "UNPROVEN",
         "probe_mode": "html_text",
         "required_patterns": [
-          "href=[\"'](?:https?://(?:www\\.)?vlr\\.gg)?/\\d+/[^\"'?#\\s]+",
+          "href=[\"']/(?:match/)?\\d+/[^\"'?#\\s]+",
           "match-item"
         ]
       }
