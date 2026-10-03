@@ -565,6 +565,18 @@ def main():
             "conclusion == 'timed_out'" in recovery_src and
             "conclusion == 'startup_failure'" in recovery_src,
             'production failure recovery lacks main-only timeout/startup-failure handling')
+    require('contents: write' in recovery_src
+            and 'group: production-failure-memory-writer' in recovery_src
+            and 'record-failure-memory:' in recovery_src
+            and 'results/failure_memory.jsonl' in recovery_src,
+            'production failure recovery lacks persistent failure memory writer')
+    require('needs: record-failure-memory' in recovery_src
+            and 'run_attempt < 2' in recovery_src
+            and 'actions/upload-artifact@v4' in recovery_src,
+            'failure memory is not ordered before bounded recovery/evidence preservation')
+    require('git add results/failure_memory.jsonl' in recovery_src
+            and 'git push origin HEAD:main' in recovery_src,
+            'failure memory is not persisted explicitly to main')
     watchdog_src=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('cancel-in-progress: false' in watchdog_src,
             'production watchdog must not self-cancel concurrent recovery events')
