@@ -76,6 +76,11 @@ def main() -> None:
     assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
     assert "requested_lead='60'" in workflow
     assert "adaptive='0'" in workflow
+    assert "# Scheduled production is deliberately centered on T-60." in workflow
+    manual_marker='if [ "${{ github.event_name }}" = "workflow_dispatch" ]'
+    scheduled_marker="requested_lead='60'"
+    assert manual_marker in workflow
+    assert workflow.index(scheduled_marker) < workflow.index(manual_marker)
     assert "assert p['scheduler']['selection_mode'] == 'scheduled-60m-default;manual-lead-configurable'" in workflow
     assert "Rebuild persistent prediction experience archive from DB" in workflow
     sync_pos = workflow.index("Rebuild persistent prediction experience archive from DB")
