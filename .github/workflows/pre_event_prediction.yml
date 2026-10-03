@@ -8,11 +8,6 @@ on:
         required: false
         default: "60"
         type: string
-      adaptive_timing:
-        description: "Allow accepted timing routes to override the requested lead."
-        required: false
-        default: false
-        type: boolean
   schedule:
     - cron: '3-58/5 * * * *'
 
@@ -138,13 +133,12 @@ jobs:
           set -uo pipefail
           rc=0
           requested_lead='60'
-          # Scheduled production is deliberately centered on T-60. Adaptive
-          # timing remains available for explicit manual requests and the separate
-          # timing-shadow lane below.
+          # Scheduled production is deliberately centered on T-60.
+          # Adaptive timing research is isolated to the timing-shadow lane below;
+          # an explicit manual horizon is always authoritative.
           adaptive='0'
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             requested_lead="${{ inputs.lead_minutes }}"
-            if [ "${{ inputs.adaptive_timing }}" = "true" ]; then adaptive="1"; else adaptive="0"; fi
           fi
           case "$requested_lead" in
             ""|*[!0-9]*) echo "invalid lead_minutes=$requested_lead" >&2; exit 2 ;;
@@ -182,9 +176,6 @@ jobs:
             --max-lead-minutes "$max_lead"
             --target-scope-only
           )
-          if [ "$adaptive" = "1" ]; then
-            args+=(--adaptive-timing)
-          fi
           if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor "${args[@]}"; then
             echo 'future_prediction=OK'
           else
