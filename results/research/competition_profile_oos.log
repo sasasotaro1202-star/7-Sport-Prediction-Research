@@ -258,7 +258,8 @@
           "b.league",
           "b league",
           "bリーグ"
-        ]
+        ],
+        "canonical_competition_id": "basketball:bleague"
       },
       {
         "profile_id": "basketball:asian_games",
@@ -268,7 +269,8 @@
         "aliases": [
           "asian games",
           "アジア大会"
-        ]
+        ],
+        "canonical_competition_id": "basketball:asian_games"
       },
       {
         "profile_id": "volleyball:asian_games",
@@ -279,7 +281,8 @@
           "asian games volleyball",
           "asian games",
           "アジア大会"
-        ]
+        ],
+        "canonical_competition_id": "volleyball:asian_games"
       },
       {
         "profile_id": "ufc:promotion",
@@ -288,7 +291,8 @@
         "rules_profile": "ufc",
         "aliases": [
           "ufc"
-        ]
+        ],
+        "canonical_competition_id": "ufc:promotion"
       },
       {
         "profile_id": "rizin:promotion",
@@ -297,7 +301,8 @@
         "rules_profile": "rizin",
         "aliases": [
           "rizin"
-        ]
+        ],
+        "canonical_competition_id": "rizin:promotion"
       },
       {
         "profile_id": "valorant:ecosystem",
@@ -306,7 +311,8 @@
         "rules_profile": "valorant",
         "aliases": [
           "valorant"
-        ]
+        ],
+        "canonical_competition_id": "valorant:ecosystem"
       }
     ],
     "dynamic_competition_discovery": [
@@ -327,11 +333,12 @@
           "rules_profile": "asian_games_volleyball",
           "matched": true,
           "dynamic": false,
-          "competition_id": "20th Asian Games Aichi–Nagoya 2026 - Women"
+          "competition_id": "20th Asian Games Aichi–Nagoya 2026 - Women",
+          "canonical_competition_id": "volleyball:asian_games"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
-          "rows": 66,
+          "rows": 69,
           "seasons": [
             "2026"
           ],
@@ -350,7 +357,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": false,
-          "competition_id": "UFC 3: The American Dream"
+          "competition_id": "UFC 3: The American Dream",
+          "canonical_competition_id": "ufc:promotion"
         },
         "evaluation": {
           "status": "INSUFFICIENT_VALID_CANDIDATES",
@@ -401,7 +409,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Couture vs. Team Liddell Finale"
+          "competition_id": "The Ultimate Fighter: Team Couture vs. Team Liddell Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_couture_vs_team_liddell_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -421,7 +430,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Hughes vs. Team Franklin Finale"
+          "competition_id": "The Ultimate Fighter: Team Hughes vs. Team Franklin Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_franklin_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -441,7 +451,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Ortiz vs. Team Shamrock Finale"
+          "competition_id": "The Ultimate Fighter: Team Ortiz vs. Team Shamrock Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_ortiz_vs_team_shamrock_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -461,7 +472,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "Ortiz vs Shamrock 3: The Final Chapter"
+          "competition_id": "Ortiz vs Shamrock 3: The Final Chapter",
+          "canonical_competition_id": "ufc:competition:ortiz_vs_shamrock_3_the_final_chapter"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -481,7 +493,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: The Comeback Finale"
+          "competition_id": "The Ultimate Fighter: The Comeback Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_the_comeback_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -501,7 +514,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Pulver vs. Team Penn Finale"
+          "competition_id": "The Ultimate Fighter: Team Pulver vs. Team Penn Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_pulver_vs_team_penn_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -521,7 +535,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Hughes vs. Team Serra Finale"
+          "competition_id": "The Ultimate Fighter: Team Hughes vs. Team Serra Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_serra_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -541,7 +556,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Rampage vs Team Forrest Finale"
+          "competition_id": "The Ultimate Fighter: Team Rampage vs Team Forrest Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_rampage_vs_team_forrest_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -561,7 +577,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Nogueira vs. Team Mir Finale"
+          "competition_id": "The Ultimate Fighter: Team Nogueira vs. Team Mir Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_nogueira_vs_team_mir_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -581,7 +598,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: United States vs. United Kingdom Finale"
+          "competition_id": "The Ultimate Fighter: United States vs. United Kingdom Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_united_states_vs_united_kingdom_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -601,7 +619,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Heavyweights Finale"
+          "competition_id": "The Ultimate Fighter: Heavyweights Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_heavyweights_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -621,7 +640,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Liddell vs Team Ortiz Finale"
+          "competition_id": "The Ultimate Fighter: Team Liddell vs Team Ortiz Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_liddell_vs_team_ortiz_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -641,7 +661,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team GSP vs Team Koscheck Finale"
+          "competition_id": "The Ultimate Fighter: Team GSP vs Team Koscheck Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_gsp_vs_team_koscheck_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -661,7 +682,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Lesnar vs Team dos Santos Finale"
+          "competition_id": "The Ultimate Fighter: Team Lesnar vs Team dos Santos Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_lesnar_vs_team_dos_santos_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -681,7 +703,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Bisping vs Team Miller Finale"
+          "competition_id": "The Ultimate Fighter: Team Bisping vs Team Miller Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_bisping_vs_team_miller_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -701,7 +724,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Live Finale"
+          "competition_id": "The Ultimate Fighter: Live Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_live_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -721,7 +745,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Carwin vs. Team Nelson Finale"
+          "competition_id": "The Ultimate Fighter: Team Carwin vs. Team Nelson Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_carwin_vs_team_nelson_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -741,7 +766,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Jones vs. Team Sonnen Finale"
+          "competition_id": "The Ultimate Fighter: Team Jones vs. Team Sonnen Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_jones_vs_team_sonnen_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -761,7 +787,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Rousey vs. Team Tate Finale"
+          "competition_id": "The Ultimate Fighter: Team Rousey vs. Team Tate Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_rousey_vs_team_tate_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -781,7 +808,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Edgar vs. Team Penn Finale"
+          "competition_id": "The Ultimate Fighter: Team Edgar vs. Team Penn Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_edgar_vs_team_penn_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -801,7 +829,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: A Champion Will Be Crowned Finale"
+          "competition_id": "The Ultimate Fighter: A Champion Will Be Crowned Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_a_champion_will_be_crowned_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -821,7 +850,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: American Top Team vs. Blackzilians Finale"
+          "competition_id": "The Ultimate Fighter: American Top Team vs. Blackzilians Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_american_top_team_vs_blackzilians_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -841,7 +871,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team McGregor vs. Team Faber Finale"
+          "competition_id": "The Ultimate Fighter: Team McGregor vs. Team Faber Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_mcgregor_vs_team_faber_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -861,7 +892,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Joanna vs. Team Cláudia Finale"
+          "competition_id": "The Ultimate Fighter: Team Joanna vs. Team Cláudia Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_joanna_vs_team_cl_udia_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -881,7 +913,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Tournament of Champions Finale"
+          "competition_id": "The Ultimate Fighter: Tournament of Champions Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_tournament_of_champions_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -901,7 +934,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Redemption Finale"
+          "competition_id": "The Ultimate Fighter: Redemption Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_redemption_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -921,7 +955,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: A New World Champion Finale"
+          "competition_id": "The Ultimate Fighter: A New World Champion Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_a_new_world_champion_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -941,7 +976,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Undefeated Finale"
+          "competition_id": "The Ultimate Fighter: Undefeated Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_undefeated_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -961,7 +997,8 @@
           "rules_profile": "ufc",
           "matched": true,
           "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Heavy Hitters Finale"
+          "competition_id": "The Ultimate Fighter: Heavy Hitters Finale",
+          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_heavy_hitters_finale"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -983,7 +1020,8 @@
           "rules_profile": "rizin",
           "matched": true,
           "dynamic": false,
-          "competition_id": "・ガルシア 2R 2:04 腕ひしぎ十字固め アンナ・マリューコヴァ(lose) vs 第10試合 スペシャルワンマッチ グラップリングダブルバウト ... TOP Presents RIZIN.1"
+          "competition_id": "・ガルシア 2R 2:04 腕ひしぎ十字固め アンナ・マリューコヴァ(lose) vs 第10試合 スペシャルワンマッチ グラップリングダブルバウト ... TOP Presents RIZIN.1",
+          "canonical_competition_id": "rizin:promotion"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -1006,7 +1044,8 @@
           "rules_profile": "rizin",
           "matched": true,
           "dynamic": true,
-          "competition_id": "第1試合 (Win)森本“狂犬”義久 vs. RYOTA・RENSEIGYM(Lose) 3R 2分0秒 TKO ※レフェリーストップ"
+          "competition_id": "第1試合 (Win)森本“狂犬”義久 vs. RYOTA・RENSEIGYM(Lose) 3R 2分0秒 TKO ※レフェリーストップ",
+          "canonical_competition_id": "rizin:competition:1_win_vs_ryota_renseigym_lose_3r_2_0_tko"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -1026,7 +1065,8 @@
           "rules_profile": "rizin",
           "matched": true,
           "dynamic": true,
-          "competition_id": "第14試合 スペシャルエキシビジョン ---フロイド・メイウェザー vs. 那須川天心--- 1R 2分19秒 タオル投入"
+          "competition_id": "第14試合 スペシャルエキシビジョン ---フロイド・メイウェザー vs. 那須川天心--- 1R 2分19秒 タオル投入",
+          "canonical_competition_id": "rizin:competition:14_vs_1r_2_19"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -1046,7 +1086,8 @@
           "rules_profile": "rizin",
           "matched": true,
           "dynamic": true,
-          "competition_id": "4試合／ISKA世界フェザー級タイトルマッチ ［IISKAユニファイドルール ： 3分 5R（57.0kg）］ (LOSE)マーティン・ブランコ vs. 那須川天心(WIN) 2R 2分19秒 KO"
+          "competition_id": "4試合／ISKA世界フェザー級タイトルマッチ ［IISKAユニファイドルール ： 3分 5R（57.0kg）］ (LOSE)マーティン・ブランコ vs. 那須川天心(WIN) 2R 2分19秒 KO",
+          "canonical_competition_id": "rizin:competition:4_iska_iiska_3_5r_57_0kg_lose_vs_win_2r_2_19_ko"
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
@@ -1063,8 +1104,8 @@
   },
   "identity_audit": {
     "volleyball": {
-      "built_rows": 66,
-      "matched_rows": 66,
+      "built_rows": 69,
+      "matched_rows": 69,
       "unknown_competition_rows": 0,
       "missing_competition_rows": 0,
       "recognized_ratio": 1.0
