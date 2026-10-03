@@ -9,13 +9,20 @@ def main() -> int:
     assert resolve_profile("basketball", "B.LEAGUE", "league match")["profile_id"] == "basketball:bleague"
     assert resolve_profile("basketball", "Asian Games", "Asian Games Basketball")["profile_id"] == "basketball:asian_games"
     assert resolve_profile("volleyball", "Asian Games Volleyball", "match")["profile_id"] == "volleyball:asian_games"
-    assert resolve_profile("ufc", "UFC", "UFC 300")["phase_type"] == "promotion"
+    ufc = resolve_profile("ufc", "UFC", "UFC 300")
+    assert ufc["phase_type"] == "promotion"
+    assert ufc["canonical_competition_id"] == "ufc:promotion"
+    rizin = resolve_profile("rizin", "RIZIN", "RIZIN 1")
+    assert rizin["canonical_competition_id"] == "rizin:promotion"
+
     unknown = resolve_profile("basketball", "", "ordinary unknown competition")
     assert unknown["matched"] is False
+    assert resolve_profile("basketball", "B.LEAGUE\n", "league match")["canonical_competition_id"] == "basketball:bleague"
     dynamic = resolve_profile("valorant", "VCT Champions 2026", "team match")
     assert dynamic["matched"] is True
     assert dynamic["dynamic"] is True
     assert dynamic["profile_id"] == "valorant:competition:vct_champions_2026"
+    assert dynamic["canonical_competition_id"] == "valorant:competition:vct_champions_2026"
     policy = profile_policy()
     assert policy["no_implicit_pooling"] is True
     assert policy["production_route_enabled"] is False
