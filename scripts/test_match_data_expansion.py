@@ -2,11 +2,17 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import sqlite3
 
 from src.match_data_expansion import (
     _exact_for_cutoff,
     parse_bleague_detail,
+    parse_fiba_game_detail,
     parse_jsonld_event,
+    parse_rizin_detail,
+    parse_ufcstats_detail,
+    parse_volleyball_detail,
+    select_events,
 )
 
 
@@ -86,6 +92,53 @@ JSONLD_HTML = """
 """
 
 
+
+FIBA_HTML = """
+<h1>Japan</h1><h1>Philippines</h1>
+<div>Group Phase · Group D</div>
+<div>Japan 80 - 75 Philippines</div>
+<div>Game Stats</div>
+<div>FG % 41 45</div>
+<div>2PT FG 54.1% 58%</div>
+<div>3PT FG 22.2% 14.3%</div>
+<div>FT % 95.7% 66.7%</div>
+<div>Attendance 126</div>
+"""
+
+VOLLEYBALL_HTML = """
+<h1>Japan vs USA</h1>
+<div>Final</div>
+<div>Venue: Ariake Arena</div>
+<div>25-22</div>
+"""
+
+UFCSTATS_HTML = """
+<h1>Example Fighter Record: 10-3-0</h1>
+<div>Height: 5' 9"</div>
+<div>Weight: 155 lbs.</div>
+<div>Reach: 70"</div>
+<div>STANCE: Orthodox</div>
+<div>DOB: Jan. 02, 1995</div>
+<div>SLpM: 2.48</div>
+<div>Str. Acc.: 42%</div>
+<div>SApM: 4.08</div>
+<div>Str. Def: 53%</div>
+<div>TD Avg.: 1.31</div>
+<div>TD Acc.: 35%</div>
+<div>TD Def.: 52%</div>
+<div>Sub. Avg.: 1.1</div>
+<div>Matchup Preview</div>
+"""
+
+RIZIN_HTML = """
+<h1>堀江圭功 vs. 宇佐美正パトリック</h1>
+<div>ルール</div>
+<div>RIZIN MMAルール：5分3R（72.65kg）</div>
+<div>変更のお知らせ</div>
+<div>試合結果</div>
+<div>2R 3分37秒 TKO</div>
+"""
+
 def main() -> int:
     data = parse_bleague_detail(BLEAGUE_HTML)
     assert data["venue_name"] == "LaLa arena TOKYO-BAY"
@@ -121,6 +174,38 @@ def main() -> int:
     assert late_exact is False
     assert late_available is None
 
+    fiba = parse_fiba_game_detail(FIBA_HTML)
+    assert fiba["game_stage"] == "Group Phase"
+    assert fiba["score_a"] == 80
+    assert fiba["score_b"] == 75
+    assert fiba["attendance"] == 126
+    assert fiba["game_stats"]["2pt_fg_pct"] == [54.1, 58.0]
+    assert fiba["game_stats"]["3pt_fg_pct"] == [22.2, 14.3]
+    assert fiba["game_stats"]["ft_pct"] == [95.7, 66.7]
+
+    volleyball = parse_volleyball_detail(VOLLEYBALL_HTML)
+    assert volleyball["status"] == "FINAL"
+    assert volleyball["venue"] == "Ariake Arena"
+    assert volleyball["score"] == [25, 22]
+
+    ufc = parse_ufcstats_detail(UFCSTATS_HTML)
+    assert ufc["height"] == """5' 9\""""
+    assert ufc["weight"] == "155 lbs."
+    assert ufc["reach"] == """70\""""
+    assert ufc["stance"] == "Orthodox"
+    assert ufc["career_stats"]["SLpM"] == 2.48
+    assert ufc["career_stats"]["Str_Acc"] == 42.0
+    assert ufc["career_stats"]["TD_Def"] == 52.0
+    assert ufc["has_matchup_preview"] is True
+
+    rizin = parse_rizin_detail(RIZIN_HTML)
+    assert rizin["contract_weight_kg"] == 72.65
+    assert rizin["change_notice"] is True
+    assert rizin["round"] == 2
+    assert rizin["time"] == "3:37"
+    assert "TKO" in rizin["method"]
+
+
     event = parse_jsonld_event(JSONLD_HTML)
     assert event["name"] == "Example Match"
     assert event["venue_name"] == "Example Arena"
@@ -129,6 +214,41 @@ def main() -> int:
     assert event["venue_country"] == "JP"
     assert event["organizer"] == "Example League"
     assert event["teams"] == ["Home", "Away"]
+
+
+    con = sqlite3.connect(":memory:")
+    con.executescript(
+        """
+        CREATE TABLE event(
+            event_id TEXT PRIMARY KEY,
+            sport TEXT,
+            event_time_utc TEXT,
+            event_type TEXT,
+            status TEXT
+        );
+        CREATE TABLE event_participant(
+            event_id TEXT,
+            participant_id TEXT,
+            team_id TEXT,
+            side TEXT,
+            role TEXT,
+            source_url TEXT
+        );
+        """
+    )
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    con.execute(
+        "INSERT INTO event VALUES(?,?,?,?,?)",
+        ("evt-1", "ufc", future, "match", "SCHEDULED"),
+    )
+    con.execute(
+        "INSERT INTO event_participant VALUES(?,?,?,?,?,?)",
+        ("evt-1", "p1", None, "A", None, "https://ufcstats.com/event-details/example"),
+    )
+    rows = select_events(con, "ufc", horizon_days=1, max_events=10)
+    assert len(rows) == 1
+    assert rows[0][5] == "https://ufcstats.com/event-details/example"
+    con.close()
 
     print("MATCH_DATA_EXPANSION_PARSER=PASS")
     return 0
