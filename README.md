@@ -8,7 +8,21 @@ X data is isolated from the production model: collection → PIT storage → ind
 
 ## Active prediction scope
 
-The canonical active prediction scope is exactly five sports: VALORANT, Basketball, Volleyball, UFC, and RIZIN. Tennis, F1, Rugby, and Boxing are Research-only / deferred extensions and are excluded from production inference until their sport-specific PIT/OOS/release gates are formally passed.
+The canonical active prediction scope is exactly five sports:
+- VALORANT
+- Basketball
+- Volleyball
+- UFC
+- RIZIN
+
+## Research-only / deferred extensions
+
+- Tennis
+- F1
+- Rugby
+- Boxing
+
+These research-only / deferred extensions remain outside the active prediction scope and are excluded from production inference until their sport-specific PIT/OOS/release gates are formally passed.
 
 ## GitHub Actions
 ### Canonical production
