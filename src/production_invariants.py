@@ -770,9 +770,10 @@ def main():
     require("cron: '3-58/5 * * * *'" in pre_event_wf
             and "requested_lead='60'" in pre_event_wf
             and '--lead-minutes "$requested_lead"' in pre_event_wf
-            and "lead_minutes:" in pre_event_wf
-            and "adaptive_timing:" in pre_event_wf,
+            and "lead_minutes:" in pre_event_wf,
             'pre-event workflow is not scheduled at five-minute cadence with configurable T-60/manual timing')
+    require('adaptive_timing:' not in pre_event_wf and 'inputs.adaptive_timing' not in pre_event_wf,
+            'pre-event manual dispatch exposes an unsafe adaptive override')
     require("adaptive='0'" in pre_event_wf
             and "# Scheduled production is deliberately centered on T-60." in pre_event_wf,
             'scheduled pre-event lane is not explicitly centered on the T-60 default')
