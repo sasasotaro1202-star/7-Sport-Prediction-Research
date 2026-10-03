@@ -338,14 +338,26 @@ def parse_volleyball_detail(html: str):
         if m:
             result["match_stage"] = clean(m.group(1))
             break
-    m = re.search(r"(?:Venue|Location|Host City)\s*[:：]?\s*([^|\n]+)", text, re.I)
-    if m:
+    # Prefer the label-preserving lines so adjacent HTML blocks such as
+    # "Venue: Ariake Arena" followed by "25-22" cannot be conflated.
+    label = re.compile(r"^(?:Venue|Location|Host City)\s*[:：]?\s*(.*)$", re.I)
+    for index, line in enumerate(lines):
+        m = label.search(line)
+        if not m:
+            continue
         venue = clean(m.group(1))
-        # The normalized text flattens HTML block boundaries. Stop venue capture
-        # before a following volleyball score so adjacent score text is not
-        # silently folded into the venue field.
-        venue = re.split(r"\s+\b\d{1,2}\s*[-–:]\s*\d{1,2}\b", venue, maxsplit=1)[0]
-        result["venue"] = clean(venue)
+        if not venue and index + 1 < len(lines):
+            venue = clean(lines[index + 1])
+        # Some pages render score text in the same block as the venue. Bound the
+        # capture before a volleyball score rather than persisting adjacent data.
+        venue = re.split(
+            r"\s+\b\d{1,2}\s*[-–:]\s*\d{1,2}\b",
+            venue,
+            maxsplit=1,
+        )[0]
+        if venue:
+            result["venue"] = venue
+            break
     pairs = re.findall(r"\b(\d{1,2})\s*[-–:]\s*(\d{1,2})\b", text)
     if pairs:
         result["score"] = [int(pairs[0][0]), int(pairs[0][1])]
