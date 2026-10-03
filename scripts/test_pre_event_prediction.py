@@ -97,7 +97,7 @@ def main() -> None:
     assert "invalid lead_minutes" in workflow
     assert "Manual horizon is exact and has no artificial upper bound." in workflow
     assert "must be 5-180" not in workflow
-    assert "no upper bound" in workflow
+    assert "no artificial upper bound" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "args+=(--adaptive-timing)" in workflow
     assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' in workflow
