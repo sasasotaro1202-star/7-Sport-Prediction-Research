@@ -26,7 +26,7 @@ from src.seven_sport_production import add_snapshot, connect, sid, clean
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
 ACTIVE_SPORTS = ("valorant", "basketball", "volleyball", "ufc", "rizin")
-PARSER_VERSION = "match-data-expansion-v1"
+PARSER_VERSION = "match-data-expansion-v2"
 DETAIL_SOURCE_BY_SPORT = {
     "basketball": "bleague-game-detail",
     "valorant": "vlr-match-detail",
@@ -247,6 +247,152 @@ def parse_bleague_detail(html: str):
     return result
 
 
+
+def parse_page_metadata(html: str):
+    soup = BeautifulSoup(html, "lxml")
+
+    def meta(*selectors):
+        for selector in selectors:
+            node = soup.select_one(selector)
+            if node:
+                value = clean(node.get("content") or node.get_text(" ", strip=True))
+                if value:
+                    return value
+        return None
+
+    canonical = None
+    link = soup.select_one("link[rel='canonical']")
+    if link:
+        canonical = clean(link.get("href"))
+
+    h1 = soup.find("h1")
+    return {
+        "title": clean(soup.title.get_text(" ", strip=True) if soup.title else None),
+        "description": meta("meta[property='og:description']", "meta[name='description']"),
+        "og_title": meta("meta[property='og:title']"),
+        "canonical_url": canonical,
+        "h1": clean(h1.get_text(" ", strip=True) if h1 else None),
+    }
+
+
+def parse_vlr_match_detail(html: str):
+    soup = BeautifulSoup(html, "lxml")
+    lines = [clean(x) for x in soup.get_text("\n").splitlines() if clean(x)]
+    text = " ".join(lines)
+
+    patch = None
+    m = re.search(r"\bPatch\s+([0-9]+(?:\.[0-9]+)*)\b", text, re.I)
+    if m:
+        patch = m.group(1)
+
+    match_format = None
+    m = re.search(r"\b(Bo1|Bo3|Bo5)\b", text, re.I)
+    if m:
+        match_format = m.group(1)
+
+    event_links = []
+    for a in soup.select("a[href*='/event/']"):
+        name = clean(a.get_text(" ", strip=True))
+        if name and name not in event_links:
+            event_links.append(name)
+
+    betting_lines = []
+    start = next((i for i, line in enumerate(lines) if line.lower() == "betting"), None)
+    if start is not None:
+        stop_tokens = {"head-to-head", "past matches", "watch", "full match"}
+        for line in lines[start + 1:]:
+            if line.lower() in stop_tokens:
+                break
+            if "pre-match" in line.lower() or re.search(r"\b\d+\.\d{2}\s+vs\s+\d+\.\d{2}\b", line):
+                betting_lines.append(line)
+
+    odds = []
+    for line in betting_lines:
+        for a, b in re.findall(r"\b(\d+\.\d{2})\s+vs\s+(\d+\.\d{2})\b", line):
+            odds.extend([float(a), float(b)])
+
+    return {
+        "patch": patch,
+        "format": match_format,
+        "event_links": event_links[:4],
+        "pre_match_betting_text": betting_lines[:4],
+        "pre_match_odds": odds[:8],
+        "has_pre_match_betting": bool(betting_lines),
+    }
+
+
+def _write_page_metadata(con, event, html, retrieved, source, exact):
+    data = parse_page_metadata(html)
+    values = {
+        "match.page_title": data.get("title"),
+        "match.page_description": data.get("description"),
+        "match.page_og_title": data.get("og_title"),
+        "match.page_canonical_url": data.get("canonical_url"),
+        "match.page_h1": data.get("h1"),
+    }
+    written = 0
+    for stat_name, text_value in values.items():
+        if not text_value:
+            continue
+        _insert_stat(
+            con,
+            event["event_id"],
+            None,
+            None,
+            event["sport"],
+            stat_name,
+            None,
+            text_value,
+            source,
+            event["source_url"],
+            retrieved.isoformat(),
+            retrieved.isoformat() if exact else None,
+            "EXACT" if exact else "UNVERIFIABLE",
+        )
+        written += 1
+    return written
+
+
+def _write_vlr_detail(con, event, html, retrieved, exact):
+    data = parse_vlr_match_detail(html)
+    values = {
+        "match.vlr.patch": (None, data.get("patch")),
+        "match.vlr.format": (None, data.get("format")),
+        "match.vlr.has_pre_match_betting": (
+            1.0 if data.get("has_pre_match_betting") else 0.0,
+            None,
+        ),
+    }
+    for idx, name in enumerate(data.get("event_links") or [], 1):
+        values[f"match.vlr.event_link.{idx}"] = (None, name)
+    for idx, line in enumerate(data.get("pre_match_betting_text") or [], 1):
+        values[f"match.vlr.pre_match_betting.{idx}"] = (None, line)
+    for idx, odd in enumerate(data.get("pre_match_odds") or [], 1):
+        values[f"match.vlr.pre_match_odds.{idx}"] = (float(odd), None)
+
+    written = 0
+    for stat_name, (num, text_value) in values.items():
+        if num is None and not text_value:
+            continue
+        _insert_stat(
+            con,
+            event["event_id"],
+            None,
+            None,
+            event["sport"],
+            stat_name,
+            num,
+            text_value,
+            "vlr-match-detail",
+            event["source_url"],
+            retrieved.isoformat(),
+            retrieved.isoformat() if exact else None,
+            "EXACT" if exact else "UNVERIFIABLE",
+        )
+        written += 1
+    return written
+
+
 def _exact_for_cutoff(retrieved: datetime, event_time: datetime | None, lead_minutes: int):
     if event_time is None:
         return False, None
@@ -259,7 +405,7 @@ def _exact_for_cutoff(retrieved: datetime, event_time: datetime | None, lead_min
 def _insert_stat(con, event_id, participant_id, team_id, sport, name, value_num, value_text,
                  source, source_url, observed_at, effective_at, quality):
     stat_id = sid(
-        "match-data-expansion-v1",
+        PARSER_VERSION,
         event_id,
         participant_id,
         team_id,
@@ -482,17 +628,25 @@ def enrich_one(con, event, lead_minutes=60):
             },
         )
 
-        written = _write_jsonld(con, event, raw, retrieved, source, exact)
+        page_written = _write_page_metadata(con, event, raw, retrieved, source, exact)
+        detail_written = _write_jsonld(con, event, raw, retrieved, source, exact)
         if event["sport"] == "basketball" and "bleague.jp" in url:
-            written += _write_bleague(con, event, raw, retrieved, exact)
+            detail_written += _write_bleague(con, event, raw, retrieved, exact)
+        if event["sport"] == "valorant" and "vlr.gg" in url:
+            detail_written += _write_vlr_detail(con, event, raw, retrieved, exact)
 
+        written = page_written + detail_written
+        parser_status = "OK" if written > 0 else "NO_STRUCTURED_DATA"
         return {
-            "status": "OK",
+            "status": "OK" if parser_status == "OK" else "PARSER_EMPTY",
             "event_id": event["event_id"],
             "source": source,
             "exact": exact,
             "available_at": available_at,
             "written_stats": written,
+            "page_metadata_fields": page_written,
+            "detail_fields": detail_written,
+            "parser_status": parser_status,
         }
     except Exception as exc:
         return {
@@ -525,6 +679,16 @@ def select_events(con, sport, horizon_days=14, max_events=40):
     ).fetchall()
 
 
+def _summarize_run_status(selected_count, processed_count, skipped_fresh, errors, parser_empty):
+    if int(selected_count) == 0:
+        return "NO_CANDIDATE_EVENTS"
+    if int(errors) > 0 or int(parser_empty) > 0:
+        return "DEGRADED"
+    if int(processed_count) == 0 and int(skipped_fresh) == int(selected_count):
+        return "CACHE_FRESH"
+    return "OK"
+
+
 def run(sport, horizon_days=14, max_events=40, lead_minutes=60):
     con = connect()
     before = con.execute(
@@ -535,6 +699,9 @@ def run(sport, horizon_days=14, max_events=40, lead_minutes=60):
     results = []
     skipped_fresh = 0
     errors = 0
+    parser_empty = 0
+    exact_count = 0
+    unverifiable_count = 0
     for row in selected:
         event = dict(row)
         source = DETAIL_SOURCE_BY_SPORT.get(sport, f"{urlparse(event['source_url']).netloc}-event-detail")
@@ -551,12 +718,21 @@ def run(sport, horizon_days=14, max_events=40, lead_minutes=60):
         results.append(result)
         if result.get("status") == "FETCH_ERROR":
             errors += 1
+        if result.get("status") == "PARSER_EMPTY":
+            parser_empty += 1
+        if result.get("exact") is True:
+            exact_count += 1
+        elif result.get("exact") is False:
+            unverifiable_count += 1
         con.commit()
     after = con.execute(
         "SELECT COUNT(*) FROM match_stats WHERE sport=?",
         (sport,),
     ).fetchone()[0]
     con.close()
+    status = _summarize_run_status(
+        len(selected), len(results), skipped_fresh, errors, parser_empty
+    )
     return {
         "parser_version": PARSER_VERSION,
         "sport": sport,
@@ -564,9 +740,12 @@ def run(sport, horizon_days=14, max_events=40, lead_minutes=60):
         "skipped_fresh": skipped_fresh,
         "processed_events": len(results),
         "fetch_errors": errors,
+        "parser_empty": parser_empty,
+        "exact_observations": exact_count,
+        "unverifiable_observations": unverifiable_count,
         "new_match_stats": after - before,
         "results": results,
-        "status": "DEGRADED" if errors and not results else "OK",
+        "status": status,
     }
 
 

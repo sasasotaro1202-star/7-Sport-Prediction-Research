@@ -7,6 +7,9 @@ from src.match_data_expansion import (
     _exact_for_cutoff,
     parse_bleague_detail,
     parse_jsonld_event,
+    parse_page_metadata,
+    parse_vlr_match_detail,
+    _summarize_run_status,
 )
 
 
@@ -59,6 +62,23 @@ BLEAGUE_HTML = """
 </html>
 """
 
+
+
+VLR_HTML = """
+<a href="/event/2281/valorant-champions-2026">Valorant Champions 2026</a>
+<div>Group Stage: Winner's (B)</div>
+<div>Saturday, September 30</div>
+<div>Patch 13.05</div>
+<div>Team Vitality</div>
+<div>3d 8h</div>
+<div>–</div>
+<div>Bo3</div>
+<div>LOUD</div>
+<div>Betting</div>
+<div>Team Vitality VIT 2.16 vs 1.63 LOUD LOUD Pre-match</div>
+<div>Head-to-head</div>
+<h1>Team Vitality vs. LOUD</h1>
+"""
 
 JSONLD_HTML = """
 <script type="application/ld+json">
@@ -120,6 +140,32 @@ def main() -> int:
     )
     assert late_exact is False
     assert late_available is None
+
+
+    vlr = parse_vlr_match_detail(VLR_HTML)
+    assert vlr["patch"] == "13.05"
+    assert vlr["format"] == "Bo3"
+    assert vlr["event_links"] == ["Valorant Champions 2026"]
+    assert vlr["has_pre_match_betting"] is True
+    assert vlr["pre_match_odds"] == [2.16, 1.63]
+    assert len(vlr["pre_match_betting_text"]) == 1
+
+    meta = parse_page_metadata(
+        VLR_HTML.replace(
+            '<a href="/event/2281/valorant-champions-2026">',
+            '<link rel="canonical" href="https://www.vlr.gg/753451/" /><title>VIT vs LOUD</title><meta name="description" content="Match preview">\\n<a href="/event/2281/valorant-champions-2026">'
+        )
+    )
+    assert meta["title"] == "VIT vs LOUD"
+    assert meta["description"] == "Match preview"
+    assert meta["canonical_url"] == "https://www.vlr.gg/753451/"
+    assert meta["h1"] == "Team Vitality vs. LOUD"
+
+    assert _summarize_run_status(0, 0, 0, 0, 0) == "NO_CANDIDATE_EVENTS"
+    assert _summarize_run_status(2, 1, 0, 1, 0) == "DEGRADED"
+    assert _summarize_run_status(2, 1, 0, 0, 1) == "DEGRADED"
+    assert _summarize_run_status(2, 0, 2, 0, 0) == "CACHE_FRESH"
+    assert _summarize_run_status(2, 2, 0, 0, 0) == "OK"
 
     event = parse_jsonld_event(JSONLD_HTML)
     assert event["name"] == "Example Match"

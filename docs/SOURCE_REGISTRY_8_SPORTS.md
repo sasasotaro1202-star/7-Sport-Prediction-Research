@@ -132,8 +132,10 @@ The active prediction lanes now persist a bounded match-detail evidence layer fo
 | Data family | Examples | Storage | PIT rule |
 | --- | --- | --- | --- |
 | Event metadata | venue, address, city/region, organizer, event status | `match_stats` | EXACT only for prospective observation at or before selected cutoff |
+| Page metadata | title, description, OpenGraph title, canonical URL, H1 | `match_stats` | Stores source evidence; historical retrieval remains UNVERIFIABLE |
 | Basketball detail | tipoff, competition tier, standings, season record, PPG/FG%/3FG%/FT%/RPG/APG/BPG/SPG, broadcasts | `match_stats` | Same strict cutoff gate |
+| VALORANT pre-match detail | patch, Bo1/Bo3/Bo5 format, event links, pre-match betting text/odds | `match_stats` | Odds are retained without participant-side assignment; strict cutoff gate |
 | Team/event identity | structured home/away/competitor names | `match_stats` + existing identity tables | No silent identity merge |
-| Provenance | content hash, observation time, source URL, parser version | `source_snapshot` | Historical retrieval alone remains UNVERIFIABLE |
+| Provenance | content hash, observation time, source URL, parser version, exact/unverifiable state | `source_snapshot` | Historical retrieval alone remains UNVERIFIABLE |
 
-This layer is research-input infrastructure only. A newly collected field is not automatically enabled as a production feature; it must pass PIT replay, ablation, chronological OOS, robustness and frozen-holdout gates.
+This layer is research-input infrastructure only. A newly collected field is not automatically enabled as a production feature; it must pass PIT replay, ablation, chronological OOS, robustness and frozen-holdout gates. Source-specific parsers may report DEGRADED when fetches or structured parsing fail; such degradation is retained in artifacts rather than converted to an OK status.
