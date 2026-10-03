@@ -114,46 +114,32 @@ def build_segment_candidates(
         "event_type": _normalise_context(event_type),
     }
     levels = [str(x) for x in cfg["levels"] if str(x) in raw]
-    explicit = sum(bool(raw[x]) for x in levels)
-    if explicit < int(cfg["minimum_explicit_context"]):
-        levels = [x for x in levels if x != "round" or raw[x]]
-    levels = levels[: max(1, int(cfg["max_depth"]))]
+    explicit_levels = [x for x in levels if raw[x]]
+    if len(explicit_levels) < int(cfg["minimum_explicit_context"]):
+        explicit_levels = explicit_levels[: max(0, int(cfg["minimum_explicit_context"]))]
+    explicit_levels = explicit_levels[: max(0, int(cfg["max_depth"]))]
 
     base = str(profile["profile_id"])
     candidates = []
     seen = set()
-    # Build all prefix depths rather than arbitrary field subsets. This keeps
-    # the hierarchy interpretable and guarantees that every narrower route has
-    # the broader route as a deterministic fallback.
-    for depth in range(len(levels), -1, -1):
+    # Use only explicit fields and build a prefix hierarchy. This avoids an
+    # arbitrary powerset of contexts while still allowing season-only routing
+    # when stage/round are absent.
+    for depth in range(len(explicit_levels), -1, -1):
         parts = [base]
-        if depth:
-            for level in levels[:depth]:
-                if not raw[level]:
-                    break
-                parts.append(f"{level}={raw[level]}")
-            else:
-                key = "::".join(parts)
-                if key not in seen:
-                    seen.add(key)
-                    candidates.append({
-                        "segment_id": key,
-                        "profile_id": str(profile["profile_id"]),
-                        "sport": str(sport),
-                        "specificity": depth,
-                        "context": {x: raw[x] for x in levels[:depth]},
-                    })
-                continue
-        key = base
-        if key not in seen:
-            seen.add(key)
-            candidates.append({
-                "segment_id": key,
-                "profile_id": str(profile["profile_id"]),
-                "sport": str(sport),
-                "specificity": 0,
-                "context": {},
-            })
+        for level in explicit_levels[:depth]:
+            parts.append(f"{level}={raw[level]}")
+        key = "::".join(parts)
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append({
+            "segment_id": key,
+            "profile_id": str(profile["profile_id"]),
+            "sport": str(sport),
+            "specificity": depth,
+            "context": {x: raw[x] for x in explicit_levels[:depth]},
+        })
     return candidates
 
 
@@ -161,4 +147,11 @@ def profile_policy() -> dict:
     return _load()
 
 
-__all__ = ["normalize", "resolve_profile", "resolve_research_profile", "profile_policy"]
+__all__ = [
+    "normalize",
+    "resolve_profile",
+    "resolve_research_profile",
+    "segment_policy",
+    "build_segment_candidates",
+    "profile_policy",
+]
