@@ -104,9 +104,10 @@ def main() -> int:
     assert data["season_metrics"]["SPG"] == [5.0, 8.3]
 
     cutoff = datetime(2026, 10, 10, 11, 0, tzinfo=timezone.utc)
+    event_time = cutoff + timedelta(minutes=60)
     exact, available_at = _exact_for_cutoff(
         cutoff - timedelta(seconds=1),
-        cutoff + timedelta(minutes=1),
+        event_time,
         lead_minutes=60,
     )
     assert exact is True
@@ -114,7 +115,7 @@ def main() -> int:
 
     late_exact, late_available = _exact_for_cutoff(
         cutoff + timedelta(seconds=1),
-        cutoff + timedelta(minutes=1),
+        event_time,
         lead_minutes=60,
     )
     assert late_exact is False
