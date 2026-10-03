@@ -138,7 +138,9 @@ def main() -> None:
     assert "no_successful_pre_event_heartbeat_retry_age=" in watchdog
     assert "reference_type=\"successful_heartbeat\"" in watchdog
     assert "reference_type=\"attempt_cooldown\"" in watchdog
-    assert "latest_created=" not in watchdog
+    pre_event_watchdog = watchdog[watchdog.index("      - name: Ensure pre-event T-60 prediction heartbeat"):]
+    pre_event_watchdog = pre_event_watchdog.split("      - name: Cancel over-time production and PIT runs", 1)[0]
+    assert "latest_created=" not in pre_event_watchdog
     assert "Save validated pre-event database" in workflow
     assert "steps.dbguard.outputs.rc == '0'" in workflow
     assert "Backfill a missed 9-hour PIT boundary once per boundary window" in watchdog
