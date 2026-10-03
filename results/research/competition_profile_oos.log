@@ -257,7 +257,12 @@
         "aliases": [
           "b.league",
           "b league",
-          "bリーグ"
+          "bリーグ",
+          "b.premier",
+          "b.one",
+          "b.two",
+          "b one",
+          "b two"
         ],
         "canonical_competition_id": "basketball:bleague"
       },
@@ -338,7 +343,7 @@
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
-          "rows": 70,
+          "rows": 73,
           "seasons": [
             "2026"
           ],
@@ -1104,8 +1109,8 @@
   },
   "identity_audit": {
     "volleyball": {
-      "built_rows": 70,
-      "matched_rows": 70,
+      "built_rows": 73,
+      "matched_rows": 73,
       "unknown_competition_rows": 0,
       "missing_competition_rows": 0,
       "recognized_ratio": 1.0
