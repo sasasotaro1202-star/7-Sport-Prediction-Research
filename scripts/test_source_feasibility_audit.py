@@ -133,7 +133,7 @@ def main() -> int:
         audit.requests.Session = lambda: FakeSession(
             FakeResponse(
                 200,
-                '<html><a class="match-item" href="/match/12345/team-a-vs-team-b/">Upcoming</a></html>',
+                '<html><a class="match-item" href="/12345/team-a-vs-team-b/">Upcoming</a></html>',
             )
         )
         row = audit.probe_source(
@@ -141,7 +141,7 @@ def main() -> int:
                 "source_id": "vlr-structure",
                 "name": "VLR",
                 "url": "https://example.invalid/matches",
-                "required_patterns": [r'href=["\']?/match/\d+/', r"match-item"],
+                "required_patterns": [r"/\d+/", r"match-item"],
                 "required_signals": [],
                 "critical": True,
                 "pit_status": "UNPROVEN",
