@@ -9,7 +9,9 @@ on:
         default: "60"
         type: string
   schedule:
-    - cron: '3-58/5 * * * *'
+    # A 15-minute cadence guarantees coverage of the 45-75 minute T-60 guideline window
+    # without allowing the five-minute scheduler to repeatedly cancel long runs.
+    - cron: '3-58/15 * * * *'
 
 permissions:
   contents: read
@@ -55,7 +57,7 @@ jobs:
           import json
           p=json.load(open('config/PRE_EVENT_PREDICTION_POLICY.json',encoding='utf-8'))
           assert p['scheduler']['target_lead_minutes'] == 60
-          assert p['scheduler']['cron_utc'] == '3-58/5 * * * *'
+          assert p['scheduler']['cron_utc'] == '3-58/15 * * * *'
           assert p['scheduler']['generation_window']['min_lead_minutes'] == 5
           assert p['scheduler']['generation_window']['max_lead_minutes'] == 180
           assert p['scheduler']['guideline_target_minutes'] == 60
@@ -181,12 +183,13 @@ jobs:
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Generate adaptive timing research lane
+        if: github.event_name == 'workflow_dispatch'
         id: adaptive_timing
         run: |
           set -uo pipefail
           rc=0
-          # Adaptive routing is a separate research lane. The canonical manual
-          # horizon never opts into this route implicitly.
+          # Adaptive routing is a separate manual research lane. Scheduled production
+          # runs skip this heavier lane so the T-60 prediction path remains timely.
           if timeout --signal=TERM --kill-after=30s 240s python -m src.future_predictor \
               --sport ${{ matrix.sport }} \
               --min-lead-minutes 5 \
@@ -201,6 +204,7 @@ jobs:
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Generate one rotating timing-shadow lane
+        if: github.event_name == 'workflow_dispatch'
         id: timing_shadow
         run: |
           set -uo pipefail
@@ -302,8 +306,8 @@ jobs:
           collect_rc='${{ steps.collect.outputs.rc }}'
           predict_rc='${{ steps.predict.outputs.rc }}'
           experience_rc='${{ steps.experience.outputs.rc }}'
-          shadow_rc='${{ steps.timing_shadow.outputs.rc }}'
-          adaptive_rc='${{ steps.adaptive_timing.outputs.rc }}'
+          shadow_rc="${{ steps.timing_shadow.outputs.rc || '0' }}"
+          adaptive_rc="${{ steps.adaptive_timing.outputs.rc || '0' }}"
           audit_rc='${{ steps.audit.outputs.rc }}'
           db_rc='${{ steps.dbguard.outputs.rc }}'
           lead='${{ steps.predict.outputs.lead }}'
