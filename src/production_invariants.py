@@ -773,6 +773,9 @@ def main():
             and "lead_minutes:" in pre_event_wf
             and "adaptive_timing:" in pre_event_wf,
             'pre-event workflow is not scheduled at five-minute cadence with configurable T-60/manual timing')
+    require("adaptive='0'" in pre_event_wf
+            and "# Scheduled production is deliberately centered on T-60." in pre_event_wf,
+            'scheduled pre-event lane is not explicitly centered on the T-60 default')
     require('min_lead=$((requested_lead - tolerance))' in pre_event_wf
             and 'max_lead=$((requested_lead + tolerance))' in pre_event_wf
             and 'if [ "$min_lead" -lt 5 ]; then min_lead=5; fi' in pre_event_wf
