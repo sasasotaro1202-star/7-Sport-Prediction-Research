@@ -241,7 +241,7 @@ def build_report(policy: dict, timeout: float = 20.0) -> dict:
             "sources": rows,
         }
     return {
-        "version": "source-feasibility-v3",
+        "version": f"source-feasibility-v{policy.get('version', 'unknown')}",
         "checked_at_utc": _utcnow(),
         "status": "PASS" if not failures else "DEGRADED",
         "sport_status": sports,
