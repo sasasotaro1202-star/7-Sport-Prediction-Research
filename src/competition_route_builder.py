@@ -71,10 +71,12 @@ def _load_event_metadata(con: sqlite3.Connection, sport: str) -> dict[str, dict[
             "competition_id": str(comp or ""),
             "season": str(season or ""),
             "stage": str(stage or ""),
+            "round": str(round_ or ""),
+            "event_type": str(event_type or ""),
             "time": str(t or ""),
         }
-        for eid, comp, season, stage, t in con.execute(
-            "SELECT event_id,competition_id,season,stage,event_time_utc FROM event WHERE sport=?",
+        for eid, comp, season, stage, round_, event_type, t in con.execute(
+            "SELECT event_id,competition_id,season,stage,round,event_type,event_time_utc FROM event WHERE sport=?",
             (sport,),
         ).fetchall()
     }
