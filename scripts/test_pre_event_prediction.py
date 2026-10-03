@@ -72,6 +72,8 @@ def main() -> None:
     assert policy["scheduler"]["target_lead_minutes"] == 60
     assert policy["scheduler"]["guideline_target_minutes"] == 60
     assert policy["scheduler"]["selection_mode"] == "scheduled-60m-default;manual-lead-configurable"
+    assert policy["scheduler"]["cron_utc"] == "3-58/15 * * * *"
+    assert policy["scheduler"]["minimum_interval_minutes"] == 15
     assert policy["scheduler"]["guideline_target_minutes"] == 60
     assert policy["scheduler"]["guideline_tolerance_minutes"] == 15
     assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
@@ -108,7 +110,9 @@ def main() -> None:
     assert 'inputs.adaptive_timing' not in workflow
     assert "--adaptive-timing" in workflow
     assert "--timing-shadow" in workflow
+    assert "runs skip this heavier lane" in workflow
     assert "Generate adaptive timing research lane" in workflow
+    assert "if: github.event_name == 'workflow_dispatch'" in workflow
     assert 'default: "60"' in workflow
     assert 'if [ "${{ github.event_name }}" = "workflow_dispatch" ]' in workflow
     assert "group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}" in workflow
@@ -122,7 +126,7 @@ def main() -> None:
     assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' in workflow
     assert "adaptive_research_rc" in workflow
     assert '--target-lead-minutes "${{ steps.predict.outputs.lead }}"' in workflow
-    assert "cron: '3-58/5 * * * *'" in workflow
+    assert "cron: '3-58/15 * * * *'" in workflow
     assert resolve_profile("basketball", "B.LEAGUE", "B.LEAGUE")["matched"]
     assert not resolve_profile("basketball", "Other League", "Other League")["matched"]
     # 60 minutes is the default guideline: a prediction with a nearby cutoff is acceptable.
