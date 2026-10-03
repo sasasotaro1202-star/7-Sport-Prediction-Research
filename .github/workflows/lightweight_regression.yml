@@ -56,6 +56,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_basketball_official_error_diagnostics.py
       - name: B.LEAGUE official schedule fallback regression
         run: PYTHONPATH=. python scripts/test_bleague_schedule_parser_fallback.py
+      - name: Match data expansion parser regression
+        run: PYTHONPATH=. python scripts/test_match_data_expansion.py
       - name: Basketball target and exact PIT integrity regression
         run: PYTHONPATH=. python scripts/test_basketball_target_pit_integrity.py
       - name: Production safe continuation regression
