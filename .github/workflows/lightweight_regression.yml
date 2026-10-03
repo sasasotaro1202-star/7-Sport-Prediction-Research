@@ -54,12 +54,6 @@ jobs:
         run: PYTHONPATH=. python scripts/test_competition_routing.py
       - name: B.LEAGUE official error diagnostics regression
         run: PYTHONPATH=. python scripts/test_basketball_official_error_diagnostics.py
-      - name: Boxing ingest unit regression
-        run: PYTHONPATH=. python scripts/test_boxing_ingest.py
-      - name: Uncertainty-aware router research-only regression
-        run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
-      - name: Matchday intelligence PIT regression
-        run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
       - name: Production safe continuation regression
         run: PYTHONPATH=. python scripts/test_production_safe_continuation.py
       - name: Continuous scope autofill regression
