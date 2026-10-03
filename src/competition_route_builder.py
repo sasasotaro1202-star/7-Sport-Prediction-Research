@@ -11,7 +11,7 @@ import joblib
 import numpy as np
 
 from src import research_cycle_v4 as base
-from src.competition_profiles import resolve_research_profile
+from src.competition_profiles import build_segment_candidates, resolve_research_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
@@ -52,8 +52,8 @@ def _git_sha() -> str:
         return "UNKNOWN_UNVERIFIED"
 
 
-def _artifact_name(profile_id: str) -> str:
-    return f"route_{hashlib.sha256(profile_id.encode('utf-8')).hexdigest()[:16]}.joblib"
+def _artifact_name(segment_id: str) -> str:
+    return f"route_{hashlib.sha256(segment_id.encode('utf-8')).hexdigest()[:16]}.joblib"
 
 
 def _periods(items: list[dict]) -> list[str]:
@@ -84,8 +84,11 @@ def _fit_oos(items: list[dict], features: list[str], candidates: list[str], mini
     items = sorted(items, key=lambda x: (x["time"], x["event_id"]))
     n = len(items)
     canonical_ids = {str(x.get("canonical_competition_id") or "") for x in items}
+    segment_ids = {str(x.get("segment_id") or "") for x in items}
     if len(canonical_ids) != 1 or not next(iter(canonical_ids), ""):
         return {"status": "IDENTITY_INCONSISTENT", "rows": n, "canonical_competition_ids": sorted(canonical_ids)}
+    if len(segment_ids) != 1 or not next(iter(segment_ids), ""):
+        return {"status": "SEGMENT_IDENTITY_INCONSISTENT", "rows": n, "segment_ids": sorted(segment_ids)}
     holdout_n = max(int(minimums.get("holdout_rows", 30)), int(np.ceil(n * 0.20)))
     holdout_n = min(holdout_n, n)
     pre_n = n - holdout_n
@@ -249,7 +252,7 @@ def _fit_oos(items: list[dict], features: list[str], candidates: list[str], mini
         }
 
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    artifact_name = _artifact_name(items[0]["profile_id"])
+    artifact_name = _artifact_name(items[0]["segment_id"])
     artifact_path = ARTIFACT_DIR / artifact_name
     # Refit the accepted competition-specific estimator only on labels strictly
     # before the frozen holdout. The holdout is score-only and never enters training.
@@ -257,8 +260,11 @@ def _fit_oos(items: list[dict], features: list[str], candidates: list[str], mini
     joblib.dump(challenger, artifact_path)
     rel_artifact = str(artifact_path.relative_to(ROOT))
     meta = {
-        "route_version": "competition-specific-production-route-v1",
+        "route_version": "hierarchical-competition-production-route-v2",
         "profile_id": items[0]["profile_id"],
+        "segment_id": items[0]["segment_id"],
+        "segment_specificity": int(items[0].get("segment_specificity", 0)),
+        "segment_context": dict(items[0].get("segment_context") or {}),
         "competition_id": items[0]["competition_id"],
         "canonical_competition_id": items[0]["canonical_competition_id"],
         "sport": items[0]["sport"],
@@ -329,19 +335,32 @@ def build_route_registry(db_path: Path | None = None, sports: list[str] | None =
                 if not profile.get("matched"):
                     continue
                 profile_id = str(profile["profile_id"])
-                groups.setdefault(profile_id, []).append({
-                    "event_id": str(eid),
-                    "time": str(t),
-                    "label": int(label),
-                    "features": feats,
-                    "season": meta.get("season") or str(t)[:4],
-                    "competition_id": meta.get("competition_id"),
-                    "canonical_competition_id": profile.get("canonical_competition_id"),
-                    "profile_id": profile_id,
-                    "sport": sport,
-                })
+                segment_candidates = build_segment_candidates(
+                    profile,
+                    sport=sport,
+                    season=meta.get("season"),
+                    stage=meta.get("stage"),
+                    round_=meta.get("round"),
+                    event_type=meta.get("event_type"),
+                )
+                for segment in segment_candidates:
+                    segment_id = str(segment["segment_id"])
+                    groups.setdefault(segment_id, []).append({
+                        "event_id": str(eid),
+                        "time": str(t),
+                        "label": int(label),
+                        "features": feats,
+                        "season": meta.get("season") or str(t)[:4],
+                        "competition_id": meta.get("competition_id"),
+                        "canonical_competition_id": profile.get("canonical_competition_id"),
+                        "profile_id": profile_id,
+                        "segment_id": segment_id,
+                        "segment_specificity": int(segment.get("specificity", 0)),
+                        "segment_context": dict(segment.get("context") or {}),
+                        "sport": sport,
+                    })
             report["blocked"].setdefault(sport, {})
-            for profile_id, items in sorted(groups.items()):
+            for segment_id, items in sorted(groups.items()):
                 result = _fit_oos(
                     items,
                     features,
@@ -350,9 +369,9 @@ def build_route_registry(db_path: Path | None = None, sports: list[str] | None =
                     symmetric=sport in ("ufc", "rizin"),
                 )
                 if result.get("status") == "ACCEPTED_LOCKED_HOLDOUT":
-                    report["routes"][profile_id] = result
+                    report["routes"][segment_id] = result
                 else:
-                    report["blocked"][sport][profile_id] = result
+                    report["blocked"][sport][segment_id] = result
         if report["routes"]:
             report["status"] = "READY"
         else:
