@@ -123,7 +123,10 @@ jobs:
           set -uo pipefail
           rc=0
           requested_lead='60'
-          adaptive='1'
+          # Scheduled production is deliberately centered on T-60. Adaptive
+          # timing remains available for explicit manual requests and the separate
+          # timing-shadow lane below.
+          adaptive='0'
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             requested_lead="${{ inputs.lead_minutes }}"
             if [ "${{ inputs.adaptive_timing }}" = "true" ]; then adaptive="1"; else adaptive="0"; fi
