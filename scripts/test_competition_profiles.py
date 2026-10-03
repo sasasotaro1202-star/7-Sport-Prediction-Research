@@ -73,6 +73,9 @@ def main() -> int:
         assert profile["profile"]["competition_id"] == "B.LEAGUE"
 
     gate = (Path(__file__).resolve().parents[1] / "src/production_release_gate.py").read_text(encoding="utf-8")
+    route_builder = (Path(__file__).resolve().parents[1] / "src/competition_route_builder.py").read_text(encoding="utf-8")
+    assert "canonical_competition_id" in route_builder, "canonical competition identity must be persisted by route builder"
+    assert "canonical_competition_id" in gate, "production gate must validate canonical competition identity"
     assert "meta.setdefault('sport',sport)" in gate
     print("COMPETITION_PROFILE_RESOLVER=PASS")
     return 0
