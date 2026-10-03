@@ -179,7 +179,7 @@ def main() -> int:
         assert report["status"] == "PASS"
         assert report["sport_status"]["sport_a"]["status"] == "SOURCE_REACHABLE"
         assert report["sport_status"]["sport_a"]["critical_source_reachable"] is True
-        assert report["interpretation"]["pit_status"] == "UNPROVEN unless independently backed by source-availability evidence"
+        assert report["interpretation"]["pit_status"] == "UNPROVEN unless independently backed by source-availability evidence."
     finally:
         audit.requests.Session = original_session
 
