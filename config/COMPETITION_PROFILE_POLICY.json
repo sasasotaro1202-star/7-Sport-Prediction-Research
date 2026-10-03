@@ -37,7 +37,12 @@
       "aliases": [
         "b.league",
         "b league",
-        "bリーグ"
+        "bリーグ",
+        "b.premier",
+        "b.one",
+        "b.two",
+        "b one",
+        "b two"
       ],
       "canonical_competition_id": "basketball:bleague"
     },
