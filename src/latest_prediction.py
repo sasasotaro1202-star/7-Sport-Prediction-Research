@@ -219,15 +219,29 @@ def _prediction_timing_args(
     Manual horizons are intentionally unbounded above. Adaptive production timing
     remains bounded to the research-approved 5-180 minute range only when the
     caller did not explicitly request a horizon. An explicit manual horizon is
-    never silently replaced by an accepted adaptive route.
+    always authoritative and exact.
     """
     selected_lead = 60 if lead_minutes is None else int(lead_minutes)
     if selected_lead <= 0:
         raise RuntimeError(f"INVALID_LEAD_MINUTES:{selected_lead}")
 
-    # Adaptive routing is a production/research policy for the default request.
-    # An explicit manual horizon remains authoritative and is never replaced.
-    if adaptive_timing and lead_minutes is None:
+    # Explicit manual horizons are exact: the requested lead is the only
+    # accepted event-selection window. This keeps the CLI contract consistent
+    # with workflow_dispatch and prevents a manual T-X request from silently
+    # becoming a T-(X±15) request.
+    if lead_minutes is not None:
+        return selected_lead, [
+            "--lead-minutes",
+            str(selected_lead),
+            "--min-lead-minutes",
+            str(selected_lead),
+            "--max-lead-minutes",
+            str(selected_lead),
+        ]
+
+    # With no explicit horizon, adaptive routing may choose an accepted route
+    # inside the bounded research range.
+    if adaptive_timing:
         return selected_lead, [
             "--lead-minutes",
             str(selected_lead),
@@ -238,6 +252,8 @@ def _prediction_timing_args(
             "--adaptive-timing",
         ]
 
+    # Default user-facing behavior retains the scheduled T-60 guideline
+    # tolerance for practical near-cutoff retrieval.
     tolerance = 15
     minimum = max(1, selected_lead - tolerance)
     maximum = selected_lead + tolerance
@@ -249,7 +265,6 @@ def _prediction_timing_args(
         "--max-lead-minutes",
         str(maximum),
     ]
-
 
 def request_latest(
     sports: list[str] | None = None,
