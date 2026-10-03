@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from src.match_data_expansion import parse_bleague_detail, parse_jsonld_event
+from datetime import datetime, timedelta, timezone
+
+from src.match_data_expansion import (
+    _exact_for_cutoff,
+    parse_bleague_detail,
+    parse_jsonld_event,
+)
 
 
 BLEAGUE_HTML = """
@@ -96,6 +102,23 @@ def main() -> int:
     assert data["season_metrics"]["APG"] == [20.7, 15.7]
     assert data["season_metrics"]["BPG"] == [5.7, 5.0]
     assert data["season_metrics"]["SPG"] == [5.0, 8.3]
+
+    cutoff = datetime(2026, 10, 10, 11, 0, tzinfo=timezone.utc)
+    exact, available_at = _exact_for_cutoff(
+        cutoff - timedelta(seconds=1),
+        cutoff + timedelta(minutes=1),
+        lead_minutes=60,
+    )
+    assert exact is True
+    assert available_at is not None
+
+    late_exact, late_available = _exact_for_cutoff(
+        cutoff + timedelta(seconds=1),
+        cutoff + timedelta(minutes=1),
+        lead_minutes=60,
+    )
+    assert late_exact is False
+    assert late_available is None
 
     event = parse_jsonld_event(JSONLD_HTML)
     assert event["name"] == "Example Match"
