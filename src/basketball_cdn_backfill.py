@@ -165,7 +165,12 @@ def collect_official(c, season_years):
         # no rendered game anchors to non-browser clients. In that case, use the
         # official legacy schedule rendering once for the season. It is still
         # parsed with the same exact ScheduleKey/timestamp/name rules.
-        if season_added == 0:
+        current_season_year = (
+            datetime.now(timezone.utc).year
+            if datetime.now(timezone.utc).month >= 9
+            else datetime.now(timezone.utc).year - 1
+        )
+        if season_added == 0 and season_year == current_season_year:
             fallback_url = BLEAGUE_SCHEDULE_FALLBACK
             requests_attempted += 1
             try:
