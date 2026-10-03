@@ -275,8 +275,8 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
         if not a or not b:
             continue
         event_time=meta['event_time_utc']
-        event_row=c.execute("SELECT competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
-        competition_id,season,stage=event_row if event_row else ("","","")
+        event_row=c.execute("SELECT competition_id,season,stage,round,event_type FROM event WHERE event_id=?",(eid,)).fetchone()
+        competition_id,season,stage,round_,event_type=event_row if event_row else ("","","","","")
         competition_profile=resolve_profile(s,competition_id,None)
         if target_scope_only and not competition_profile.get('matched'):
             continue
@@ -324,6 +324,8 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'competition_profile':competition_profile,
             'season':season,
             'stage':stage,
+            'round':round_,
+            'event_type':event_type,
             'model_scope':('timing_shadow;safe_prior_fallback' if timing_shadow else 'safe_prior_fallback;competition_specific_selection_not_applied'),
             'strategy':strategy_name,'router_status':('TIMING_SHADOW' if timing_shadow else 'SAFE_PRIOR_FALLBACK'),
             'prediction_id':pid,'models':['historical_prior'],'ensemble_weights':None,
@@ -607,8 +609,8 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 'reason': 'F1 requires a gated per-driver multiclass winner artifact; binary A/B artifacts are never accepted'
             }
 
-        event_row=c.execute("SELECT competition_id,season,stage FROM event WHERE event_id=?",(eid,)).fetchone()
-        competition_id,season,stage=event_row if event_row else ("","","")
+        event_row=c.execute("SELECT competition_id,season,stage,round,event_type FROM event WHERE event_id=?",(eid,)).fetchone()
+        competition_id,season,stage,round_,event_type=event_row if event_row else ("","","","","")
         competition_profile=resolve_profile(s,competition_id,None)
         if target_scope_only and not competition_profile.get('matched'):
             continue
@@ -618,7 +620,13 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
         if timing_tolerance and (actual_lead < max(5.0, selected_lead-timing_tolerance) or actual_lead > selected_lead+timing_tolerance):
             continue
 
-        route_info=competition_route.resolve_route(s,competition_profile)
+        route_context={
+            "season": season,
+            "stage": stage,
+            "round": round_,
+            "event_type": event_type,
+        }
+        route_info=competition_route.resolve_route(s,competition_profile,route_context)
         route_active=False
         active_feature_names=features
         active_model_version=artifact.get('model_version')
@@ -754,7 +762,25 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
                 "routing": {
                     "status": router_status,
                     "competition_specific": route_active,
-                    "fallback_chain": ["competition_specific_accepted","sport_incumbent","safe_prior"]
+                    "segment_id": (
+                        route_info.get("route", {}).get("segment_id")
+                        if route_active and route_info else None
+                    ),
+                    "segment_specificity": (
+                        route_info.get("routing_depth")
+                        if route_active and route_info else 0
+                    ),
+                    "segment_context": (
+                        route_info.get("segment", {}).get("context")
+                        if route_active and route_info else {}
+                    ),
+                    "fallback_chain": [
+                        "most_specific_segment",
+                        "broader_segment",
+                        "competition_profile",
+                        "sport_incumbent",
+                        "safe_prior"
+                    ]
                 }
             }
         )

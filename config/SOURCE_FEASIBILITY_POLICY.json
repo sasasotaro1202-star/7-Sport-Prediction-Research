@@ -1,0 +1,359 @@
+{
+  "version": 5,
+  "policy": "source-feasibility-and-pit-separation-v5",
+  "principle": [
+    "Reachability is not historical availability.",
+    "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
+    "A reachable source may still be PIT_UNPROVEN.",
+    "Paid/commercial sources are never required for the active free-source audit.",
+    "At least one critical event/schedule source must be reachable for each active sport; otherwise the sport is DATA_SOURCE_OUTAGE.",
+    "Historical/PIT readiness remains a separate gate."
+  ],
+  "active_sports": {
+    "basketball": [
+      {
+        "source_id": "bleague_official_schedule",
+        "name": "B.LEAGUE official",
+        "url": "https://www.bleague.jp/schedule/",
+        "kind": "official",
+        "capabilities": [
+          "future_schedule",
+          "event_identity",
+          "event_time",
+          "competition_context"
+        ],
+        "required_signals": [
+          "シーズン",
+          "結果/日程",
+          "大会"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      },
+      {
+        "source_id": "aichi_nagoya_official_results",
+        "name": "Aichi-Nagoya 2026 official results",
+        "url": "https://results.asiangames2026.org/",
+        "kind": "official_event_results",
+        "capabilities": [
+          "future_schedule",
+          "event_identity",
+          "event_time",
+          "live_results",
+          "final_results",
+          "discipline_filter"
+        ],
+        "required_signals": [
+          "Basketball",
+          "Volleyball",
+          "Aichi-Nagoya"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      },
+      {
+        "source_id": "fiba_official",
+        "name": "FIBA official",
+        "url": "https://www.fiba.basketball/",
+        "kind": "official",
+        "capabilities": [
+          "competition_context",
+          "game_results",
+          "statistics_discovery"
+        ],
+        "required_signals": [
+          "FIBA"
+        ],
+        "critical": false,
+        "pit_status": "UNPROVEN"
+      }
+    ],
+    "volleyball": [
+      {
+        "source_id": "fivb_live_asian_games_men",
+        "name": "FIVB Live Center — Asian Games Men",
+        "url": "https://live.app.fivb.com/tournaments/1778/matches",
+        "kind": "official_live_center",
+        "capabilities": [
+          "future_schedule",
+          "match_identity",
+          "phase",
+          "team_identity",
+          "standings",
+          "set_scores",
+          "live_status"
+        ],
+        "required_signals": [
+          "20th Asian Games Aichi–Nagoya 2026",
+          "Phase",
+          "Team A",
+          "Team B",
+          "Score"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      },
+      {
+        "source_id": "volleyball_world_stats",
+        "name": "Volleyball World",
+        "url": "https://en.volleyballworld.com/volleyball/competitions/volleyball-nations-league/statistics/men/best-scorers/",
+        "kind": "official",
+        "capabilities": [
+          "competition_player_stats",
+          "scoring",
+          "attack",
+          "block",
+          "serve",
+          "set",
+          "dig",
+          "receive"
+        ],
+        "required_signals": [
+          "Statistics",
+          "Best Scorers",
+          "Points",
+          "Attack Points",
+          "Block Points",
+          "Serve Points"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      },
+      {
+        "source_id": "fivb_official",
+        "name": "FIVB official",
+        "url": "https://www.fivb.com/",
+        "kind": "official",
+        "capabilities": [
+          "competition_context",
+          "rankings",
+          "match_data_discovery"
+        ],
+        "required_signals": [
+          "FIVB"
+        ],
+        "critical": false,
+        "pit_status": "UNPROVEN"
+      }
+    ],
+    "ufc": [
+      {
+        "source_id": "ufc_official_events_html",
+        "name": "UFC official events",
+        "url": "https://www.ufc.com/events",
+        "kind": "official_public_html",
+        "capabilities": [
+          "event_schedule",
+          "event_identity",
+          "event_time",
+          "venue",
+          "future_schedule",
+          "past_results_discovery"
+        ],
+        "required_signals": [
+          "Upcoming",
+          "Past"
+        ],
+        "probe_mode": "html_text",
+        "critical": true,
+        "cost_status": "FREE_PUBLIC",
+        "pit_status": "UNPROVEN",
+        "role": "primary_current_schedule_source"
+      },
+      {
+        "source_id": "ufc_official_jsonapi",
+        "name": "UFC official JSON:API",
+        "url": "https://www.ufc.com/jsonapi/node/event",
+        "probe_url": "https://www.ufc.com/jsonapi/node/event?page%5Blimit%5D=5&sort=-fight_card_time_main",
+        "kind": "official_keyless_jsonapi",
+        "capabilities": [
+          "event_schedule",
+          "event_identity",
+          "event_time",
+          "fight_card",
+          "venue",
+          "fight_identity",
+          "fighter_identity",
+          "fighter_stats"
+        ],
+        "required_signals": [],
+        "probe_mode": "json_collection",
+        "minimum_records": 1,
+        "required_json_key_groups": [
+          [
+            "id"
+          ],
+          [
+            "attributes"
+          ],
+          [
+            "relationships"
+          ]
+        ],
+        "critical": false,
+        "cost_status": "FREE_PUBLIC_NO_KEY",
+        "pit_status": "UNPROVEN",
+        "role": "structured_api_candidate"
+      },
+      {
+        "source_id": "ufc_aristotle_api",
+        "name": "UFC Stats API (Aristotle)",
+        "url": "https://ufcapi.aristotle.me/api/events",
+        "probe_url": "https://ufcapi.aristotle.me/api/events?limit=5",
+        "kind": "free_public_api",
+        "capabilities": [
+          "event_schedule",
+          "fight_card",
+          "fighter_profiles",
+          "career_stats",
+          "fight_stats"
+        ],
+        "required_signals": [],
+        "probe_mode": "json_collection",
+        "minimum_records": 1,
+        "required_json_key_groups": [
+          [
+            "id"
+          ],
+          [
+            "name"
+          ],
+          [
+            "date",
+            "event_date",
+            "datetime"
+          ]
+        ],
+        "critical": false,
+        "cost_status": "FREE_PUBLIC",
+        "pit_status": "UNPROVEN",
+        "role": "secondary_current_source"
+      },
+      {
+        "source_id": "ufcstats",
+        "name": "UFCStats",
+        "url": "https://ufcstats.com/",
+        "kind": "public_statistics",
+        "capabilities": [
+          "event_schedule",
+          "fight_results",
+          "fighter_profiles",
+          "career_stats"
+        ],
+        "required_signals": [
+          "Completed",
+          "Upcoming",
+          "Name",
+          "Date",
+          "Location"
+        ],
+        "probe_mode": "html_text",
+        "critical": false,
+        "pit_status": "UNPROVEN",
+        "role": "secondary_statistics_reference"
+      },
+      {
+        "source_id": "ufc_tidytuesday_fallback",
+        "name": "TidyTuesday UFC dataset",
+        "url": "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-07-07/ufc_fights.csv",
+        "kind": "historical_dataset",
+        "capabilities": [
+          "historical_fight_results",
+          "historical_fight_statistics"
+        ],
+        "required_signals": [
+          "f1_name",
+          "f2_name",
+          "f1_result",
+          "f2_result"
+        ],
+        "probe_mode": "html_text",
+        "critical": false,
+        "pit_status": "UNPROVEN",
+        "role": "historical_recovery_only"
+      }
+    ],
+    "rizin": [
+      {
+        "source_id": "rizin_official",
+        "name": "RIZIN official",
+        "url": "https://jp.rizinff.com/",
+        "kind": "official",
+        "capabilities": [
+          "event_schedule",
+          "fight_card",
+          "rules",
+          "contract_weight",
+          "result_updates"
+        ],
+        "required_signals": [
+          "EVENT",
+          "FIGHTERS",
+          "RESULT",
+          "RULES"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      }
+    ],
+    "valorant": [
+      {
+        "source_id": "vlr_matches",
+        "name": "VLR.gg",
+        "url": "https://www.vlr.gg/matches",
+        "kind": "public_statistics",
+        "capabilities": [
+          "future_schedule",
+          "event_context",
+          "match_results",
+          "team_identity",
+          "player_stats_discovery"
+        ],
+        "required_signals": [],
+        "critical": true,
+        "pit_status": "UNPROVEN",
+        "probe_mode": "html_text",
+        "required_patterns": [
+          "href=[\"']?/match/\\d+/",
+          "match-item"
+        ]
+      }
+    ]
+  },
+  "candidate_scopes": {
+    "basketball": [
+      "NBA",
+      "WNBA",
+      "FIBA competitions",
+      "B.LEAGUE"
+    ],
+    "volleyball": [
+      "VNL",
+      "World Championship",
+      "Olympics",
+      "SV.LEAGUE",
+      "major domestic leagues"
+    ],
+    "ufc": [
+      "UFC numbered events",
+      "UFC Fight Night",
+      "UFC rankings"
+    ],
+    "rizin": [
+      "RIZIN numbered events",
+      "RIZIN Landmark",
+      "RIZIN Grand Prix"
+    ],
+    "valorant": [
+      "VCT Champions",
+      "VCT Masters",
+      "Americas",
+      "EMEA",
+      "Pacific",
+      "China",
+      "Challengers",
+      "Ascension",
+      "Game Changers"
+    ]
+  }
+}

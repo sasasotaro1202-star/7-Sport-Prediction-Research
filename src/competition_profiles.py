@@ -73,8 +73,85 @@ def resolve_research_profile(sport: str, competition_id: object = None, event_na
     return resolve_profile(sport, competition_id, event_name, research_discovery=True)
 
 
+def _normalise_context(value: object) -> str:
+    value = normalize(value)
+    return re.sub(r"[^a-z0-9._-]+", "_", value).strip("_")
+
+
+def segment_policy(sport: str) -> dict:
+    policy = _load()
+    configured = dict((policy.get("segment_policy") or {}).get(str(sport)) or {})
+    return {
+        "levels": list(configured.get("levels") or ["competition"]),
+        "minimum_explicit_context": int(configured.get("minimum_explicit_context", 0)),
+        "max_depth": int(configured.get("max_depth", 6)),
+    }
+
+
+def build_segment_candidates(
+    profile: dict,
+    *,
+    sport: str,
+    season: object = None,
+    stage: object = None,
+    round_: object = None,
+    event_type: object = None,
+) -> list[dict]:
+    """Build most-specific-to-broad immutable segment identities.
+
+    Only explicit event metadata participates. Missing fields are not inferred.
+    The first element is the most specific feasible segment and later elements
+    are deterministic ancestors used as data-sufficiency fallbacks.
+    """
+    if not profile or not profile.get("matched") or not profile.get("profile_id"):
+        return []
+
+    cfg = segment_policy(sport)
+    raw = {
+        "season": _normalise_context(season),
+        "stage": _normalise_context(stage),
+        "round": _normalise_context(round_),
+        "event_type": _normalise_context(event_type),
+    }
+    levels = [str(x) for x in cfg["levels"] if str(x) in raw]
+    explicit_levels = [x for x in levels if raw[x]]
+    if len(explicit_levels) < int(cfg["minimum_explicit_context"]):
+        explicit_levels = explicit_levels[: max(0, int(cfg["minimum_explicit_context"]))]
+    explicit_levels = explicit_levels[: max(0, int(cfg["max_depth"]))]
+
+    base = str(profile["profile_id"])
+    candidates = []
+    seen = set()
+    # Use only explicit fields and build a prefix hierarchy. This avoids an
+    # arbitrary powerset of contexts while still allowing season-only routing
+    # when stage/round are absent.
+    for depth in range(len(explicit_levels), -1, -1):
+        parts = [base]
+        for level in explicit_levels[:depth]:
+            parts.append(f"{level}={raw[level]}")
+        key = "::".join(parts)
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append({
+            "segment_id": key,
+            "profile_id": str(profile["profile_id"]),
+            "sport": str(sport),
+            "specificity": depth,
+            "context": {x: raw[x] for x in explicit_levels[:depth]},
+        })
+    return candidates
+
+
 def profile_policy() -> dict:
     return _load()
 
 
-__all__ = ["normalize", "resolve_profile", "resolve_research_profile", "profile_policy"]
+__all__ = [
+    "normalize",
+    "resolve_profile",
+    "resolve_research_profile",
+    "segment_policy",
+    "build_segment_candidates",
+    "profile_policy",
+]
