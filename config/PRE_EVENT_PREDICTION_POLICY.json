@@ -10,14 +10,17 @@
       "max_lead_minutes": 180,
       "late_recovery": true,
       "scheduled_min_lead_minutes": 45,
-      "scheduled_max_lead_minutes": 75
+      "scheduled_max_lead_minutes": 75,
+      "manual_min_lead_minutes": 1,
+      "manual_max_lead_minutes": null
     },
     "guideline_target_minutes": 60,
     "guideline_tolerance_minutes": 15,
     "target_lead_minutes": 60,
-    "note": "60 minutes is the scheduled target/guideline. Scheduled generation accepts a 45-75 minute lead window. User-requested manual predictions may specify another lead from 5 to 180 minutes.",
+    "note": "60 minutes is the scheduled target/guideline. Scheduled generation accepts a 45-75 minute lead window. User-requested manual predictions accept any positive integer lead time with no upper bound.",
     "guideline_only": true,
-    "selection_mode": "scheduled-60m-default;manual-lead-configurable"
+    "selection_mode": "scheduled-60m-default;manual-lead-configurable",
+    "manual_horizon_policy": "positive_integer_unbounded"
   },
   "scope": {
     "active_prediction_scope_only": true,
@@ -46,5 +49,5 @@
     "missing_prediction_is_explicit_gap": true,
     "no_failure_hiding": true
   },
-  "explanation": "Scheduled predictions target approximately one hour before the event. Non-default horizons remain research-controlled, while explicit user requests may use another lead through workflow dispatch or the fresh-prediction entrypoint."
+  "explanation": "Scheduled predictions target approximately one hour before the event. Non-default horizons remain research-controlled, while explicit user requests may use any positive integer lead through workflow dispatch or the fresh-prediction entrypoint; manual horizons have no upper bound."
 }
