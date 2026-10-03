@@ -901,9 +901,10 @@ def main():
             and '--score-only' in latest_src
             and 'EXPERIENCE_SUMMARY' in latest_src,
             'manual fresh prediction entrypoint does not close the prediction-to-Experience loop')
-    lp_collect=latest_src.index('src.seven_sport_production')
-    lp_predict=latest_src.index('src.future_predictor')
-    lp_sync=latest_src.index('def _sync_experience')
+    request_latest_block=latest_src[latest_src.index('def request_latest('):]
+    lp_collect=request_latest_block.index('src.seven_sport_production')
+    lp_predict=request_latest_block.index('src.future_predictor')
+    lp_sync=request_latest_block.index('_sync_experience(sport)')
     require(lp_collect < lp_predict < lp_sync,
             'manual fresh prediction must sync Experience only after fresh prediction generation')
     require(
