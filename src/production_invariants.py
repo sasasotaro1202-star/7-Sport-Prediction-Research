@@ -924,7 +924,7 @@ def main():
     )
     require(
         '[ "$active" -eq 0 ]' in watchdog
-        and '[ "$age" -ge 480 ]' in watchdog
+        and '[ "$age" -ge 1200 ]' in watchdog
         and 'main_sha' in watchdog,
         'pre-event watchdog lacks active-run, freshness, or main-SHA guards',
     )
