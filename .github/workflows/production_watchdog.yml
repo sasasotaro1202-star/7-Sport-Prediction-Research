@@ -254,14 +254,16 @@ jobs:
           set -euo pipefail
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
-          state=$(gh run list --workflow "pre_event_prediction.yml" --limit 100 --json databaseId,status,event,createdAt,headSha)
+          state=$(gh run list --workflow "pre_event_prediction.yml" --limit 100 --json databaseId,status,event,createdAt,headSha,conclusion)
           active=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
-          latest_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')
-          latest_any_created=$(printf '%s' "$state" | jq -r '[.[] | .createdAt] | sort | last // ""')
+          latest_success_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success") | .createdAt] | sort | last // ""')
+          latest_any_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')
           dispatch=false
-          reason="active=$active latest_created=$latest_created"
+          reason="active=$active latest_success_created=$latest_success_created"
           if [ "$active" -eq 0 ]; then
-            reference_created="$latest_created"
+            # A failed/cancelled latest run is not a healthy heartbeat. The watchdog
+            # only resets its freshness window from an actual successful workflow run.
+            reference_created="$latest_success_created"
             if [ -z "$reference_created" ]; then reference_created="$latest_any_created"; fi
             if [ -z "$reference_created" ]; then
               dispatch=true
@@ -272,7 +274,11 @@ jobs:
               age=$((now-created_ts))
               if [ "$age" -ge 1200 ]; then
                 dispatch=true
-                reason="last_pre_event_run_age=${age}s"
+                if [ -n "$latest_success_created" ]; then
+                  reason="last_successful_pre_event_run_age=${age}s"
+                else
+                  reason="no_successful_pre_event_run_age=${age}s"
+                fi
               fi
             fi
           fi
@@ -281,34 +287,6 @@ jobs:
             gh workflow run pre_event_prediction.yml --ref main
           else
             echo "PRE_EVENT_HEARTBEAT_OK main=$main_sha $reason"
-          fi
-
-      - name: Backfill a missed 9-hour PIT boundary once per boundary window
-        if: steps.rescue_guard.outputs.eligible == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          git fetch origin main --depth=1
-          main_sha=$(git rev-parse origin/main)
-          anchor=$(date -u -d '2026-09-22 00:47:00' +%s)
-          now=$(date -u +%s)
-          delta=$((now-anchor))
-          if [ "$delta" -lt 0 ]; then
-            echo "PIT_BOUNDARY_NOT_STARTED"
-            exit 0
-          fi
-          phase=$((delta % 32400))
-          boundary_start=$((now-phase))
-          pit=$(gh run list --workflow "pit_history_expansion.yml" --limit 100 --json databaseId,status,event,conclusion,createdAt,headSha)
-          active=$(printf '%s' "$pit" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
-          attempt_in_boundary=$(printf '%s' "$pit" | jq --arg sha "$main_sha" --argjson start "$boundary_start" '[.[] | select(.headSha==$sha) | (.createdAt | fromdateiso8601) | select(. >= $start)] | length')
-          # Accept the boundary within the first 30 minutes to tolerate scheduler jitter.
-          if [ "$phase" -le 1800 ] && [ "$active" -eq 0 ] && [ "$attempt_in_boundary" -eq 0 ]; then
-            echo "DISPATCH_PIT_BOUNDARY main=$main_sha phase=${phase}s boundary_start=$boundary_start"
-            gh workflow run pit_history_expansion.yml --ref main
-          else
-            echo "PIT_BOUNDARY_GUARD phase=${phase}s active=$active attempts=$attempt_in_boundary"
           fi
       - name: Cancel over-time production and PIT runs
         env:
