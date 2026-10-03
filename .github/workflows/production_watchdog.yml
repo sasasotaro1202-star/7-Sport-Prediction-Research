@@ -246,6 +246,50 @@ jobs:
           else
             echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest active_any=$active_any seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok lightweight_ok=$lightweight_ok main=$main_sha"
           fi
+      - name: Backfill a missed 9-hour PIT boundary once per boundary window
+        if: steps.rescue_guard.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          state=$(gh run list --workflow "pit_history_expansion.yml" --limit 100 --json databaseId,status,event,createdAt,headSha,conclusion)
+          active_pit=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
+
+          anchor=$(date -u -d '2026-09-22 00:47:00' +%s)
+          now=$(date -u +%s)
+          delta=$((now-anchor))
+          if [ "$delta" -lt 0 ]; then
+            echo "PIT_9H_BOUNDARY_NOT_STARTED now=$now anchor=$anchor"
+            exit 0
+          fi
+          minute_delta=$((delta / 60))
+          boundary_index=$((minute_delta / 540))
+          boundary_epoch=$((anchor + boundary_index * 540 * 60))
+          next_boundary_epoch=$((boundary_epoch + 540 * 60))
+          boundary_age=$((now-boundary_epoch))
+
+          # Give the canonical scheduled wake-up a small jitter window before
+          # treating the boundary as missed. After that, at most one PIT run
+          # (scheduled or recovery) may exist in this 9-hour boundary window.
+          if [ "$boundary_age" -lt 300 ]; then
+            echo "PIT_9H_BOUNDARY_GRACE age=$boundary_age boundary_epoch=$boundary_epoch"
+            exit 0
+          fi
+
+          attempt_in_boundary=$(printf '%s' "$state" | jq --argjson start "$boundary_epoch" --argjson end "$next_boundary_epoch" '[.[] | select((.createdAt | fromdateiso8601) >= $start and (.createdAt | fromdateiso8601) < $end)] | length')
+          dispatch=false
+          if [ "$active_pit" -eq 0 ] && [ "$attempt_in_boundary" -eq 0 ]; then
+            dispatch=true
+          fi
+
+          if [ "$dispatch" = true ]; then
+            echo "DISPATCH_PIT_9H_RECOVERY main=$main_sha boundary_index=$boundary_index boundary_epoch=$boundary_epoch reason=missed_boundary"
+            gh workflow run pit_history_expansion.yml --ref main
+          else
+            echo "PIT_9H_BOUNDARY_STATUS main=$main_sha active=$active_pit attempt_in_boundary=$attempt_in_boundary boundary_index=$boundary_index boundary_epoch=$boundary_epoch"
+          fi
       - name: Ensure pre-event T-60 prediction heartbeat
         if: steps.rescue_guard.outputs.eligible == 'true'
         env:
