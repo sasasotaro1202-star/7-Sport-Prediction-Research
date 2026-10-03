@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "policy": "source-feasibility-and-pit-separation-v1",
+  "principle": [
+    "Reachability is not historical availability.",
+    "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
+    "A reachable source may still be PIT_UNPROVEN.",
+    "Paid/commercial sources are never required for the active free-source audit.",
+    "At least one critical event/schedule source must be reachable for each active sport; otherwise the sport is DATA_SOURCE_OUTAGE.",
+    "Historical/PIT readiness remains a separate gate."
+  ],
+  "active_sports": {
+    "basketball": [
+      {
+        "source_id": "bleague_official_schedule",
+        "name": "B.LEAGUE official",
+        "url": "https://www.bleague.jp/schedule/",
+        "kind": "official",
+        "capabilities": [
+          "future_schedule",
+          "event_identity",
+          "event_time",
+          "competition_context"
+        ],
+        "required_signals": [
+          "シーズン",
+          "結果/日程",
+          "大会"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      },
+      {
+        "source_id": "fiba_official",
+        "name": "FIBA official",
+        "url": "https://www.fiba.basketball/",
+        "kind": "official",
+        "capabilities": [
+          "competition_context",
+          "game_results",
+          "statistics_discovery"
+        ],
+        "required_signals": [
+          "FIBA"
+        ],
+        "critical": false,
+        "pit_status": "UNPROVEN"
+      }
+    ],
+    "volleyball": [
+      {
+        "source_id": "volleyball_world_stats",
+        "name": "Volleyball World",
+        "url": "https://en.volleyballworld.com/volleyball/competitions/volleyball-nations-league/statistics/men/best-scorers/",
+        "kind": "official",
+        "capabilities": [
+          "competition_player_stats",
+          "scoring",
+          "attack",
+          "block",
+          "serve",
+          "set",
+          "dig",
+          "receive"
+        ],
+        "required_signals": [
+          "Statistics",
+          "Best Scorers",
+          "Points",
+          "Attack Points",
+          "Block Points",
+          "Serve Points"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      },
+      {
+        "source_id": "fivb_official",
+        "name": "FIVB official",
+        "url": "https://www.fivb.com/",
+        "kind": "official",
+        "capabilities": [
+          "competition_context",
+          "rankings",
+          "match_data_discovery"
+        ],
+        "required_signals": [
+          "FIVB"
+        ],
+        "critical": false,
+        "pit_status": "UNPROVEN"
+      }
+    ],
+    "ufc": [
+      {
+        "source_id": "ufcstats",
+        "name": "UFCStats",
+        "url": "https://ufcstats.com/",
+        "kind": "public_statistics",
+        "capabilities": [
+          "event_schedule",
+          "fight_results",
+          "fighter_profiles",
+          "career_stats"
+        ],
+        "required_signals": [
+          "Completed",
+          "Upcoming",
+          "Name/date",
+          "Location"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      }
+    ],
+    "rizin": [
+      {
+        "source_id": "rizin_official",
+        "name": "RIZIN official",
+        "url": "https://jp.rizinff.com/",
+        "kind": "official",
+        "capabilities": [
+          "event_schedule",
+          "fight_card",
+          "rules",
+          "contract_weight",
+          "result_updates"
+        ],
+        "required_signals": [
+          "EVENT",
+          "FIGHTERS",
+          "RESULT",
+          "RULES"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      }
+    ],
+    "valorant": [
+      {
+        "source_id": "vlr_matches",
+        "name": "VLR.gg",
+        "url": "https://www.vlr.gg/matches",
+        "kind": "public_statistics",
+        "capabilities": [
+          "future_schedule",
+          "event_context",
+          "match_results",
+          "team_identity",
+          "player_stats_discovery"
+        ],
+        "required_signals": [
+          "upcoming matches",
+          "completed matches"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      }
+    ]
+  },
+  "candidate_scopes": {
+    "basketball": [
+      "NBA",
+      "WNBA",
+      "FIBA competitions",
+      "B.LEAGUE"
+    ],
+    "volleyball": [
+      "VNL",
+      "World Championship",
+      "Olympics",
+      "SV.LEAGUE",
+      "major domestic leagues"
+    ],
+    "ufc": [
+      "UFC numbered events",
+      "UFC Fight Night",
+      "UFC rankings"
+    ],
+    "rizin": [
+      "RIZIN numbered events",
+      "RIZIN Landmark",
+      "RIZIN Grand Prix"
+    ],
+    "valorant": [
+      "VCT Champions",
+      "VCT Masters",
+      "Americas",
+      "EMEA",
+      "Pacific",
+      "China",
+      "Challengers",
+      "Ascension",
+      "Game Changers"
+    ]
+  }
+}
