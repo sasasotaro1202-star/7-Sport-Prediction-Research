@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "policy": "source-feasibility-and-pit-separation-v2",
+  "version": 3,
+  "policy": "source-feasibility-and-pit-separation-v3",
   "principle": [
     "Reachability is not historical availability.",
     "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
@@ -138,6 +138,41 @@
     ],
     "ufc": [
       {
+        "source_id": "ufc_official_jsonapi",
+        "name": "UFC official JSON:API",
+        "url": "https://www.ufc.com/jsonapi/node/event",
+        "probe_url": "https://www.ufc.com/jsonapi/node/event?page%5Blimit%5D=5&sort=-fight_card_time_main",
+        "kind": "official_keyless_jsonapi",
+        "capabilities": [
+          "event_schedule",
+          "event_identity",
+          "event_time",
+          "fight_card",
+          "venue",
+          "fight_identity",
+          "fighter_identity",
+          "fighter_stats"
+        ],
+        "required_signals": [],
+        "probe_mode": "json_collection",
+        "minimum_records": 1,
+        "required_json_key_groups": [
+          [
+            "id"
+          ],
+          [
+            "attributes"
+          ],
+          [
+            "relationships"
+          ]
+        ],
+        "critical": true,
+        "cost_status": "FREE_PUBLIC_NO_KEY",
+        "pit_status": "UNPROVEN",
+        "role": "primary_current_source_candidate"
+      },
+      {
         "source_id": "ufc_aristotle_api",
         "name": "UFC Stats API (Aristotle)",
         "url": "https://ufcapi.aristotle.me/api/events",
@@ -166,9 +201,10 @@
             "datetime"
           ]
         ],
-        "critical": true,
+        "critical": false,
         "cost_status": "FREE_PUBLIC",
-        "pit_status": "UNPROVEN"
+        "pit_status": "UNPROVEN",
+        "role": "secondary_current_source"
       },
       {
         "source_id": "ufcstats",
