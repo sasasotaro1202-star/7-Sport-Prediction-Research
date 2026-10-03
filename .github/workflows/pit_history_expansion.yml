@@ -97,7 +97,7 @@ jobs:
       - name: Materialize immutable historical corpus
         if: steps.cadence.outputs.run == 'true' && matrix.sport == 'basketball'
         run: python -m src.basketball_cdn_backfill --historical
-      - name: Prove historical source availability
+      - name: Record historical version provenance (publication remains unproven)
         if: steps.cadence.outputs.run == 'true'
         run: |
           set -euo pipefail
@@ -119,10 +119,11 @@ jobs:
           con=sqlite3.connect('data/db/sports_v45.sqlite')
           rows=con.execute("SELECT COUNT(*) FROM pit_replay WHERE replay_status='REPLAYABLE' AND event_id IN (SELECT event_id FROM event WHERE sport=?)",(sport,)).fetchone()[0]
           features=con.execute("SELECT COUNT(*) FROM pit_feature_snapshot WHERE sport=? AND leakage_status='CLEAN'",(sport,)).fetchone()[0]
-          exact=con.execute("SELECT COUNT(*) FROM source_snapshot WHERE availability_status='EXACT' AND (provenance_json LIKE '%github_commit_identical_blob%' OR provenance_json LIKE '%github_event_exact_feature_rows_v1%') ").fetchone()[0]
+          exact=con.execute("SELECT COUNT(*) FROM source_snapshot WHERE availability_status='EXACT'").fetchone()[0]
+          version=con.execute("SELECT COUNT(*) FROM source_snapshot WHERE availability_status='VERSION_EXACT_PUBLICATION_UNPROVEN' AND sport=?",(sport,)).fetchone()[0]
           events=con.execute("SELECT COUNT(*) FROM event WHERE sport=?",(sport,)).fetchone()[0]
           con.close()
-          report={'status':'OK','sport':sport,'events':events,'replayable_rows':rows,'clean_pit_features':features,'exact_provenance_snapshots':exact}
+          report={'status':'OK','sport':sport,'events':events,'replayable_rows':rows,'clean_pit_features':features,'exact_provenance_snapshots':exact,'version_provenance_snapshots':version}
           Path('results').mkdir(exist_ok=True)
           Path(f'results/pit_history_expansion_{sport}.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
           print(json.dumps(report,ensure_ascii=False,indent=2))
