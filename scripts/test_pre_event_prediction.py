@@ -82,6 +82,7 @@ def main() -> None:
     assert policy["scheduler"]["generation_window"]["manual_max_lead_minutes"] is None
     assert policy["scheduler"]["manual_horizon_policy"] == "positive_integer_unbounded"
     assert "requested_lead='60'" in workflow
+    assert len(__import__("re").findall(r"^\s+id:\s*predict\s*$", workflow, __import__("re").MULTILINE)) == 1
     assert "adaptive='0'" in workflow
     assert "# Scheduled production is deliberately centered on T-60." in workflow
     manual_marker='if [ "${{ github.event_name }}" = "workflow_dispatch" ]'
