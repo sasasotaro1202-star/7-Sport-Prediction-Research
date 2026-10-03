@@ -226,8 +226,7 @@ def _prediction_timing_args(
         raise RuntimeError(f"INVALID_LEAD_MINUTES:{selected_lead}")
 
     # Adaptive routing is a production/research policy for the default request.
-    # Once the user explicitly supplies a horizon, keep that requested timing
-    # authoritative while still allowing the normal ±15 minute generation window.
+    # An explicit manual horizon remains authoritative and is never replaced.
     if adaptive_timing and lead_minutes is None:
         return selected_lead, [
             "--lead-minutes",
