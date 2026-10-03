@@ -1,40 +1,50 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from types import SimpleNamespace
-
-from src.source_feasibility_audit import build_report, probe_source
-
 
 class FakeResponse:
-    def __init__(self, status_code: int, text: str):
+    def __init__(self, status_code: int, text: str, payload=None, content_type="text/html"):
         self.status_code = status_code
         self._text = text
+        self._payload = payload
         self.content = text.encode("utf-8")
+        self.headers = {"Content-Type": content_type}
 
     @property
     def text(self):
         return self._text
 
+    def json(self):
+        if self._payload is not None:
+            return self._payload
+        raise ValueError("invalid json")
 
-class FakeRequests:
-    def __init__(self, status_code=200, text=""):
-        self.status_code = status_code
-        self.text = text
+
+class FakeSession:
+    def __init__(self, response: FakeResponse):
+        self.response = response
+        self.headers = {}
 
     def get(self, *args, **kwargs):
-        return FakeResponse(self.status_code, self.text)
+        return self.response
 
 
 def main() -> int:
     import src.source_feasibility_audit as audit
 
-    original = audit.requests.get
+    original_session = audit.requests.Session
     try:
-        audit.requests.get = FakeRequests(
-            200, "<html>Upcoming matches Completed matches FIBA</html>"
-        ).get
-        row = probe_source(
+        # Mock the same Session API used by production code. The prior test
+        # patched requests.get(), which did not intercept Session().get() and
+        # therefore could accidentally perform live network calls.
+        audit.requests.Session = lambda: FakeSession(
+            FakeResponse(
+                200,
+                "<html><span>Upcoming</span> matches "
+                "<span>Completed</span> matches FIBA</html>",
+            )
+        )
+        row = audit.probe_source(
             {
                 "source_id": "test",
                 "name": "test",
@@ -49,8 +59,10 @@ def main() -> int:
         assert row["reachable"] is True
         assert row["pit_status"] == "UNPROVEN"
 
-        audit.requests.get = FakeRequests(200, "<html>hello</html>").get
-        row = probe_source(
+        audit.requests.Session = lambda: FakeSession(
+            FakeResponse(200, "<html><span>hello</span></html>")
+        )
+        row = audit.probe_source(
             {
                 "source_id": "test",
                 "name": "test",
@@ -62,6 +74,61 @@ def main() -> int:
             }
         )
         assert row["status"] == "REACHABLE_SIGNALS_PARTIAL"
+
+        audit.requests.Session = lambda: FakeSession(
+            FakeResponse(
+                200,
+                '{"total": 2, "data": [{"id": "e1", "name": "UFC 1", "date": "2026-01-01"}]}',
+                payload={
+                    "total": 2,
+                    "limit": 1,
+                    "offset": 0,
+                    "data": [{"id": "e1", "name": "UFC 1", "date": "2026-01-01"}],
+                },
+                content_type="application/json",
+            )
+        )
+        row = audit.probe_source(
+            {
+                "source_id": "json-test",
+                "name": "json-test",
+                "url": "https://example.invalid/api/events",
+                "probe_mode": "json_collection",
+                "minimum_records": 1,
+                "required_json_key_groups": [["id"], ["name"], ["date", "event_date"]],
+                "required_signals": [],
+                "critical": True,
+                "pit_status": "UNPROVEN",
+            }
+        )
+        assert row["status"] == "REACHABLE_WITH_EXPECTED_SIGNALS"
+        assert row["data_shape"]["record_count"] == 1
+        assert row["data_shape"]["valid"] is True
+
+        # A valid JSON envelope with no records must not be accepted as usable.
+        audit.requests.Session = lambda: FakeSession(
+            FakeResponse(
+                200,
+                '{"total": 0, "data": []}',
+                payload={"total": 0, "data": []},
+                content_type="application/json",
+            )
+        )
+        row = audit.probe_source(
+            {
+                "source_id": "empty-json",
+                "name": "empty-json",
+                "url": "https://example.invalid/api/events",
+                "probe_mode": "json_collection",
+                "minimum_records": 1,
+                "required_json_key_groups": [["id"]],
+                "required_signals": [],
+                "critical": True,
+                "pit_status": "UNPROVEN",
+            }
+        )
+        assert row["status"] == "REACHABLE_SIGNALS_PARTIAL"
+        assert row["data_shape"]["valid"] is False
 
         policy = {
             "active_sports": {
@@ -87,14 +154,14 @@ def main() -> int:
                 ],
             }
         }
-        audit.requests.get = FakeRequests(200, "OK").get
-        report = build_report(policy, timeout=5)
+        audit.requests.Session = lambda: FakeSession(FakeResponse(200, "OK"))
+        report = audit.build_report(policy, timeout=5)
         assert report["status"] == "PASS"
         assert report["sport_status"]["sport_a"]["status"] == "SOURCE_REACHABLE"
         assert report["sport_status"]["sport_a"]["critical_source_reachable"] is True
         assert report["interpretation"]["pit_status"] == "UNPROVEN unless independently backed by source-availability evidence"
     finally:
-        audit.requests.get = original
+        audit.requests.Session = original_session
 
     print("SOURCE_FEASIBILITY_AUDIT=PASS")
     return 0
