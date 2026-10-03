@@ -366,9 +366,12 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     updated += 1
 
             # Event-level proof is intentionally stored behind a commit-pinned
-            # source URL. This lets the existing PIT replay builder enforce the
-            # exact availability timestamp without treating the entire modern
-            # CSV as if it had existed at the event's earliest sighting.
+            # source URL. Keep source_snapshot.event_time_utc NULL because
+            # proven stats are later consumed as prior observations for
+            # subsequent target events; pit_replay_builder already applies the
+            # event-specific effective_at and source_available_at PIT filters.
+            # A non-NULL event_time would hide these prior stats from later
+            # target events because the source join is event-time scoped.
             for ep in p.get("event_provenance", []):
                 event_id = stable_bleaguer_event_id(ep["schedule_key"])
                 event_row = con.execute(
@@ -413,7 +416,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         ep["pinned_source_url"],
                         p.get("checked_at_utc") or utcnow(),
                         ep["source_available_at_utc"],
-                        event_row[0],
+                        None,
                         ep["content_hash"],
                         None,
                         "bleaguer-git-provenance-v2-event-exact",
