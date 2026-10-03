@@ -597,7 +597,19 @@ def main():
             elif sport=='valorant': collect_vlr(c,h,int(os.getenv('V45_VLR_PAGES','180' if a.full_history else '20')))
             elif sport=='volleyball': collect_generic(c,h,sport,['https://en.volleyballworld.com/volleyball/competitions','https://en.volleyballworld.com/volleyball/matches'],200 if a.full_history else 40)
             elif sport=='rizin': collect_generic(c,h,sport,['https://jp.rizinff.com/','https://jp.rizinff.com/_tags/大会情報','https://jp.rizinff.com/fighters'],200 if a.full_history else 40)
-            elif sport=='ufc': collect_generic(c,h,sport,['http://ufcstats.com/statistics/events/completed?page=all'],200 if a.full_history else 40)
+            elif sport=='ufc':
+                # UFCStats can be blocked by anti-bot controls in GitHub Actions.
+                # Use the publicly reachable UFC official events surface for
+                # current schedule/event identity; keep detailed statistics
+                # separately guarded by PIT and source-feasibility checks.
+                seeds=[
+                    'https://www.ufc.com/events',
+                    'https://www.ufc.com/events?page=1',
+                ]
+                collect_generic(
+                    c,h,sport,seeds,
+                    200 if a.full_history else 40
+                )
         except Exception as e:
             errors.append({'sport':sport,'error':repr(e)})
             print(json.dumps({'sport':sport,'status':'COLLECT_FAILED','error':repr(e)},ensure_ascii=False),flush=True)
