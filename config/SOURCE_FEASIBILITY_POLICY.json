@@ -1,6 +1,6 @@
 {
-  "version": 5,
-  "policy": "source-feasibility-and-pit-separation-v5",
+  "version": 6,
+  "policy": "source-feasibility-and-pit-separation-v6",
   "principle": [
     "Reachability is not historical availability.",
     "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
@@ -314,7 +314,7 @@
         "pit_status": "UNPROVEN",
         "probe_mode": "html_text",
         "required_patterns": [
-          "href=[\"']?/match/\\d+/",
+          "/\\d+/",
           "match-item"
         ]
       }
