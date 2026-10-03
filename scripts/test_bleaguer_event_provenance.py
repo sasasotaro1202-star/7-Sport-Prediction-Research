@@ -148,23 +148,25 @@ def main():
             "event_provenance": [{
                 "schedule_key": "300",
                 "provenance_commit_sha": "abc123",
-                "source_available_at_utc": "2021-12-01T00:00:00+00:00",
+                "commit_timestamp_utc": "2021-12-01T00:00:00+00:00",
+                "publication_status": "UNPROVEN",
                 "content_hash": "hash-300",
                 "matched_team_ids": ["A", "B"],
                 "pinned_source_url": pinned_url,
             }],
         }]
         result = apply(db, proof)
-        assert result["event_exact_provenance"] == 1
+        assert result["event_version_provenance"] == 1
         con = sqlite3.connect(db)
         snap = con.execute(
-            "SELECT source_url,source_available_at_utc,event_time_utc,availability_status "
+            "SELECT source_url,source_available_at_utc,event_time_utc,availability_status,provenance_json "
             "FROM source_snapshot WHERE sport='basketball'"
         ).fetchone()
         repointed = con.execute("SELECT source_url FROM match_stats WHERE stat_id='stat-1'").fetchone()
         con.close()
-        assert snap == (pinned_url, "2021-12-01T00:00:00+00:00", None, "EXACT")
-        assert repointed == (pinned_url,)
+        assert snap[0:4] == (pinned_url, None, None, "VERSION_EXACT_PUBLICATION_UNPROVEN")
+        assert '"publication_status": "UNPROVEN"' in snap[4]
+        assert repointed == (current_url,)
 
     print("BLEAGUER_EVENT_PROVENANCE=PASS")
 
