@@ -97,19 +97,19 @@ def main() -> None:
     assert "--archive-db-sport" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "lead_minutes:" in workflow
+    assert "adaptive_timing:" not in workflow
+    assert 'inputs.adaptive_timing' not in workflow
+    assert "--adaptive-timing" not in workflow
     assert 'default: "60"' in workflow
-    assert "adaptive_timing:" in workflow
     assert 'if [ "${{ github.event_name }}" = "workflow_dispatch" ]' in workflow
     assert "group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}" in workflow
     assert "cancel-in-progress: ${{ github.event_name == 'schedule' }}" in workflow
     assert 'requested_lead="${{ inputs.lead_minutes }}"' in workflow
-    assert 'if [ "${{ inputs.adaptive_timing }}" = "true" ]' in workflow
     assert "invalid lead_minutes" in workflow
     assert "Manual horizon is exact and has no artificial upper bound." in workflow
     assert "must be 5-180" not in workflow
     assert "no artificial upper bound" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
-    assert "args+=(--adaptive-timing)" in workflow
     assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' in workflow
     assert '--target-lead-minutes "${{ steps.predict.outputs.lead }}"' in workflow
     assert "cron: '3-58/5 * * * *'" in workflow
