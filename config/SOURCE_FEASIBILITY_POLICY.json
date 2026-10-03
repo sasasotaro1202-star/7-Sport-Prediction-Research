@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "policy": "source-feasibility-and-pit-separation-v3",
+  "version": 4,
+  "policy": "source-feasibility-and-pit-separation-v4",
   "principle": [
     "Reachability is not historical availability.",
     "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
@@ -138,6 +138,29 @@
     ],
     "ufc": [
       {
+        "source_id": "ufc_official_events_html",
+        "name": "UFC official events",
+        "url": "https://www.ufc.com/events",
+        "kind": "official_public_html",
+        "capabilities": [
+          "event_schedule",
+          "event_identity",
+          "event_time",
+          "venue",
+          "future_schedule",
+          "past_results_discovery"
+        ],
+        "required_signals": [
+          "Upcoming",
+          "Past"
+        ],
+        "probe_mode": "html_text",
+        "critical": true,
+        "cost_status": "FREE_PUBLIC",
+        "pit_status": "UNPROVEN",
+        "role": "primary_current_schedule_source"
+      },
+      {
         "source_id": "ufc_official_jsonapi",
         "name": "UFC official JSON:API",
         "url": "https://www.ufc.com/jsonapi/node/event",
@@ -167,10 +190,10 @@
             "relationships"
           ]
         ],
-        "critical": true,
+        "critical": false,
         "cost_status": "FREE_PUBLIC_NO_KEY",
         "pit_status": "UNPROVEN",
-        "role": "primary_current_source_candidate"
+        "role": "structured_api_candidate"
       },
       {
         "source_id": "ufc_aristotle_api",
