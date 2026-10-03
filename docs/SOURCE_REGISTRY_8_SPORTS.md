@@ -12,7 +12,7 @@ This registry is deliberately sport-specific. A mirror, wrapper, republisher, or
 ## Basketball
 
 ### Current
-- **B.League official** — `bleague.jp` schedule/game-detail pages are the canonical active Basketball collection path. Current B.LEAGUE/B.PREMIER/B.ONE/B.TWO schedule rows establish event identity/timing; historical feature use remains exact-PIT gated.
+- **B.League official** — `bleague.jp` schedule/game-detail pages are the canonical active Basketball collection path. Current B.LEAGUE/B.PREMIER/B.ONE/B.TWO schedule rows establish event identity/timing; when the current schedule endpoint returns a successful but unrendered HTML shell to non-browser clients, the official `schedule_old2208` rendering is used as a bounded current-season fallback. Historical feature use remains exact-PIT gated.
 - **ESPN** — endpoint family `site.api.espn.com/apis/site/v2/sports/basketball/{league}/scoreboard`; retained as generic/reference infrastructure and not used by the active B.LEAGUE target collector.
 - **SportsDataverse hoopR-data** — NBA/WNBA historical files; source README explicitly identifies ESPN as the NBA/WNBA data source. `NON_INDEPENDENT` for diversification, although useful as a schema/recovery path. https://github.com/sportsdataverse/hoopR-data
 - **FIBA World Cup 2019 dataset** — current historical recovery source in `hardened_public_history.py`; independent of ESPN, but narrow competition coverage and PIT publication timing is not proven. `DEFERRED` for feature use until replay passes.
