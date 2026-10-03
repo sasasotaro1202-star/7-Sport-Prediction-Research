@@ -66,6 +66,12 @@ jobs:
         run: PYTHONPATH=. python scripts/test_scope_autofill.py
       - name: Staged scope expansion policy regression
         run: PYTHONPATH=. python scripts/test_scope_expansion_policy.py
+      - name: Boxing ingest regression
+        run: PYTHONPATH=. python scripts/test_boxing_ingest.py
+      - name: Uncertainty-aware router research-only regression
+        run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
+      - name: Matchday intelligence research-only regression
+        run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
       - name: Research checkpoint cache persistence
         run: PYTHONPATH=. python scripts/test_research_checkpoint_cache.py
       - name: Release gate fail-closed exit regression
