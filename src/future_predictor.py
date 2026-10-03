@@ -248,11 +248,11 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
     """
     starts=c.execute(
         "SELECT COUNT(DISTINCT e.event_id) " + common,
-        (sport,participant_id,prediction_cutoff),
+        (sport,participant_id,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     wins=c.execute(
         "SELECT COUNT(DISTINCT e.event_id) " + common + " AND o.outcome=ep.side",
-        (sport,participant_id,prediction_cutoff),
+        (sport,participant_id,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     starts=int(starts or 0); wins=int(wins or 0)
     return starts,wins,(wins+1.0)/(starts+2.0)
