@@ -63,6 +63,12 @@ def main() -> int:
     assert "git push origin HEAD:main" in recovery
     assert "Production Invariants" not in recovery
     assert "Production Safety Audit" not in recovery
+    assert "\\${{ " not in recovery
+    retry_start = recovery.index("  retry-transient-failure:")
+    retry_block = recovery[retry_start:]
+    assert retry_block.count("\n    if: >-") == 1
+    assert "needs: record-failure-memory" in retry_block
+    assert "always() &&" in retry_block
 
     print("PRODUCTION_SAFE_CONTINUATION_CONTRACT=PASS")
     return 0
