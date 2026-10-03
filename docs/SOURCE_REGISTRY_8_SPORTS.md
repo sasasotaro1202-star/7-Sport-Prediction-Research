@@ -136,4 +136,13 @@ The active prediction lanes now persist a bounded match-detail evidence layer fo
 | Team/event identity | structured home/away/competitor names | `match_stats` + existing identity tables | No silent identity merge |
 | Provenance | content hash, observation time, source URL, parser version | `source_snapshot` | Historical retrieval alone remains UNVERIFIABLE |
 
+
+
+### Multi-sport detail sources now covered by the enrichment parser
+- **Basketball / FIBA:** game stage/group, final score, attendance and explicit game-stat percentages such as FG%, 2PT FG%, 3PT FG% and FT%. This is relevant to the active Asian Games basketball scope; it remains evidence-only until PIT replay proves historical availability.
+- **Volleyball World:** match status, venue, stage and explicit score pairs when exposed on the page. Volleyball World also publishes competition player-stat surfaces covering scoring, attacking, blocking, serving, setting, digging and receiving; these broader leader tables are not silently treated as match-level observations.
+- **UFCStats:** fighter physical profile (height, weight, reach, stance, DOB), career SLpM/SApM/Str. Acc./Str. Def./TD Avg./TD Acc./TD Def./Sub. Avg. and matchup-preview presence. Same-fight post-event statistics remain excluded from that fight's PIT-safe feature set.
+- **RIZIN official:** rule, contract weight, weight-class text, cancellation/change notices and, when a result page is observed after the event, method/round/time. Post-event result details remain outcome/history evidence rather than pre-event features.
+- **VALORANT / VLR:** patch, Bo1/Bo3/Bo5 format, event links and pre-match betting evidence where explicitly present. Player/event statistic pages expose Rating, ACS, K:D, KAST, ADR, KPR, APR, FK/FD and other map/round metrics, but they require separate historical availability proof before feature use.
+
 This layer is research-input infrastructure only. A newly collected field is not automatically enabled as a production feature; it must pass PIT replay, ablation, chronological OOS, robustness and frozen-holdout gates.
