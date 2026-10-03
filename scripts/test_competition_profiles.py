@@ -8,6 +8,9 @@ from src.competition_route_builder import _fit_oos
 
 def main() -> int:
     assert resolve_profile("basketball", "B.LEAGUE", "league match")["profile_id"] == "basketball:bleague"
+    assert resolve_profile("basketball", "B.PREMIER", "B.PREMIER")["profile_id"] == "basketball:bleague"
+    assert resolve_profile("basketball", "B.ONE", "B.ONE")["profile_id"] == "basketball:bleague"
+    assert resolve_profile("basketball", "B.TWO", "B.TWO")["profile_id"] == "basketball:bleague"
     assert resolve_profile("basketball", "Asian Games", "Asian Games Basketball")["profile_id"] == "basketball:asian_games"
     assert resolve_profile("volleyball", "Asian Games Volleyball", "match")["profile_id"] == "volleyball:asian_games"
     ufc = resolve_profile("ufc", "UFC", "UFC 300")
