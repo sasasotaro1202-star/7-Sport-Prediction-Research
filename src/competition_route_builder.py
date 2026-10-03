@@ -58,9 +58,16 @@ def _artifact_name(segment_id: str) -> str:
 
 def _periods(items: list[dict]) -> list[str]:
     seasons = sorted({str(x.get("season")) for x in items if x.get("season")})
-    if seasons:
+    if len(seasons) >= 2:
         return seasons
-    return sorted({str(x["time"])[:4] for x in items if x.get("time")})
+    # A season-specific route cannot prove two independent seasons by design.
+    # Use calendar-month evaluation periods inside that season instead, preserving
+    # chronological OOS while still requiring temporal replication.
+    months = sorted({str(x["time"])[:7] for x in items if x.get("time")})
+    if len(months) >= 2:
+        return months
+    years = sorted({str(x["time"])[:4] for x in items if x.get("time")})
+    return years
 
 
 def _load_event_metadata(con: sqlite3.Connection, sport: str) -> dict[str, dict[str, str]]:
@@ -267,6 +274,11 @@ def _fit_oos(items: list[dict], features: list[str], candidates: list[str], mini
         "segment_id": items[0]["segment_id"],
         "segment_specificity": int(items[0].get("segment_specificity", 0)),
         "segment_context": dict(items[0].get("segment_context") or {}),
+        "fallback_parent_segment": (
+            "::".join(str(items[0]["segment_id"]).split("::")[:-1])
+            if "::" in str(items[0]["segment_id"])
+            else None
+        ),
         "competition_id": items[0]["competition_id"],
         "canonical_competition_id": items[0]["canonical_competition_id"],
         "sport": items[0]["sport"],
@@ -308,7 +320,7 @@ def build_route_registry(db_path: Path | None = None, sports: list[str] | None =
         if sports:
             active = [s for s in active if s in set(sports)]
         report = {
-            "version": "competition-specific-production-route-v1",
+            "version": "hierarchical-competition-production-route-v2",
             "status": "READY",
             "production_scope": active,
             "policy": policy,
