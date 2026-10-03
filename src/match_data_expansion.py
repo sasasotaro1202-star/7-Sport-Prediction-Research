@@ -26,7 +26,7 @@ from src.seven_sport_production import add_snapshot, connect, sid, clean
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
 ACTIVE_SPORTS = ("valorant", "basketball", "volleyball", "ufc", "rizin")
-PARSER_VERSION = "match-data-expansion-v1"
+PARSER_VERSION = "match-data-expansion-v2"
 DETAIL_SOURCE_BY_SPORT = {
     "basketball": "bleague-game-detail",
     "valorant": "vlr-match-detail",
@@ -247,6 +247,306 @@ def parse_bleague_detail(html: str):
     return result
 
 
+
+
+def _label_value_lines(html: str):
+    soup = BeautifulSoup(html, "lxml")
+    return [clean(x) for x in soup.get_text("\n").splitlines() if clean(x)]
+
+
+def parse_fiba_game_detail(html: str):
+    lines = _label_value_lines(html)
+    text = " ".join(lines)
+    result = {
+        "game_stage": None,
+        "group": None,
+        "teams": [],
+        "quarter_scores": [],
+        "game_stats": {},
+        "attendance": None,
+        "score_a": None,
+        "score_b": None,
+    }
+    m = re.search(r"(Group Phase|Class\.\s*\d+[\-–]\d+|Round of 16|Quarterfinals|Semifinals|Final)", text, re.I)
+    if m:
+        result["game_stage"] = clean(m.group(1))
+    m = re.search(r"Group\s+([A-Z])\b", text, re.I)
+    if m:
+        result["group"] = m.group(1)
+    score_tokens = re.findall(r"\b(\d+)\s*[–-]\s*(\d+)\b", text)
+    if score_tokens:
+        result["score_a"], result["score_b"] = map(int, score_tokens[0])
+    for line in lines:
+        m = re.search(r"Attendance\s+(\d[\d,]*)", line, re.I)
+        if m:
+            result["attendance"] = int(m.group(1).replace(",", ""))
+    stat_patterns = {
+        "fg_pct": re.compile(r"FG\s*%", re.I),
+        "2pt_fg_pct": re.compile(r"2PT\s*FG", re.I),
+        "3pt_fg_pct": re.compile(r"3PT\s*FG", re.I),
+        "ft_pct": re.compile(r"FT\s*%", re.I),
+    }
+    for key, pattern in stat_patterns.items():
+        idx = next((i for i, line in enumerate(lines) if pattern.search(line)), None)
+        if idx is None:
+            continue
+        nums = [
+            float(x)
+            for x in re.findall(
+                r"(?<!\d)(\d+(?:\.\d+)?)%(?!\d)",
+                lines[idx],
+            )
+        ]
+        if len(nums) < 2:
+            for next_idx in range(idx + 1, min(len(lines), idx + 3)):
+                candidate = lines[next_idx]
+                if any(
+                    other.search(candidate)
+                    for other in stat_patterns.values()
+                    if other is not pattern
+                ):
+                    break
+                nums.extend(
+                    float(x)
+                    for x in re.findall(
+                        r"(?<!\d)(\d+(?:\.\d+)?)%(?!\d)",
+                        candidate,
+                    )
+                )
+                if len(nums) >= 2:
+                    break
+        if nums:
+            result["game_stats"][key] = nums[:2]
+    return result
+
+
+def parse_volleyball_detail(html: str):
+    lines = _label_value_lines(html)
+    text = " ".join(lines)
+    result = {
+        "status": None,
+        "venue": None,
+        "match_stage": None,
+        "score": None,
+    }
+    for status in ("LIVE", "Scheduled", "Final", "Finished", "Postponed", "Cancelled"):
+        if re.search(rf"\b{re.escape(status)}\b", text, re.I):
+            result["status"] = status.upper()
+            break
+    for token in ("Quarterfinal", "Semifinal", "Final", "Pool", "Group"):
+        m = re.search(rf"([^|\n]{{0,80}}\b{token}[^|\n]{{0,80}})", text, re.I)
+        if m:
+            result["match_stage"] = clean(m.group(1))
+            break
+    # Prefer the label-preserving lines so adjacent HTML blocks such as
+    # "Venue: Ariake Arena" followed by "25-22" cannot be conflated.
+    label = re.compile(r"^(?:Venue|Location|Host City)\s*[:：]?\s*(.*)$", re.I)
+    for index, line in enumerate(lines):
+        m = label.search(line)
+        if not m:
+            continue
+        venue = clean(m.group(1))
+        if not venue and index + 1 < len(lines):
+            venue = clean(lines[index + 1])
+        # Some pages render score text in the same block as the venue. Bound the
+        # capture before a volleyball score rather than persisting adjacent data.
+        venue = re.split(
+            r"\s+\b\d{1,2}\s*[-–:]\s*\d{1,2}\b",
+            venue,
+            maxsplit=1,
+        )[0]
+        if venue:
+            result["venue"] = venue
+            break
+    pairs = re.findall(r"\b(\d{1,2})\s*[-–:]\s*(\d{1,2})\b", text)
+    if pairs:
+        result["score"] = [int(pairs[0][0]), int(pairs[0][1])]
+    return result
+
+
+def parse_ufcstats_detail(html: str):
+    lines = _label_value_lines(html)
+    text = " ".join(lines)
+    result = {
+        "height": None,
+        "weight": None,
+        "reach": None,
+        "stance": None,
+        "dob": None,
+        "career_stats": {},
+        "has_matchup_preview": "Matchup Preview" in text,
+        "next_opponent": None,
+    }
+    patterns = {
+        "height": r"Height\s*:\s*([^|]+?)(?=\s+Weight\s*:)",
+        "weight": r"Weight\s*:\s*([^|]+?)(?=\s+Reach\s*:)",
+        "reach": r"Reach\s*:\s*([^|]+?)(?=\s+STANCE\s*:)",
+        "stance": r"STANCE\s*:\s*([A-Za-z]+)",
+        "dob": r"DOB\s*:\s*([A-Za-z]+\.?\s+\d{1,2},\s+\d{4})",
+    }
+    for key, pat in patterns.items():
+        m = re.search(pat, text, re.I)
+        if m:
+            result[key] = clean(m.group(1))
+    stat_patterns = {
+        "SLpM": r"SLpM\s*:\s*([\d.]+)",
+        "Str_Acc": r"Str\.\s*Acc\.\s*:\s*(\d+%)",
+        "SApM": r"SApM\s*:\s*([\d.]+)",
+        "Str_Def": r"Str\.\s*Def\s*:\s*(\d+%)",
+        "TD_Avg": r"TD\s*Avg\.\s*:\s*([\d.]+)",
+        "TD_Acc": r"TD\s*Acc\.\s*:\s*(\d+%)",
+        "TD_Def": r"TD\s*Def\.?\s*:\s*(\d+%)",
+        "Sub_Avg": r"Sub\.\s*Avg\s*:\s*([\d.]+)",
+    }
+    for key, pat in stat_patterns.items():
+        m = re.search(pat, text, re.I)
+        if m:
+            value = m.group(1)
+            try:
+                result["career_stats"][key] = float(value.rstrip("%"))
+            except Exception:
+                result["career_stats"][key] = value
+    return result
+
+
+def parse_rizin_detail(html: str):
+    lines = _label_value_lines(html)
+    text = " ".join(lines)
+    result = {
+        "rule": None,
+        "contract_weight_kg": None,
+        "weight_class_text": None,
+        "cancelled": False,
+        "change_notice": False,
+        "method": None,
+        "round": None,
+        "time": None,
+    }
+    m = re.search(
+        r"(RIZIN\s+(?:MMA|キックボクシング|KICKBOXING)[^|]*?ルール[^|]*)",
+        text,
+        re.I,
+    )
+    if m:
+        rule_text = clean(m.group(1))
+        result["rule"] = rule_text
+        weight = re.search(
+            r"[（(]\s*(\d+(?:\.\d+)?)\s*kg\s*[）)]",
+            rule_text,
+            re.I,
+        )
+        if weight:
+            result["contract_weight_kg"] = float(weight.group(1))
+    m = re.search(r"(\d+(?:\.\d+)?)kg\s*契約(?:マッチ|戦)?", text, re.I)
+    if m:
+        result["contract_weight_kg"] = float(m.group(1))
+        result["weight_class_text"] = clean(m.group(0))
+    result["cancelled"] = bool(re.search(r"(?:試合|対戦)[^。]{0,40}中止|中止となりました|CANCELLED", text, re.I))
+    result["change_notice"] = bool(re.search(r"変更のお知らせ|変更情報|updated|change", text, re.I))
+    m = re.search(r"\b(\d+)R\s+(\d+)分\s*(\d+)秒\s+([^|]+)", text)
+    if m:
+        result["round"] = int(m.group(1))
+        result["time"] = f"{int(m.group(2))}:{int(m.group(3)):02d}"
+        result["method"] = clean(m.group(4))
+    return result
+
+
+def _write_key_values(con, event, values, source, retrieved, exact):
+    written = 0
+    for stat_name, (num, text_value) in values.items():
+        if num is None and not text_value:
+            continue
+        _insert_stat(
+            con, event["event_id"], None, None, event["sport"], stat_name,
+            num, text_value, source, event["source_url"],
+            retrieved.isoformat(),
+            retrieved.isoformat() if exact else None,
+            "EXACT" if exact else "UNVERIFIABLE",
+        )
+        written += 1
+    return written
+
+
+def _write_source_specific_detail(con, event, html, retrieved, source, exact):
+    host = urlparse(event["source_url"]).netloc.lower()
+    if "fiba.basketball" in host:
+        data = parse_fiba_game_detail(html)
+        values = {
+            "match.fiba.stage": (None, data.get("game_stage")),
+            "match.fiba.group": (None, data.get("group")),
+            "match.fiba.attendance": (
+                float(data["attendance"]) if data.get("attendance") is not None else None,
+                None,
+            ),
+            "match.fiba.score_a": (
+                float(data["score_a"]) if data.get("score_a") is not None else None,
+                None,
+            ),
+            "match.fiba.score_b": (
+                float(data["score_b"]) if data.get("score_b") is not None else None,
+                None,
+            ),
+        }
+        for key, pair in data.get("game_stats", {}).items():
+            vals = pair[:2]
+            values[f"match.fiba.{key}.a"] = (vals[0], None) if len(vals) > 0 else (None, None)
+            values[f"match.fiba.{key}.b"] = (vals[1], None) if len(vals) > 1 else (None, None)
+        return _write_key_values(con, event, values, source, retrieved, exact)
+
+    if "volleyballworld.com" in host:
+        data = parse_volleyball_detail(html)
+        values = {
+            "match.volleyball.status": (None, data.get("status")),
+            "match.volleyball.venue": (None, data.get("venue")),
+            "match.volleyball.stage": (None, data.get("match_stage")),
+            "match.volleyball.score_a": (
+                float(data["score"][0]), None
+            ) if data.get("score") else (None, None),
+            "match.volleyball.score_b": (
+                float(data["score"][1]), None
+            ) if data.get("score") else (None, None),
+        }
+        return _write_key_values(con, event, values, source, retrieved, exact)
+
+    if "ufcstats.com" in host:
+        data = parse_ufcstats_detail(html)
+        values = {
+            "fighter.height": (None, data.get("height")),
+            "fighter.weight": (None, data.get("weight")),
+            "fighter.reach": (None, data.get("reach")),
+            "fighter.stance": (None, data.get("stance")),
+            "fighter.dob": (None, data.get("dob")),
+            "match.ufc.has_matchup_preview": (
+                1.0 if data.get("has_matchup_preview") else 0.0,
+                None,
+            ),
+            "match.ufc.next_opponent": (None, data.get("next_opponent")),
+        }
+        for key, value in data.get("career_stats", {}).items():
+            if isinstance(value, (int, float)):
+                values[f"fighter.career_{key.lower()}"] = (float(value), None)
+        return _write_key_values(con, event, values, source, retrieved, exact)
+
+    if "jp.rizinff.com" in host:
+        data = parse_rizin_detail(html)
+        values = {
+            "match.rizin.rule": (None, data.get("rule")),
+            "match.rizin.contract_weight_kg": (data.get("contract_weight_kg"), None),
+            "match.rizin.weight_class_text": (None, data.get("weight_class_text")),
+            "match.rizin.cancelled": (1.0 if data.get("cancelled") else 0.0, None),
+            "match.rizin.change_notice": (1.0 if data.get("change_notice") else 0.0, None),
+            "match.rizin.method": (None, data.get("method")),
+            "match.rizin.round": (
+                float(data["round"]) if data.get("round") is not None else None,
+                None,
+            ),
+            "match.rizin.time": (None, data.get("time")),
+        }
+        return _write_key_values(con, event, values, source, retrieved, exact)
+
+    return 0
+
+
 def _exact_for_cutoff(retrieved: datetime, event_time: datetime | None, lead_minutes: int):
     if event_time is None:
         return False, None
@@ -259,7 +559,7 @@ def _exact_for_cutoff(retrieved: datetime, event_time: datetime | None, lead_min
 def _insert_stat(con, event_id, participant_id, team_id, sport, name, value_num, value_text,
                  source, source_url, observed_at, effective_at, quality):
     stat_id = sid(
-        "match-data-expansion-v1",
+        PARSER_VERSION,
         event_id,
         participant_id,
         team_id,
@@ -485,6 +785,9 @@ def enrich_one(con, event, lead_minutes=60):
         written = _write_jsonld(con, event, raw, retrieved, source, exact)
         if event["sport"] == "basketball" and "bleague.jp" in url:
             written += _write_bleague(con, event, raw, retrieved, exact)
+        written += _write_source_specific_detail(
+            con, event, raw, retrieved, source, exact
+        )
 
         return {
             "status": "OK",
@@ -510,15 +813,34 @@ def select_events(con, sport, horizon_days=14, max_events=40):
     lower = now + timedelta(minutes=5)
     return con.execute(
         """
-        SELECT event_id,sport,event_time_utc,event_type,status,source_url
-          FROM event
-         WHERE sport=?
-           AND event_time_utc IS NOT NULL
-           AND datetime(event_time_utc) > datetime(?)
-           AND datetime(event_time_utc) <= datetime(?)
-           AND UPPER(COALESCE(status,'')) NOT IN ('CANCELLED','VOID')
-           AND source_url IS NOT NULL
-         ORDER BY datetime(event_time_utc), event_id
+        SELECT
+            e.event_id,
+            e.sport,
+            e.event_time_utc,
+            e.event_type,
+            e.status,
+            (
+                SELECT ep.source_url
+                  FROM event_participant ep
+                 WHERE ep.event_id=e.event_id
+                   AND ep.source_url IS NOT NULL
+                 ORDER BY CASE ep.side WHEN 'A' THEN 0 WHEN 'B' THEN 1 ELSE 2 END,
+                          ep.source_url
+                 LIMIT 1
+            ) AS source_url
+          FROM event e
+         WHERE e.sport=?
+           AND e.event_time_utc IS NOT NULL
+           AND datetime(e.event_time_utc) > datetime(?)
+           AND datetime(e.event_time_utc) <= datetime(?)
+           AND UPPER(COALESCE(e.status,'')) NOT IN ('CANCELLED','VOID')
+           AND EXISTS (
+                SELECT 1
+                  FROM event_participant ep2
+                 WHERE ep2.event_id=e.event_id
+                   AND ep2.source_url IS NOT NULL
+           )
+         ORDER BY datetime(e.event_time_utc), e.event_id
          LIMIT ?
         """,
         (sport, lower.isoformat(), upper.isoformat(), int(max_events)),
