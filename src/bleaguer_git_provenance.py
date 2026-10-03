@@ -382,7 +382,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     "SELECT event_time_utc FROM event WHERE event_id=? AND sport='basketball'",
                     (event_id,),
                 ).fetchone()
-                if not event_row or not ep.get("source_available_at_utc") or not ep.get("pinned_source_url"):
+                if not event_row or ep.get("publication_status") != "UNPROVEN" or not ep.get("pinned_source_url"):
                     continue
                 current_summary_url = url
                 cur = con.execute(
@@ -429,6 +429,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         json.dumps(provenance, ensure_ascii=False),
                     ),
                 )
+                event_version_exact += 1
                 # Do not repoint match_stats to an unproven publication timestamp.
                 # Strict PIT remains fail-closed until a separate public-availability
                 # evidence layer upgrades this snapshot to TRUE EXACT.
