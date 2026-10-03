@@ -130,9 +130,13 @@ def probe_source(source: dict, timeout: float = 20.0, retries: int = 3) -> dict:
         "error": None,
     }
     session = requests.Session()
+    mode = str(source.get("probe_mode") or "html_text").lower()
     session.headers.update({
         "User-Agent": UA,
         "Accept-Language": "en-US,en;q=0.8,ja;q=0.6",
+        "Accept": "application/vnd.api+json, application/json, text/html;q=0.8"
+        if mode in {"json_collection", "json"}
+        else "text/html,application/xhtml+xml",
     })
     last_error = None
     for attempt in range(1, max(1, int(retries)) + 1):
