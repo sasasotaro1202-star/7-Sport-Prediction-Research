@@ -92,11 +92,14 @@ def main() -> None:
     assert "assert p['scheduler']['selection_mode'] == 'scheduled-60m-default;manual-lead-configurable'" in workflow
     assert "Rebuild persistent prediction experience archive from DB" in workflow
     sync_pos = workflow.index("Rebuild persistent prediction experience archive from DB")
+    predict_pos = workflow.index("Generate requested prediction lane")
     adaptive_pos = workflow.index("Generate adaptive timing research lane")
     shadow_pos = workflow.index("Generate one rotating timing-shadow lane")
-    predict_pos = workflow.index("Generate requested prediction lane")
     score_pos = workflow.index("Score accumulated prediction experience")
-    assert sync_pos < adaptive_pos < shadow_pos < predict_pos < score_pos
+    assert sync_pos < predict_pos < adaptive_pos < shadow_pos < score_pos
+    collect_pos = workflow.index("Refresh upcoming schedule")
+    assert sync_pos < collect_pos < predict_pos
+    assert "required_days=$(( (requested_lead + 15 + 1439) / 1440 ))" in workflow
     assert "--archive-db-sport" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "lead_minutes:" in workflow
