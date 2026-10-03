@@ -2,8 +2,8 @@
   "version": 2,
   "policy": "pre-event-prediction-v2",
   "scheduler": {
-    "cron_utc": "3-58/5 * * * *",
-    "minimum_interval_minutes": 5,
+    "cron_utc": "3-58/15 * * * *",
+    "minimum_interval_minutes": 15,
     "manual_dispatch": true,
     "generation_window": {
       "min_lead_minutes": 5,
@@ -49,5 +49,5 @@
     "missing_prediction_is_explicit_gap": true,
     "no_failure_hiding": true
   },
-  "explanation": "Scheduled predictions target approximately one hour before the event. Non-default horizons remain research-controlled, while explicit user requests may use any positive integer lead through workflow dispatch or the fresh-prediction entrypoint; manual horizons have no upper bound."
+  "explanation": "Scheduled predictions target approximately one hour before the event. The scheduler runs every 15 minutes so the 45-75 minute guideline window is covered without unnecessary five-minute overlap. Non-default horizons remain research-controlled, while explicit user requests may use any positive integer lead through workflow dispatch or the fresh-prediction entrypoint; manual horizons have no upper bound."
 }
