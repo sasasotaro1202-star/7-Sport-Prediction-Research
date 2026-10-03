@@ -338,7 +338,7 @@
         },
         "evaluation": {
           "status": "INSUFFICIENT_DATA",
-          "rows": 69,
+          "rows": 70,
           "seasons": [
             "2026"
           ],
@@ -1104,8 +1104,8 @@
   },
   "identity_audit": {
     "volleyball": {
-      "built_rows": 69,
-      "matched_rows": 69,
+      "built_rows": 70,
+      "matched_rows": 70,
       "unknown_competition_rows": 0,
       "missing_competition_rows": 0,
       "recognized_ratio": 1.0
