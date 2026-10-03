@@ -6,6 +6,10 @@
 ### X research layer
 X data is isolated from the production model: collection → PIT storage → independent offline/OOS evaluation → challenger comparison. X is not directly wired into the incumbent production feature set.
 
+## Active prediction scope
+
+The canonical active prediction scope is exactly five sports: VALORANT, Basketball, Volleyball, UFC, and RIZIN. Tennis, F1, Rugby, and Boxing are research-only/deferred extensions and are excluded from production inference until their sport-specific PIT/OOS/release gates are formally passed.
+
 ## GitHub Actions
 ### Canonical production
 `.github/workflows/v4_5_15_production.yml` runs only the five active prediction lanes. Research-only/deferred extensions are isolated from the canonical production prediction path.
