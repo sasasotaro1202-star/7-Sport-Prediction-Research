@@ -146,6 +146,13 @@ jobs:
               if timeout --signal=TERM 600s python -m src.boxing_production --ingest-history; then echo 'boxing_collection_status=OK'; else backfill_rc=$?; echo "boxing_collection_status=DEGRADED exit=$backfill_rc"; fi
               ;;
           esac
+          enrichment_rc=0
+          if timeout --signal=TERM 300s python -m src.match_data_expansion --sport ${{ matrix.sport }} --horizon-days 14 --max-events 40 --lead-minutes 60; then
+            echo 'match_data_expansion_status=OK'
+          else
+            enrichment_rc=$?
+            echo "match_data_expansion_status=DEGRADED exit=$enrichment_rc"
+          fi
           guard_rc=0
           guard_file="results/v45/collection_guard_${{ matrix.sport }}.json"
           if python -m src.collection_guard --sport ${{ matrix.sport }}; then

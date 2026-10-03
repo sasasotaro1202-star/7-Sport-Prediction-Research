@@ -104,7 +104,13 @@ def main() -> None:
     score_pos = workflow.index("Score accumulated prediction experience")
     assert sync_pos < predict_pos < adaptive_pos < shadow_pos < score_pos
     collect_pos = workflow.index("Refresh upcoming schedule")
-    assert sync_pos < collect_pos < predict_pos
+    enrich_pos = workflow.index("Enrich upcoming match details")
+    assert sync_pos < collect_pos < enrich_pos < predict_pos
+    assert 'id: match_data' in workflow
+    assert 'python -m src.match_data_expansion' in workflow
+    assert '--max-events 40' in workflow
+    assert '--lead-minutes "$lead"' in workflow
+    assert 'match_data_rc=' in workflow
     assert "days_forward=\"$(python -c" in workflow
     assert "print(max(7, (lead + 15 + 1439) // 1440))" in workflow
     assert "--archive-db-sport" in workflow
