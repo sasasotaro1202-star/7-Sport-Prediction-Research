@@ -99,7 +99,8 @@ def main() -> None:
     assert sync_pos < predict_pos < adaptive_pos < shadow_pos < score_pos
     collect_pos = workflow.index("Refresh upcoming schedule")
     assert sync_pos < collect_pos < predict_pos
-    assert "required_days=$(( (requested_lead + 15 + 1439) / 1440 ))" in workflow
+    assert 'days_forward="$(python - "$requested_lead" <<\'PY\'' in workflow
+    assert "print(max(7, (lead + 15 + 1439) // 1440))" in workflow
     assert "--archive-db-sport" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "lead_minutes:" in workflow
