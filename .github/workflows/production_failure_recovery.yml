@@ -14,14 +14,197 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 concurrency:
-  group: production-failure-recovery-${{ github.event.workflow_run.id }}
+  # Critical failure memory is append-only and therefore single-writer.
+  group: production-failure-memory-writer
   cancel-in-progress: false
 
 jobs:
+  record-failure-memory:
+    if: >-
+      (
+        github.event.workflow_run.conclusion == 'failure' ||
+        github.event.workflow_run.conclusion == 'timed_out' ||
+        github.event.workflow_run.conclusion == 'startup_failure'
+      ) &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout current main for failure memory
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Capture source-run log
+        env:
+          GH_TOKEN: \${{ github.token }}
+          RUN_ID: \${{ github.event.workflow_run.id }}
+          REPOSITORY: \${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-artifacts
+          if gh run view "$RUN_ID" --repo "$REPOSITORY" --log > recovery-artifacts/source-run.log 2> recovery-artifacts/source-run-log-error.txt; then
+            printf '%s\n' CAPTURED > recovery-artifacts/log_capture_status.txt
+          else
+            printf '%s\n' FAILED > recovery-artifacts/log_capture_status.txt
+            printf 'GitHub run log capture failed for run %s.\n' "$RUN_ID" > recovery-artifacts/source-run.log
+          fi
+
+      - name: Query failed jobs
+        env:
+          GH_TOKEN: \${{ github.token }}
+          RUN_ID: \${{ github.event.workflow_run.id }}
+          REPOSITORY: \${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" \
+            --jq '.jobs[] | select(.conclusion != null and .conclusion != "success" and .conclusion != "skipped") | .name' \
+            > recovery-artifacts/failed_jobs.txt
+
+      - name: Record append-only failure memory
+        env:
+          RUN_ID: \${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: \${{ github.event.workflow_run.run_attempt }}
+          WORKFLOW_NAME: \${{ github.event.workflow_run.name }}
+          WORKFLOW_ID: \${{ github.event.workflow_run.workflow_id }}
+          HEAD_SHA: \${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: \${{ github.event.workflow_run.head_branch }}
+          CONCLUSION: \${{ github.event.workflow_run.conclusion }}
+          RUN_URL: \${{ github.event.workflow_run.html_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path("results/failure_memory.jsonl")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          record_id = f"run-{os.environ['RUN_ID']}-attempt-{os.environ['RUN_ATTEMPT']}"
+
+          existing_ids = set()
+          if path.exists():
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  if not line.strip():
+                      continue
+                  try:
+                      old = json.loads(line)
+                  except json.JSONDecodeError as exc:
+                      raise SystemExit(f"FAILURE_MEMORY_INVALID_JSON:{path}:{exc}") from exc
+                  if old.get("record_id"):
+                      existing_ids.add(str(old["record_id"]))
+
+          if record_id in existing_ids:
+              print(json.dumps({"record_id": record_id, "memory_status": "ALREADY_RECORDED"}, ensure_ascii=False))
+              raise SystemExit(0)
+
+          jobs_path = Path("recovery-artifacts/failed_jobs.txt")
+          failed_jobs = sorted(dict.fromkeys(x.strip() for x in jobs_path.read_text(encoding="utf-8").splitlines() if x.strip())) if jobs_path.exists() else []
+          names = " ".join(failed_jobs).lower()
+          conclusion = os.environ["CONCLUSION"]
+          if "pit" in names:
+              failure_class = "PIT_WORKFLOW_FAILURE"
+          elif "collect" in names or "backfill" in names:
+              failure_class = "COLLECTION_WORKFLOW_FAILURE"
+          elif "research" in names or "release gate" in names:
+              failure_class = "RESEARCH_RELEASE_WORKFLOW_FAILURE"
+          elif conclusion == "timed_out":
+              failure_class = "WORKFLOW_TIMEOUT"
+          elif conclusion == "startup_failure":
+              failure_class = "WORKFLOW_STARTUP_FAILURE"
+          else:
+              failure_class = "WORKFLOW_FAILURE"
+
+          record = {
+              "schema_version": 1,
+              "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+              "record_id": record_id,
+              "workflow_name": os.environ["WORKFLOW_NAME"],
+              "workflow_id": int(os.environ["WORKFLOW_ID"]),
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_attempt": int(os.environ["RUN_ATTEMPT"]),
+              "head_sha": os.environ["HEAD_SHA"],
+              "head_branch": os.environ["HEAD_BRANCH"],
+              "conclusion": conclusion,
+              "failure_class": failure_class,
+              "classification_basis": "workflow_run_conclusion_and_observed_failed_job_names",
+              "failed_jobs": failed_jobs,
+              "source_run_url": os.environ["RUN_URL"],
+              "log_capture_status": Path("recovery-artifacts/log_capture_status.txt").read_text(encoding="utf-8").strip(),
+              "recovery_policy": "bounded_retry_or_fresh_current_main_run",
+              "memory_status": "DETECTED",
+              "unknown_details_are_not_inferred": True,
+          }
+          with path.open("a", encoding="utf-8") as handle:
+              handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+          print(json.dumps(record, ensure_ascii=False, sort_keys=True))
+          PY
+
+      - name: Validate failure memory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("results/failure_memory.jsonl")
+          assert path.is_file(), "failure memory missing"
+          rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+          ids = [row.get("record_id") for row in rows]
+          assert all(ids), "failure memory record_id missing"
+          assert len(ids) == len(set(ids)), "failure memory record_id duplicated"
+          assert all(row.get("schema_version") == 1 for row in rows)
+          assert all(row.get("unknown_details_are_not_inferred") is True for row in rows)
+          print(f"FAILURE_MEMORY_RECORDS={len(rows)}")
+          PY
+
+      - name: Commit failure memory to current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/failure_memory.jsonl
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'FAILURE_MEMORY_COMMIT=NO_CHANGE'
+            exit 0
+          fi
+          git fetch origin main
+          git rebase origin/main
+          git add results/failure_memory.jsonl
+          git diff --cached --check
+          git commit -m "ops: record production failure memory"
+          git push origin HEAD:main
+
+      - name: Upload source-run failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-failure-evidence-\${{ github.event.workflow_run.id }}-\${{ github.event.workflow_run.run_attempt }}
+          path: recovery-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
   retry-transient-failure:
+    needs: record-failure-memory
+    if: >-
+      always() &&
+      (
+        github.event.workflow_run.conclusion == 'failure' ||
+        github.event.workflow_run.conclusion == 'timed_out' ||
+        github.event.workflow_run.conclusion == 'startup_failure'
+      ) &&
+      github.event.workflow_run.run_attempt < 2 &&
+      github.event.workflow_run.head_branch == 'main'
     if: >-
       (
         github.event.workflow_run.conclusion == 'failure' ||
