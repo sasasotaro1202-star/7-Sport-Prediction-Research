@@ -107,10 +107,10 @@ def main():
     )
     assert "200" not in out_200
 
-    # Event-level application must preserve later-prior eligibility:
-    # source_snapshot.event_time_utc stays NULL while match_stats points to the
-    # commit-pinned URL. This is the contract used by pit_replay_builder's
-    # event-time-independent source_snapshot join.
+    # Event-level version evidence must remain outside strict PIT:
+    # source_snapshot has no source_available_at_utc and stays
+    # VERSION_EXACT_PUBLICATION_UNPROVEN; match_stats keeps the current-source
+    # URL until independent public-availability evidence exists.
     with tempfile.TemporaryDirectory() as td:
         db = Path(td) / "test.sqlite"
         con = sqlite3.connect(db)
@@ -143,7 +143,7 @@ def main():
 
         proof = [{
             "path": "inst/extdata/games_summary_202122.csv",
-            "status": "UNVERIFIABLE",
+            "status": "VERSION_EXACT_PUBLICATION_UNPROVEN",
             "checked_at_utc": "2026-10-04T00:00:00+00:00",
             "event_provenance": [{
                 "schedule_key": "300",
