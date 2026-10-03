@@ -345,6 +345,11 @@ def collect_official(c, season_years):
                     c, html, retrieved, fallback_url, season_year, 0
                 )
                 total += fallback_added
+                if fallback_added == 0:
+                    # Count the bounded fallback as an empty page too; otherwise
+                    # a zero-result current-season fallback would make the caller
+                    # misclassify a complete parser-zero condition as OK.
+                    empty_pages += 1
             except Exception as exc:
                 errors.append({
                     "season_year": int(season_year),
