@@ -3,9 +3,14 @@ from __future__ import annotations
 
 import csv
 import io
+import sqlite3
+import tempfile
+from pathlib import Path
 
 from src.bleaguer_git_provenance import (
+    apply,
     find_first_summary_provenance,
+    stable_bleaguer_event_id,
     summary_row_fingerprint,
     summary_targets_from_bytes,
 )
@@ -101,6 +106,65 @@ def main():
         ],
     )
     assert "200" not in out_200
+
+    # Event-level application must preserve later-prior eligibility:
+    # source_snapshot.event_time_utc stays NULL while match_stats points to the
+    # commit-pinned URL. This is the contract used by pit_replay_builder's
+    # event-time-independent source_snapshot join.
+    with tempfile.TemporaryDirectory() as td:
+        db = Path(td) / "test.sqlite"
+        con = sqlite3.connect(db)
+        con.executescript(
+            """
+            CREATE TABLE source_snapshot(
+                snapshot_id TEXT PRIMARY KEY, sport TEXT, source TEXT,
+                source_url TEXT, retrieved_at_utc TEXT,
+                source_available_at_utc TEXT, event_time_utc TEXT,
+                content_hash TEXT, payload_path TEXT, parser_version TEXT,
+                availability_status TEXT, provenance_json TEXT
+            );
+            CREATE TABLE event(event_id TEXT PRIMARY KEY, sport TEXT, event_time_utc TEXT);
+            CREATE TABLE match_stats(
+                stat_id TEXT PRIMARY KEY, event_id TEXT, sport TEXT,
+                source TEXT, source_url TEXT
+            );
+            """
+        )
+        eid = stable_bleaguer_event_id("300")
+        current_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/master/inst/extdata/games_summary_202122.csv"
+        pinned_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/abc123/inst/extdata/games_summary_202122.csv"
+        con.execute("INSERT INTO event VALUES(?,?,?)", (eid, "basketball", "2022-01-01T00:00:00+00:00"))
+        con.execute(
+            "INSERT INTO match_stats VALUES(?,?,?,?,?)",
+            ("stat-1", eid, "basketball", "bleaguer-github", current_url),
+        )
+        con.commit()
+        con.close()
+
+        proof = [{
+            "path": "inst/extdata/games_summary_202122.csv",
+            "status": "UNVERIFIABLE",
+            "checked_at_utc": "2026-10-04T00:00:00+00:00",
+            "event_provenance": [{
+                "schedule_key": "300",
+                "provenance_commit_sha": "abc123",
+                "source_available_at_utc": "2021-12-01T00:00:00+00:00",
+                "content_hash": "hash-300",
+                "matched_team_ids": ["A", "B"],
+                "pinned_source_url": pinned_url,
+            }],
+        }]
+        result = apply(db, proof)
+        assert result["event_exact_provenance"] == 1
+        con = sqlite3.connect(db)
+        snap = con.execute(
+            "SELECT source_url,source_available_at_utc,event_time_utc,availability_status "
+            "FROM source_snapshot WHERE sport='basketball'"
+        ).fetchone()
+        repointed = con.execute("SELECT source_url FROM match_stats WHERE stat_id='stat-1'").fetchone()
+        con.close()
+        assert snap == (pinned_url, "2021-12-01T00:00:00+00:00", None, "EXACT")
+        assert repointed == (pinned_url,)
 
     print("BLEAGUER_EVENT_PROVENANCE=PASS")
 
