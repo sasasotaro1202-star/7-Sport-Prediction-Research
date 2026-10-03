@@ -424,7 +424,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         None,
                         ep["content_hash"],
                         None,
-                        "bleaguer-git-provenance-v2-event-exact",
+                        "bleaguer-git-provenance-v3-version-only",
                         "VERSION_EXACT_PUBLICATION_UNPROVEN",
                         json.dumps(provenance, ensure_ascii=False),
                     ),
