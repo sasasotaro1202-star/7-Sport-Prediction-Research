@@ -83,8 +83,10 @@ def main() -> int:
     import src.competition_route_registry as registry
     with tempfile.TemporaryDirectory() as td:
         troot = Path(td)
-        artifact_specific = troot / "specific.joblib"
-        artifact_broad = troot / "broad.joblib"
+        artifact_dir = troot / "models" / "competition"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        artifact_specific = artifact_dir / "specific.joblib"
+        artifact_broad = artifact_dir / "broad.joblib"
         joblib.dump(model, artifact_specific)
         joblib.dump(model, artifact_broad)
         original_root = registry.ROOT
@@ -110,7 +112,7 @@ def main() -> int:
                     "profile_id": profile["profile_id"],
                     "segment_id": segments[-2]["segment_id"],
                     "segment_specificity": segments[-2]["specificity"],
-                    "artifact_path": "broad.joblib",
+                    "artifact_path": "models/competition/broad.joblib",
                     "git_commit_sha": "test-sha",
                     "holdout_used_for_selection": False,
                     "holdout": {"n": 30},
@@ -122,7 +124,7 @@ def main() -> int:
                     "profile_id": profile["profile_id"],
                     "segment_id": segments[0]["segment_id"],
                     "segment_specificity": segments[0]["specificity"],
-                    "artifact_path": "specific.joblib",
+                    "artifact_path": "models/competition/specific.joblib",
                     "git_commit_sha": "test-sha",
                     "holdout_used_for_selection": False,
                     "holdout": {"n": 30},
