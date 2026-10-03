@@ -422,11 +422,21 @@ def parse_rizin_detail(html: str):
         "round": None,
         "time": None,
     }
-    m = re.search(r"(RIZIN\s+(?:MMA|キックボクシング|KICKBOXING)[^|]*?ルール[^|]*?)(?:\((\d+(?:\.\d+)?)kg\))?", text, re.I)
+    m = re.search(
+        r"(RIZIN\s+(?:MMA|キックボクシング|KICKBOXING)[^|]*?ルール[^|]*)",
+        text,
+        re.I,
+    )
     if m:
-        result["rule"] = clean(m.group(1))
-        if m.group(2):
-            result["contract_weight_kg"] = float(m.group(2))
+        rule_text = clean(m.group(1))
+        result["rule"] = rule_text
+        weight = re.search(
+            r"[（(]\s*(\d+(?:\.\d+)?)\s*kg\s*[）)]",
+            rule_text,
+            re.I,
+        )
+        if weight:
+            result["contract_weight_kg"] = float(weight.group(1))
     m = re.search(r"(\d+(?:\.\d+)?)kg\s*契約(?:マッチ|戦)?", text, re.I)
     if m:
         result["contract_weight_kg"] = float(m.group(1))
