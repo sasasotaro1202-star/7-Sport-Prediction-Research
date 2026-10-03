@@ -206,7 +206,8 @@ def find_first_summary_provenance(
             out[schedule_key] = {
                 "schedule_key": schedule_key,
                 "provenance_commit_sha": commit_sha,
-                "source_available_at_utc": iso(commit_date),
+                "commit_timestamp_utc": iso(commit_date),
+                "publication_status": "UNPROVEN",
                 "content_hash": sha256_bytes(revision_bytes),
                 "matched_team_ids": sorted(targets[schedule_key]),
             }
