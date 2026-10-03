@@ -395,7 +395,7 @@ def parse_ufcstats_detail(html: str):
         "Str_Def": r"Str\.\s*Def\s*:\s*(\d+%)",
         "TD_Avg": r"TD\s*Avg\.\s*:\s*([\d.]+)",
         "TD_Acc": r"TD\s*Acc\.\s*:\s*(\d+%)",
-        "TD_Def": r"TD\s*Def\s*:\s*(\d+%)",
+        "TD_Def": r"TD\s*Def\.?\s*:\s*(\d+%)",
         "Sub_Avg": r"Sub\.\s*Avg\s*:\s*([\d.]+)",
     }
     for key, pat in stat_patterns.items():
