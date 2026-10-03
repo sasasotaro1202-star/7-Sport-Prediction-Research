@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import sqlite3
 
 from src.match_data_expansion import (
     _exact_for_cutoff,
     parse_bleague_detail,
     parse_jsonld_event,
+    select_events,
 )
 
 
@@ -129,6 +131,41 @@ def main() -> int:
     assert event["venue_country"] == "JP"
     assert event["organizer"] == "Example League"
     assert event["teams"] == ["Home", "Away"]
+
+
+    con = sqlite3.connect(":memory:")
+    con.executescript(
+        """
+        CREATE TABLE event(
+            event_id TEXT PRIMARY KEY,
+            sport TEXT,
+            event_time_utc TEXT,
+            event_type TEXT,
+            status TEXT
+        );
+        CREATE TABLE event_participant(
+            event_id TEXT,
+            participant_id TEXT,
+            team_id TEXT,
+            side TEXT,
+            role TEXT,
+            source_url TEXT
+        );
+        """
+    )
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    con.execute(
+        "INSERT INTO event VALUES(?,?,?,?,?)",
+        ("evt-1", "ufc", future, "match", "SCHEDULED"),
+    )
+    con.execute(
+        "INSERT INTO event_participant VALUES(?,?,?,?,?,?)",
+        ("evt-1", "p1", None, "A", None, "https://ufcstats.com/event-details/example"),
+    )
+    rows = select_events(con, "ufc", horizon_days=1, max_events=10)
+    assert len(rows) == 1
+    assert rows[0]["source_url"] == "https://ufcstats.com/event-details/example"
+    con.close()
 
     print("MATCH_DATA_EXPANSION_PARSER=PASS")
     return 0
