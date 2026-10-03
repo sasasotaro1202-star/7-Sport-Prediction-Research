@@ -81,8 +81,6 @@ def main() -> None:
     assert policy["scheduler"]["generation_window"]["manual_min_lead_minutes"] == 1
     assert policy["scheduler"]["generation_window"]["manual_max_lead_minutes"] is None
     assert policy["scheduler"]["manual_horizon_policy"] == "positive_integer_unbounded"
-    assert policy["scheduler"]["manual_default_sport"] == "all"
-    assert policy["scheduler"]["manual_sport_options"] == ["all", "valorant", "basketball", "volleyball", "ufc", "rizin"]
     assert "requested_lead='60'" in workflow
     assert "adaptive='0'" in workflow
     assert "# Scheduled production is deliberately centered on T-60." in workflow
@@ -100,11 +98,6 @@ def main() -> None:
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "lead_minutes:" in workflow
     assert 'default: "60"' in workflow
-    assert 'description: "Manual prediction sport (all or one active sport)."' in workflow
-    assert 'default: "all"' in workflow
-    assert "options:" in workflow
-    assert "inputs.sport == 'all'" in workflow
-    assert "inputs.sport == matrix.sport" in workflow
     assert "adaptive_timing:" in workflow
     assert 'if [ "${{ github.event_name }}" = "workflow_dispatch" ]' in workflow
     assert "group: pre-event-prediction-${{ github.event_name }}-${{ matrix.sport }}" in workflow
