@@ -278,8 +278,9 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
-      - name: Save newest pre-event database
-        if: always()
+      - name: Save validated pre-event database
+        # Never promote a partially repaired/corrupt DB into the next cache generation.
+        if: always() && steps.dbguard.outputs.rc == '0'
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
