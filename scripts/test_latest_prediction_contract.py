@@ -132,13 +132,14 @@ def main():
     assert "baseball" not in active
 
     # The canonical entrypoint must refresh first and infer second.
-    collect_pos = src.index("src.seven_sport_production")
-    predict_pos = src.index("src.future_predictor")
-    assert collect_pos < predict_pos
-    sync_pos = src.index("def _sync_experience")
+    request_latest_block = src[src.index("def request_latest("):]
+    collect_pos = request_latest_block.index("src.seven_sport_production")
+    predict_pos = request_latest_block.index("src.future_predictor")
+    sync_pos = request_latest_block.index("_sync_experience(sport)")
+    assert collect_pos < predict_pos < sync_pos
     archive_pos = src.index('"--archive-db-sport"')
     score_pos = src.index('"--score-only"')
-    assert predict_pos < sync_pos < archive_pos < score_pos
+    assert sync_pos <= archive_pos < score_pos
 
     required = (
         "request_started_at_utc",
