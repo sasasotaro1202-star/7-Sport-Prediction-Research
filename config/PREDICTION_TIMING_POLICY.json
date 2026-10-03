@@ -56,7 +56,7 @@
     "guideline_tolerance_minutes": 15,
     "target_lead_minutes": 60,
     "guideline_only": true,
-    "selection_mode": "adaptive-capable;60m-default",
+    "selection_mode": "scheduled-60m-default;manual-lead-configurable",
     "shadow_rotation_minutes": 15,
     "shadow_leads_minutes": [
       60,
