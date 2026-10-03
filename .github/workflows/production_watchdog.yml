@@ -261,10 +261,15 @@ jobs:
           dispatch=false
           reason="active=$active latest_success_created=$latest_success_created"
           if [ "$active" -eq 0 ]; then
-            # A failed/cancelled latest run is not a healthy heartbeat. The watchdog
-            # only resets its freshness window from an actual successful workflow run.
+            # A successful run is the only healthy heartbeat. If no success exists,
+            # the latest attempt is used only as a bounded retry cooldown so a
+            # persistently failing lane does not create a 5-minute dispatch storm.
             reference_created="$latest_success_created"
-            if [ -z "$reference_created" ]; then reference_created="$latest_any_created"; fi
+            reference_type="successful_heartbeat"
+            if [ -z "$reference_created" ]; then
+              reference_created="$latest_any_created"
+              reference_type="attempt_cooldown"
+            fi
             if [ -z "$reference_created" ]; then
               dispatch=true
               reason="no_pre_event_run_observed"
@@ -274,10 +279,10 @@ jobs:
               age=$((now-created_ts))
               if [ "$age" -ge 1200 ]; then
                 dispatch=true
-                if [ -n "$latest_success_created" ]; then
+                if [ "$reference_type" = "successful_heartbeat" ]; then
                   reason="last_successful_pre_event_run_age=${age}s"
                 else
-                  reason="no_successful_pre_event_run_age=${age}s"
+                  reason="no_successful_pre_event_heartbeat_retry_age=${age}s"
                 fi
               fi
             fi
