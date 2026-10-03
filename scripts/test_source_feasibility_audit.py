@@ -130,6 +130,26 @@ def main() -> int:
         assert row["status"] == "REACHABLE_SIGNALS_PARTIAL"
         assert row["data_shape"]["valid"] is False
 
+        audit.requests.Session = lambda: FakeSession(
+            FakeResponse(
+                200,
+                '<html><a class="match-item" href="/match/12345/team-a-vs-team-b/">Upcoming</a></html>',
+            )
+        )
+        row = audit.probe_source(
+            {
+                "source_id": "vlr-structure",
+                "name": "VLR",
+                "url": "https://example.invalid/matches",
+                "required_patterns": [r'href=["\']?/match/\d+/', r"match-item"],
+                "required_signals": [],
+                "critical": True,
+                "pit_status": "UNPROVEN",
+            }
+        )
+        assert row["status"] == "REACHABLE_WITH_EXPECTED_SIGNALS"
+        assert row["patterns_missing"] == []
+
         policy = {
             "active_sports": {
                 "sport_a": [
