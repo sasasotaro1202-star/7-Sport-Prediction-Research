@@ -424,22 +424,16 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         None,
                         ep["content_hash"],
                         None,
-                        "bleaguer-git-provenance-v2-event-exact",
+                        "bleaguer-git-provenance-v3-version-only",
                         "VERSION_EXACT_PUBLICATION_UNPROVEN",
                         json.dumps(provenance, ensure_ascii=False),
                     ),
                 )
                 event_version_exact += 1
-                # Repoint only the event row to the immutable, commit-pinned
-                # revision. This is provenance wiring, not PIT approval: the
-                # corresponding source_snapshot remains publication-unproven, so
-                # strict PIT still fails closed until independent availability
-                # evidence upgrades it to TRUE EXACT.
-                con.execute(
-                    "UPDATE match_stats SET source_url=? "
-                    "WHERE sport='basketball' AND event_id=? AND source='bleaguer-github' AND source_url=?",
-                    (ep["pinned_source_url"], event_id, current_summary_url),
-                )
+                # Do not rewrite match_stats to an unproven historical URL.
+                # Version provenance remains diagnostic only. The current-source
+                # feature row stays untouched until independent public-availability
+                # evidence upgrades a source_snapshot to TRUE EXACT.
         con.commit()
     finally:
         con.close()
