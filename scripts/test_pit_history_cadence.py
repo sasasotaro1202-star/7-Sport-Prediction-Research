@@ -13,6 +13,7 @@ def main() -> None:
 
     assert re.search(r"cron:\s*'47 0,9,18 \* \* \*'", pit), pit
     assert "47 */3 * * *" not in pit
+    assert "  push:" not in pit
     assert "Determine PIT expansion execution mode" in pit
     assert "minute_delta=$((delta / 60))" not in pit
     assert "PIT_9H_MODE=SCHEDULED_00_47_09_47_18_47_UTC" in pit
