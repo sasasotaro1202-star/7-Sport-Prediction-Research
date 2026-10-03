@@ -335,14 +335,13 @@ def target_paths() -> list[str]:
 def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
     con = sqlite3.connect(db)
     updated = 0
-    exact = 0
-    event_exact = 0
-    event_stats_updated = 0
+    version_exact_paths = 0
+    event_version_exact = 0
     try:
         for p in proofs:
             url = f"{RAW_BASE}/{p['path']}"
             if p["status"] == "VERSION_EXACT_PUBLICATION_UNPROVEN":
-                exact += 1
+                version_exact_paths += 1
                 rows = con.execute(
                     "SELECT snapshot_id, provenance_json FROM source_snapshot "
                     "WHERE source='bleaguer-github' AND source_url=?",
@@ -425,7 +424,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         ep["content_hash"],
                         None,
                         "bleaguer-git-provenance-v2-event-exact",
-                        "EXACT",
+                        "VERSION_EXACT_PUBLICATION_UNPROVEN",
                         json.dumps(provenance, ensure_ascii=False),
                     ),
                 )
@@ -436,10 +435,9 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
     finally:
         con.close()
     return {
-        "exact_paths": exact,
+        "version_provenance_paths": version_exact_paths,
         "snapshot_rows_updated": updated,
-        "event_version_provenance": event_exact,
-        "event_stat_rows_repointed": event_stats_updated,
+        "event_version_provenance": event_version_exact,
     }
 
 
