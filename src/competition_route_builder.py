@@ -83,6 +83,9 @@ def _load_event_metadata(con: sqlite3.Connection, sport: str) -> dict[str, dict[
 def _fit_oos(items: list[dict], features: list[str], candidates: list[str], minimums: dict, symmetric: bool):
     items = sorted(items, key=lambda x: (x["time"], x["event_id"]))
     n = len(items)
+    canonical_ids = {str(x.get("canonical_competition_id") or "") for x in items}
+    if len(canonical_ids) != 1 or not next(iter(canonical_ids), ""):
+        return {"status": "IDENTITY_INCONSISTENT", "rows": n, "canonical_competition_ids": sorted(canonical_ids)}
     holdout_n = max(int(minimums.get("holdout_rows", 30)), int(np.ceil(n * 0.20)))
     holdout_n = min(holdout_n, n)
     pre_n = n - holdout_n
