@@ -463,17 +463,34 @@ def collect_f1(c,h,years):
         c.commit()
 
 
+def _vlr_match_urls(html, page_url='https://www.vlr.gg/matches'):
+    """Extract canonical VLR match-page URLs without accepting unrelated hosts."""
+    base_host = 'vlr.gg'
+    urls = []
+    soup = BeautifulSoup(html, 'lxml')
+    for a in soup.select('a[href]'):
+        href = str(a.get('href') or '').strip()
+        if not href:
+            continue
+        u = urljoin(page_url, href)
+        parsed = urlparse(u)
+        if parsed.scheme not in {'http', 'https'}:
+            continue
+        if parsed.hostname not in {base_host, f'www.{base_host}'}:
+            continue
+        if not re.fullmatch(r'/\d+/[^/?#\s]+/?', parsed.path):
+            continue
+        urls.append(u)
+    return list(dict.fromkeys(urls))
+
+
 def collect_vlr(c,h,pages):
     scope='vlr-pages'; cur,done=state(c,'valorant',scope); start=max(1,int(cur or 1))
     for p in range(start,pages+1):
         url='https://www.vlr.gg/matches/'+(f'?page={p}' if p>1 else '')
         try: html,retrieved,_=h.get(url)
         except Exception: save_state(c,'valorant',scope,str(p),False); continue
-        soup=BeautifulSoup(html,'lxml'); links=[]
-        for a in soup.select('a[href*="/match/"]'):
-            u=urljoin(url,a.get('href'))
-            if re.search(r'/match/\d+/',u): links.append(u)
-        links=list(dict.fromkeys(links))
+        links=_vlr_match_urls(html, url)
         if not links: save_state(c,'valorant',scope,str(p),True); break
         details=fetch_many(h,links)
         for u,res in details.items():
