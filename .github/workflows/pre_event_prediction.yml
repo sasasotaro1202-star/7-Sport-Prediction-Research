@@ -3,6 +3,18 @@ name: Pre-Event Adaptive Timing Prediction
 on:
   workflow_dispatch:
     inputs:
+      sport:
+        description: "Manual prediction sport (all or one active sport)."
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - valorant
+          - basketball
+          - volleyball
+          - ufc
+          - rizin
       lead_minutes:
         description: "Manual prediction horizon in minutes before the event. Positive integer; no upper limit."
         required: false
@@ -25,6 +37,7 @@ env:
 jobs:
   pre_event:
     name: Adaptive Prediction / ${{ matrix.sport }}
+    if: ${{ github.event_name == 'schedule' || inputs.sport == 'all' || inputs.sport == matrix.sport }}
     strategy:
       fail-fast: false
       max-parallel: 5
