@@ -115,7 +115,7 @@
     "frozen_holdout_rows": 1918,
     "features": 84,
     "training_cutoff_utc": "2022-12-03T00:00:00+00:00",
-    "git_commit_sha": "9631a0121f585169d309528429df48c239b33ceb",
+    "git_commit_sha": "85ffb8576cbb772b7a670caae0adc81aed408cb2",
     "artifact_path": "models/research/ufc_current.joblib",
     "selection_oos": {
       "logistic": {
