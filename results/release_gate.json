@@ -23,8 +23,8 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 0,
-      "timed_events": 0,
+      "events": 48,
+      "timed_events": 48,
       "completed_events": 0,
       "resolved_outcomes": 0,
       "verified_model_outcomes": 0,
@@ -59,11 +59,11 @@
       "model_safety": "OK"
     },
     "rizin": {
-      "events": 1232,
-      "timed_events": 1232,
-      "completed_events": 1232,
-      "resolved_outcomes": 1232,
-      "verified_model_outcomes": 1232,
+      "events": 1252,
+      "timed_events": 1252,
+      "completed_events": 1252,
+      "resolved_outcomes": 1252,
+      "verified_model_outcomes": 1252,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
