@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import ast
 from src.scope_autofill_controller import ACTIONS, MIN_EVENTS, MIN_VERIFIED, MIN_EXACT_PIT_RATIO, route_score, select_action
 from src.scope_source_discovery import _discovery_signal_strength
 
@@ -32,6 +33,22 @@ def main() -> int:
     assert 'f1_v45.sqlite' not in controller
     assert '--skip-discovery' in controller
     assert 'def competition_frontier' in controller
+    # Source probing must monitor the active Basketball target universe,
+    # not unrelated NBA/WNBA feeds that cannot establish B.LEAGUE coverage.
+    source_probe = (ROOT / "src/source_probe.py").read_text(encoding="utf-8")
+    tree = ast.parse(source_probe)
+    sources_node = next(
+        node for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == "SOURCES" for t in node.targets)
+    )
+    sources = ast.literal_eval(sources_node.value)
+    assert sources["basketball"] == [
+        "https://www.bleague.jp/schedule/",
+        "https://www.aichi-nagoya2026.org/",
+    ]
+    assert all("data.nba.com" not in url and "stats.nba.com" not in url for url in sources["basketball"])
+
     discovery = (ROOT / "src/scope_source_discovery.py").read_text(encoding="utf-8")
     assert "GITHUB_TOKEN" in discovery
     assert "discovery_does_not_adopt" in discovery
