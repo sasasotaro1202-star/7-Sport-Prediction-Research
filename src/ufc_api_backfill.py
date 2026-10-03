@@ -5,6 +5,7 @@ import re
 import requests
 from src.storage.db_v45 import connect, utcnow
 
+OFFICIAL_BASE='https://www.ufc.com/jsonapi'
 BASE='https://ufcapi.aristotle.me'
 FALLBACK='https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-07-07/ufc_fights.csv'
 
@@ -35,6 +36,109 @@ def add_match_stat(c,eid,pid,name,value,et,source,url):
       (stat_id,event_id,participant_id,team_id,sport,observed_at_utc,effective_at_utc,stat_name,value_num,value_text,unit,source,source_url,quality_status,confidence)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
       (sid('ufc-stat',eid,pid,name,num),eid,pid,None,'ufc',utcnow(),et,name,num,str(value),None,source,url,'UNVERIFIABLE',None))
+
+def _jsonapi_included(payload):
+    rows = payload.get('included') if isinstance(payload,dict) else None
+    return {
+        (str(row.get('type')), str(row.get('id'))): row
+        for row in (rows or [])
+        if isinstance(row,dict) and row.get('id') and row.get('type')
+    }
+
+
+def _jsonapi_attr_name(obj):
+    attrs = obj.get('attributes') if isinstance(obj,dict) else {}
+    return (attrs or {}).get('title') or (attrs or {}).get('name')
+
+
+def _jsonapi_relationship_target(obj, rel_name, included):
+    rels = obj.get('relationships') if isinstance(obj,dict) else {}
+    rel = rels.get(rel_name) if isinstance(rels,dict) else None
+    data = rel.get('data') if isinstance(rel,dict) else None
+    if isinstance(data,list):
+        data = data[0] if data else None
+    if not isinstance(data,dict):
+        return None
+    return included.get((str(data.get('type')), str(data.get('id'))))
+
+
+def insert_official_jsonapi(payload, c, source_url):
+    rows = payload.get('data') if isinstance(payload,dict) else None
+    if not isinstance(rows,list) or not rows:
+        raise RuntimeError('UFC official JSON:API returned zero event records')
+    included = _jsonapi_included(payload)
+    event_count = 0
+    fight_count = 0
+    now_dt = datetime.now(timezone.utc)
+    payload_hash = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str).encode('utf-8')
+    ).hexdigest()
+    for event in rows:
+        if not isinstance(event,dict):
+            continue
+        attrs = event.get('attributes') or {}
+        et = iso(
+            attrs.get('fight_card_time_main')
+            or attrs.get('fight_card_time_prelims')
+            or attrs.get('fight_card_time_early')
+        )
+        name = str(attrs.get('title') or '').strip()
+        if not name or not et:
+            continue
+        try:
+            event_dt = datetime.fromisoformat(et.replace('Z','+00:00'))
+        except Exception:
+            continue
+        status = 'COMPLETED' if event_dt <= now_dt else 'SCHEDULED'
+        eid = sid('ufc-official-jsonapi',event.get('id'),et)
+        now = utcnow()
+        c.execute('''INSERT INTO event(event_id,sport,competition_id,event_time_utc,event_type,status,source_count,quality_status,created_at,updated_at)
+          VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(event_id) DO UPDATE SET event_time_utc=COALESCE(excluded.event_time_utc,event.event_time_utc),status=excluded.status,updated_at=excluded.updated_at''',
+          (eid,'ufc','UFC',et,'event',status,1,'PRESENT_NOT_PIT_VERIFIED',now,now))
+        rels = event.get('relationships') or {}
+        fight_refs = (rels.get('fights') or {}).get('data') if isinstance(rels,dict) else []
+        if not isinstance(fight_refs,list):
+            fight_refs = []
+        local_fights = 0
+        for fight_ref in fight_refs:
+            if not isinstance(fight_ref,dict):
+                continue
+            fight = included.get((str(fight_ref.get('type')),str(fight_ref.get('id'))))
+            if not fight:
+                continue
+            red = _jsonapi_relationship_target(fight,'red_corner',included)
+            blue = _jsonapi_relationship_target(fight,'blue_corner',included)
+            n1 = _jsonapi_attr_name(red)
+            n2 = _jsonapi_attr_name(blue)
+            if not n1 or not n2 or n1 == n2:
+                continue
+            for side,name2 in (('A',n1),('B',n2)):
+                pid=sid('ufc-official-fighter',name2)
+                c.execute('''INSERT INTO participant(participant_id,sport,participant_type,canonical_name,first_seen_at,last_seen_at)
+                  VALUES(?,?,?,?,?,?) ON CONFLICT(participant_id) DO UPDATE SET canonical_name=excluded.canonical_name,last_seen_at=excluded.last_seen_at''',
+                  (pid,'ufc','fighter',name2,now,now))
+                c.execute('''INSERT OR REPLACE INTO event_participant(event_id,participant_id,side,source,source_url,quality_status)
+                  VALUES(?,?,?,?,?,?)''',(eid,pid,side,'ufc-official-jsonapi',source_url,'UNVERIFIABLE'))
+            local_fights += 1
+        event_count += 1
+        fight_count += local_fights
+        c.execute('''INSERT OR REPLACE INTO source_snapshot(snapshot_id,source,source_url,retrieved_at_utc,event_time_utc,content_hash,parser_version,availability_status,provenance_json)
+          VALUES(?,?,?,?,?,?,?,?,?)''',
+          (sid('ufc-official-jsonapi',event.get('id'),payload_hash),
+           'ufc-official-jsonapi',source_url,now,et,payload_hash,'ufc-jsonapi-v1','UNVERIFIABLE',
+           json.dumps({
+               'sport':'ufc',
+               'source':'official ufc.com JSON:API',
+               'event_resource':'node--event',
+               'pit_policy':'current_public_endpoint_is_not_historical_PIT_proof',
+               'included_fight_cards':local_fights
+           },ensure_ascii=False)))
+    if event_count <= 0:
+        raise RuntimeError('UFC official JSON:API returned no parseable event records')
+    if fight_count <= 0:
+        raise RuntimeError(f'UFC official JSON:API returned {event_count} events but zero parseable fights')
+    return event_count, fight_count
+
 
 def insert_api(events,c):
     n=0
@@ -129,21 +233,55 @@ def fetch_fallback(c, api_error=None):
     return ec,fc,stats
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--limit',type=int,default=100); a=ap.parse_args(); c=connect(); used='api'
+    ap=argparse.ArgumentParser(); ap.add_argument('--limit',type=int,default=100); a=ap.parse_args(); c=connect()
+    used='ufc-official-jsonapi'
+    errors=[]
     try:
-        s=requests.Session(); s.headers['User-Agent']='SevenSportResearchEngine/4.5.15'
-        r=s.get(f'{BASE}/api/events',params={'limit':a.limit},timeout=20); r.raise_for_status(); events=unwrap(r.json())
-        # A successful HTTP response with zero events is not a successful collection.
-        # Fail closed into the historical fallback instead of letting an empty API
-        # response reach collection_guard as if it were real UFC coverage.
-        if not events:
-            raise RuntimeError('UFC API returned HTTP success but zero events')
-        ec,fc=insert_api(events,c); stats=[]
-        # Likewise, a non-empty event envelope with zero parsed fight cards is unusable.
-        if fc <= 0:
-            raise RuntimeError(f'UFC API returned {ec} events but zero parsed fight cards')
-    except Exception as api_error:
-        used='tidytuesday-fallback'; ec,fc,stats=fetch_fallback(c,api_error)
-    c.commit(); c.close(); print(json.dumps({'source':used,'events':ec,'fight_cards':fc,'stat_features':stats},ensure_ascii=False))
+        s=requests.Session()
+        s.headers.update({
+            'User-Agent':'SevenSportResearchEngine/4.5.16',
+            'Accept':'application/vnd.api+json',
+        })
+        r=s.get(
+            f'{OFFICIAL_BASE}/node/event',
+            params={
+                'page[limit]':min(50,max(1,a.limit)),
+                'sort':'-fight_card_time_main',
+                'include':'fights,fights.red_corner,fights.blue_corner,venue'
+            },
+            timeout=30
+        )
+        r.raise_for_status()
+        payload=r.json()
+        ec,fc=insert_official_jsonapi(
+            payload,c,
+            f'{OFFICIAL_BASE}/node/event'
+        )
+        stats=[]
+    except Exception as official_error:
+        errors.append({'source':'ufc-official-jsonapi','error':repr(official_error)})
+        used='aristotle-api'
+        try:
+            s=requests.Session(); s.headers['User-Agent']='SevenSportResearchEngine/4.5.16'
+            r=s.get(f'{BASE}/api/events',params={'limit':a.limit},timeout=20)
+            r.raise_for_status(); events=unwrap(r.json())
+            if not events:
+                raise RuntimeError('UFC Aristotle API returned HTTP success but zero events')
+            ec,fc=insert_api(events,c); stats=[]
+            if fc <= 0:
+                raise RuntimeError(f'UFC Aristotle API returned {ec} events but zero parsed fight cards')
+        except Exception as api_error:
+            errors.append({'source':'aristotle-api','error':repr(api_error)})
+            used='tidytuesday-fallback'
+            ec,fc,stats=fetch_fallback(c,api_error)
+
+    c.commit(); c.close()
+    print(json.dumps({
+        'source':used,
+        'events':ec,
+        'fight_cards':fc,
+        'stat_features':stats,
+        'upstream_errors':errors
+    },ensure_ascii=False))
 
 if __name__=='__main__': main()

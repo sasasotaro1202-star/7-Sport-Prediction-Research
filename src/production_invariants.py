@@ -80,8 +80,8 @@ def main():
             'dynamic competition discovery contract is missing')
     require('PROMOTION_CANDIDATE_HOLDOUT_REQUIRED' in profile_eval and 'production_route_enabled": False' in profile_eval,'competition OOS evaluator lacks research-only promotion gate')
     route_builder_src=(ROOT/'src/competition_route_builder.py').read_text(encoding='utf-8')
-    require('SELECT event_id,competition_id,season,stage,event_time_utc FROM event WHERE sport=?' in route_builder_src,
-            'competition route builder must use canonical event metadata columns')
+    require('SELECT event_id,competition_id,season,stage,round,event_type,event_time_utc FROM event WHERE sport=?' in route_builder_src,
+            'competition route builder must use canonical event metadata columns including round and event_type')
     require('SELECT event_id,name,competition_id,season,stage,event_time_utc FROM event WHERE sport=?' not in route_builder_src,
             'competition route builder references removed event.name schema')
     require("any(k in n or k in c for k in ('asian games','アジア大会'))" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'volleyball target filter does not enforce active Asian Games scope')

@@ -1,0 +1,42 @@
+name: Active Source Feasibility Audit
+
+on:
+  pull_request:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-feasibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-feasibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 requests>=2.32
+      - name: Run active-source feasibility audit
+        run: |
+          PYTHONPATH=. python -m src.source_feasibility_audit --out results/source_feasibility.json
+      - name: Validate source audit regression
+        run: PYTHONPATH=. python scripts/test_source_feasibility_audit.py
+      - name: Upload source feasibility evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: active-source-feasibility-${{ github.sha }}
+          path: results/source_feasibility.json
+          if-no-files-found: warn

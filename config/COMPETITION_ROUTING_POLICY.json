@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "policy": "competition-specific-production-routing-v1",
   "research_scope": {
     "explicit_competition_id_required": true,
@@ -16,14 +16,18 @@
   },
   "selection": {
     "primary": "logloss",
-    "secondary": ["brier", "ece", "accuracy"],
+    "secondary": [
+      "brier",
+      "ece",
+      "accuracy"
+    ],
     "min_relative_logloss_improvement": 0.03,
-    "min_folds_not_worse": 0.70,
+    "min_folds_not_worse": 0.7,
     "holdout_logloss_not_worse": true,
     "holdout_brier_tolerance": 0.001,
     "holdout_ece_tolerance": 0.01,
     "bootstrap_samples": 600,
-    "bootstrap_probability_improvement": 0.90,
+    "bootstrap_probability_improvement": 0.9,
     "require_pit_clean_before_route": true,
     "require_frozen_holdout": true
   },
@@ -50,5 +54,25 @@
     "route_registry_status_required": "READY",
     "route_entry_status_required": "ACCEPTED_LOCKED_HOLDOUT",
     "production_scope_still_requires_explicit_active_target": true
+  },
+  "hierarchical_routing": {
+    "enabled": true,
+    "route_key_order": "most_specific_to_broad",
+    "explicit_context_only": true,
+    "selection": "first_accepted_route_with_valid_artifact",
+    "fallback_chain": [
+      "most_specific_segment",
+      "broader_segment",
+      "competition_profile",
+      "sport_incumbent",
+      "safe_prior"
+    ],
+    "contexts": [
+      "season",
+      "stage",
+      "round",
+      "event_type"
+    ],
+    "production_activation_requires_existing_all_gates": true
   }
 }

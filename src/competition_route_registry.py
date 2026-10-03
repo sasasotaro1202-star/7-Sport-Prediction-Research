@@ -30,7 +30,7 @@ def load_registry() -> dict:
     return data
 
 
-def _route_is_usable(route: dict, sport: str, profile: dict) -> bool:
+def _route_is_usable(route: dict, sport: str, profile: dict, segment: dict) -> bool:
     if not isinstance(route, dict):
         return False
     if str(route.get("quality_status")) != "ACCEPTED_LOCKED_HOLDOUT":
@@ -40,6 +40,10 @@ def _route_is_usable(route: dict, sport: str, profile: dict) -> bool:
     if str(route.get("sport")) != str(sport):
         return False
     if str(route.get("profile_id")) != str(profile.get("profile_id")):
+        return False
+    if str(route.get("segment_id")) != str(segment.get("segment_id")):
+        return False
+    if int(route.get("segment_specificity", 0) or 0) != int(segment.get("specificity", 0) or 0):
         return False
     if not str(route.get("artifact_path") or "").startswith("models/competition/"):
         return False
@@ -56,7 +60,20 @@ def _route_is_usable(route: dict, sport: str, profile: dict) -> bool:
     return True
 
 
-def resolve_route(sport: str, profile: dict):
+def _segment_candidates(profile: dict, sport: str, context: dict | None) -> list[dict]:
+    from src.competition_profiles import build_segment_candidates
+    context = context or {}
+    return build_segment_candidates(
+        profile,
+        sport=sport,
+        season=context.get("season"),
+        stage=context.get("stage"),
+        round_=context.get("round"),
+        event_type=context.get("event_type"),
+    )
+
+
+def resolve_route(sport: str, profile: dict, context: dict | None = None):
     active = _allowed_sports()
     if sport not in active:
         return None
@@ -65,20 +82,31 @@ def resolve_route(sport: str, profile: dict):
     registry = load_registry()
     if registry.get("status") not in {"READY", "READY_NO_ACCEPTED_ROUTES"}:
         return None
-    route = registry.get("routes", {}).get(str(profile["profile_id"]))
-    if not _route_is_usable(route, sport, profile):
-        return None
-    artifact_path = ROOT / str(route["artifact_path"])
-    try:
-        model = joblib.load(artifact_path)
-    except Exception:
-        return None
-    return {"route": route, "model": model}
+
+    candidates = _segment_candidates(profile, sport, context)
+    # Candidates are ordered most-specific -> broad. The first accepted,
+    # artifact-valid route wins; this is a deterministic hierarchical fallback.
+    for segment in candidates:
+        route = registry.get("routes", {}).get(str(segment["segment_id"]))
+        if not _route_is_usable(route, sport, profile, segment):
+            continue
+        artifact_path = ROOT / str(route["artifact_path"])
+        try:
+            model = joblib.load(artifact_path)
+        except Exception:
+            continue
+        return {
+            "route": route,
+            "model": model,
+            "segment": segment,
+            "routing_depth": int(segment.get("specificity", 0)),
+        }
+    return None
 
 
-def route_status(sport: str, profile: dict) -> str:
-    resolved = resolve_route(sport, profile)
-    return "COMPETITION_SPECIFIC_ACCEPTED" if resolved else "SPORT_INCUMBENT_FALLBACK"
+def route_status(sport: str, profile: dict, context: dict | None = None) -> str:
+    resolved = resolve_route(sport, profile, context)
+    return "HIERARCHICAL_COMPETITION_ROUTE_ACCEPTED" if resolved else "SPORT_INCUMBENT_FALLBACK"
 
 
 __all__ = ["load_registry", "resolve_route", "route_status"]
