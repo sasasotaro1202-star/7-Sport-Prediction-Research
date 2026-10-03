@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       lead_minutes:
-        description: "Prediction horizon in minutes before the event (5-180)."
+        description: "Manual prediction horizon in minutes before the event. Positive integer; no upper limit."
         required: false
         default: "60"
         type: string
@@ -131,15 +131,23 @@ jobs:
           case "$requested_lead" in
             ""|*[!0-9]*) echo "invalid lead_minutes=$requested_lead" >&2; exit 2 ;;
           esac
-          if [ "$requested_lead" -lt 5 ] || [ "$requested_lead" -gt 180 ]; then
-            echo "invalid lead_minutes=$requested_lead (must be 5-180)" >&2
+          # Manual requests are intentionally unbounded above: 180, 300, 720, 1440, etc.
+          # Automatic scheduled prediction remains centered on T-60 and bounded to 45-75.
+          if [ "$requested_lead" -le 0 ]; then
+            echo "invalid lead_minutes=$requested_lead (must be a positive integer)" >&2
             exit 2
           fi
-          tolerance=15
-          min_lead=$((requested_lead - tolerance))
-          max_lead=$((requested_lead + tolerance))
-          if [ "$min_lead" -lt 5 ]; then min_lead=5; fi
-          if [ "$max_lead" -gt 180 ]; then max_lead=180; fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            tolerance=15
+            min_lead=$((requested_lead - tolerance))
+            max_lead=$((requested_lead + tolerance))
+            if [ "$min_lead" -lt 5 ]; then min_lead=5; fi
+            if [ "$max_lead" -gt 180 ]; then max_lead=180; fi
+          else
+            # Manual horizon is exact and has no artificial upper bound.
+            min_lead="$requested_lead"
+            max_lead="$requested_lead"
+          fi
           echo "requested lead=$requested_lead window=${min_lead}-${max_lead} adaptive=$adaptive"
           echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"
           echo "min_lead=$min_lead" >> "$GITHUB_OUTPUT"
