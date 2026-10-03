@@ -64,6 +64,15 @@ def test_prediction_timing_args():
         "--max-lead-minutes", "75",
     ]
 
+    lead, args = latest_prediction._prediction_timing_args(None, True)
+    assert lead == 60
+    assert args == [
+        "--lead-minutes", "60",
+        "--min-lead-minutes", "5",
+        "--max-lead-minutes", "180",
+        "--adaptive-timing",
+    ]
+
     lead, args = latest_prediction._prediction_timing_args(30, False)
     assert lead == 30
     assert args == [
