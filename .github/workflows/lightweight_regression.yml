@@ -74,6 +74,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_strict_oos_ranking_fail_closed.py
       - name: Future predictor prediction-cutoff PIT test
         run: PYTHONPATH=. python scripts/test_future_predictor_pit_cutoff.py
+      - name: PIT history 9-hour cadence contract
+        run: PYTHONPATH=. python scripts/test_pit_history_cadence.py
       - name: Pre-event prediction timing contract
         run: PYTHONPATH=. python scripts/test_pre_event_prediction.py
       - name: Fresh prediction request contract
