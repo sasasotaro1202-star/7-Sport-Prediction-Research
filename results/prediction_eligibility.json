@@ -1,10 +1,10 @@
 {
-  "timestamp_utc": "2026-10-03T20:28:45.429140+00:00",
+  "timestamp_utc": "2026-10-03T21:59:18.841816+00:00",
   "policy": "prediction-eligibility-v3-derived-from-canonical-future-inference",
   "sports": [
     {
       "sport": "basketball",
-      "generated_at_utc": "2026-10-03T20:28:45.429140+00:00",
+      "generated_at_utc": "2026-10-03T21:59:18.841816+00:00",
       "eligible_future_events": 0,
       "reasons": {
         "NO_FUTURE_EVENTS": 0
@@ -13,7 +13,7 @@
     },
     {
       "sport": "volleyball",
-      "generated_at_utc": "2026-10-03T20:28:45.429140+00:00",
+      "generated_at_utc": "2026-10-03T21:59:18.841816+00:00",
       "eligible_future_events": 0,
       "reasons": {
         "NO_FUTURE_EVENTS": 0
@@ -22,7 +22,7 @@
     },
     {
       "sport": "ufc",
-      "generated_at_utc": "2026-10-03T20:28:45.429140+00:00",
+      "generated_at_utc": "2026-10-03T21:59:18.841816+00:00",
       "eligible_future_events": 0,
       "reasons": {
         "NO_FUTURE_EVENTS": 0
@@ -31,7 +31,7 @@
     },
     {
       "sport": "rizin",
-      "generated_at_utc": "2026-10-03T20:28:45.429140+00:00",
+      "generated_at_utc": "2026-10-03T21:59:18.841816+00:00",
       "eligible_future_events": 0,
       "reasons": {
         "NO_FUTURE_EVENTS": 0
@@ -40,7 +40,7 @@
     },
     {
       "sport": "valorant",
-      "generated_at_utc": "2026-10-03T20:28:45.429140+00:00",
+      "generated_at_utc": "2026-10-03T21:59:18.841816+00:00",
       "eligible_future_events": 0,
       "reasons": {
         "NO_FUTURE_EVENTS": 0
