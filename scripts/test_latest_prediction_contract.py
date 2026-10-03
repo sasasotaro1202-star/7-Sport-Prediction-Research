@@ -6,7 +6,7 @@ import signal
 import subprocess
 from unittest.mock import patch
 
-from src import latest_prediction
+from src import latest_prediction, future_predictor
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,6 +56,19 @@ def test_timeout_is_bounded_and_fail_closed():
 
 
 def test_prediction_timing_args():
+    requested, adaptive = future_predictor._resolve_cli_timing(None, True)
+    assert requested == 60 and adaptive is True
+    requested, adaptive = future_predictor._resolve_cli_timing(300, True)
+    assert requested == 300 and adaptive is False
+    requested, adaptive = future_predictor._resolve_cli_timing(1440, False)
+    assert requested == 1440 and adaptive is False
+    try:
+        future_predictor._resolve_cli_timing(0, False)
+    except ValueError as exc:
+        assert str(exc) == "lead-minutes must be positive"
+    else:
+        raise AssertionError("non-positive future-predictor lead must fail closed")
+
     lead, args = latest_prediction._prediction_timing_args(None, False)
     assert lead == 60
     assert args == [
@@ -168,8 +181,7 @@ def main():
     assert "reuse_stored_prediction_output" in src
 
     # Long manual horizons expand schedule collection instead of being truncated by the default window.
-    import latest_prediction as _lp
-    assert _lp._prediction_timing_args(60, False)[0] == 60
+    assert latest_prediction._prediction_timing_args(60, False)[0] == 60
     assert max(7, (60 + 15 + 1439) // 1440) == 7
     assert max(7, (1440 + 15 + 1439) // 1440) == 2
     assert max(7, (14400 + 15 + 1439) // 1440) == 11
