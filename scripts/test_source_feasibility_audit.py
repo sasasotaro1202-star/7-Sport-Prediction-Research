@@ -133,7 +133,10 @@ def main() -> int:
         audit.requests.Session = lambda: FakeSession(
             FakeResponse(
                 200,
-                '<html><a class="match-item" href="/12345/team-a-vs-team-b/">Upcoming</a></html>',
+                '<html>'
+                '<a class="match-item" href="/12345/team-a-vs-team-b/">Upcoming relative</a>'
+                '<a class="match-item" href="https://www.vlr.gg/67890/team-c-vs-team-d/">Upcoming absolute</a>'
+                '</html>',
             )
         )
         row = audit.probe_source(
@@ -152,7 +155,7 @@ def main() -> int:
 
         # A bare number elsewhere in the page must not satisfy the VLR link contract.
         audit.requests.Session = lambda: FakeSession(
-            FakeResponse(200, '<html><div class="match-item">2026 season</div></html>')
+            FakeResponse(200, '<html><div class="match-item">2026 season</div><a href="https://evil.example/12345/not-vlr/">x</a></html>')
         )
         row = audit.probe_source(
             {
