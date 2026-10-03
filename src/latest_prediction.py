@@ -214,10 +214,21 @@ def _prediction_timing_args(
     lead_minutes: int | None,
     adaptive_timing: bool,
 ) -> tuple[int, list[str]]:
+    """Build timing arguments for the fresh user-facing prediction request.
+
+    Manual horizons are intentionally unbounded above. Adaptive production timing
+    remains bounded to the research-approved 5-180 minute range only when the
+    caller did not explicitly request a horizon. An explicit manual horizon is
+    never silently replaced by an accepted adaptive route.
+    """
     selected_lead = 60 if lead_minutes is None else int(lead_minutes)
-    if selected_lead < 5 or selected_lead > 180:
+    if selected_lead <= 0:
         raise RuntimeError(f"INVALID_LEAD_MINUTES:{selected_lead}")
-    if adaptive_timing:
+
+    # Adaptive routing is a production/research policy for the default request.
+    # Once the user explicitly supplies a horizon, keep that requested timing
+    # authoritative while still allowing the normal ±15 minute generation window.
+    if adaptive_timing and lead_minutes is None:
         return selected_lead, [
             "--lead-minutes",
             str(selected_lead),
@@ -227,9 +238,10 @@ def _prediction_timing_args(
             "180",
             "--adaptive-timing",
         ]
+
     tolerance = 15
-    minimum = max(5, selected_lead - tolerance)
-    maximum = min(180, selected_lead + tolerance)
+    minimum = max(1, selected_lead - tolerance)
+    maximum = selected_lead + tolerance
     return selected_lead, [
         "--lead-minutes",
         str(selected_lead),
@@ -369,12 +381,12 @@ def main() -> int:
         "--lead-minutes",
         type=int,
         default=60,
-        help="Requested prediction horizon in minutes before the event (default: 60).",
+        help="Requested prediction horizon in minutes before the event. Any positive integer is accepted; no upper limit (default: 60).",
     )
     parser.add_argument(
         "--adaptive-timing",
         action="store_true",
-        help="Allow an accepted timing route to override the requested default within the full 5-180 minute window.",
+        help="Allow an accepted timing route to override the default 60-minute request. Explicit manual horizons remain authoritative.",
     )
     args = parser.parse_args()
 
