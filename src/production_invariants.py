@@ -804,6 +804,9 @@ def main():
             'pre-event workflow is not restricted to explicit competition scope')
     require('pre-event-target-db-v1-' in pre_event_wf and 'active-scope-target-db-v4-' in pre_event_wf,
             'pre-event workflow does not persist/reuse sport-scoped database state')
+    require("Save validated pre-event database" in pre_event_wf
+            and "steps.dbguard.outputs.rc == '0'" in pre_event_wf,
+            'pre-event workflow can cache a failed or unvalidated database')
     competition_policy=(ROOT/'config/COMPETITION_ROUTING_POLICY.json').read_text(encoding='utf-8')
     competition_builder=(ROOT/'src/competition_route_builder.py').read_text(encoding='utf-8')
     competition_loader=(ROOT/'src/competition_route_registry.py').read_text(encoding='utf-8')
