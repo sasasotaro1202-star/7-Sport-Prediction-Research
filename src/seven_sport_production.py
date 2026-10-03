@@ -478,6 +478,8 @@ def _vlr_match_urls(html, page_url='https://www.vlr.gg/matches'):
             continue
         if parsed.hostname not in {base_host, f'www.{base_host}'}:
             continue
+        if parsed.params or parsed.query or parsed.fragment:
+            continue
         if not re.fullmatch(r'/\d+/[^/?#\s]+/?', parsed.path):
             continue
         urls.append(u)
