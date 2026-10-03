@@ -114,12 +114,7 @@ jobs:
             echo "invalid lead_minutes=$requested_lead (must be a positive integer)" >&2
             exit 2
           fi
-          days_forward="$(python - "$requested_lead" <<'PY'
-import sys
-lead = int(sys.argv[1])
-print(max(7, (lead + 15 + 1439) // 1440))
-PY
-)"
+          days_forward="$(python -c 'import sys; lead=int(sys.argv[1]); print(max(7, (lead + 15 + 1439) // 1440))' "$requested_lead")"
           echo "schedule collection days_forward=$days_forward for lead=$requested_lead"
           if timeout --signal=TERM --kill-after=30s 270s python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 0 --days-forward "$days_forward"; then
             echo 'schedule_refresh=OK'
@@ -163,12 +158,7 @@ PY
             min_lead="$requested_lead"
             max_lead="$requested_lead"
           fi
-          days_forward="$(python - "$requested_lead" <<'PY'
-import sys
-lead = int(sys.argv[1])
-print(max(7, (lead + 15 + 1439) // 1440))
-PY
-)"
+          days_forward="$(python -c 'import sys; lead=int(sys.argv[1]); print(max(7, (lead + 15 + 1439) // 1440))' "$requested_lead")"
           echo "requested lead=$requested_lead window=${min_lead}-${max_lead} days_forward=$days_forward adaptive=$adaptive"
           echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"
           echo "min_lead=$min_lead" >> "$GITHUB_OUTPUT"
