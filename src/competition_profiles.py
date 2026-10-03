@@ -73,6 +73,90 @@ def resolve_research_profile(sport: str, competition_id: object = None, event_na
     return resolve_profile(sport, competition_id, event_name, research_discovery=True)
 
 
+def _normalise_context(value: object) -> str:
+    value = normalize(value)
+    return re.sub(r"[^a-z0-9._-]+", "_", value).strip("_")
+
+
+def segment_policy(sport: str) -> dict:
+    policy = _load()
+    configured = dict((policy.get("segment_policy") or {}).get(str(sport)) or {})
+    return {
+        "levels": list(configured.get("levels") or ["competition"]),
+        "minimum_explicit_context": int(configured.get("minimum_explicit_context", 0)),
+        "max_depth": int(configured.get("max_depth", 6)),
+    }
+
+
+def build_segment_candidates(
+    profile: dict,
+    *,
+    sport: str,
+    season: object = None,
+    stage: object = None,
+    round_: object = None,
+    event_type: object = None,
+) -> list[dict]:
+    """Build most-specific-to-broad immutable segment identities.
+
+    Only explicit event metadata participates. Missing fields are not inferred.
+    The first element is the most specific feasible segment and later elements
+    are deterministic ancestors used as data-sufficiency fallbacks.
+    """
+    if not profile or not profile.get("matched") or not profile.get("profile_id"):
+        return []
+
+    cfg = segment_policy(sport)
+    raw = {
+        "season": _normalise_context(season),
+        "stage": _normalise_context(stage),
+        "round": _normalise_context(round_),
+        "event_type": _normalise_context(event_type),
+    }
+    levels = [str(x) for x in cfg["levels"] if str(x) in raw]
+    explicit = sum(bool(raw[x]) for x in levels)
+    if explicit < int(cfg["minimum_explicit_context"]):
+        levels = [x for x in levels if x != "round" or raw[x]]
+    levels = levels[: max(1, int(cfg["max_depth"]))]
+
+    base = str(profile["profile_id"])
+    candidates = []
+    seen = set()
+    # Build all prefix depths rather than arbitrary field subsets. This keeps
+    # the hierarchy interpretable and guarantees that every narrower route has
+    # the broader route as a deterministic fallback.
+    for depth in range(len(levels), -1, -1):
+        parts = [base]
+        if depth:
+            for level in levels[:depth]:
+                if not raw[level]:
+                    break
+                parts.append(f"{level}={raw[level]}")
+            else:
+                key = "::".join(parts)
+                if key not in seen:
+                    seen.add(key)
+                    candidates.append({
+                        "segment_id": key,
+                        "profile_id": str(profile["profile_id"]),
+                        "sport": str(sport),
+                        "specificity": depth,
+                        "context": {x: raw[x] for x in levels[:depth]},
+                    })
+                continue
+        key = base
+        if key not in seen:
+            seen.add(key)
+            candidates.append({
+                "segment_id": key,
+                "profile_id": str(profile["profile_id"]),
+                "sport": str(sport),
+                "specificity": 0,
+                "context": {},
+            })
+    return candidates
+
+
 def profile_policy() -> dict:
     return _load()
 
