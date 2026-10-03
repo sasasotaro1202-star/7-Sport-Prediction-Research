@@ -145,10 +145,12 @@ def main():
     assert "soccer" not in active
     assert "baseball" not in active
 
-    # The canonical entrypoint must refresh first and infer second.
-    collect_pos = src.index("src.seven_sport_production")
-    predict_pos = src.index("src.future_predictor")
-    assert collect_pos < predict_pos
+    # The canonical entrypoint must refresh, infer, then sync Experience.
+    request_latest_block = src[src.index("def request_latest("):]
+    collect_pos = request_latest_block.index("src.seven_sport_production")
+    predict_pos = request_latest_block.index("src.future_predictor")
+    sync_pos = request_latest_block.index("_sync_experience(sport)")
+    assert collect_pos < predict_pos < sync_pos
 
     required = (
         "request_started_at_utc",
@@ -172,6 +174,12 @@ def main():
         "--max-lead-minutes",
         "requested_lead_minutes",
         "adaptive_timing",
+        "_sync_experience",
+        "--archive-db-sport",
+        "--score-only",
+        "EXPERIENCE_SUMMARY",
+        "EXPERIENCE_SYNC_VERIFIED",
+        "experience_closed_loop",
     )
     for marker in required:
         assert marker in src, marker
