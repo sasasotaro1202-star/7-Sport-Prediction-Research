@@ -168,6 +168,14 @@ def main():
         assert '"publication_status": "UNPROVEN"' in snap[4]
         assert repointed == (current_url,)
 
+        # Fail-closed contract: the PIT history loader only consumes EXACT
+        # source_snapshot rows with a proven source_available_at_utc.
+        exact_count = con.execute(
+            "SELECT COUNT(*) FROM source_snapshot "
+            "WHERE availability_status='EXACT' AND source_available_at_utc IS NOT NULL"
+        ).fetchone()[0]
+        assert exact_count == 0
+
     print("BLEAGUER_EVENT_PROVENANCE=PASS")
 
 
