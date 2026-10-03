@@ -3,7 +3,8 @@ name: Production Run Watchdog
 on:
   workflow_dispatch:
   schedule:
-    # Lightweight 5-minute recovery polling; heavy work remains hourly/9-hourly.
+    # Lightweight 5-minute recovery polling; the pre-event lane itself runs every 15 minutes.
+    # Heavy work remains hourly/9-hourly.
     - cron: '*/5 * * * *'
   workflow_run:
     workflows:
@@ -269,7 +270,7 @@ jobs:
               created_ts=$(date -u -d "$reference_created" +%s)
               now=$(date -u +%s)
               age=$((now-created_ts))
-              if [ "$age" -ge 480 ]; then
+              if [ "$age" -ge 1200 ]; then
                 dispatch=true
                 reason="last_pre_event_run_age=${age}s"
               fi
