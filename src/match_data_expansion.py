@@ -510,15 +510,34 @@ def select_events(con, sport, horizon_days=14, max_events=40):
     lower = now + timedelta(minutes=5)
     return con.execute(
         """
-        SELECT event_id,sport,event_time_utc,event_type,status,source_url
-          FROM event
-         WHERE sport=?
-           AND event_time_utc IS NOT NULL
-           AND datetime(event_time_utc) > datetime(?)
-           AND datetime(event_time_utc) <= datetime(?)
-           AND UPPER(COALESCE(status,'')) NOT IN ('CANCELLED','VOID')
-           AND source_url IS NOT NULL
-         ORDER BY datetime(event_time_utc), event_id
+        SELECT
+            e.event_id,
+            e.sport,
+            e.event_time_utc,
+            e.event_type,
+            e.status,
+            (
+                SELECT ep.source_url
+                  FROM event_participant ep
+                 WHERE ep.event_id=e.event_id
+                   AND ep.source_url IS NOT NULL
+                 ORDER BY CASE ep.side WHEN 'A' THEN 0 WHEN 'B' THEN 1 ELSE 2 END,
+                          ep.source_url
+                 LIMIT 1
+            ) AS source_url
+          FROM event e
+         WHERE e.sport=?
+           AND e.event_time_utc IS NOT NULL
+           AND datetime(e.event_time_utc) > datetime(?)
+           AND datetime(e.event_time_utc) <= datetime(?)
+           AND UPPER(COALESCE(e.status,'')) NOT IN ('CANCELLED','VOID')
+           AND EXISTS (
+                SELECT 1
+                  FROM event_participant ep2
+                 WHERE ep2.event_id=e.event_id
+                   AND ep2.source_url IS NOT NULL
+           )
+         ORDER BY datetime(e.event_time_utc), e.event_id
          LIMIT ?
         """,
         (sport, lower.isoformat(), upper.isoformat(), int(max_events)),
