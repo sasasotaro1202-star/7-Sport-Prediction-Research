@@ -322,18 +322,10 @@ def _safe_prior_binary(c,s,now,prediction_lead_minutes,min_lead_minutes=None,max
             'probability_side_b':pb,'probability_side_a':1.0-pb,
             'competition_id':competition_id,
             'competition_profile':competition_profile,
-            'competition_segment': (
-                route_info.get("segment")
-                if route_active and route_info else None
-            ),
             'season':season,
             'stage':stage,
             'round':round_,
             'event_type':event_type,
-            'routing_depth': (
-                route_info.get("routing_depth")
-                if route_active and route_info else 0
-            ),
             'model_scope':('timing_shadow;safe_prior_fallback' if timing_shadow else 'safe_prior_fallback;competition_specific_selection_not_applied'),
             'strategy':strategy_name,'router_status':('TIMING_SHADOW' if timing_shadow else 'SAFE_PRIOR_FALLBACK'),
             'prediction_id':pid,'models':['historical_prior'],'ensemble_weights':None,
