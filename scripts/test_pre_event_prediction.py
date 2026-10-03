@@ -72,6 +72,10 @@ def main() -> None:
     assert policy["scheduler"]["target_lead_minutes"] == 60
     assert policy["scheduler"]["guideline_target_minutes"] == 60
     assert policy["scheduler"]["selection_mode"] == "scheduled-60m-default;manual-lead-configurable"
+    assert policy["scheduler"]["guideline_target_minutes"] == 60
+    assert policy["scheduler"]["guideline_tolerance_minutes"] == 15
+    assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
+    assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
     assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
     assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
     assert policy["scheduler"]["generation_window"]["manual_min_lead_minutes"] == 1
@@ -80,6 +84,12 @@ def main() -> None:
     assert policy["scheduler"]["manual_default_sport"] == "all"
     assert policy["scheduler"]["manual_sport_options"] == ["all", "valorant", "basketball", "volleyball", "ufc", "rizin"]
     assert "requested_lead='60'" in workflow
+    assert "adaptive='0'" in workflow
+    assert "# Scheduled production is deliberately centered on T-60." in workflow
+    manual_marker='if [ "${{ github.event_name }}" = "workflow_dispatch" ]'
+    scheduled_marker="requested_lead='60'"
+    assert manual_marker in workflow
+    assert workflow.index(scheduled_marker) < workflow.index(manual_marker)
     assert "assert p['scheduler']['selection_mode'] == 'scheduled-60m-default;manual-lead-configurable'" in workflow
     assert "Rebuild persistent prediction experience archive from DB" in workflow
     sync_pos = workflow.index("Rebuild persistent prediction experience archive from DB")
