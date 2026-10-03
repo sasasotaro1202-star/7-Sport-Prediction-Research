@@ -121,8 +121,21 @@ jobs:
         run: |
           set -uo pipefail
           rc=0
-          days_forward="${{ steps.predict.outputs.days_forward }}"
-          if [ -z "$days_forward" ]; then days_forward=7; fi
+          requested_lead='60'
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            requested_lead="${{ inputs.lead_minutes }}"
+          fi
+          case "$requested_lead" in
+            ""|*[!0-9]*) echo "invalid lead_minutes=$requested_lead" >&2; exit 2 ;;
+          esac
+          if [ "$requested_lead" -le 0 ]; then
+            echo "invalid lead_minutes=$requested_lead (must be a positive integer)" >&2
+            exit 2
+          fi
+          days_forward=7
+          required_days=$(( (requested_lead + 15 + 1439) / 1440 ))
+          if [ "$required_days" -gt "$days_forward" ]; then days_forward="$required_days"; fi
+          echo "schedule collection days_forward=$days_forward for lead=$requested_lead"
           if timeout --signal=TERM --kill-after=30s 270s python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 0 --days-forward "$days_forward"; then
             echo 'schedule_refresh=OK'
           else
