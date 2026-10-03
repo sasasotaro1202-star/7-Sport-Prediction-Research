@@ -181,6 +181,12 @@ def main() -> int:
     future_src = (ROOT / "src/future_predictor.py").read_text(encoding="utf-8")
     assert "competition_route" in future_src
     assert "competition_specific_model" in future_src
+    assert "round_,event_type" in future_src
+    assert '"segment_specificity"' in future_src
+    assert '"most_specific_segment"' in future_src
+    route_builder_src = (ROOT / "src/competition_route_builder.py").read_text(encoding="utf-8")
+    assert "build_segment_candidates" in route_builder_src
+    assert '"segment_id"' in route_builder_src
 
     workflow = (ROOT / ".github/workflows/v4_5_15_production.yml").read_text(encoding="utf-8")
     assert "src.competition_route_builder" in workflow
