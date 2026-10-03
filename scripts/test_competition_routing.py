@@ -154,7 +154,7 @@ def main() -> int:
                     "profile_id": profile["profile_id"],
                     "segment_id": segments[-2]["segment_id"],
                     "segment_specificity": segments[-2]["specificity"],
-                    "artifact_path": "broad.joblib",
+                    "artifact_path": "models/competition/broad.joblib",
                     "git_commit_sha": "test-sha",
                     "holdout_used_for_selection": False,
                     "holdout": {"n": 30},
