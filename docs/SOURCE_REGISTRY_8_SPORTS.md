@@ -39,10 +39,9 @@ This registry is deliberately sport-specific. A mirror, wrapper, republisher, or
 ## UFC
 
 ### Current
-- **UFC official JSON:API** — keyless public JSON:API at `https://www.ufc.com/jsonapi/node/event`; `src/ufc_api_backfill.py` now tries this first for current event/fight-card data. Historical availability and publication timing remain PIT-UNPROVEN.
-- **Aristotle UFC API** — `https://ufcapi.aristotle.me/api/events`; secondary current-data fallback. GitHub Actions has observed connection refusal, so it is not treated as the sole availability dependency.
-- **TidyTuesday 2026-07-07 `ufc_fights.csv`** — historical recovery fallback. The repository records historical publication time as `UNVERIFIABLE`; fight statistics become effective at fight time and are excluded from the same fight's pre-event feature set.
-- **UFCStats** — secondary statistics/reference source. The project does not attempt to bypass its browser challenge; reachability is therefore not a critical production-source gate.
+- **Aristotle UFC API** — `https://ufcapi.aristotle.me/api/events`; current API event/fight-card source. Historical availability is not proven as PIT; collector therefore treats it as a collection source, not automatically as historical PIT evidence.
+- **TidyTuesday 2026-07-07 `ufc_fights.csv`** — fallback dataset; underlying UFCStats-derived historical fight/stat dataset. The repository explicitly records historical publication time as `UNVERIFIABLE`; fight statistics become effective at fight time, so they are excluded from the same fight's pre-event features. https://github.com/rfordatascience/tidytuesday/tree/main/data/2026/2026-07-07
+- **UFCStats** — official statistics site used as the conceptual primary statistics source for UFC results/fight statistics. It is not currently wired as the repository's direct collector. http://ufcstats.com/
 
 ### Candidates
 - **UFC official rankings / Meta UFC Rankings** — official rankings can add a distinct strength prior, but historical ranking snapshots and publication timestamps must be preserved. https://www.ufc.com/rankings
@@ -137,17 +136,13 @@ The active prediction lanes now persist a bounded match-detail evidence layer fo
 | Team/event identity | structured home/away/competitor names | `match_stats` + existing identity tables | No silent identity merge |
 | Provenance | content hash, observation time, source URL, parser version | `source_snapshot` | Historical retrieval alone remains UNVERIFIABLE |
 
+
+
+### Multi-sport detail sources now covered by the enrichment parser
+- **Basketball / FIBA:** game stage/group, final score, attendance and explicit game-stat percentages such as FG%, 2PT FG%, 3PT FG% and FT%. This is relevant to the active Asian Games basketball scope; it remains evidence-only until PIT replay proves historical availability.
+- **Volleyball World:** match status, venue, stage and explicit score pairs when exposed on the page. Volleyball World also publishes competition player-stat surfaces covering scoring, attacking, blocking, serving, setting, digging and receiving; these broader leader tables are not silently treated as match-level observations.
+- **UFCStats:** fighter physical profile (height, weight, reach, stance, DOB), career SLpM/SApM/Str. Acc./Str. Def./TD Avg./TD Acc./TD Def./Sub. Avg. and matchup-preview presence. Same-fight post-event statistics remain excluded from that fight's PIT-safe feature set.
+- **RIZIN official:** rule, contract weight, weight-class text, cancellation/change notices and, when a result page is observed after the event, method/round/time. Post-event result details remain outcome/history evidence rather than pre-event features.
+- **VALORANT / VLR:** patch, Bo1/Bo3/Bo5 format, event links and pre-match betting evidence where explicitly present. Player/event statistic pages expose Rating, ACS, K:D, KAST, ADR, KPR, APR, FK/FD and other map/round metrics, but they require separate historical availability proof before feature use.
+
 This layer is research-input infrastructure only. A newly collected field is not automatically enabled as a production feature; it must pass PIT replay, ablation, chronological OOS, robustness and frozen-holdout gates.
-
-
-## Runtime source-feasibility gate
-
-Source admission now separates four different questions:
-1. **Reachable now** — the public endpoint returns a non-empty response.
-2. **Expected data present** — the response contains the configured schedule/result/statistics signals.
-3. **Historical data feasible** — the source has the needed historical coverage for the target competition and feature family.
-4. **PIT proven** — row/source availability before the prediction cutoff is independently evidenced.
-
-The runtime feasibility audit checks (1) and (2) against public/free endpoints and, where configured, validates the expected response shape (for example, a non-empty JSON event collection with identity/date fields). It deliberately does **not** promote (3) or (4): a current page being reachable cannot establish what was observable historically.
-
-For the current Asian Games scope, the official Aichi-Nagoya results service exposes Basketball and Volleyball as selectable disciplines, while the FIVB Live Center exposes an Aichi-Nagoya 2026 men's volleyball tournament with match phase, teams, score/status and standings. These prove current source reachability/data presence, not historical PIT.
