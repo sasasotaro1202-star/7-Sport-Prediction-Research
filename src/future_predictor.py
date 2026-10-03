@@ -789,14 +789,23 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--sport',choices=SPORTS)
-    ap.add_argument('--lead-minutes',type=int,default=PREDICTION_LEAD_MINUTES_DEFAULT)
+    # Omitted lead keeps the 60-minute default; an explicit lead is authoritative.
+    ap.add_argument('--lead-minutes',type=int,default=None)
     ap.add_argument('--min-lead-minutes',type=int,default=None)
     ap.add_argument('--max-lead-minutes',type=int,default=None)
     ap.add_argument('--target-scope-only',action='store_true')
     ap.add_argument('--adaptive-timing',action='store_true')
     ap.add_argument('--timing-shadow',action='store_true')
     args=ap.parse_args()
-    if args.lead_minutes <= 0:
+    requested_lead = (
+        PREDICTION_LEAD_MINUTES_DEFAULT
+        if args.lead_minutes is None
+        else int(args.lead_minutes)
+    )
+    # Explicit manual horizons must never be silently replaced by an adaptive route.
+    # Adaptive timing is available only when the caller omitted --lead-minutes.
+    effective_adaptive_timing = bool(args.adaptive_timing and args.lead_minutes is None)
+    if requested_lead <= 0:
         raise SystemExit('lead-minutes must be positive')
     if args.min_lead_minutes is not None and args.min_lead_minutes < 0:
         raise SystemExit('min-lead-minutes must be non-negative')
@@ -817,11 +826,11 @@ def main():
             results.append(
                 predict_sport(
                     con,s,now,
-                    prediction_lead_minutes=args.lead_minutes,
+                    prediction_lead_minutes=requested_lead,
                     min_lead_minutes=args.min_lead_minutes,
                     max_lead_minutes=args.max_lead_minutes,
                     target_scope_only=args.target_scope_only,
-                    adaptive_timing=args.adaptive_timing,
+                    adaptive_timing=effective_adaptive_timing,
                     timing_shadow=args.timing_shadow,
                 )
             )
@@ -836,11 +845,11 @@ def main():
         'generated_at_utc':now.isoformat(),
         'policy':'active-scope-mandatory; accepted-artifact-first; PIT-safe research features; explicit safe-prior fallback; F1 multiclass safe-prior lane; gated contextual routing; frozen-holdout-validated calibration; event-confidence-v1; matchday-situation-v1; configurable-pre-event-generation-window-v1',
         'prediction_schedule':{
-            'target_lead_minutes':args.lead_minutes,
+            'target_lead_minutes':requested_lead,
             'min_lead_minutes':args.min_lead_minutes if args.min_lead_minutes is not None else args.lead_minutes,
             'max_lead_minutes':args.max_lead_minutes,
             'target_scope_only':bool(args.target_scope_only),
-            'adaptive_timing':bool(args.adaptive_timing),
+            'adaptive_timing':effective_adaptive_timing,
             'timing_shadow':bool(args.timing_shadow),
             'feature_pit_lead_minutes':PIT_LEAD_MINUTES,
         },
