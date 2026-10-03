@@ -602,6 +602,12 @@ def main():
     require('matchday_source_diversity' in matchday_src and 'matchday_conflict_rate' in matchday_src and 'matchday_freshness_score' in matchday_src,'matchday intelligence lacks source-quality/conflict/freshness state')
     require((ROOT/'scripts/test_matchday_intelligence_oos.py').exists(),'matchday intelligence PIT regression test is missing')
     require('test_matchday_intelligence_oos.py' in lightweight_src,'matchday intelligence regression is not wired into lightweight CI')
+    require(lightweight_src.count('scripts/test_boxing_ingest.py') == 1,
+            'Boxing ingest regression is duplicated in lightweight CI')
+    require(lightweight_src.count('scripts/test_uncertainty_dynamic_router.py') == 1,
+            'uncertainty router regression is duplicated in lightweight CI')
+    require(lightweight_src.count('scripts/test_matchday_intelligence_oos.py') == 1,
+            'matchday intelligence regression is duplicated in lightweight CI')
     require('matchday_intelligence_oos as matchday_intelligence' in strict_src,'strict research cycle does not import the PIT-safe matchday layer')
     require('build_matchday_change_context_rows(oof_rows)' in strict_src and 'matchday_oof_ctx' in strict_src,'strict research cycle does not build multi-horizon matchday context from OOS rows')
     require('population_drift=uncertainty_router.population_drift_features(X[:end],X[end:te])' in strict_src,'strict research cycle does not compute chronological population drift')
