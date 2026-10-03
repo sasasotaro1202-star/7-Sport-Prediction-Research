@@ -72,21 +72,30 @@ def test_prediction_timing_args():
         "--max-lead-minutes", "45",
     ]
 
+    # Explicit manual horizons have no artificial upper bound.
     lead, args = latest_prediction._prediction_timing_args(90, True)
     assert lead == 90
     assert args == [
         "--lead-minutes", "90",
-        "--min-lead-minutes", "5",
-        "--max-lead-minutes", "180",
-        "--adaptive-timing",
+        "--min-lead-minutes", "75",
+        "--max-lead-minutes", "105",
     ]
 
+    for requested in (181, 300, 720, 1440):
+        lead, args = latest_prediction._prediction_timing_args(requested, False)
+        assert lead == requested
+        assert args == [
+            "--lead-minutes", str(requested),
+            "--min-lead-minutes", str(requested - 15),
+            "--max-lead-minutes", str(requested + 15),
+        ]
+
     try:
-        latest_prediction._prediction_timing_args(181, False)
+        latest_prediction._prediction_timing_args(0, False)
     except RuntimeError as exc:
-        assert str(exc) == "INVALID_LEAD_MINUTES:181"
+        assert str(exc) == "INVALID_LEAD_MINUTES:0"
     else:
-        raise AssertionError("lead > 180 must fail closed")
+        raise AssertionError("non-positive lead must fail closed")
 
 
 def main():
