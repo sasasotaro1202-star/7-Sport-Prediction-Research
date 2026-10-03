@@ -121,7 +121,9 @@ jobs:
         run: |
           set -uo pipefail
           rc=0
-          if timeout --signal=TERM --kill-after=30s 270s python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 0 --days-forward 7; then
+          days_forward="${{ steps.predict.outputs.days_forward }}"
+          if [ -z "$days_forward" ]; then days_forward=7; fi
+          if timeout --signal=TERM --kill-after=30s 270s python -m src.seven_sport_production --sport ${{ matrix.sport }} --days-back 0 --days-forward "$days_forward"; then
             echo 'schedule_refresh=OK'
           else
             rc=$?
@@ -164,11 +166,15 @@ jobs:
             min_lead="$requested_lead"
             max_lead="$requested_lead"
           fi
-          echo "requested lead=$requested_lead window=${min_lead}-${max_lead} adaptive=$adaptive"
+          days_forward=7
+          required_days=$(( (requested_lead + 15 + 1439) / 1440 ))
+          if [ "$required_days" -gt "$days_forward" ]; then days_forward="$required_days"; fi
+          echo "requested lead=$requested_lead window=${min_lead}-${max_lead} days_forward=$days_forward adaptive=$adaptive"
           echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"
           echo "min_lead=$min_lead" >> "$GITHUB_OUTPUT"
           echo "max_lead=$max_lead" >> "$GITHUB_OUTPUT"
           echo "adaptive=$adaptive" >> "$GITHUB_OUTPUT"
+          echo "days_forward=$days_forward" >> "$GITHUB_OUTPUT"
           args=(
             --sport "${{ matrix.sport }}"
             --lead-minutes "$requested_lead"
@@ -296,7 +302,8 @@ jobs:
           min_lead='${{ steps.predict.outputs.min_lead }}'
           max_lead='${{ steps.predict.outputs.max_lead }}'
           adaptive='${{ steps.predict.outputs.adaptive }}'
-          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=$lead window=${min_lead}-${max_lead} adaptive=$adaptive experience_sync_rc=$experience_sync_rc schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
+          days_forward='${{ steps.predict.outputs.days_forward }}'
+          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=$lead window=${min_lead}-${max_lead} days_forward=$days_forward adaptive=$adaptive experience_sync_rc=$experience_sync_rc schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
           if [ "$shadow_rc" -ne 0 ]; then
             echo "TIMING_SHADOW_STATUS=DEGRADED exit=$shadow_rc"
           else
