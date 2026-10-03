@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-10-03T11:04:17.344959+00:00",
-  "source_git_commit_sha": "5e84a00f748732fa6aa2678cc78b2dc3595db4aa",
+  "generated_at_utc": "2026-10-03T13:08:03.681402+00:00",
+  "source_git_commit_sha": "9efa6bd30bada5cbd03d0aa03332e6176031d5f4",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 323751936,
-      "sha256": "f084fa52c6b56b33601b1342b072d1871f4cb976a3e4fde30afbe14fee8b1361"
+      "bytes": 323883008,
+      "sha256": "f2592aab73280e2b8da377668e119832525f21a4e4c8ebaf7420b90a8d6ec033"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -58,13 +58,13 @@
       "path": "results/quality_gate.json",
       "exists": true,
       "bytes": 3892,
-      "sha256": "e2ec4764fd7591c7e3fc13773b4f4d93ca3bb514026b99c65733f03d8c6e882e"
+      "sha256": "fa93f90f1a941201fbeaf254e2d3db43461c03066e08938e3ae2adfb3054bef7"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
       "bytes": 4385,
-      "sha256": "2391a399357aaf3b0a8d151d8e7c3aa012f7350dc09c0331e7a16ebdeb490a45"
+      "sha256": "33355050a18dba892f7b2ba0a1778dc32e57d0f4f02264fd26a6e8dfaa5d2c7f"
     },
     {
       "path": "results/pit_replay.json",
@@ -96,49 +96,49 @@
       "path": "results/research/competition_profile_oos.log",
       "exists": true,
       "bytes": 57662,
-      "sha256": "889e57b1ab1c804442f127f41014ee7ffe56118e085d2d438ab7ae9f1b4d9cde"
+      "sha256": "562390d8e522d41dc7d2f04c5e959fba61817df01293e7bbc62d9b2d2cfa93c3"
     },
     {
       "path": "results/research/competition_profiles.json",
       "exists": true,
       "bytes": 31525,
-      "sha256": "6fcd610ece3d00aec9eb6cbaff7f65d269638ff1ff06c1c043e4e245666e75c1"
+      "sha256": "009bc652857aaf6cbe8772333aa9769da2c679bd7e23c71727f5f2e93bde5517"
     },
     {
       "path": "results/research/competition_routes.json",
       "exists": true,
       "bytes": 10720,
-      "sha256": "a65b6ef170877757c5216a9f080d550fa66f0619bdeb1f3808c4577dbaae1e8e"
+      "sha256": "b4f7ff385a0646755d4cab1c859fd9a8db574bacec39b157d99bf20d0f07b9ff"
     },
     {
       "path": "results/research/dual_learning_cycle.json",
       "exists": true,
       "bytes": 1460,
-      "sha256": "0bca5487720a93a1fb8f083394bb7c09733f7b3c55ae920900e4e0d352ef2716"
+      "sha256": "e734b8e28f661386172dee8c8daa9162dd320f477e92273ce1189f67db2b1c34"
     },
     {
       "path": "results/research/dual_learning_logs/experience_learning.log",
       "exists": true,
       "bytes": 178,
-      "sha256": "e195d02bb3019fad175e906448bd85ac7706cbe227ada1eff133b8a8af63f27b"
+      "sha256": "48ba6a6462095fa22ab4ee264e78642af0939c8b757534fd31f26f8aeb7e48a9"
     },
     {
       "path": "results/research/dual_learning_logs/historical_research.log",
       "exists": true,
-      "bytes": 512196,
-      "sha256": "b9af15c6598efd58f0bd0f3bb10b036628a062282b93740428118e0ad4c9977c"
+      "bytes": 513494,
+      "sha256": "189e80f2466fa1e418227d995e19ca6a2f5d3bb92523eef95d20251359d052e5"
     },
     {
       "path": "results/research/experience_learning.json",
       "exists": true,
       "bytes": 1332,
-      "sha256": "ac5308255cb32610516554f7bb9ae163af39d23fb3b1b928ef4be9d1bc22bd1b"
+      "sha256": "aad8964d504fbe63ed0fcd6f757526d175718cd7495a03926ba15d09233ab331"
     },
     {
       "path": "results/research/experience_research_candidates.json",
       "exists": true,
       "bytes": 582,
-      "sha256": "04fbf58452e10acd433201fdadd05ae4be61801544fe0b5308df47401cf1e7f8"
+      "sha256": "313d9830a6342595318cf0cae13249101b888829c3d8e77bb159bf072c2568b3"
     },
     {
       "path": "results/research/f1.json",
@@ -150,7 +150,7 @@
       "path": "results/research/production_route_observability.json",
       "exists": true,
       "bytes": 2721,
-      "sha256": "4b64bd74e8ddb101f79882998229381a56d40170472012a83314fa13f4bb7eba"
+      "sha256": "d830f1f64d0fcb15d017f7c36c4b857e9d4c659a253b438c30f237c158f2fb47"
     },
     {
       "path": "results/research/rizin.json",
@@ -179,8 +179,8 @@
     {
       "path": "results/research/ufc.json",
       "exists": true,
-      "bytes": 468671,
-      "sha256": "67f604680cf8ec5715f21f3b53193c5fc19bdde7298173f66082bf8f2acc261d"
+      "bytes": 469969,
+      "sha256": "c93cc92accc44a63e4841926e72594f341a05277600062095a222c5f117f22ef"
     },
     {
       "path": "results/research/ufc_frozen_holdout.json",
@@ -191,14 +191,14 @@
     {
       "path": "results/research/ufc_ultimate_intelligence.json",
       "exists": true,
-      "bytes": 13066,
-      "sha256": "c456da952f02938330b3a13365f50cd9967294474a89f78f38464f2dc6666bf5"
+      "bytes": 13074,
+      "sha256": "d6df9eac8b8ea710197d739b3de4f7049b91fed21d85d2ecb49f3ab125b53540"
     },
     {
       "path": "results/research/ufc_ultimate_v13.json",
       "exists": true,
-      "bytes": 381994,
-      "sha256": "323a623216646f8957ae91647a66b8896e78dca5c18fb94eefe3abe64d22b962"
+      "bytes": 383269,
+      "sha256": "e479599324d8f7110865d36c4c0d9586a3f9729f59977dad9513bb01dc3d2096"
     },
     {
       "path": "results/research/valorant.json",
@@ -210,7 +210,7 @@
       "path": "results/research/volleyball.json",
       "exists": true,
       "bytes": 231,
-      "sha256": "8a95b43c069abd16d8ab7883913017f99b1a4692f33c4780206b86b854b2796f"
+      "sha256": "440d620d80d08b5d1e291eaf431b670451dba69aa2557880ef9f0891b1521a35"
     },
     {
       "path": "results/research/volleyball_frozen_holdout.json",
@@ -240,7 +240,7 @@
       "path": "models/research/ufc_current.joblib",
       "exists": true,
       "bytes": 740169,
-      "sha256": "f3d652ca718206affd5225dc2e199e4809cb45f5077148f5a835819534f7f1c3"
+      "sha256": "c436ebc8a7c295bf7eb1c7919c2fdc2f8c7c7ce6fc5b8f408806cf84ff3d3717"
     },
     {
       "path": "models/research/valorant_current.joblib",
