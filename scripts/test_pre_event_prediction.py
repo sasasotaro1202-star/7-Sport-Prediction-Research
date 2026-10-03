@@ -132,6 +132,11 @@ def main() -> None:
     assert '--target-lead-minutes "${{ steps.predict.outputs.lead }}"' in workflow
     assert "cron: '3-58/15 * * * *'" in workflow
     assert "pre-event lane itself runs every 15 minutes" in watchdog
+    assert 'latest_success_created=$(printf \'%s\' "$state" | jq' in watchdog
+    assert 'conclusion=="success"' in watchdog
+    assert "last_successful_pre_event_run_age=" in watchdog
+    assert "no_successful_pre_event_run_age=" in watchdog
+    assert "latest_created=" not in watchdog
     assert "Save validated pre-event database" in workflow
     assert "steps.dbguard.outputs.rc == '0'" in workflow
     assert '[ "$age" -ge 1200 ]' in watchdog
