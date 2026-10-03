@@ -184,6 +184,83 @@ jobs:
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
+      - name: Generate adaptive timing research lane
+        id: adaptive_timing
+        run: |
+          set -uo pipefail
+          rc=0
+          # Adaptive routing is a separate research lane. The canonical manual
+          # horizon never opts into this route implicitly.
+          if timeout --signal=TERM --kill-after=30s 240s python -m src.future_predictor \
+              --sport ${{ matrix.sport }} \
+              --min-lead-minutes 5 \
+              --max-lead-minutes 180 \
+              --target-scope-only \
+              --adaptive-timing; then
+            echo 'adaptive_timing=OK'
+          else
+            rc=$?
+            echo "adaptive_timing=DEGRADED exit=$rc"
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Generate requested prediction lane
+        id: predict
+        run: |
+          set -uo pipefail
+          rc=0
+          requested_lead='60'
+          # Scheduled production is deliberately centered on T-60.
+          # Adaptive timing research is isolated to the timing-shadow lane below;
+          # an explicit manual horizon is always authoritative.
+          adaptive='0'
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            requested_lead="${{ inputs.lead_minutes }}"
+          fi
+          case "$requested_lead" in
+            ""|*[!0-9]*) echo "invalid lead_minutes=$requested_lead" >&2; exit 2 ;;
+          esac
+          # Manual requests are intentionally unbounded above: 180, 300, 720, 1440, etc.
+          # Automatic scheduled prediction remains centered on T-60 and bounded to 45-75.
+          if [ "$requested_lead" -le 0 ]; then
+            echo "invalid lead_minutes=$requested_lead (must be a positive integer)" >&2
+            exit 2
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            tolerance=15
+            min_lead=$((requested_lead - tolerance))
+            max_lead=$((requested_lead + tolerance))
+            if [ "$min_lead" -lt 5 ]; then min_lead=5; fi
+            if [ "$max_lead" -gt 180 ]; then max_lead=180; fi
+          else
+            # Manual horizon is exact and has no artificial upper bound.
+            min_lead="$requested_lead"
+            max_lead="$requested_lead"
+          fi
+          days_forward=7
+          required_days=$(( (requested_lead + 15 + 1439) / 1440 ))
+          if [ "$required_days" -gt "$days_forward" ]; then days_forward="$required_days"; fi
+          echo "requested lead=$requested_lead window=${min_lead}-${max_lead} days_forward=$days_forward adaptive=$adaptive"
+          echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"
+          echo "min_lead=$min_lead" >> "$GITHUB_OUTPUT"
+          echo "max_lead=$max_lead" >> "$GITHUB_OUTPUT"
+          echo "adaptive=$adaptive" >> "$GITHUB_OUTPUT"
+          echo "days_forward=$days_forward" >> "$GITHUB_OUTPUT"
+          args=(
+            --sport "${{ matrix.sport }}"
+            --lead-minutes "$requested_lead"
+            --min-lead-minutes "$min_lead"
+            --max-lead-minutes "$max_lead"
+            --target-scope-only
+          )
+          if timeout --signal=TERM --kill-after=30s 300s python -m src.future_predictor "${args[@]}"; then
+            echo 'future_prediction=OK'
+          else
+            rc=$?
+            echo "future_prediction=FAILED exit=$rc"
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
       - name: Generate one rotating timing-shadow lane
         id: timing_shadow
         run: |
@@ -287,6 +364,7 @@ jobs:
           predict_rc='${{ steps.predict.outputs.rc }}'
           experience_rc='${{ steps.experience.outputs.rc }}'
           shadow_rc='${{ steps.timing_shadow.outputs.rc }}'
+          adaptive_rc='${{ steps.adaptive_timing.outputs.rc }}'
           audit_rc='${{ steps.audit.outputs.rc }}'
           db_rc='${{ steps.dbguard.outputs.rc }}'
           lead='${{ steps.predict.outputs.lead }}'
@@ -294,7 +372,7 @@ jobs:
           max_lead='${{ steps.predict.outputs.max_lead }}'
           adaptive='${{ steps.predict.outputs.adaptive }}'
           days_forward='${{ steps.predict.outputs.days_forward }}'
-          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=$lead window=${min_lead}-${max_lead} days_forward=$days_forward adaptive=$adaptive experience_sync_rc=$experience_sync_rc schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
+          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=$lead window=${min_lead}-${max_lead} days_forward=$days_forward adaptive=$adaptive adaptive_research_rc=$adaptive_rc experience_sync_rc=$experience_sync_rc schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
           if [ "$shadow_rc" -ne 0 ]; then
             echo "TIMING_SHADOW_STATUS=DEGRADED exit=$shadow_rc"
           else
