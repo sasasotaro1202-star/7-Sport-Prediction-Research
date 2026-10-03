@@ -10,8 +10,9 @@ WORKFLOW = ROOT / ".github" / "workflows" / "pit_history_expansion.yml"
 def main() -> int:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
-    assert "  push:" in workflow
-    assert "      - '.github/workflows/pit_history_expansion.yml'" in workflow
+    assert "  push:" not in workflow
+    assert "cron: '47 0,9,18 * * *'" in workflow
+    assert "Determine PIT expansion execution mode" in workflow
 
     assert "Require non-empty PIT seed cache" in workflow
     assert "PIT_SEED_CACHE_MISSING:" in workflow
