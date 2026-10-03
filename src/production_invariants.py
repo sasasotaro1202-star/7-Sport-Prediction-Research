@@ -877,6 +877,16 @@ def main():
             'canonical experience selection policy is not explicitly defined')
     require('test_pre_event_prediction.py' in lightweight_src,
             'T-60 pre-event prediction regression is not wired into Lightweight Regression')
+    experience_src=(ROOT/'src/prediction_experience.py').read_text(encoding='utf-8')
+    require('--archive-db-sport' in experience_src and 'archive_forward_prediction_db' in experience_src,
+            'prediction experience lacks persistent forward-prediction DB reconstruction')
+    sync_marker='Rebuild persistent prediction experience archive from DB'
+    predict_marker='Generate requested prediction lane'
+    score_marker='Score accumulated prediction experience'
+    require(sync_marker in pre_event_wf and '--archive-db-sport' in pre_event_wf,
+            'pre-event workflow does not rebuild Experience from the persistent prediction DB')
+    require(pre_event_wf.index(sync_marker) < pre_event_wf.index(predict_marker) < pre_event_wf.index(score_marker),
+            'pre-event Experience sync/predict/score ordering is not deterministic')
     require('pre_event_prediction.yml' in (ROOT/'README.md').read_text(encoding='utf-8'),
             'README does not document the automatic T-60 prediction lane')
     require(
