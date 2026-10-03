@@ -183,7 +183,7 @@ def main():
     # Long manual horizons expand schedule collection instead of being truncated by the default window.
     assert latest_prediction._prediction_timing_args(60, False)[0] == 60
     assert max(7, (60 + 15 + 1439) // 1440) == 7
-    assert max(7, (1440 + 15 + 1439) // 1440) == 2
+    assert max(7, (1440 + 15 + 1439) // 1440) == 7
     assert max(7, (14400 + 15 + 1439) // 1440) == 11
 
     test_timeout_is_bounded_and_fail_closed()
