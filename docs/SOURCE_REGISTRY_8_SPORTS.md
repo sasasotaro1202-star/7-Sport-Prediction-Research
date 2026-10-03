@@ -39,9 +39,9 @@ This registry is deliberately sport-specific. A mirror, wrapper, republisher, or
 ## UFC
 
 ### Current
-- **Aristotle UFC API** — `https://ufcapi.aristotle.me/api/events`; current API event/fight-card source. Historical availability is not proven as PIT; collector therefore treats it as a collection source, not automatically as historical PIT evidence.
+- **Aristotle UFC API** — `https://ufcapi.aristotle.me/api/events`; current operational event/fight-card source used by `src/ufc_api_backfill.py`. Its public documentation describes JSON event, fighter, and fight endpoints and a free rate-limited service. Historical availability is not proven as PIT; the collector therefore treats it as a collection source, not automatically as historical PIT evidence.
 - **TidyTuesday 2026-07-07 `ufc_fights.csv`** — fallback dataset; underlying UFCStats-derived historical fight/stat dataset. The repository explicitly records historical publication time as `UNVERIFIABLE`; fight statistics become effective at fight time, so they are excluded from the same fight's pre-event features. https://github.com/rfordatascience/tidytuesday/tree/main/data/2026/2026-07-07
-- **UFCStats** — official statistics site used as the conceptual primary statistics source for UFC results/fight statistics. It is not currently wired as the repository's direct collector. http://ufcstats.com/
+- **UFCStats** — public statistics reference and secondary reconciliation source. Direct reachability is not treated as the only path to current UFC collection because the repository's operational collector already has the Aristotle API and TidyTuesday fallback.
 
 ### Candidates
 - **UFC official rankings / Meta UFC Rankings** — official rankings can add a distinct strength prior, but historical ranking snapshots and publication timestamps must be preserved. https://www.ufc.com/rankings
@@ -147,6 +147,6 @@ Source admission now separates four different questions:
 3. **Historical data feasible** — the source has the needed historical coverage for the target competition and feature family.
 4. **PIT proven** — row/source availability before the prediction cutoff is independently evidenced.
 
-The runtime feasibility audit checks (1) and (2) against public/free endpoints. It deliberately does **not** promote (3) or (4): a current page being reachable cannot establish what was observable historically.
+The runtime feasibility audit checks (1) and (2) against public/free endpoints and, where configured, validates the expected response shape (for example, a non-empty JSON event collection with identity/date fields). It deliberately does **not** promote (3) or (4): a current page being reachable cannot establish what was observable historically.
 
 For the current Asian Games scope, the official Aichi-Nagoya results service exposes Basketball and Volleyball as selectable disciplines, while the FIVB Live Center exposes an Aichi-Nagoya 2026 men's volleyball tournament with match phase, teams, score/status and standings. These prove current source reachability/data presence, not historical PIT.
