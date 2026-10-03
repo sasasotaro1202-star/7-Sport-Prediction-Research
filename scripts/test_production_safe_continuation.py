@@ -55,6 +55,8 @@ def main() -> int:
     assert "contents: write" in recovery
     assert "group: production-failure-memory-writer" in recovery
     assert "record-failure-memory:" in recovery
+    assert "branches:\n      - main" in recovery
+    assert "types:\n      - completed" in recovery
     assert "results/failure_memory.jsonl" in recovery
     assert "needs: record-failure-memory" in recovery
     assert "run_attempt < 2" in recovery
