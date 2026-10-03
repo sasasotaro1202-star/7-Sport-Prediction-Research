@@ -62,6 +62,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_bleague_schedule_parser_fallback.py
       - name: Match data expansion parser regression
         run: PYTHONPATH=. python scripts/test_match_data_expansion.py
+      - name: B.LEAGUE event-level Git provenance regression
+        run: PYTHONPATH=. python scripts/test_bleaguer_event_provenance.py
       - name: Basketball target and exact PIT integrity regression
         run: PYTHONPATH=. python scripts/test_basketball_target_pit_integrity.py
       - name: Production safe continuation regression
