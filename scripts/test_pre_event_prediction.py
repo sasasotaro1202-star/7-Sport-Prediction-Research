@@ -165,12 +165,25 @@ def main() -> None:
         disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","a","A"))
         disk.execute("INSERT INTO event_participant VALUES (?,?,?)", ("b1","b","B"))
         disk.execute("INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)", ("p1","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=2)).isoformat(),"test","test"))
+        disk.execute("INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)", ("p2","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=20)).isoformat(),"late","test"))
         disk.commit()
         disk.close()
         ar = audit(db, "basketball", now, 25, 60, 30)
         assert ar["status"] == "PASS", ar
         assert ar["predicted_in_guideline_window"] == 1, ar
+        assert ar["timing"]["late"] == 1, ar
         assert not ar["missing_predictions"], ar
+
+        # Late-only prediction is not production-valid: the audit must fail closed.
+        disk = sqlite3.connect(db)
+        disk.execute("DELETE FROM forward_prediction")
+        disk.execute("INSERT INTO forward_prediction VALUES (?,?,?,?,?,?,?)", ("late-only","b1","winner",cutoff_early.isoformat(),(now + timedelta(minutes=20)).isoformat(),"late","test"))
+        disk.commit()
+        disk.close()
+        late_only = audit(db, "basketball", now, 25, 60, 30)
+        assert late_only["status"] == "GAP", late_only
+        assert late_only["missing_predictions"][0]["error_code"] == "NO_PIT_VALID_GUIDELINE_PREDICTION", late_only
+        assert late_only["timing"]["late"] == 1, late_only
     finally:
         db.unlink(missing_ok=True)
     c.close()
