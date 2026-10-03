@@ -118,6 +118,7 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
             for candidate in preds:
                 candidate_cutoff = parse_dt(candidate["prediction_cutoff_at_utc"])
                 candidate_generated = parse_dt(candidate["created_at_utc"])
+                # PIT rule: candidate_generated > candidate_cutoff is invalid.
                 candidate_generated_gt_cutoff = (
                     candidate_generated is not None
                     and candidate_cutoff is not None
