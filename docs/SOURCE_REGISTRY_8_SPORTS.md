@@ -12,7 +12,7 @@ This registry is deliberately sport-specific. A mirror, wrapper, republisher, or
 ## Basketball
 
 ### Current
-- **B.League official** — `bleague.jp` schedule/game-detail pages are the canonical active Basketball collection path. Current B.LEAGUE/B.PREMIER/B.ONE/B.TWO schedule rows establish event identity/timing; when the current schedule endpoint returns a successful but unrendered HTML shell to non-browser clients, the official `schedule_old2208` rendering is used as a bounded current-season fallback. Historical feature use remains exact-PIT gated.
+- **B.League official** — `bleague.jp` schedule/game-detail pages are the canonical active Basketball collection path. Current B.LEAGUE/B.PREMIER/B.ONE/B.TWO schedule rows establish event identity/timing; when the current schedule endpoint returns a successful but unrendered HTML shell to non-browser clients, the official `schedule_old2208` rendering is used as a bounded current-season fallback. The game-detail enrichment layer also captures venue, tipoff, competition tier, standings, season record/PPG/FG%/3FG%/FT%/RPG/APG/BPG/SPG, home-side and broadcast metadata. Historical feature use remains exact-PIT gated.
 - **ESPN** — endpoint family `site.api.espn.com/apis/site/v2/sports/basketball/{league}/scoreboard`; retained as generic/reference infrastructure and not used by the active B.LEAGUE target collector.
 - **SportsDataverse hoopR-data** — NBA/WNBA historical files; source README explicitly identifies ESPN as the NBA/WNBA data source. `NON_INDEPENDENT` for diversification, although useful as a schema/recovery path. https://github.com/sportsdataverse/hoopR-data
 - **FIBA World Cup 2019 dataset** — current historical recovery source in `hardened_public_history.py`; independent of ESPN, but narrow competition coverage and PIT publication timing is not proven. `DEFERRED` for feature use until replay passes.
@@ -124,3 +124,16 @@ This registry is deliberately sport-specific. A mirror, wrapper, republisher, or
 ## Adoption rule
 
 No candidate in this registry is production-adopted merely because it has more fields. Adoption requires: (1) independent underlying data, (2) PIT/available_at evidence, (3) data-quality checks, (4) demonstrably new information, (5) chronological walk-forward OOS improvement across multiple periods/competitions, (6) frozen holdout replication, (7) acceptable cost/licensing, and (8) operational continuity. A failed or unproven criterion leaves the source `DEFERRED`/`REJECTED` rather than silently using it.
+
+## Match-data enrichment layer
+
+The active prediction lanes now persist a bounded match-detail evidence layer for future/current events without changing production probabilities. The enrichment path stores source-backed fields attached to existing canonical events.
+
+| Data family | Examples | Storage | PIT rule |
+| --- | --- | --- | --- |
+| Event metadata | venue, address, city/region, organizer, event status | `match_stats` | EXACT only for prospective observation at or before selected cutoff |
+| Basketball detail | tipoff, competition tier, standings, season record, PPG/FG%/3FG%/FT%/RPG/APG/BPG/SPG, broadcasts | `match_stats` | Same strict cutoff gate |
+| Team/event identity | structured home/away/competitor names | `match_stats` + existing identity tables | No silent identity merge |
+| Provenance | content hash, observation time, source URL, parser version | `source_snapshot` | Historical retrieval alone remains UNVERIFIABLE |
+
+This layer is research-input infrastructure only. A newly collected field is not automatically enabled as a production feature; it must pass PIT replay, ablation, chronological OOS, robustness and frozen-holdout gates.
