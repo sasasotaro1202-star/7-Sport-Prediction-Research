@@ -1,51 +1,80 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
+from datetime import datetime, timezone
 
-from src.basketball_cdn_backfill import (
-    BLEAGUE_SCHEDULE_FALLBACK,
-    _fallback_competition,
-    _fallback_container,
-    _fallback_date,
-    _fallback_names,
-    _game_id,
-    _normalise_href,
-)
+import src.basketball_cdn_backfill as m
+
+
+class DummyConnection:
+    def commit(self):
+        pass
+
+
+def current_season_year() -> int:
+    now = datetime.now(timezone.utc)
+    return now.year if now.month >= 9 else now.year - 1
 
 
 def main() -> int:
-    html = """
-    <section>
-      <h3>10/17(土)</h3>
-      <div class="match-card">
-        <span>B.PREMIER</span>
-        <a href="/game_detail/?ScheduleKey=506471">
-          千葉J VS 島根 千葉県 | ららアリ 13:05 見どころ
-        </a>
-      </div>
-    </section>
-    """
-    soup = BeautifulSoup(html, "lxml")
-    anchor = soup.select_one("a[href*='game_detail']")
-    assert anchor is not None
+    original_get = m.get
+    original_parse = m.parse_schedule_page
 
-    href = _normalise_href(anchor.get("href"))
-    assert _game_id(href) == "506471"
+    calls: list[str] = []
+    parse_calls: list[tuple[str, int, int]] = []
 
-    container = _fallback_container(anchor)
-    context = container.get_text(" ", strip=True)
-    match_date = _fallback_date(anchor, container)
-    assert match_date is not None
-    assert match_date.group(1) == "10"
-    assert match_date.group(2) == "17"
+    def empty_get(url, *_args, **_kwargs):
+        calls.append(url)
+        return "<html></html>", "2026-10-03T00:00:00+00:00", {}
 
-    assert _fallback_names(anchor.get_text(" ", strip=True)) == ["千葉J", "島根"]
-    assert _fallback_competition(context) == "B.PREMIER"
+    def gated_parse(_c, _html, _retrieved, url, season_year, month):
+        parse_calls.append((url, int(season_year), int(month)))
+        # The 13th request is the bounded official legacy current-season
+        # fallback. It is intentionally not a new source or a new PIT path.
+        return 2 if url == m.BLEAGUE_SCHEDULE_FALLBACK else 0
 
-    source = (open("src/basketball_cdn_backfill.py", encoding="utf-8").read())
-    assert BLEAGUE_SCHEDULE_FALLBACK in source
-    assert "season_year == current_season_year" in source
+    m.get = empty_get
+    m.parse_schedule_page = gated_parse
+    try:
+        season = current_season_year()
+        total, errors, attempted, empty_pages = m.collect_official(
+            DummyConnection(), [season]
+        )
+    finally:
+        m.get = original_get
+        m.parse_schedule_page = original_parse
+
+    assert total == 2, total
+    assert errors == []
+    assert attempted == 13, attempted
+    assert empty_pages == 12, empty_pages
+    assert calls[:12] == [
+        m.BLEAGUE_SCHEDULE.format(month=month, season_year=season)
+        for month in range(1, 13)
+    ]
+    assert calls[12] == m.BLEAGUE_SCHEDULE_FALLBACK
+    assert parse_calls[-1] == (m.BLEAGUE_SCHEDULE_FALLBACK, season, 0)
+
+    # Historical/non-current seasons must not receive the current-season
+    # fallback. This preserves season boundaries and avoids relabelling.
+    calls.clear()
+    parse_calls.clear()
+    m.get = empty_get
+    m.parse_schedule_page = lambda *_args, **_kwargs: 0
+    try:
+        historical_season = season - 1
+        total2, errors2, attempted2, empty_pages2 = m.collect_official(
+            DummyConnection(), [historical_season]
+        )
+    finally:
+        m.get = original_get
+        m.parse_schedule_page = original_parse
+
+    assert total2 == 0
+    assert errors2 == []
+    assert attempted2 == 12, attempted2
+    assert empty_pages2 == 12, empty_pages2
+    assert m.BLEAGUE_SCHEDULE_FALLBACK not in calls
 
     print("BLEAGUE_SCHEDULE_FALLBACK=PASS")
     return 0
