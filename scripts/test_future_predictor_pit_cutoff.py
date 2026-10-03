@@ -1,4 +1,4 @@
-"""Regression tests for retrieval-time PIT in future-inference priors."""
+"""Regression tests for strict PIT in future-inference priors."""
 import sqlite3
 from src.future_predictor import _prior_record
 
@@ -27,8 +27,10 @@ def main():
     c.execute("INSERT INTO source_snapshot VALUES (?,?,?,?,?)",("u1","2026-09-24T10:00:00+00:00","UNVERIFIABLE",None,"2026-09-25T11:00:00+00:00"))
     c.commit()
     starts,wins,rate=_prior_record(c,"tennis","p1",cutoff)
-    assert (starts,wins)==(1,1),(starts,wins)
-    assert abs(rate-2.0/3.0)<1e-12,rate
+    # Retrieval time alone is not PIT evidence. All UNVERIFIABLE snapshots
+    # remain excluded even when one retrieval happened before the cutoff.
+    assert (starts,wins)==(0,0),(starts,wins)
+    assert rate==0.5,rate
     c.close()
 
     c=db()
@@ -53,7 +55,7 @@ def main():
     assert abs(rate-2.0/3.0)<1e-12,rate
     c.close()
 
-    print("future prior retrieval-time PIT + dedup: PASS")
+    print("future prior strict PIT + retrieval-only exclusion: PASS")
 
 
 if __name__=="__main__":
