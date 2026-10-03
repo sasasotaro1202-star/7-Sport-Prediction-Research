@@ -166,7 +166,7 @@ def main():
         con.close()
         assert snap[0:4] == (pinned_url, None, None, "VERSION_EXACT_PUBLICATION_UNPROVEN")
         assert '"publication_status": "UNPROVEN"' in snap[4]
-        assert repointed == (pinned_url,)
+        assert repointed == (current_url,)
 
     print("BLEAGUER_EVENT_PROVENANCE=PASS")
 
