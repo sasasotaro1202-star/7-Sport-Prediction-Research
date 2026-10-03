@@ -255,7 +255,7 @@ jobs:
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
           state=$(gh run list --workflow "pit_history_expansion.yml" --limit 100 --json databaseId,status,event,createdAt,headSha,conclusion)
-          active_pit=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
+          active_pit=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.event=="schedule" or .event=="workflow_dispatch") and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
 
           anchor=$(date -u -d '2026-09-22 00:47:00' +%s)
           now=$(date -u +%s)
@@ -278,7 +278,7 @@ jobs:
             exit 0
           fi
 
-          attempt_in_boundary=$(printf '%s' "$state" | jq --argjson start "$boundary_epoch" --argjson end "$next_boundary_epoch" '[.[] | select((.createdAt | fromdateiso8601) >= $start and (.createdAt | fromdateiso8601) < $end)] | length')
+          attempt_in_boundary=$(printf '%s' "$state" | jq --argjson start "$boundary_epoch" --argjson end "$next_boundary_epoch" '[.[] | select((.event=="schedule" or .event=="workflow_dispatch") and ( .createdAt | fromdateiso8601) >= $start and (.createdAt | fromdateiso8601) < $end)] | length')
           dispatch=false
           if [ "$active_pit" -eq 0 ] && [ "$attempt_in_boundary" -eq 0 ]; then
             dispatch=true
