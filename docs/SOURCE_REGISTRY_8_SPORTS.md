@@ -137,3 +137,16 @@ The active prediction lanes now persist a bounded match-detail evidence layer fo
 | Provenance | content hash, observation time, source URL, parser version | `source_snapshot` | Historical retrieval alone remains UNVERIFIABLE |
 
 This layer is research-input infrastructure only. A newly collected field is not automatically enabled as a production feature; it must pass PIT replay, ablation, chronological OOS, robustness and frozen-holdout gates.
+
+
+## Runtime source-feasibility gate
+
+Source admission now separates four different questions:
+1. **Reachable now** — the public endpoint returns a non-empty response.
+2. **Expected data present** — the response contains the configured schedule/result/statistics signals.
+3. **Historical data feasible** — the source has the needed historical coverage for the target competition and feature family.
+4. **PIT proven** — row/source availability before the prediction cutoff is independently evidenced.
+
+The runtime feasibility audit checks (1) and (2) against public/free endpoints. It deliberately does **not** promote (3) or (4): a current page being reachable cannot establish what was observable historically.
+
+For the current Asian Games scope, the official Aichi-Nagoya results service exposes Basketball and Volleyball as selectable disciplines, while the FIVB Live Center exposes an Aichi-Nagoya 2026 men's volleyball tournament with match phase, teams, score/status and standings. These prove current source reachability/data presence, not historical PIT.
