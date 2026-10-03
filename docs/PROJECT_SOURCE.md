@@ -1,7 +1,7 @@
 # 7-Sport-Prediction-Research — Project Source
 
 ## Verified state 2026-10-03
-main latest observed HEAD: caa3f6e5f698c428385a11c4375776bcbb32e2dd.
+main latest observed HEAD after re-check: c998ec928701192020ca48fa36c949a1421211c8. Latest observed work after the documentation commit includes fresh-prediction Experience-closure invariants and tests locking the 15-minute scheduler/manual research lanes.
 README documents five active prediction lanes and a serialized fail-closed scope expansion ladder. Recent commits explicitly harden the canonical pre-event lane and reject duplicate prediction steps.
 
 ## Scope
