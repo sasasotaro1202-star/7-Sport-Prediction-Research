@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from src.competition_profiles import resolve_profile, profile_policy
+from src.competition_route_builder import _fit_oos
 
 
 def main() -> int:
@@ -72,6 +73,19 @@ def main() -> int:
         assert profile["profile"]["matched"] is True
         assert profile["profile"]["competition_id"] == "B.LEAGUE"
 
+    route_builder = (Path(__file__).resolve().parents[1] / "src/competition_route_builder.py").read_text(encoding="utf-8")
+    assert "canonical_competition_id" in route_builder
+    identity_gap = _fit_oos(
+        [
+            {"event_id": "e1", "time": "2025-01-01T00:00:00+00:00", "label": 0, "features": {}, "canonical_competition_id": "comp:a"},
+            {"event_id": "e2", "time": "2025-01-02T00:00:00+00:00", "label": 1, "features": {}, "canonical_competition_id": "comp:b"},
+        ],
+        [],
+        [],
+        {"rows": 1, "holdout_rows": 1, "pre_holdout_train_rows": 0, "folds": 1, "min_test_rows_per_fold": 1, "periods": 1},
+        symmetric=False,
+    )
+    assert identity_gap["status"] == "IDENTITY_INCONSISTENT"
     gate = (Path(__file__).resolve().parents[1] / "src/production_release_gate.py").read_text(encoding="utf-8")
     route_builder = (Path(__file__).resolve().parents[1] / "src/competition_route_builder.py").read_text(encoding="utf-8")
     assert "canonical_competition_id" in route_builder, "canonical competition identity must be persisted by route builder"
