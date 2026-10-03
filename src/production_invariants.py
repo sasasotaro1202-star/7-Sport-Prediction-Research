@@ -896,6 +896,20 @@ def main():
             'pre-event Experience sync/predict/score ordering is not deterministic')
     require('pre_event_prediction.yml' in (ROOT/'README.md').read_text(encoding='utf-8'),
             'README does not document the automatic T-60 prediction lane')
+    latest_src=(ROOT/'src/latest_prediction.py').read_text(encoding='utf-8')
+    require('def _sync_experience_archive' in latest_src
+            and 'def _score_experience' in latest_src
+            and 'EXPERIENCE_SUMMARY' in latest_src,
+            'manual fresh prediction entrypoint does not close the Experience loop')
+    request_latest_block=latest_src[latest_src.index('def request_latest('):]
+    lp_collect=request_latest_block.index('src.seven_sport_production')
+    lp_predict=request_latest_block.index('src.future_predictor')
+    lp_archive=request_latest_block.index('_sync_experience_archive(sport)')
+    lp_score=request_latest_block.index('_score_experience()')
+    require(lp_collect < lp_predict < lp_archive < lp_score,
+            'manual fresh prediction must refresh, infer, archive, then score Experience')
+    require('experience_closed_loop' in latest_src,
+            'manual fresh prediction manifest does not expose Experience closure state')
     require(
         'Ensure pre-event T-60 prediction heartbeat' in watchdog
         and 'gh run list --workflow "pre_event_prediction.yml"' in watchdog
