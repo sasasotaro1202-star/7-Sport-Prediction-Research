@@ -854,11 +854,34 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Persist and score forward prediction experience.")
     parser.add_argument("--score-only", action="store_true")
+    parser.add_argument(
+        "--archive-db-sport",
+        choices=sorted(DB_PATHS),
+        help="Rebuild the append-only experience prediction archive from the persistent forward_prediction DB for one sport before scoring.",
+    )
     args = parser.parse_args()
 
-    # The archive is written by future_predictor. score-only keeps this module
-    # safe to call independently on scheduled recovery jobs.
+    archive_result = None
+    if args.archive_db_sport:
+        db_path = _db_for_sport(args.archive_db_sport)
+        if not db_path.is_file() or db_path.stat().st_size <= 0:
+            raise RuntimeError(f"EXPERIENCE_DB_MISSING:{args.archive_db_sport}")
+        con = sqlite3.connect(db_path)
+        try:
+            archive_result = archive_forward_prediction_db(
+                con,
+                args.archive_db_sport,
+                utc_now(),
+            )
+        finally:
+            con.close()
+
+    # The archive is written by future_predictor and can also be reconstructed
+    # from the persistent forward_prediction DB. score-only remains safe to call
+    # independently on scheduled recovery jobs.
     result = score_archive()
+    result["archive_db_sport"] = args.archive_db_sport
+    result["archive_db_sync"] = archive_result
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

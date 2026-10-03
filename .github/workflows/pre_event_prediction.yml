@@ -90,6 +90,19 @@ jobs:
           python -m src.cache_health --db data/db/sports_v45.sqlite --sport ${{ matrix.sport }} --repair
           python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
 
+      - name: Rebuild persistent prediction experience archive from DB
+        id: experience_sync
+        run: |
+          set -uo pipefail
+          rc=0
+          if python -m src.prediction_experience --archive-db-sport "${{ matrix.sport }}"; then
+            echo 'experience_db_sync=OK'
+          else
+            rc=$?
+            echo "experience_db_sync=DEGRADED exit=$rc"
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
       - name: Refresh upcoming schedule
         id: collect
         run: |
@@ -248,6 +261,7 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
+          experience_sync_rc='${{ steps.experience_sync.outputs.rc }}'
           collect_rc='${{ steps.collect.outputs.rc }}'
           predict_rc='${{ steps.predict.outputs.rc }}'
           experience_rc='${{ steps.experience.outputs.rc }}'
@@ -258,14 +272,14 @@ jobs:
           min_lead='${{ steps.predict.outputs.min_lead }}'
           max_lead='${{ steps.predict.outputs.max_lead }}'
           adaptive='${{ steps.predict.outputs.adaptive }}'
-          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=$lead window=${min_lead}-${max_lead} adaptive=$adaptive schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
+          echo "PRE_EVENT_STATUS sport=${{ matrix.sport }} lead=$lead window=${min_lead}-${max_lead} adaptive=$adaptive experience_sync_rc=$experience_sync_rc schedule_rc=$collect_rc predict_rc=$predict_rc timing_shadow_rc=$shadow_rc experience_rc=$experience_rc audit_rc=$audit_rc db_rc=$db_rc"
           if [ "$shadow_rc" -ne 0 ]; then
             echo "TIMING_SHADOW_STATUS=DEGRADED exit=$shadow_rc"
           else
             echo "TIMING_SHADOW_STATUS=OK"
           fi
           rc=0
-          for x in "$collect_rc" "$predict_rc" "$experience_rc" "$audit_rc" "$db_rc"; do
+          for x in "$experience_sync_rc" "$collect_rc" "$predict_rc" "$experience_rc" "$audit_rc" "$db_rc"; do
             if [ "$x" -ne 0 ] && [ "$rc" -eq 0 ]; then rc="$x"; fi
           done
           exit "$rc"

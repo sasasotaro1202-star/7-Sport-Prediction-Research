@@ -264,6 +264,14 @@ class PredictionExperienceTests(unittest.TestCase):
         self.assertEqual(profile["evidence_bucket"], "6+")
         self.assertEqual(profile["freshness_bucket"], "low")
 
+    def test_archive_forward_prediction_db_missing_table_is_empty(self):
+        import sqlite3
+
+        con = sqlite3.connect(":memory:")
+        result = pe.archive_forward_prediction_db(con, "basketball", "2026-10-03T00:00:00+00:00")
+        self.assertEqual(result, {"added": 0, "skipped_existing": 0})
+        con.close()
+
     def test_archive_forward_prediction_db_exports_existing_rows(self):
         import sqlite3
 
