@@ -178,6 +178,7 @@ def main():
         "adaptive_timing",
         "_sync_experience_archive",
         "_score_experience",
+        "_ensure_basketball_pit_foundation",
         "EXPERIENCE_SUMMARY",
         "EXPERIENCE_ARCHIVE_SYNC_VERIFIED",
         "EXPERIENCE_SCORE_VERIFIED",

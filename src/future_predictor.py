@@ -225,18 +225,13 @@ def _participant_sides(c,event_id):
 
 def _prior_record(c,sport,participant_id,prediction_cutoff):
     """PIT-safe future-inference prior using publication time or proven retrieval time."""
+    # Retrieval time alone is never PIT evidence. A historical result
+    # contributes only when the source snapshot has explicit/provenance-backed
+    # availability time at or before the prediction cutoff.
     pit_clause = """(
-        (
-            ss.availability_status='EXACT'
-            AND ss.source_available_at_utc IS NOT NULL
-            AND datetime(ss.source_available_at_utc) <= datetime(?)
-        )
-        OR
-        (
-            ss.source_available_at_utc IS NULL
-            AND ss.retrieved_at_utc IS NOT NULL
-            AND datetime(ss.retrieved_at_utc) <= datetime(?)
-        )
+        ss.availability_status='EXACT'
+        AND ss.source_available_at_utc IS NOT NULL
+        AND datetime(ss.source_available_at_utc) <= datetime(?)
     )"""
     common = f"""
              FROM event e
@@ -244,7 +239,7 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
              JOIN event_outcome o ON o.event_id=e.event_id
              JOIN source_snapshot ss
               ON ss.source_url=o.source_url
-             AND ss.event_time_utc=e.event_time_utc
+             AND (ss.event_time_utc IS NULL OR ss.event_time_utc=e.event_time_utc)
             WHERE e.sport=? AND ep.participant_id=?
               AND e.event_time_utc < ?
               AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
@@ -253,11 +248,11 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
     """
     starts=c.execute(
         "SELECT COUNT(DISTINCT e.event_id) " + common,
-        (sport,participant_id,prediction_cutoff,prediction_cutoff,prediction_cutoff),
+        (sport,participant_id,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     wins=c.execute(
         "SELECT COUNT(DISTINCT e.event_id) " + common + " AND o.outcome=ep.side",
-        (sport,participant_id,prediction_cutoff,prediction_cutoff,prediction_cutoff),
+        (sport,participant_id,prediction_cutoff,prediction_cutoff),
     ).fetchone()[0]
     starts=int(starts or 0); wins=int(wins or 0)
     return starts,wins,(wins+1.0)/(starts+2.0)

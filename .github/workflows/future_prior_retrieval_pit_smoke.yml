@@ -27,3 +27,4 @@ jobs:
         run: |
           python -m compileall -q src/future_predictor.py scripts/test_future_predictor_pit_cutoff.py
           PYTHONPATH=. python scripts/test_future_predictor_pit_cutoff.py
+          PYTHONPATH=. python scripts/test_basketball_target_integrity.py

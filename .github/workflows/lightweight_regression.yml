@@ -54,6 +54,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_competition_routing.py
       - name: B.LEAGUE official error diagnostics regression
         run: PYTHONPATH=. python scripts/test_basketball_official_error_diagnostics.py
+      - name: Basketball target and PIT integrity regression
+        run: PYTHONPATH=. python scripts/test_basketball_target_integrity.py
       - name: Production safe continuation regression
         run: PYTHONPATH=. python scripts/test_production_safe_continuation.py
       - name: Continuous scope autofill regression
@@ -74,6 +76,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_strict_oos_ranking_fail_closed.py
       - name: Future predictor prediction-cutoff PIT test
         run: PYTHONPATH=. python scripts/test_future_predictor_pit_cutoff.py
+      - name: Basketball target and PIT integrity regression
+        run: PYTHONPATH=. python scripts/test_basketball_target_integrity.py
       - name: PIT history 9-hour cadence contract
         run: PYTHONPATH=. python scripts/test_pit_history_cadence.py
       - name: Pre-event prediction timing contract
