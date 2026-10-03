@@ -144,7 +144,7 @@ def main() -> int:
                 "source_id": "vlr-structure",
                 "name": "VLR",
                 "url": "https://example.invalid/matches",
-                "required_patterns": [r'href=["\']?/\d+/[^"\'?#\s]+', r"match-item"],
+                "required_patterns": [r'href=["\']?(?:https?://(?:www\.)?vlr\.gg)?/\d+/[^"\'?#\s]+', r"match-item"],
                 "required_signals": [],
                 "critical": True,
                 "pit_status": "UNPROVEN",
@@ -162,14 +162,14 @@ def main() -> int:
                 "source_id": "vlr-negative",
                 "name": "VLR",
                 "url": "https://example.invalid/matches",
-                "required_patterns": [r'href=["\']?/\d+/[^"\'?#\s]+', r"match-item"],
+                "required_patterns": [r'href=["\']?(?:https?://(?:www\.)?vlr\.gg)?/\d+/[^"\'?#\s]+', r"match-item"],
                 "required_signals": [],
                 "critical": True,
                 "pit_status": "UNPROVEN",
             }
         )
         assert row["status"] == "REACHABLE_SIGNALS_PARTIAL"
-        assert row["patterns_missing"] == [r'href=["\']?/\d+/[^"\'?#\s]+']
+        assert row["patterns_missing"] == [r'href=["\']?(?:https?://(?:www\.)?vlr\.gg)?/\d+/[^"\'?#\s]+']
 
         policy = {
             "active_sports": {
