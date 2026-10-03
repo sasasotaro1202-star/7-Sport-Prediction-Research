@@ -212,6 +212,98 @@ def verify_latest_main() -> str:
 
 EXPERIENCE_SUMMARY = ROOT / "results/experience_summary.json"
 
+def _ensure_basketball_pit_foundation(sport: str) -> dict | None:
+    """Ensure manual Basketball predictions have a provenance-backed history basis.
+
+    Automatic scheduled prediction remains lightweight. This heavier foundation
+    repair is only part of an explicit fresh/manual request and runs only when
+    the current Basketball DB does not already contain an EXACT B.LEAGUE
+    historical snapshot.
+    """
+    if sport != "basketball":
+        return None
+
+    db_path = ROOT / "data/db/sports_v45.sqlite"
+    exact_count = 0
+    if db_path.is_file() and db_path.stat().st_size > 0:
+        try:
+            import sqlite3
+            con = sqlite3.connect(db_path)
+            exact_count = int(
+                con.execute(
+                    """SELECT COUNT(*)
+                         FROM source_snapshot
+                        WHERE sport='basketball'
+                          AND source='bleaguer-github'
+                          AND availability_status='EXACT'
+                          AND source_available_at_utc IS NOT NULL"""
+                ).fetchone()[0]
+            )
+            con.close()
+        except Exception as exc:
+            raise RuntimeError(
+                f"BASKETBALL_PIT_HEALTH_CHECK_FAILED:{type(exc).__name__}"
+            ) from exc
+
+    if exact_count > 0:
+        return {
+            "status": "EXACT_HISTORY_ALREADY_PRESENT",
+            "exact_snapshot_count": exact_count,
+            "bootstrapped": False,
+        }
+
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "src.basketball_cdn_backfill",
+            "--historical",
+        ],
+        force_refresh=True,
+        timeout_seconds=max(_command_timeout_seconds(), 900.0),
+    )
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "src.bleaguer_git_provenance",
+            "--db",
+            str(db_path),
+            "--workers",
+            "6",
+        ],
+        timeout_seconds=max(_command_timeout_seconds(), 900.0),
+    )
+
+    try:
+        import sqlite3
+        con = sqlite3.connect(db_path)
+        exact_count = int(
+            con.execute(
+                """SELECT COUNT(*)
+                     FROM source_snapshot
+                    WHERE sport='basketball'
+                      AND source='bleaguer-github'
+                      AND availability_status='EXACT'
+                      AND source_available_at_utc IS NOT NULL"""
+            ).fetchone()[0]
+        )
+        con.close()
+    except Exception as exc:
+        raise RuntimeError(
+            f"BASKETBALL_PIT_VERIFY_FAILED:{type(exc).__name__}"
+        ) from exc
+
+    if exact_count <= 0:
+        raise RuntimeError("BASKETBALL_PIT_FOUNDATION_NOT_ESTABLISHED")
+
+    return {
+        "status": "EXACT_HISTORY_BOOTSTRAP_VERIFIED",
+        "exact_snapshot_count": exact_count,
+        "bootstrapped": True,
+    }
+
+
 def _sync_experience_archive(sport: str) -> dict:
     """Rebuild the durable Experience archive from the fresh prediction DB."""
     _run(
@@ -367,6 +459,7 @@ def request_latest(
                 timeout_seconds=_command_timeout_seconds(),
             )
             collection = _verify_collection(sport, request_started)
+            basketball_pit = _ensure_basketball_pit_foundation(sport)
 
             _run(
                 [
@@ -400,6 +493,7 @@ def request_latest(
                     "adaptive_timing": adaptive_timing,
                     "stored_prediction_reused": False,
                     "experience_archive_sync": experience_archive,
+                    "basketball_pit_foundation": basketball_pit,
                 }
             )
 
