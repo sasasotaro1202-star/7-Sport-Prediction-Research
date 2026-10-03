@@ -74,6 +74,9 @@ def main() -> None:
     assert policy["scheduler"]["selection_mode"] == "scheduled-60m-default;manual-lead-configurable"
     assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
     assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
+    assert policy["scheduler"]["generation_window"]["manual_min_lead_minutes"] == 1
+    assert policy["scheduler"]["generation_window"]["manual_max_lead_minutes"] is None
+    assert policy["scheduler"]["manual_horizon_policy"] == "positive_integer_unbounded"
     assert "requested_lead='60'" in workflow
     assert "assert p['scheduler']['selection_mode'] == 'scheduled-60m-default;manual-lead-configurable'" in workflow
     assert "Rebuild persistent prediction experience archive from DB" in workflow
@@ -92,6 +95,9 @@ def main() -> None:
     assert 'requested_lead="${{ inputs.lead_minutes }}"' in workflow
     assert 'if [ "${{ inputs.adaptive_timing }}" = "true" ]' in workflow
     assert "invalid lead_minutes" in workflow
+    assert "Manual horizon is exact and has no artificial upper bound." in workflow
+    assert "must be 5-180" not in workflow
+    assert "no upper bound" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
     assert "args+=(--adaptive-timing)" in workflow
     assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' in workflow
