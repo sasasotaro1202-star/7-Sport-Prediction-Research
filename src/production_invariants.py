@@ -767,11 +767,11 @@ def main():
             and '"scheduled_max_lead_minutes": 75' in pre_event_policy
             and '"selection_mode": "scheduled-60m-default;manual-lead-configurable"' in pre_event_policy,
             'pre-event policy does not define bounded scheduled/manual timing')
-    require("cron: '3-58/5 * * * *'" in pre_event_wf
+    require("cron: '3-58/15 * * * *'" in pre_event_wf
             and "requested_lead='60'" in pre_event_wf
             and '--lead-minutes "$requested_lead"' in pre_event_wf
             and "lead_minutes:" in pre_event_wf,
-            'pre-event workflow is not scheduled at five-minute cadence with configurable T-60/manual timing')
+            'pre-event workflow is not scheduled at 15-minute cadence with configurable T-60/manual timing')
     require('adaptive_timing:' not in pre_event_wf and 'inputs.adaptive_timing' not in pre_event_wf,
             'pre-event manual dispatch exposes an unsafe adaptive override')
     require("adaptive='0'" in pre_event_wf
@@ -803,8 +803,11 @@ def main():
             'production workflow does not build competition-specific routes before release')
     require('test_competition_routing.py' in lightweight_src,
             'competition routing regression is not wired into Lightweight Regression')
-    require('missing_predictions' in pre_event_audit and 'NO_GUIDELINE_PREDICTION' in pre_event_audit,
-            'pre-event audit does not explicitly detect missing guideline-timing predictions')
+    require('missing_predictions' in pre_event_audit
+            and 'NO_GUIDELINE_PREDICTION' in pre_event_audit
+            and 'NO_PIT_VALID_GUIDELINE_PREDICTION' in pre_event_audit
+            and 'candidate_generated > candidate_cutoff' in pre_event_audit,
+            'pre-event audit does not fail closed on missing or PIT-invalid timing predictions')
     require('def _prediction_timing' in future_src and "'prediction_timing':timing" in future_src,
             'future predictor does not persist actual prediction timing')
     require('--lead-minutes' in future_src and '--target-scope-only' in future_src,
@@ -824,7 +827,9 @@ def main():
     require('TIMING_ROUTE_ACCEPTED' in timing_registry and 'DEFAULT_GUIDELINE' in timing_registry,
             'timing route registry lacks accepted-route/default fallback states')
     require('--adaptive-timing' in pre_event_wf and '--timing-shadow' in pre_event_wf,
-            'pre-event workflow does not execute adaptive and shadow timing lanes')
+            'pre-event workflow does not retain adaptive and shadow timing lanes')
+    require(pre_event_wf.count("if: github.event_name == 'workflow_dispatch'") >= 2,
+            'heavy adaptive/shadow timing research is not isolated from scheduled production')
     require(
         'e.event_time_utc,e.competition_id,' in timing_builder
         and 'e.name' not in timing_builder,
