@@ -31,6 +31,27 @@
         "pit_status": "UNPROVEN"
       },
       {
+        "source_id": "aichi_nagoya_official_results",
+        "name": "Aichi-Nagoya 2026 official results",
+        "url": "https://results.asiangames2026.org/",
+        "kind": "official_event_results",
+        "capabilities": [
+          "future_schedule",
+          "event_identity",
+          "event_time",
+          "live_results",
+          "final_results",
+          "discipline_filter"
+        ],
+        "required_signals": [
+          "Basketball",
+          "Volleyball",
+          "Aichi-Nagoya"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      },
+      {
         "source_id": "fiba_official",
         "name": "FIBA official",
         "url": "https://www.fiba.basketball/",
@@ -48,6 +69,30 @@
       }
     ],
     "volleyball": [
+      {
+        "source_id": "fivb_live_asian_games_men",
+        "name": "FIVB Live Center — Asian Games Men",
+        "url": "https://live.app.fivb.com/tournaments/1778/matches",
+        "kind": "official_live_center",
+        "capabilities": [
+          "future_schedule",
+          "match_identity",
+          "phase",
+          "team_identity",
+          "standings",
+          "set_scores",
+          "live_status"
+        ],
+        "required_signals": [
+          "20th Asian Games Aichi–Nagoya 2026",
+          "Phase",
+          "Team A",
+          "Team B",
+          "Score"
+        ],
+        "critical": true,
+        "pit_status": "UNPROVEN"
+      },
       {
         "source_id": "volleyball_world_stats",
         "name": "Volleyball World",
