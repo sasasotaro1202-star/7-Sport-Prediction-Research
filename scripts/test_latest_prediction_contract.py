@@ -135,6 +135,10 @@ def main():
     collect_pos = src.index("src.seven_sport_production")
     predict_pos = src.index("src.future_predictor")
     assert collect_pos < predict_pos
+    sync_pos = src.index("def _sync_experience")
+    archive_pos = src.index('"--archive-db-sport"')
+    score_pos = src.index('"--score-only"')
+    assert predict_pos < sync_pos < archive_pos < score_pos
 
     required = (
         "request_started_at_utc",
@@ -158,6 +162,12 @@ def main():
         "--max-lead-minutes",
         "requested_lead_minutes",
         "adaptive_timing",
+        "_sync_experience",
+        "--archive-db-sport",
+        "--score-only",
+        "EXPERIENCE_SUMMARY",
+        "EXPERIENCE_SYNC_VERIFIED",
+        "experience_closed_loop",
     )
     for marker in required:
         assert marker in src, marker
