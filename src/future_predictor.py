@@ -224,19 +224,17 @@ def _participant_sides(c,event_id):
 
 
 def _prior_record(c,sport,participant_id,prediction_cutoff):
-    """PIT-safe future-inference prior using publication time or proven retrieval time."""
+    """PIT-safe future-inference prior using only proven source availability.
+
+    A source-wide immutable snapshot (event_time_utc IS NULL) is valid when the
+    source URL exactly matches the outcome source and its blob was proven
+    available no later than the prediction cutoff. Retrieval time alone is
+    never accepted as PIT evidence.
+    """
     pit_clause = """(
-        (
-            ss.availability_status='EXACT'
-            AND ss.source_available_at_utc IS NOT NULL
-            AND datetime(ss.source_available_at_utc) <= datetime(?)
-        )
-        OR
-        (
-            ss.source_available_at_utc IS NULL
-            AND ss.retrieved_at_utc IS NOT NULL
-            AND datetime(ss.retrieved_at_utc) <= datetime(?)
-        )
+        ss.availability_status='EXACT'
+        AND ss.source_available_at_utc IS NOT NULL
+        AND datetime(ss.source_available_at_utc) <= datetime(?)
     )"""
     common = f"""
              FROM event e
@@ -244,7 +242,7 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
              JOIN event_outcome o ON o.event_id=e.event_id
              JOIN source_snapshot ss
               ON ss.source_url=o.source_url
-             AND ss.event_time_utc=e.event_time_utc
+             AND (ss.event_time_utc=e.event_time_utc OR ss.event_time_utc IS NULL)
             WHERE e.sport=? AND ep.participant_id=?
               AND e.event_time_utc < ?
               AND e.status IN ('COMPLETED','FINISHED','POST','FINAL')
@@ -253,7 +251,7 @@ def _prior_record(c,sport,participant_id,prediction_cutoff):
     """
     starts=c.execute(
         "SELECT COUNT(DISTINCT e.event_id) " + common,
-        (sport,participant_id,prediction_cutoff,prediction_cutoff,prediction_cutoff),
+        (sport,participant_id,prediction_cutoff),
     ).fetchone()[0]
     wins=c.execute(
         "SELECT COUNT(DISTINCT e.event_id) " + common + " AND o.outcome=ep.side",
