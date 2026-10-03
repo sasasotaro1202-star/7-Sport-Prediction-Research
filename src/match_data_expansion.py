@@ -340,7 +340,12 @@ def parse_volleyball_detail(html: str):
             break
     m = re.search(r"(?:Venue|Location|Host City)\s*[:：]?\s*([^|\n]+)", text, re.I)
     if m:
-        result["venue"] = clean(m.group(1))
+        venue = clean(m.group(1))
+        # The normalized text flattens HTML block boundaries. Stop venue capture
+        # before a following volleyball score so adjacent score text is not
+        # silently folded into the venue field.
+        venue = re.split(r"\s+\b\d{1,2}\s*[-–:]\s*\d{1,2}\b", venue, maxsplit=1)[0]
+        result["venue"] = clean(venue)
     pairs = re.findall(r"\b(\d{1,2})\s*[-–:]\s*(\d{1,2})\b", text)
     if pairs:
         result["score"] = [int(pairs[0][0]), int(pairs[0][1])]
