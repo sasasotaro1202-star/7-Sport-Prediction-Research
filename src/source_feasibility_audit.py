@@ -127,6 +127,9 @@ def probe_source(source: dict, timeout: float = 20.0, retries: int = 3) -> dict:
             "record_count": None,
             "missing_key_groups": [],
         },
+        "patterns_required": list(source.get("required_patterns") or []),
+        "patterns_found": [],
+        "patterns_missing": list(source.get("required_patterns") or []),
         "error": None,
     }
     session = requests.Session()
@@ -164,6 +167,16 @@ def probe_source(source: dict, timeout: float = 20.0, retries: int = 3) -> dict:
             result["content_sha256"] = hashlib.sha256(response.content or b"").hexdigest()
             result["content_probe_mode"] = mode
             result["data_shape"] = _probe_expected_shape(response, source)
+            required_patterns = list(source.get("required_patterns") or [])
+            result["patterns_required"] = required_patterns
+            result["patterns_found"] = [
+                pattern for pattern in required_patterns
+                if re.search(pattern, text or "", re.I | re.M)
+            ]
+            result["patterns_missing"] = [
+                pattern for pattern in required_patterns
+                if pattern not in result["patterns_found"]
+            ]
             result["signals_found"] = [
                 signal for signal in result["signals_required"]
                 if signal.lower() in search_text.lower()
@@ -173,7 +186,8 @@ def probe_source(source: dict, timeout: float = 20.0, retries: int = 3) -> dict:
                 if signal.lower() not in search_text.lower()
             ]
             shape_ok = bool(result["data_shape"]["valid"])
-            if result["reachable"] and result["nonempty"] and not result["signals_missing"] and shape_ok:
+            patterns_ok = not result["patterns_missing"]
+            if result["reachable"] and result["nonempty"] and not result["signals_missing"] and shape_ok and patterns_ok:
                 result["status"] = "REACHABLE_WITH_EXPECTED_SIGNALS"
                 result["error"] = None
                 return result
