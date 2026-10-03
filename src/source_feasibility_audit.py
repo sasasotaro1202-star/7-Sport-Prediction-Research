@@ -30,7 +30,7 @@ def _safe_text(response: requests.Response) -> str:
         return ""
 
 
-def probe_source(source: dict, timeout: float = 20.0) -> dict:
+def probe_source(source: dict, timeout: float = 20.0, retries: int = 3) -> dict:
     url = str(source["url"])
     result = {
         "source_id": str(source["source_id"]),
@@ -41,6 +41,7 @@ def probe_source(source: dict, timeout: float = 20.0) -> dict:
         "capabilities": list(source.get("capabilities") or []),
         "configured_pit_status": str(source.get("pit_status") or "UNPROVEN"),
         "checked_at_utc": _utcnow(),
+        "attempts": 0,
         "http_status": None,
         "reachable": False,
         "nonempty": False,
@@ -55,40 +56,58 @@ def probe_source(source: dict, timeout: float = 20.0) -> dict:
         "content_sha256": None,
         "error": None,
     }
-    try:
-        response = requests.get(
-            url,
-            headers={
-                "User-Agent": UA,
-                "Accept-Language": "en-US,en;q=0.8,ja;q=0.6",
-            },
-            timeout=(10.0, timeout),
-        )
-        text = _safe_text(response)
-        result["http_status"] = int(response.status_code)
-        result["content_length"] = len(response.content or b"")
-        result["reachable"] = 200 <= response.status_code < 400
-        result["nonempty"] = bool(text.strip() or response.content)
-        result["content_sha256"] = hashlib.sha256(response.content or b"").hexdigest()
-        result["signals_found"] = [
-            signal for signal in result["signals_required"]
-            if signal.lower() in text.lower()
-        ]
-        result["signals_missing"] = [
-            signal for signal in result["signals_required"]
-            if signal.lower() not in text.lower()
-        ]
-        if result["reachable"] and result["nonempty"] and not result["signals_missing"]:
-            result["status"] = "REACHABLE_WITH_EXPECTED_SIGNALS"
-        elif result["reachable"] and result["nonempty"]:
-            result["status"] = "REACHABLE_SIGNALS_PARTIAL"
-        elif result["reachable"]:
-            result["status"] = "REACHABLE_EMPTY"
-        else:
-            result["status"] = "HTTP_UNREACHABLE"
-    except requests.RequestException as exc:
-        result["error"] = f"{type(exc).__name__}: {exc}"
-        result["status"] = "REQUEST_ERROR"
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": UA,
+        "Accept-Language": "en-US,en;q=0.8,ja;q=0.6",
+    })
+    last_error = None
+    for attempt in range(1, max(1, int(retries)) + 1):
+        result["attempts"] = attempt
+        try:
+            response = session.get(
+                url,
+                timeout=(10.0, timeout),
+            )
+            text = _safe_text(response)
+            result["http_status"] = int(response.status_code)
+            result["content_length"] = len(response.content or b"")
+            result["reachable"] = 200 <= response.status_code < 400
+            result["nonempty"] = bool(text.strip() or response.content)
+            result["content_sha256"] = hashlib.sha256(response.content or b"").hexdigest()
+            result["signals_found"] = [
+                signal for signal in result["signals_required"]
+                if signal.lower() in text.lower()
+            ]
+            result["signals_missing"] = [
+                signal for signal in result["signals_required"]
+                if signal.lower() not in text.lower()
+            ]
+            if result["reachable"] and result["nonempty"] and not result["signals_missing"]:
+                result["status"] = "REACHABLE_WITH_EXPECTED_SIGNALS"
+                result["error"] = None
+                return result
+            if result["reachable"] and result["nonempty"]:
+                result["status"] = "REACHABLE_SIGNALS_PARTIAL"
+                result["error"] = None
+                return result
+            if result["reachable"]:
+                result["status"] = "REACHABLE_EMPTY"
+                result["error"] = None
+                return result
+            if response.status_code not in {429} and not (500 <= response.status_code < 600):
+                result["status"] = "HTTP_UNREACHABLE"
+                result["error"] = f"http_status={response.status_code}"
+                return result
+            last_error = f"http_status={response.status_code}"
+        except requests.RequestException as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+        if attempt < max(1, int(retries)):
+            import time
+            time.sleep(min(4.0, 0.75 * (2 ** (attempt - 1))))
+
+    result["error"] = last_error
+    result["status"] = "REQUEST_ERROR" if last_error else "HTTP_UNREACHABLE"
     return result
 
 
