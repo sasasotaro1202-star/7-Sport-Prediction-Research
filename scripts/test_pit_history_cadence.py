@@ -21,6 +21,7 @@ def main() -> None:
     assert "attempt_in_boundary" in watchdog
     assert '[ "$attempt_in_boundary" -eq 0 ]' in watchdog
     assert "boundary_index" in watchdog and "boundary_epoch" in watchdog
+    assert '.event=="schedule" or .event=="workflow_dispatch"' in watchdog
 
     print("PIT_HISTORY_9H_CADENCE=PASS")
 
