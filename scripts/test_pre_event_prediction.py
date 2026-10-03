@@ -75,6 +75,7 @@ def main() -> None:
     assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
     assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
     assert "requested_lead='60'" in workflow
+    assert "assert p['scheduler']['selection_mode'] == 'scheduled-60m-default;manual-lead-configurable'" in workflow
     assert "Rebuild persistent prediction experience archive from DB" in workflow
     sync_pos = workflow.index("Rebuild persistent prediction experience archive from DB")
     score_pos = workflow.index("Score accumulated prediction experience")
