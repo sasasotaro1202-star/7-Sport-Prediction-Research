@@ -28,7 +28,9 @@ SPORTS = (
     "rugby",
     "boxing",
 )
+SHARED_DB_PATH = ROOT / "data/db/sports_v45.sqlite"
 DB_PATHS = {
+    **{sport: SHARED_DB_PATH for sport in SPORTS if sport not in {"rugby", "boxing"}},
     "rugby": ROOT / "data/db/rugby_v45.sqlite",
     "boxing": ROOT / "data/db/boxing_v45.sqlite",
 }
