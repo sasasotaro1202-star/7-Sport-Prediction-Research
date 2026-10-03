@@ -20,7 +20,16 @@
     "note": "60 minutes is the scheduled target/guideline. Scheduled generation accepts a 45-75 minute lead window. User-requested manual predictions accept any positive integer lead time with no upper bound.",
     "guideline_only": true,
     "selection_mode": "scheduled-60m-default;manual-lead-configurable",
-    "manual_horizon_policy": "positive_integer_unbounded"
+    "manual_horizon_policy": "positive_integer_unbounded",
+    "manual_default_sport": "all",
+    "manual_sport_options": [
+      "all",
+      "valorant",
+      "basketball",
+      "volleyball",
+      "ufc",
+      "rizin"
+    ]
   },
   "scope": {
     "active_prediction_scope_only": true,
