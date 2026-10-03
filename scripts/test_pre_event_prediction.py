@@ -72,6 +72,10 @@ def main() -> None:
     assert policy["scheduler"]["target_lead_minutes"] == 60
     assert policy["scheduler"]["guideline_target_minutes"] == 60
     assert policy["scheduler"]["selection_mode"] == "scheduled-60m-default;manual-lead-configurable"
+    assert policy["scheduler"]["guideline_target_minutes"] == 60
+    assert policy["scheduler"]["guideline_tolerance_minutes"] == 15
+    assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
+    assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
     assert policy["scheduler"]["generation_window"]["scheduled_min_lead_minutes"] == 45
     assert policy["scheduler"]["generation_window"]["scheduled_max_lead_minutes"] == 75
     assert "requested_lead='60'" in workflow
