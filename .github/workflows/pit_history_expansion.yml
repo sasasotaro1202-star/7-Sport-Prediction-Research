@@ -1,15 +1,11 @@
 name: PIT History Expansion
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/pit_history_expansion.yml'
   schedule:
     # Exact 9-hour epoch cadence anchored at 00:47 UTC; watchdog remains the bounded recovery path.
     - cron: '47 0,9,18 * * *'
-  # Heavy PIT expansion runs on the true 9-hour schedule or manually. Pushes are
-  # validated by the lightweight safety/invariant workflows instead of queuing
-  # another expensive historical replay.
+  # Heavy PIT expansion runs only on the true 9-hour schedule or manually.
+  # Repository changes are validated by the lightweight/invariant workflows.
 permissions:
   contents: read
 concurrency:
@@ -32,11 +28,6 @@ jobs:
         id: cadence
         run: |
           set -euo pipefail
-          if [ '${{ github.event_name }}' = 'push' ]; then
-            echo 'run=false' >> "$GITHUB_OUTPUT"
-            echo 'push trigger: VALIDATION_ONLY_NO_HEAVY_EXPANSION'
-            exit 0
-          fi
           echo 'run=true' >> "$GITHUB_OUTPUT"
           if [ '${{ github.event_name }}' = 'workflow_dispatch' ]; then
             echo 'PIT_9H_MODE=MANUAL'
