@@ -22,6 +22,7 @@ SCOPE_PATH = ROOT / "config/PROJECT_SCOPE_POLICY.json"
 FRESHNESS_PATH = ROOT / "config/PREDICTION_FRESHNESS_POLICY.json"
 COLLECTION_REPORT = ROOT / "results/v45/production_run.json"
 PREDICTION_REPORT = ROOT / "results/future_predictions.json"
+EXPERIENCE_SUMMARY = ROOT / "results/experience_summary.json"
 ARCHIVE_ROOT = ROOT / "results/latest_predictions"
 LATEST_PREDICTION_TIMEOUT_ENV = "V45_LATEST_PREDICTION_COMMAND_TIMEOUT_SECONDS"
 LATEST_PREDICTION_TIMEOUT_DEFAULT_SECONDS = 600.0
@@ -210,6 +211,52 @@ def verify_latest_main() -> str:
         )
     return current
 
+def _sync_experience(sport: str) -> dict:
+    """Persist the fresh forward predictions and rescore verified outcomes.
+
+    The forward_prediction table is the durable source of truth between workflow
+    invocations. Rebuilding the append-only Experience archive here prevents a
+    manual fresh-prediction request from becoming an untracked, one-off forecast.
+    """
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "src.prediction_experience",
+            "--archive-db-sport",
+            sport,
+        ],
+        timeout_seconds=_command_timeout_seconds(),
+    )
+    summary = _run_and_read_experience_summary(sport)
+    return summary
+
+
+def _run_and_read_experience_summary(sport: str) -> dict:
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "src.prediction_experience",
+            "--score-only",
+        ],
+        timeout_seconds=_command_timeout_seconds(),
+    )
+    summary = read_json(EXPERIENCE_SUMMARY)
+    generated = parse_ts(str(summary.get("generated_at_utc") or ""))
+    if generated is None:
+        raise RuntimeError(f"INVALID_EXPERIENCE_SUMMARY_TIMESTAMP:{sport}")
+    return {
+        "status": "EXPERIENCE_SYNC_VERIFIED",
+        "sport": sport,
+        "generated_at_utc": summary.get("generated_at_utc"),
+        "prediction_archive_total": summary.get("prediction_archive_total"),
+        "resolved_scored_total": summary.get("resolved_scored_total"),
+        "predictions_waiting_for_result": summary.get("predictions_waiting_for_result"),
+        "new_settlements": summary.get("new_settlements"),
+    }
+
+
 def _prediction_timing_args(
     lead_minutes: int | None,
     adaptive_timing: bool,
@@ -320,6 +367,7 @@ def request_latest(
                 timeout_seconds=_command_timeout_seconds(),
             )
             prediction = _verify_prediction(sport, request_started)
+            experience = _sync_experience(sport)
 
             (archive_dir / f"{sport}_collection.json").write_text(
                 json.dumps(collection, ensure_ascii=False, indent=2),
@@ -338,6 +386,7 @@ def request_latest(
                     "effective_days_forward": effective_days_forward,
                     "adaptive_timing": adaptive_timing,
                     "stored_prediction_reused": False,
+                    "experience_sync": experience,
                 }
             )
     except Exception:
@@ -368,6 +417,7 @@ def request_latest(
         "effective_days_forward": effective_days_forward,
         "adaptive_timing": adaptive_timing,
         "stored_prediction_reused": False,
+        "experience_closed_loop": True,
         "policy": "fresh-prediction-request-v1",
         "archive_dir": str(archive_dir.relative_to(ROOT)),
     }
