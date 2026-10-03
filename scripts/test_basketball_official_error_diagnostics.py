@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import src.basketball_cdn_backfill as m
 
 
@@ -22,12 +24,23 @@ def main() -> int:
         m.get = original_get
 
     assert total == 0, total
-    assert attempted == 12, attempted
-    assert len(errors) == 12, len(errors)
+    current_season_year = (
+        datetime.now(timezone.utc).year
+        if datetime.now(timezone.utc).month >= 9
+        else datetime.now(timezone.utc).year - 1
+    )
+    assert attempted == 13, attempted
+    assert len(errors) == 13, len(errors)
     assert all(e["error_type"] == "RuntimeError" for e in errors)
     assert empty_pages == 0
     assert empty_pages == 0
-    assert all(e["url"].startswith("https://www.bleague.jp/schedule/") for e in errors)
+    assert all(
+        e["url"].startswith("https://www.bleague.jp/schedule/")
+        or e["url"] == m.BLEAGUE_SCHEDULE_FALLBACK
+        for e in errors
+    )
+    assert errors[-1]["url"] == m.BLEAGUE_SCHEDULE_FALLBACK
+    assert all(e["season_year"] == current_season_year for e in errors)
     # Also verify parser-zero is a distinct status without network access.
     calls = {"n": 0}
     original_get = m.get
@@ -47,7 +60,7 @@ def main() -> int:
 
     assert total2 == 0
     assert errors2 == []
-    assert attempted2 == 12
+    assert attempted2 == 13
     assert empty_pages2 == 12
 
     print("BASKETBALL_OFFICIAL_ERROR_DIAGNOSTICS=PASS")
