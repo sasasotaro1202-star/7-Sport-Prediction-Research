@@ -948,8 +948,12 @@ def main():
     require(
         '[ "$active" -eq 0 ]' in watchdog
         and '[ "$age" -ge 1200 ]' in watchdog
+        and 'latest_success_created' in watchdog
+        and 'conclusion=="success"' in watchdog
+        and 'last_successful_pre_event_run_age=' in watchdog
+        and 'no_successful_pre_event_run_age=' in watchdog
         and 'main_sha' in watchdog,
-        'pre-event watchdog lacks active-run, freshness, or main-SHA guards',
+        'pre-event watchdog lacks active-run, successful-heartbeat freshness, or main-SHA guards',
     )
     if FAILURES:
         print('PRODUCTION INVARIANTS: FAIL')
