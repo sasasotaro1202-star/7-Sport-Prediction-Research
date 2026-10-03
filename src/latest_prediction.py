@@ -463,6 +463,7 @@ def request_latest(
                     "adaptive_timing": adaptive_timing,
                     "stored_prediction_reused": False,
                     "experience_archive_sync": experience_archive,
+                    "basketball_pit_foundation": basketball_pit,
                 }
             )
 
