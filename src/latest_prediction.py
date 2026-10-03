@@ -429,6 +429,7 @@ def request_latest(
                 timeout_seconds=_command_timeout_seconds(),
             )
             collection = _verify_collection(sport, request_started)
+            basketball_pit = _ensure_basketball_pit_foundation(sport)
 
             _run(
                 [
