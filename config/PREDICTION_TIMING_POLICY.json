@@ -72,5 +72,11 @@
     "folds": 4,
     "min_test_rows_per_fold": 15,
     "periods": 2
+  },
+  "manual_horizon_policy": {
+    "minimum_lead_minutes": 1,
+    "maximum_lead_minutes": null,
+    "explicit_request_authoritative": true,
+    "adaptive_override": false
   }
 }
