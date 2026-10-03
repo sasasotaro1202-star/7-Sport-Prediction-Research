@@ -121,7 +121,7 @@ def _validate_competition_routes(active_sports):
             route_errors.append(f'competition_route_not_object:{profile_id}')
         else:
             sport = str(route.get('sport') or '')
-            required = ('profile_id','sport','model_name','model_version','strategy','feature_names',
+            required = ('profile_id','competition_id','canonical_competition_id','sport','model_name','model_version','strategy','feature_names',
                         'training_cutoff_utc','git_commit_sha','artifact_path','quality_status','model_scope','holdout')
             missing = [k for k in required if not route.get(k)]
             if missing:
@@ -130,6 +130,8 @@ def _validate_competition_routes(active_sports):
                 route_errors.append(f'competition_route_sport_not_active:{profile_id}:{sport}')
             if str(route.get('profile_id')) != str(profile_id):
                 route_errors.append(f'competition_route_profile_mismatch:{profile_id}')
+            if str(route.get('canonical_competition_id')) != str(profile_id):
+                route_errors.append(f'competition_route_canonical_id_mismatch:{profile_id}')
             if str(route.get('quality_status')) != 'ACCEPTED_LOCKED_HOLDOUT':
                 route_errors.append(f'competition_route_quality_not_accepted:{profile_id}')
             if str(route.get('model_scope')) != 'competition_specific;frozen_holdout_accepted':
