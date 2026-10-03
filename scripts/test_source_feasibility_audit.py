@@ -153,6 +153,28 @@ def main() -> int:
         assert row["status"] == "REACHABLE_WITH_EXPECTED_SIGNALS"
         assert row["patterns_missing"] == []
 
+        # Exercise the repository's actual VLR policy pattern, not only a copied test regex.
+        configured = audit._load_policy()["active_sports"]["valorant"][0]
+        audit.requests.Session = lambda: FakeSession(
+            FakeResponse(
+                200,
+                '<html><a class="match-item" href="/732644/bar-a-esports-gc-vs-giantx-gc-game-changers-2026-emea-stage-3-sf">Upcoming</a></html>',
+            )
+        )
+        row = audit.probe_source(
+            {
+                "source_id": configured["source_id"],
+                "name": configured["name"],
+                "url": configured["url"],
+                "required_patterns": configured["required_patterns"],
+                "required_signals": configured.get("required_signals", []),
+                "critical": configured["critical"],
+                "pit_status": configured["pit_status"],
+            }
+        )
+        assert row["status"] == "REACHABLE_WITH_EXPECTED_SIGNALS"
+        assert row["patterns_missing"] == []
+
         # A bare number elsewhere in the page must not satisfy the VLR link contract.
         audit.requests.Session = lambda: FakeSession(
             FakeResponse(200, '<html><div class="match-item">2026 season</div><a href="https://evil.example/12345/not-vlr/">x</a></html>')
