@@ -26,7 +26,7 @@ from src.seven_sport_production import add_snapshot, connect, sid, clean
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
 ACTIVE_SPORTS = ("valorant", "basketball", "volleyball", "ufc", "rizin")
-PARSER_VERSION = "match-data-expansion-v1"
+PARSER_VERSION = "match-data-expansion-v2"
 DETAIL_SOURCE_BY_SPORT = {
     "basketball": "bleague-game-detail",
     "valorant": "vlr-match-detail",
@@ -405,7 +405,7 @@ def _exact_for_cutoff(retrieved: datetime, event_time: datetime | None, lead_min
 def _insert_stat(con, event_id, participant_id, team_id, sport, name, value_num, value_text,
                  source, source_url, observed_at, effective_at, quality):
     stat_id = sid(
-        "match-data-expansion-v1",
+        PARSER_VERSION,
         event_id,
         participant_id,
         team_id,
