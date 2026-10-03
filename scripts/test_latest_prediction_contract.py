@@ -90,17 +90,18 @@ def test_prediction_timing_args():
     assert lead == 30
     assert args == [
         "--lead-minutes", "30",
-        "--min-lead-minutes", "15",
-        "--max-lead-minutes", "45",
+        "--min-lead-minutes", "30",
+        "--max-lead-minutes", "30",
     ]
 
-    # Explicit manual horizons have no artificial upper bound.
+    # Explicit manual horizons remain exact even when adaptive timing was
+    # requested by the caller; the explicit request is authoritative.
     lead, args = latest_prediction._prediction_timing_args(90, True)
     assert lead == 90
     assert args == [
         "--lead-minutes", "90",
-        "--min-lead-minutes", "75",
-        "--max-lead-minutes", "105",
+        "--min-lead-minutes", "90",
+        "--max-lead-minutes", "90",
     ]
 
     for requested in (181, 300, 720, 1440):
@@ -108,8 +109,8 @@ def test_prediction_timing_args():
         assert lead == requested
         assert args == [
             "--lead-minutes", str(requested),
-            "--min-lead-minutes", str(requested - 15),
-            "--max-lead-minutes", str(requested + 15),
+            "--min-lead-minutes", str(requested),
+            "--max-lead-minutes", str(requested),
         ]
 
     try:
