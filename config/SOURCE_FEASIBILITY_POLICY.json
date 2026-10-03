@@ -1,6 +1,6 @@
 {
-  "version": 4,
-  "policy": "source-feasibility-and-pit-separation-v4",
+  "version": 5,
+  "policy": "source-feasibility-and-pit-separation-v5",
   "principle": [
     "Reachability is not historical availability.",
     "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
@@ -309,13 +309,14 @@
           "team_identity",
           "player_stats_discovery"
         ],
-        "required_signals": [
-          "upcoming matches",
-          "completed matches"
-        ],
+        "required_signals": [],
         "critical": true,
         "pit_status": "UNPROVEN",
-        "probe_mode": "html_text"
+        "probe_mode": "html_text",
+        "required_patterns": [
+          "href=[\"']?/match/\\d+/",
+          "match-item"
+        ]
       }
     ]
   },
