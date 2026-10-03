@@ -11,7 +11,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 
-from src.competition_profiles import resolve_research_profile
+from src.competition_profiles import build_segment_candidates, resolve_research_profile
 from src.competition_route_builder import _artifact_name, _load_event_metadata, _load_policy
 
 
@@ -26,6 +26,22 @@ def main() -> int:
     assert p["selection"]["min_relative_logloss_improvement"] >= 0.03
     assert p["selection"]["bootstrap_probability_improvement"] >= 0.90
     assert "competition_specific_accepted" in p["fallback_chain"]
+
+    profile = resolve_research_profile("basketball", "EuroLeague 2026", "league match")
+    segments = build_segment_candidates(
+        profile,
+        sport="basketball",
+        season="2026-27",
+        stage="playoff",
+        round_="quarterfinal",
+        event_type="match",
+    )
+    assert [x["specificity"] for x in segments] == [4, 3, 2, 1, 0]
+    assert segments[0]["segment_id"].endswith(
+        "::season=2026-27::stage=playoff::round=quarterfinal::event_type=match"
+    )
+    assert segments[-1]["segment_id"] == profile["profile_id"]
+    assert segments[0]["context"]["stage"] == "playoff"
 
     research = resolve_research_profile("basketball", "EuroLeague 2026", "league match")
     assert research["matched"] is True
@@ -60,6 +76,105 @@ def main() -> int:
     assert metadata["e1"]["season"] == "2025-26"
     assert metadata["e1"]["stage"] == "league"
     assert "name" not in metadata["e1"]
+
+
+    # Most-specific accepted route must win, while a missing leaf route must
+    # deterministically fall back to its broader ancestor.
+    import src.competition_route_registry as registry
+    with tempfile.TemporaryDirectory() as td:
+        troot = Path(td)
+        artifact_specific = troot / "specific.joblib"
+        artifact_broad = troot / "broad.joblib"
+        joblib.dump(model, artifact_specific)
+        joblib.dump(model, artifact_broad)
+        original_root = registry.ROOT
+        original_allowed = registry._allowed_sports
+        original_load = registry.load_registry
+        registry.ROOT = troot
+        registry._allowed_sports = lambda: {"basketball"}
+        segments = build_segment_candidates(
+            profile,
+            sport="basketball",
+            season="2026-27",
+            stage="playoff",
+            round_="quarterfinal",
+            event_type="match",
+        )
+        registry.load_registry = lambda: {
+            "status": "READY",
+            "routes": {
+                segments[-2]["segment_id"]: {
+                    "quality_status": "ACCEPTED_LOCKED_HOLDOUT",
+                    "model_scope": "competition_specific;frozen_holdout_accepted",
+                    "sport": "basketball",
+                    "profile_id": profile["profile_id"],
+                    "segment_id": segments[-2]["segment_id"],
+                    "segment_specificity": segments[-2]["specificity"],
+                    "artifact_path": "broad.joblib",
+                    "git_commit_sha": "test-sha",
+                    "holdout_used_for_selection": False,
+                    "holdout": {"n": 30},
+                },
+                segments[0]["segment_id"]: {
+                    "quality_status": "ACCEPTED_LOCKED_HOLDOUT",
+                    "model_scope": "competition_specific;frozen_holdout_accepted",
+                    "sport": "basketball",
+                    "profile_id": profile["profile_id"],
+                    "segment_id": segments[0]["segment_id"],
+                    "segment_specificity": segments[0]["specificity"],
+                    "artifact_path": "specific.joblib",
+                    "git_commit_sha": "test-sha",
+                    "holdout_used_for_selection": False,
+                    "holdout": {"n": 30},
+                },
+            },
+        }
+        resolved = registry.resolve_route(
+            "basketball",
+            profile,
+            {
+                "season": "2026-27",
+                "stage": "playoff",
+                "round": "quarterfinal",
+                "event_type": "match",
+            },
+        )
+        assert resolved is not None
+        assert resolved["route"]["segment_id"] == segments[0]["segment_id"]
+        assert resolved["routing_depth"] == 4
+        registry.load_registry = lambda: {
+            "status": "READY",
+            "routes": {
+                segments[-2]["segment_id"]: {
+                    "quality_status": "ACCEPTED_LOCKED_HOLDOUT",
+                    "model_scope": "competition_specific;frozen_holdout_accepted",
+                    "sport": "basketball",
+                    "profile_id": profile["profile_id"],
+                    "segment_id": segments[-2]["segment_id"],
+                    "segment_specificity": segments[-2]["specificity"],
+                    "artifact_path": "broad.joblib",
+                    "git_commit_sha": "test-sha",
+                    "holdout_used_for_selection": False,
+                    "holdout": {"n": 30},
+                },
+            },
+        }
+        resolved = registry.resolve_route(
+            "basketball",
+            profile,
+            {
+                "season": "2026-27",
+                "stage": "playoff",
+                "round": "quarterfinal",
+                "event_type": "match",
+            },
+        )
+        assert resolved is not None
+        assert resolved["route"]["segment_id"] == segments[-2]["segment_id"]
+        assert resolved["routing_depth"] == 1
+        registry.load_registry = original_load
+        registry._allowed_sports = original_allowed
+        registry.ROOT = original_root
 
     future_src = (ROOT / "src/future_predictor.py").read_text(encoding="utf-8")
     assert "competition_route" in future_src
