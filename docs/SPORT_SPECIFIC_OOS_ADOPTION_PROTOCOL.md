@@ -67,3 +67,18 @@ Every adopted feature/source/model must record:
 - Actions verification
 
 No promotion is valid if any of the required evidence is missing.
+
+
+## Hierarchical sport-segment routing
+
+After sport and competition identity are resolved, active lanes may evaluate explicit subsegments using the configured sport-specific hierarchy:
+- Basketball: competition → season → stage → round → event type.
+- Volleyball: competition → season → stage → round → event type.
+- UFC/RIZIN: promotion → season → event type.
+- VALORANT: competition → season → stage → round → event type.
+
+A subsegment is eligible only when its context is explicit in the canonical event row. The system never infers missing stage/round/event type or backfills them from future sources.
+
+Routing is evaluated from most specific to broadest ancestor. A leaf route is usable only when its chronological OOS, calibration, PIT and frozen-holdout gates pass and its artifact is valid. Otherwise the prediction deterministically falls back to the next broader accepted segment, then the competition profile, sport incumbent, and safe prior. A highly granular segment therefore cannot degrade the prediction merely because its sample size is insufficient.
+
+Season-specific segments require temporal replication within the season when two independent seasons are impossible by construction; monthly event-time partitions are used for that check. Holdout remains score-only and cannot be used to select route granularity.
