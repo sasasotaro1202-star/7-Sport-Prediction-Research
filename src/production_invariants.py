@@ -413,8 +413,10 @@ def main():
             'PIT history expansion must use the exact 00:47/09:47/18:47 UTC 9-hour schedule')
     require("47 */3 * * *" not in pit_workflow,
             'legacy 3-hour PIT wake schedule reintroduced')
-    require("remainder_minutes=$((minute_delta % 540))" in pit_workflow,
-            'PIT cadence guard must preserve the exact 9-hour epoch phase')
+    require("PIT_9H_MODE=SCHEDULED_00_47_09_47_18_47_UTC" in pit_workflow,
+            'scheduled PIT expansion must retain its canonical 9-hour epoch label')
+    require("minute_delta=$((delta / 60))" not in pit_workflow,
+            'scheduled PIT expansion must not silently skip a delayed boundary after cron dispatch')
     require('echo \'run=false\' >> "$GITHUB_OUTPUT"' in pit_workflow,
             'PIT cadence guard must fail closed by skipping non-boundary wakes')
     pit_block=workflow[workflow.find('- name: Strict PIT replay'):workflow.find('- name: Parallel experience and historical learning')]
