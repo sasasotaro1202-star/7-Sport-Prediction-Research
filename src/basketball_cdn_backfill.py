@@ -92,13 +92,13 @@ JP_PREFECTURES = (
     "徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県",
     "熊本県","大分県","宮崎県","鹿児島県","沖縄県",
 )
-DATE_RE = re.compile(r"(?<!\\d)(\\d{1,2})[/.](\\d{1,2})(?:\\s*[\\(（][^\\)）]*[\\)）])?")
-TIME_RE = re.compile(r"(?<!\\d)(\\d{1,2}:\\d{2})(?!\\d)")
-TIER_RE = re.compile(r"\\bB\\.(PREMIER|ONE|NEXT)\\b", re.I)
+DATE_RE = re.compile(r"(?<!\d)(\d{1,2})[/.](\d{1,2})(?:\s*[\(（][^\)）]*[\)）])?")
+TIME_RE = re.compile(r"(?<!\d)(\d{1,2}:\d{2})(?!\d)")
+TIER_RE = re.compile(r"\bB\.(PREMIER|ONE|NEXT)\b", re.I)
 
 
 def _game_id(href):
-    m = re.search(r"ScheduleKey=(\\d+)", href or "")
+    m = re.search(r"ScheduleKey=(\d+)", href or "")
     return m.group(1) if m else None
 
 
@@ -240,7 +240,7 @@ def parse_schedule_page(c, html, retrieved, url, season_year, month):
         score_nodes = [clean(x.get_text(" ", strip=True)) for x in li.select(".Match_score p")]
         scores = []
         for z in score_nodes:
-            m = re.search(r"(\\d+)\\s*[-–]\\s*(\\d+)", z)
+            m = re.search(r"(\d+)\s*[-–]\s*(\d+)", z)
             if m:
                 scores.append((float(m.group(1)), float(m.group(2))))
         round_node = li.select_one(".Match_round")
