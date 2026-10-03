@@ -409,6 +409,10 @@ def main():
             'watchdog lacks missed 9-hour PIT recovery')
     require('attempt_in_boundary' in watchdog and '[ "$attempt_in_boundary" -eq 0 ]' in watchdog,
             'watchdog PIT recovery lacks one-attempt-per-boundary guard')
+    require("cron: '47 0,9,18 * * *'" in pit_workflow,
+            'PIT history expansion must use the exact 00:47/09:47/18:47 UTC 9-hour schedule')
+    require("47 */3 * * *" not in pit_workflow,
+            'legacy 3-hour PIT wake schedule reintroduced')
     require("remainder_minutes=$((minute_delta % 540))" in pit_workflow,
             'PIT cadence guard must preserve the exact 9-hour epoch phase')
     require('echo \'run=false\' >> "$GITHUB_OUTPUT"' in pit_workflow,
