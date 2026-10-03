@@ -174,8 +174,6 @@ def collect_official(c, season_years):
                     c, html, retrieved, fallback_url, season_year, 0
                 )
                 total += fallback_added
-                if fallback_added > 0:
-                    empty_pages = max(0, empty_pages - 12)
             except Exception as exc:
                 errors.append({
                     "season_year": int(season_year),
