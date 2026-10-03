@@ -581,7 +581,15 @@ def main():
     errors=[]
     for sport in sports:
         try:
-            if sport=='basketball': collect_espn(c,h,sport,['nba','wnba','mens-college-basketball'],start,end)
+            if sport=='basketball':
+                # Active Basketball scope is B.LEAGUE/Asian Games. Do not inject
+                # unrelated NBA/WNBA/college events into the active target lane.
+                from src.basketball_cdn_backfill import collect_official
+                season_years=sorted({
+                    d.year if d.month >= 9 else d.year - 1
+                    for d in (start,end)
+                })
+                collect_official(c,season_years)
             elif sport=='tennis':
                 collect_espn(c,h,sport,['atp','wta'],start,end)
                 collect_wta_public(c,h,start,end)
