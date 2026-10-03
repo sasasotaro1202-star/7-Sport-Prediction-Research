@@ -118,11 +118,12 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
             for candidate in preds:
                 candidate_cutoff = parse_dt(candidate["prediction_cutoff_at_utc"])
                 candidate_generated = parse_dt(candidate["created_at_utc"])
-                if (
-                    candidate_cutoff is not None
-                    and candidate_generated is not None
+                candidate_generated_gt_cutoff = (
+                    candidate_generated is not None
+                    and candidate_cutoff is not None
                     and candidate_generated > candidate_cutoff
-                ):
+                )
+                if candidate_generated_gt_cutoff:
                     late_count += 1
                     continue
                 if candidate_cutoff is not None and candidate_generated is not None:
@@ -149,8 +150,16 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
             if pred is None:
                 report["missing_predictions"].append({
                     **item,
-                    "reason": "NO_PIT_VALID_PREDICTION_IN_GUIDELINE_WINDOW",
-                    "error_code": "NO_PIT_VALID_GUIDELINE_PREDICTION",
+                    "reason": (
+                        "NO_PIT_VALID_PREDICTION_IN_GUIDELINE_WINDOW"
+                        if late_count
+                        else "NO_GUIDELINE_PREDICTION"
+                    ),
+                    "error_code": (
+                        "NO_PIT_VALID_GUIDELINE_PREDICTION"
+                        if late_count
+                        else "NO_GUIDELINE_PREDICTION"
+                    ),
                     "late_prediction_count": late_count,
                 })
                 continue
@@ -206,7 +215,11 @@ def main() -> int:
     out = OUT_DIR / f"pre_event_prediction_audit_{args.sport}.json"
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 1 if report["status"] == "GAP" else 0
+    return 1 if report["status"] in {
+        "GAP",
+        "NO_DATABASE",
+        "FORWARD_REGISTRY_MISSING",
+    } else 0
 
 
 if __name__ == "__main__":
