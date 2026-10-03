@@ -290,9 +290,31 @@ def parse_fiba_game_detail(html: str):
         idx = next((i for i, line in enumerate(lines) if pattern.search(line)), None)
         if idx is None:
             continue
-        nums = []
-        for line in lines[max(0, idx - 3): idx + 5]:
-            nums.extend(float(x) for x in re.findall(r"(?<!\d)(\d+(?:\.\d+)?)%(?!\d)", line))
+        nums = [
+            float(x)
+            for x in re.findall(
+                r"(?<!\d)(\d+(?:\.\d+)?)%(?!\d)",
+                lines[idx],
+            )
+        ]
+        if len(nums) < 2:
+            for next_idx in range(idx + 1, min(len(lines), idx + 3)):
+                candidate = lines[next_idx]
+                if any(
+                    other.search(candidate)
+                    for other in stat_patterns.values()
+                    if other is not pattern
+                ):
+                    break
+                nums.extend(
+                    float(x)
+                    for x in re.findall(
+                        r"(?<!\d)(\d+(?:\.\d+)?)%(?!\d)",
+                        candidate,
+                    )
+                )
+                if len(nums) >= 2:
+                    break
         if nums:
             result["game_stats"][key] = nums[:2]
     return result
