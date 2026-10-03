@@ -257,6 +257,7 @@ def _fit_oos(items: list[dict], features: list[str], candidates: list[str], mini
         "route_version": "competition-specific-production-route-v1",
         "profile_id": items[0]["profile_id"],
         "competition_id": items[0]["competition_id"],
+        "canonical_competition_id": items[0]["canonical_competition_id"],
         "sport": items[0]["sport"],
         "season_scope": _periods(items),
         "model_name": best,
@@ -332,6 +333,7 @@ def build_route_registry(db_path: Path | None = None, sports: list[str] | None =
                     "features": feats,
                     "season": meta.get("season") or str(t)[:4],
                     "competition_id": meta.get("competition_id"),
+                    "canonical_competition_id": profile.get("canonical_competition_id"),
                     "profile_id": profile_id,
                     "sport": sport,
                 })
