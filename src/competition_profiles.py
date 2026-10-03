@@ -13,7 +13,7 @@ def _load() -> dict:
 
 
 def normalize(value: object) -> str:
-    return re.sub(r"\\s+", " ", str(value or "")).strip().lower()
+    return re.sub(r"\s+", " ", str(value or "")).strip().lower()
 
 
 def resolve_profile(sport: str, competition_id: object = None, event_name: object = None, research_discovery: bool = False) -> dict:
@@ -34,6 +34,9 @@ def resolve_profile(sport: str, competition_id: object = None, event_name: objec
                 "matched": True,
                 "dynamic": False,
                 "competition_id": str(competition_id or ""),
+                "canonical_competition_id": str(
+                    profile.get("canonical_competition_id") or profile["profile_id"]
+                ),
             }
     dynamic = {str(x) for x in (policy.get("dynamic_competition_discovery") or [])}
     if (str(sport) in dynamic or research_discovery) and cid:
@@ -51,6 +54,7 @@ def resolve_profile(sport: str, competition_id: object = None, event_name: objec
                 "matched": True,
                 "dynamic": True,
                 "competition_id": str(competition_id or ""),
+                "canonical_competition_id": f"{sport}:competition:{safe_id}",
             }
     return {
         "profile_id": None,
@@ -60,6 +64,7 @@ def resolve_profile(sport: str, competition_id: object = None, event_name: objec
         "matched": False,
         "dynamic": False,
         "competition_id": str(competition_id or ""),
+        "canonical_competition_id": None,
     }
 
 
