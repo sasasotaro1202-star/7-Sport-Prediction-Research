@@ -98,17 +98,37 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
             tolerance = timedelta(minutes=15)
             earliest_cutoff = target_cutoff - tolerance
             latest_cutoff = target_cutoff + tolerance
-            pred = c.execute(
+            preds = c.execute(
                 """SELECT prediction_id,created_at_utc,prediction_cutoff_at_utc,strategy,model_version
                      FROM forward_prediction
                     WHERE event_id=?
                       AND market='winner'
                       AND prediction_cutoff_at_utc BETWEEN ? AND ?
                       AND datetime(created_at_utc) <= datetime(?)
-                    ORDER BY datetime(created_at_utc) DESC, prediction_id DESC
-                    LIMIT 1""",
+                    ORDER BY datetime(created_at_utc) DESC, prediction_id DESC""",
                 (row["event_id"], earliest_cutoff.isoformat(), latest_cutoff.isoformat(), row["event_time_utc"]),
-            ).fetchone()
+            ).fetchall()
+
+            # A prediction is PIT-valid only when its generation timestamp is not
+            # later than its own prediction cutoff. A late snapshot may exist for
+            # the same event, but it cannot substitute for the latest valid
+            # pre-cutoff prediction. When no valid prediction exists, fail closed.
+            late_count = 0
+            valid_preds = []
+            for candidate in preds:
+                candidate_cutoff = parse_dt(candidate["prediction_cutoff_at_utc"])
+                candidate_generated = parse_dt(candidate["created_at_utc"])
+                if (
+                    candidate_cutoff is not None
+                    and candidate_generated is not None
+                    and candidate_generated > candidate_cutoff
+                ):
+                    late_count += 1
+                    continue
+                if candidate_cutoff is not None and candidate_generated is not None:
+                    valid_preds.append(candidate)
+
+            pred = valid_preds[0] if valid_preds else None
 
             item = {
                 "event_id": row["event_id"],
@@ -123,31 +143,30 @@ def audit(db_path: Path, sport: str, now: datetime, min_lead: float, max_lead: f
                 "acceptable_cutoff_range_utc": [earliest_cutoff.isoformat(), latest_cutoff.isoformat()],
             }
 
+            if late_count:
+                report["timing"]["late"] += late_count
+
             if pred is None:
                 report["missing_predictions"].append({
-
                     **item,
-                    "reason": "NO_PREDICTION_IN_GUIDELINE_WINDOW",
-                    "error_code": "NO_GUIDELINE_PREDICTION",
+                    "reason": "NO_PIT_VALID_PREDICTION_IN_GUIDELINE_WINDOW",
+                    "error_code": "NO_PIT_VALID_GUIDELINE_PREDICTION",
+                    "late_prediction_count": late_count,
                 })
                 continue
 
             report["predicted_in_guideline_window"] += 1
             cutoff = parse_dt(pred["prediction_cutoff_at_utc"])
             generated = parse_dt(pred["created_at_utc"])
-            if generated is None:
+            if generated is None or cutoff is None:
                 timing_status = "UNKNOWN_GENERATION_TIME"
-            elif generated <= cutoff:
-                timing_status = "ON_TIME" if (cutoff - generated).total_seconds() <= 120 else "EARLY"
             else:
-                timing_status = "LATE"
+                timing_status = "ON_TIME" if (cutoff - generated).total_seconds() <= 120 else "EARLY"
 
             if timing_status == "ON_TIME":
                 report["timing"]["on_time"] += 1
             elif timing_status == "EARLY":
                 report["timing"]["early"] += 1
-            elif timing_status == "LATE":
-                report["timing"]["late"] += 1
 
         if not target:
             report["status"] = "NO_TARGET_EVENTS_IN_WINDOW"
