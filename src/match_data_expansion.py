@@ -328,7 +328,6 @@ def _write_jsonld(con, event, html, retrieved, source, exact):
     data = parse_jsonld_event(html)
     if not data:
         return 0
-    names = _participants(con, event["event_id"])
     values = {
         "match.venue_name": (None, data.get("venue_name")),
         "match.venue_address": (None, data.get("venue_address")),
@@ -413,7 +412,8 @@ def _write_bleague(con, event, html, retrieved, exact):
         _insert_stat(
             con, event["event_id"], participant_id, team_id, event["sport"],
             "team.standing_rank", float(rank), None, "bleague-game-detail",
-            event["source_url"], retrieved.isoformat() if exact else None,
+            event["source_url"], retrieved.isoformat(),
+            retrieved.isoformat() if exact else None,
             "EXACT" if exact else "UNVERIFIABLE",
         )
         written += 1
