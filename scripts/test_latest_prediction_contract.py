@@ -123,6 +123,7 @@ def main():
     assert timing["default_preferred_lead_minutes"] == 60
     assert timing["selection"]["production_default"] == 60
     assert timing["scheduler"]["target_lead_minutes"] == 60
+    assert timing["scheduler"]["selection_mode"] == "scheduled-60m-default;manual-lead-configurable"
     assert policy["reuse_stored_prediction_output"] is False
     assert policy["stale_output_action"] == "FAIL_CLOSED"
 
@@ -165,6 +166,13 @@ def main():
     # Stored prediction output is verification evidence only, never a stale fallback.
     assert "PREDICTION_REPORT" in src
     assert "reuse_stored_prediction_output" in src
+
+    # Long manual horizons expand schedule collection instead of being truncated by the default window.
+    import latest_prediction as _lp
+    assert _lp._prediction_timing_args(60, False)[0] == 60
+    assert max(7, (60 + 15 + 1439) // 1440) == 7
+    assert max(7, (1440 + 15 + 1439) // 1440) == 2
+    assert max(7, (14400 + 15 + 1439) // 1440) == 11
 
     test_timeout_is_bounded_and_fail_closed()
     test_prediction_timing_args()
