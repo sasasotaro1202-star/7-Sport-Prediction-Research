@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-10-03T13:08:10.948259+00:00",
+  "generated_at_utc": "2026-10-03T15:30:08.982711+00:00",
   "policy": "active-scope-mandatory; accepted-artifact-first; PIT-safe research features; explicit safe-prior fallback; F1 multiclass safe-prior lane; gated contextual routing; frozen-holdout-validated calibration; event-confidence-v1; matchday-situation-v1; configurable-pre-event-generation-window-v1",
   "prediction_schedule": {
     "target_lead_minutes": 60,
