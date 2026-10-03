@@ -402,7 +402,8 @@ def request_latest(
                     "experience_archive_sync": experience_archive,
                 }
             )
-    experience_score = _score_experience()
+
+        experience_score = _score_experience()
 
     except Exception:
         # The archive is retained as failure evidence; no previous prediction
