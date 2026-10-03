@@ -210,6 +210,51 @@ def verify_latest_main() -> str:
         )
     return current
 
+EXPERIENCE_SUMMARY = ROOT / "results/experience_summary.json"
+
+def _sync_experience_archive(sport: str) -> dict:
+    """Rebuild the durable Experience archive from the fresh prediction DB."""
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "src.prediction_experience",
+            "--archive-db-sport",
+            sport,
+        ],
+        timeout_seconds=_command_timeout_seconds(),
+    )
+    return {
+        "status": "EXPERIENCE_ARCHIVE_SYNC_VERIFIED",
+        "sport": sport,
+    }
+
+
+def _score_experience() -> dict:
+    """Score only against outcomes that are already verified/matured."""
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "src.prediction_experience",
+            "--score-only",
+        ],
+        timeout_seconds=_command_timeout_seconds(),
+    )
+    summary = read_json(EXPERIENCE_SUMMARY)
+    generated = parse_ts(str(summary.get("generated_at_utc") or ""))
+    if generated is None:
+        raise RuntimeError("INVALID_EXPERIENCE_SUMMARY_TIMESTAMP")
+    return {
+        "status": "EXPERIENCE_SCORE_VERIFIED",
+        "generated_at_utc": summary.get("generated_at_utc"),
+        "prediction_archive_total": summary.get("prediction_archive_total"),
+        "resolved_scored_total": summary.get("resolved_scored_total"),
+        "predictions_waiting_for_result": summary.get("predictions_waiting_for_result"),
+        "new_settlements": summary.get("new_settlements"),
+    }
+
+
 def _prediction_timing_args(
     lead_minutes: int | None,
     adaptive_timing: bool,
@@ -335,6 +380,7 @@ def request_latest(
                 timeout_seconds=_command_timeout_seconds(),
             )
             prediction = _verify_prediction(sport, request_started)
+            experience_archive = _sync_experience_archive(sport)
 
             (archive_dir / f"{sport}_collection.json").write_text(
                 json.dumps(collection, ensure_ascii=False, indent=2),
@@ -353,8 +399,11 @@ def request_latest(
                     "effective_days_forward": effective_days_forward,
                     "adaptive_timing": adaptive_timing,
                     "stored_prediction_reused": False,
+                    "experience_archive_sync": experience_archive,
                 }
             )
+    experience_score = _score_experience()
+
     except Exception:
         # The archive is retained as failure evidence; no previous prediction
         # file is returned as a fallback.
@@ -383,6 +432,8 @@ def request_latest(
         "effective_days_forward": effective_days_forward,
         "adaptive_timing": adaptive_timing,
         "stored_prediction_reused": False,
+        "experience_score": experience_score,
+        "experience_closed_loop": True,
         "policy": "fresh-prediction-request-v1",
         "archive_dir": str(archive_dir.relative_to(ROOT)),
     }
