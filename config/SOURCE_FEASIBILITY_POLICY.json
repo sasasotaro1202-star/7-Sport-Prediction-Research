@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "policy": "source-feasibility-and-pit-separation-v1",
+  "version": 2,
+  "policy": "source-feasibility-and-pit-separation-v2",
   "principle": [
     "Reachability is not historical availability.",
     "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
@@ -138,6 +138,39 @@
     ],
     "ufc": [
       {
+        "source_id": "ufc_aristotle_api",
+        "name": "UFC Stats API (Aristotle)",
+        "url": "https://ufcapi.aristotle.me/api/events",
+        "probe_url": "https://ufcapi.aristotle.me/api/events?limit=5",
+        "kind": "free_public_api",
+        "capabilities": [
+          "event_schedule",
+          "fight_card",
+          "fighter_profiles",
+          "career_stats",
+          "fight_stats"
+        ],
+        "required_signals": [],
+        "probe_mode": "json_collection",
+        "minimum_records": 1,
+        "required_json_key_groups": [
+          [
+            "id"
+          ],
+          [
+            "name"
+          ],
+          [
+            "date",
+            "event_date",
+            "datetime"
+          ]
+        ],
+        "critical": true,
+        "cost_status": "FREE_PUBLIC",
+        "pit_status": "UNPROVEN"
+      },
+      {
         "source_id": "ufcstats",
         "name": "UFCStats",
         "url": "https://ufcstats.com/",
@@ -151,11 +184,34 @@
         "required_signals": [
           "Completed",
           "Upcoming",
-          "Name/date",
+          "Name",
+          "Date",
           "Location"
         ],
-        "critical": true,
-        "pit_status": "UNPROVEN"
+        "probe_mode": "html_text",
+        "critical": false,
+        "pit_status": "UNPROVEN",
+        "role": "secondary_statistics_reference"
+      },
+      {
+        "source_id": "ufc_tidytuesday_fallback",
+        "name": "TidyTuesday UFC dataset",
+        "url": "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2026/2026-07-07/ufc_fights.csv",
+        "kind": "historical_dataset",
+        "capabilities": [
+          "historical_fight_results",
+          "historical_fight_statistics"
+        ],
+        "required_signals": [
+          "f1_name",
+          "f2_name",
+          "f1_result",
+          "f2_result"
+        ],
+        "probe_mode": "html_text",
+        "critical": false,
+        "pit_status": "UNPROVEN",
+        "role": "historical_recovery_only"
       }
     ],
     "rizin": [
@@ -199,7 +255,8 @@
           "completed matches"
         ],
         "critical": true,
-        "pit_status": "UNPROVEN"
+        "pit_status": "UNPROVEN",
+        "probe_mode": "html_text"
       }
     ]
   },
