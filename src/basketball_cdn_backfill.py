@@ -17,6 +17,9 @@ from src.seven_sport_production import add_snapshot, add_stat, upsert_ep, upsert
 SPORT = "basketball"
 UA = "SevenSportResearchEngine/4.6-basketball-scope-correct"
 BLEAGUE_SCHEDULE = "https://www.bleague.jp/schedule/?mon={month:02d}&tab=1&year={season_year}"
+# Official legacy schedule rendering is retained as a read-only current-schedule
+# fallback when the current page serves no parseable match anchors to requests.
+BLEAGUE_SCHEDULE_FALLBACK = "https://www.bleague.jp/schedule_old2208/"
 BLEAGUE_RAW = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/master/inst/extdata/{path}"
 
 SEASONS = tuple(range(2016, 2027))
@@ -139,6 +142,7 @@ def collect_official(c, season_years):
     requests_attempted = 0
     empty_pages = 0
     for season_year in season_years:
+        season_added = 0
         for month in range(1, 13):
             url = BLEAGUE_SCHEDULE.format(month=month, season_year=season_year)
             requests_attempted += 1
@@ -146,6 +150,7 @@ def collect_official(c, season_years):
                 html, retrieved, _ = get(url)
                 added = parse_schedule_page(c, html, retrieved, url, season_year, month)
                 total += added
+                season_added += added
                 if added == 0:
                     empty_pages += 1
             except Exception as exc:
@@ -153,6 +158,29 @@ def collect_official(c, season_years):
                     "season_year": int(season_year),
                     "month": int(month),
                     "url": url,
+                    "error_type": type(exc).__name__,
+                    "error": repr(exc),
+                })
+        # The current schedule endpoint can return a successful HTML shell with
+        # no rendered game anchors to non-browser clients. In that case, use the
+        # official legacy schedule rendering once for the season. It is still
+        # parsed with the same exact ScheduleKey/timestamp/name rules.
+        if season_added == 0:
+            fallback_url = BLEAGUE_SCHEDULE_FALLBACK
+            requests_attempted += 1
+            try:
+                html, retrieved, _ = get(fallback_url)
+                fallback_added = parse_schedule_page(
+                    c, html, retrieved, fallback_url, season_year, 0
+                )
+                total += fallback_added
+                if fallback_added > 0:
+                    empty_pages = max(0, empty_pages - 12)
+            except Exception as exc:
+                errors.append({
+                    "season_year": int(season_year),
+                    "month": None,
+                    "url": fallback_url,
                     "error_type": type(exc).__name__,
                     "error": repr(exc),
                 })
