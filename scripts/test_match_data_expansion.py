@@ -164,7 +164,7 @@ def main() -> int:
     )
     rows = select_events(con, "ufc", horizon_days=1, max_events=10)
     assert len(rows) == 1
-    assert rows[0]["source_url"] == "https://ufcstats.com/event-details/example"
+    assert rows[0][5] == "https://ufcstats.com/event-details/example"
     con.close()
 
     print("MATCH_DATA_EXPANSION_PARSER=PASS")
