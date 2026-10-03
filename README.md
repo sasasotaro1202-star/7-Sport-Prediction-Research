@@ -82,7 +82,7 @@ X data is isolated from the production model: collection → PIT storage → ind
 ### Automatic T-60 pre-event prediction
 `.github/workflows/pre_event_prediction.yml` runs every 5 minutes (UTC, offset from the top of the hour) for the five active sports. It refreshes upcoming schedules, generates the default prediction around the event-time-minus-60-minute PIT cutoff (with the configured ±15-minute guideline tolerance), audits every active-scope event in the bounded 5–180 minute window, and preserves the sport-scoped database for the next production cycle. Missing T-60 predictions are recorded explicitly as coverage gaps; late/early generation timing is tracked rather than hidden.
 
-The T-60 lane does not promote models. Its outputs are appended to the forward-prediction experience ledger, scored only against verified outcomes, and summarized by competition profile and prediction timing for future research/OOS selection.
+The T-60 lane does not promote models. Its outputs are appended to the forward-prediction experience ledger, scored only against verified outcomes, and summarized by competition profile and prediction timing for future research/OOS selection. Manual prediction requests are separate: any positive-integer lead time is accepted with no artificial upper bound, while automatic scheduling remains T-60-centered.
 
 ### Rugby / Boxing coverage guards
 `.github/workflows/rugby_production.yml` independently collects World Rugby coverage into `rugby_v45.sqlite`. Rugby remains coverage-only until its sport-specific PIT/OOS/release path is proven.
