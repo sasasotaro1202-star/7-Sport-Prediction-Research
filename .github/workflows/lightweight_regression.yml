@@ -54,6 +54,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_competition_routing.py
       - name: B.LEAGUE official error diagnostics regression
         run: PYTHONPATH=. python scripts/test_basketball_official_error_diagnostics.py
+      - name: Basketball target and PIT integrity regression
+        run: PYTHONPATH=. python scripts/test_basketball_target_integrity.py
       - name: Production safe continuation regression
         run: PYTHONPATH=. python scripts/test_production_safe_continuation.py
       - name: Continuous scope autofill regression
