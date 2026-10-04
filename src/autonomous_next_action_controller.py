@@ -154,18 +154,19 @@ def decide(
     reason: str
     evidence: dict = {}
 
-    if not force:
-        failure_count = recent_failure_count(failures, now)
-        evidence["recent_failure_count_6h"] = failure_count
-        if failure_count >= 3:
-            return {
-                "version": "autonomous-next-action-controller-v1",
-                "status": "HOLD",
-                "action": None,
-                "reason": "three_recent_failures_within_6h",
-                "main_sha": main_sha,
-                "evidence": evidence,
-            }
+    # Manual force may bypass the recent-dispatch cooldown, but never bypasses
+    # the hard-stop failure safety gate.
+    failure_count = recent_failure_count(failures, now)
+    evidence["recent_failure_count_6h"] = failure_count
+    if failure_count >= 3:
+        return {
+            "version": "autonomous-next-action-controller-v1",
+            "status": "HOLD",
+            "action": None,
+            "reason": "three_recent_failures_within_6h",
+            "main_sha": main_sha,
+            "evidence": evidence,
+        }
 
     fresh_gate = bool(release_fresh and quality_fresh)
     deficit, reasons = scope_deficit(
@@ -183,7 +184,15 @@ def decide(
         action = "autonomous_research_sweep"
         reason = "refresh_research_state_without_forcing_production_or_scope_promotion"
 
-    state = selected_run_state(workflow_runs.get(action, []), main_sha, now)
+    # Cooldown/active-run safety is global across the controller's research
+    # workflows. A route change must not allow two research dispatches inside
+    # the same bounded interval.
+    all_workflow_runs = [
+        row
+        for rows in workflow_runs.values()
+        for row in rows
+    ]
+    state = selected_run_state(all_workflow_runs, main_sha, now)
     evidence["workflow_state"] = {
         "active": [
             {"databaseId": r.get("databaseId"), "status": r.get("status"), "createdAt": r.get("createdAt")}
@@ -193,7 +202,7 @@ def decide(
         "latest": state["latest"],
     }
 
-    if not force and state["active"]:
+    if state["active"]:
         return {
             "version": "autonomous-next-action-controller-v1",
             "status": "WAIT",
