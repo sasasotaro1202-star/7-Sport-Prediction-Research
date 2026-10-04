@@ -20,6 +20,18 @@ Generate multiple candidate information patterns, including family ablations, pa
 Use recent-period performance, fold dispersion and feature-count complexity as selection signals. A pattern is not adopted because it wins one fold or because it has more data.
 Feature-pattern research is applied to every active sport, not selectively to one sport.
 
+## Feature-pattern research
+For every active sport, do not assume that the largest feature set is optimal. Explore multiple PIT-safe patterns across identity/strength, recent form/load, historical performance statistics, athlete/player profile, team/roster/availability, competition/event context, matchday intelligence, data-quality state and interactions.
+
+The pattern search must vary at least:
+family inclusion/exclusion, fine-grained statistic blocks, A/B/D encoding, short/medium/long history emphasis, summary-statistic variants, profile/roster inclusion, matchday inclusion, quality-awareness, and interaction inclusion.
+
+Use multi-stage chronological pre-holdout screening with a broad structured candidate grid, then retest diverse winners with more than one model family. Record negative results, robustness, feature count/complexity, source dependence and compute cost. Frozen holdout is score-only and never used to choose a pattern.
+
+Basketball, Volleyball, VALORANT, UFC and RIZIN must all use this common pattern-search framework with sport-specific feature priorities. Tennis, F1, Rugby and Boxing must retain compatible sport-specific schemas while deferred. Missing or unproven information remains UNKNOWN/UNVERIFIABLE and cannot be treated as evidence.
+
+Pattern selection alone is never production authorization; downstream model OOS/WFO, calibration, robustness, frozen holdout, release and monitoring gates remain mandatory.
+
 ## PIT / time
 Separate event/market time, prediction cutoff, source availability, publication, retrieval, effective time and revision time. Only use information demonstrably available by cutoff. Unknown/unverifiable availability is fail-closed for production-quality OOS. A pre-event audit must not PASS a prediction generated after its own cutoff. Same-event snapshots at different cutoffs are dependent observations and are evaluated as event clusters.
 
