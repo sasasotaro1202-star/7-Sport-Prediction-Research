@@ -20,6 +20,7 @@ ALLOWED_WORKFLOWS = {
     "RUNTIME_HEALTH": "production_runtime_health.yml",
     "SAFETY_AUDIT": "production_safety_audit.yml",
     "LANE_AUDIT": "nine_sport_lane_audit.yml",
+    "TRAJECTORY_RESEARCH": "autonomous_temporal_trajectory_loop.yml",
 }
 
 MONITORED_WORKFLOWS = {
@@ -30,6 +31,7 @@ MONITORED_WORKFLOWS = {
     "invariants": "production_invariants.yml",
     "lightweight_regression": "lightweight_regression.yml",
     "control_plane_regression": "autonomous_control_plane_regression.yml",
+    "trajectory_research": "autonomous_temporal_trajectory_loop.yml",
 }
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "research"
@@ -374,6 +376,7 @@ def inspect() -> dict[str, Any]:
         "invariants": action_health(actions, MONITORED_WORKFLOWS["invariants"], 4.5, current_main_sha=head_sha),
         "lightweight_regression": action_health(actions, MONITORED_WORKFLOWS["lightweight_regression"], 4.5, current_main_sha=head_sha),
         "control_plane_regression": action_health(actions, MONITORED_WORKFLOWS["control_plane_regression"], 4.5, current_main_sha=head_sha),
+        "trajectory_research": action_health(actions, MONITORED_WORKFLOWS["trajectory_research"], 2.0, current_main_sha=head_sha),
     }
 
     coverage = release.get("coverage")
@@ -664,6 +667,13 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
         "nine-sport lane audit evidence is missing, stale, or failed",
     )
 
+    add_maintenance_action(
+        "TRAJECTORY_RESEARCH",
+        "trajectory_research",
+        21.0,
+        "temporal trajectory collection/research heartbeat is missing, stale, or failed",
+    )
+
     # Snapshot-only fallback covers failures observed between event delivery
     # and the next snapshot refresh. SHA match is mandatory.
     for monitored_target in (
@@ -671,6 +681,7 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
         "pit_history",
         "failure_recovery",
         "control_plane_regression",
+        "trajectory_research",
     ):
         health = state["actions"].get(monitored_target) or {}
         age = health.get("age_hours")
