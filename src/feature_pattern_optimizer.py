@@ -178,7 +178,7 @@ def classify_feature_for_sport(name: str, sport: str) -> str:
     n = re.sub(r"^(?:a|b|d|ad|m|r|q)__", "", str(name or "").lower())
     rules = SPORT_FEATURE_FAMILY_TOKENS.get(str(sport).lower(), {})
     # Interaction signals always remain interactions.
-    if "_x_" in n or "interaction" in n:
+    if "_x_" in n or "__x__" in n or "interaction" in n:
         return "interaction"
     # Prefer explicit quality/matchday markers before sport-specific performance.
     if any(k in n for k in QUALITY_TOKENS):
