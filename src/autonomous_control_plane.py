@@ -680,6 +680,17 @@ def state_fingerprint(
     future = state["future_prediction"]
     experience = state["experience"]
     dual = state["dual_learning"]
+    action_fingerprint = {}
+    for name, raw in (state.get("actions") or {}).items():
+        if isinstance(raw, dict):
+            # age_hours is wall-clock volatility derived from the same latest run.
+            # status/head_sha/conclusion/run_id remain part of the evidence state.
+            action_fingerprint[name] = {
+                key: value for key, value in raw.items() if key != "age_hours"
+            }
+        else:
+            action_fingerprint[name] = raw
+
     normalized = {
         # The invocation SHA is provenance, not evidence state. Including it here
         # would force a self-commit every time the control plane advances main.
@@ -699,7 +710,7 @@ def state_fingerprint(
         },
         "route_observability": state["route_observability"],
         "timing": state["timing"],
-        "actions": state.get("actions"),
+        "actions": action_fingerprint,
         "failure_memory": state.get("failure_memory"),
         "dual_learning": dual,
         "selected": {
