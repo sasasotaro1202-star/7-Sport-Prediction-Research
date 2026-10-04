@@ -1,6 +1,6 @@
 {
-  "version": 7,
-  "policy": "source-feasibility-and-pit-separation-v7",
+  "version": 8,
+  "policy": "source-feasibility-and-pit-separation-v8",
   "principle": [
     "Reachability is not historical availability.",
     "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
