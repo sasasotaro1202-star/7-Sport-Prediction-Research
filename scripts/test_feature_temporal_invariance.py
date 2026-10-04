@@ -4,6 +4,7 @@ import math
 import sqlite3
 
 from src import research_cycle_v4 as research
+from src.public_history_backfill import parse_vlr_match_event_time
 
 
 def build_fixture() -> sqlite3.Connection:
@@ -103,7 +104,15 @@ def assert_same(a: dict[str, float], b: dict[str, float]) -> None:
         assert x == y, f"future mutation changed prior feature: {key}: {x!r} != {y!r}"
 
 
+def test_vlr_match_time_parser() -> None:
+    html = """<div class="match-header-date"><span class="moment-tz-convert" data-utc-ts="1713996000"></span></div>"""
+    assert parse_vlr_match_event_time(html) == "2024-04-24T20:40:00+00:00"
+    # Relative result-feed ages must not be interpreted as event timestamps.
+    assert parse_vlr_match_event_time('<div class="match-header-date">2h 44m ago</div>') is None
+
+
 def main() -> int:
+    test_vlr_match_time_parser()
     c = build_fixture()
     before = event_features(c, "e2")
     profile_keys = [k for k in before if "profile__height" in k]
