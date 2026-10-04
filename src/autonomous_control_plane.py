@@ -698,8 +698,21 @@ def state_fingerprint(
     future = state["future_prediction"]
     experience = state["experience"]
     dual = state["dual_learning"]
+
+    action_fingerprint = {}
+    for name, raw in (state.get("actions") or {}).items():
+        if isinstance(raw, dict):
+            # age_hours is wall-clock volatility derived from the same latest run.
+            # status/head_sha/conclusion/run_id remain part of the evidence state.
+            action_fingerprint[name] = {
+                key: value for key, value in raw.items() if key != "age_hours"
+            }
+        else:
+            action_fingerprint[name] = raw
+
     normalized = {
-        "head_sha": state["head_sha"],
+        # The invocation SHA is provenance, not evidence state. Including it here
+        # would force a self-commit whenever the control plane advances main.
         "errors": state["errors"],
         "quality": state["quality"],
         "release": state["release"],
@@ -716,7 +729,7 @@ def state_fingerprint(
         },
         "route_observability": state["route_observability"],
         "timing": state["timing"],
-        "actions": state.get("actions"),
+        "actions": action_fingerprint,
         "failure_memory": state.get("failure_memory"),
         "dual_learning": dual,
         "selected": {
@@ -747,7 +760,7 @@ def write_state(
 
     selected = dict(selected)
     selected["fingerprint"] = fingerprint(
-        state["head_sha"], selected["action"], selected["target"], selected["reason"]
+        fp, selected["action"], selected["target"], selected["reason"]
     )
     queue_ids = queue_fingerprints()
     queue_added = selected["fingerprint"] not in queue_ids
@@ -759,19 +772,19 @@ def write_state(
                 **selected,
             }, ensure_ascii=False, sort_keys=True) + "\n")
 
-    action_record = {
-        "recorded_at_utc": state["observed_at_utc"],
-        "head_sha": state["head_sha"],
-        "state_fingerprint": fp,
-        "selected_action": selected,
-        "dispatch_action": dispatch,
-        "automatic_promotion": False,
-    }
-    ACTION_LOG_OUT.parent.mkdir(parents=True, exist_ok=True)
-    with ACTION_LOG_OUT.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(action_record, ensure_ascii=False, sort_keys=True) + "\n")
-
     should_write = previous_fp != fp or not CONTROL_OUT.exists() or not HEALTH_OUT.exists()
+    if previous_fp != fp or not ACTION_LOG_OUT.exists():
+        action_record = {
+            "recorded_at_utc": state["observed_at_utc"],
+            "head_sha": state["head_sha"],
+            "state_fingerprint": fp,
+            "selected_action": selected,
+            "dispatch_action": dispatch,
+            "automatic_promotion": False,
+        }
+        ACTION_LOG_OUT.parent.mkdir(parents=True, exist_ok=True)
+        with ACTION_LOG_OUT.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(action_record, ensure_ascii=False, sort_keys=True) + "\n")
     if should_write:
         control = {
             "version": "autonomous-control-plane-v1",
@@ -800,6 +813,8 @@ def write_state(
                 "main_sha_recheck_required_before_push": True,
                 "actions_snapshot_is_provenance_input": True,
                 "automatic_dispatch_is_bounded_and_allowlisted": True,
+                "state_fingerprint_excludes_invocation_sha": True,
+                "action_log_appends_only_on_decision_change": True,
             },
         }
         CONTROL_OUT.write_text(json.dumps(control, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
