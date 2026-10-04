@@ -1,0 +1,84 @@
+name: B.LEAGUE Public Availability PIT Shadow Audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/bleague_public_availability_shadow_audit.py"
+      - "scripts/test_bleague_public_availability_shadow_audit.py"
+      - "scripts/test_bleaguer_public_availability_evidence.py"
+      - "results/research/bleague_public_availability_evidence.json"
+      - "src/bleaguer_git_provenance.py"
+      - ".github/workflows/bleague_public_availability_shadow_audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bleague-public-availability-shadow-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shadow-audit:
+    name: B.LEAGUE public-availability shadow audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+
+      - name: Initialize database directories
+        run: mkdir -p data/db data/raw/http_cache results/research
+
+      - name: Restore latest basketball PIT database cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: bleague-shadow-audit-basketball-${{ github.run_id }}
+          restore-keys: |
+            active-scope-target-db-v4-basketball-pit-
+            nine-sport-target-db-v4-basketball-pit-
+            nine-sport-research-db-v4-basketball-
+            pit-history-seed-basketball-
+
+      - name: Initialize or validate database
+        run: |
+          set -euo pipefail
+          python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+          test -s data/db/sports_v45.sqlite
+          python -m src.cache_health --db data/db/sports_v45.sqlite --sport basketball --repair
+
+      - name: Materialize historical B.LEAGUE corpus
+        run: python -m src.basketball_cdn_backfill --historical
+
+      - name: Run read-only public-availability shadow audit
+        run: python scripts/bleague_public_availability_shadow_audit.py
+
+      - name: Validate shadow-audit report
+        run: python scripts/test_bleague_public_availability_shadow_audit.py
+
+      - name: Validate availability evidence contract
+        run: python scripts/test_bleaguer_public_availability_evidence.py
+
+      - name: Upload shadow-audit evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: bleague-public-availability-shadow-audit-${{ github.run_id }}
+          path: results/research/bleague_public_availability_shadow_audit.json
+          if-no-files-found: error
+          retention-days: 14
