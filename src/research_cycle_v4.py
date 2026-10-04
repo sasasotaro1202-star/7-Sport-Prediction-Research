@@ -259,8 +259,81 @@ def _make_stat_history_loader(c,s):
   return out
  return history,cache
 
+def _make_entity_history_loader(c,s):
+ cache={}
+ def load(pid):
+  key=str(pid)
+  if key in cache:return cache[key]
+  rows=[]
+  try:
+   rows=c.execute("""SELECT attribute,value_num,value_text,effective_at_utc,source,source_url,observed_at_utc,quality_status
+                      FROM participant_history
+                     WHERE sport=? AND participant_id=?
+                       AND effective_at_utc IS NOT NULL""",(s,key)).fetchall()
+  except sqlite3.DatabaseError:
+   rows=[]
+  cache[key]=rows
+  return rows
+ def exact_available(source,source_url,cutoff):
+  if not source:return False
+  try:
+   row=c.execute("""SELECT 1 FROM source_snapshot
+                     WHERE source=? AND COALESCE(source_url,'')=COALESCE(?,'')
+                       AND availability_status='EXACT'
+                       AND source_available_at_utc IS NOT NULL
+                       AND datetime(source_available_at_utc)<=datetime(?)
+                     LIMIT 1""",(source,source_url,cutoff.isoformat())).fetchone()
+   return row is not None
+  except sqlite3.DatabaseError:
+   return False
+ def snapshot(pid,event_time,cutoff):
+  event_dt=datetime.fromisoformat(str(event_time).replace('Z','+00:00'))
+  candidates={}
+  for attr,vnum,vtext,eff,source,url,obs,quality in load(pid):
+   try:
+    eff_dt=datetime.fromisoformat(str(eff).replace('Z','+00:00'))
+   except Exception:
+    continue
+   if eff_dt>=event_dt or eff_dt>cutoff:continue
+   if not exact_available(source,url,cutoff):continue
+   attr_n=re.sub(r'[^a-z0-9_]+','_',str(attr or '').lower()).strip('_')
+   if not attr_n:continue
+   # Prefer the latest effective observation; source revision lineage is still
+   # preserved in the underlying history table.
+   prev=candidates.get(attr_n)
+   if prev is None or eff_dt>prev[0]:
+    candidates[attr_n]=(eff_dt,vnum,vtext,source,url,obs)
+  out={}
+  for attr,(eff_dt,vnum,vtext,source,url,obs) in candidates.items():
+   value=vnum
+   if value is None and vtext:
+    m=re.search(r'[-+]?(?:\d+(?:\.\d+)?|\.\d+)',str(vtext).replace(',',''))
+    if m:
+     try:value=float(m.group())
+     except Exception:pass
+   if value is not None:
+    out[attr]=(float(value),eff_dt.isoformat(),str(source or ''))
+   text=str(vtext or '').strip().lower()
+   if text and any(k in attr for k in ('stance','handedness','hand','position','role')):
+    out[attr+'_text']=text
+   if ('dob' in attr or attr in ('date_of_birth','birth_date')) and vtext:
+    try:
+     dob_txt=str(vtext).strip()
+     dob_dt=None
+     for fmt in ('%b. %d, %Y','%B %d, %Y','%Y-%m-%d'):
+      try:
+       dob_dt=datetime.strptime(dob_txt,fmt).replace(tzinfo=timezone.utc);break
+      except Exception:pass
+     if dob_dt is not None:
+      out['age_years']=((event_dt-dob_dt).total_seconds()/86400.0)/365.2425
+    except Exception:pass
+  return out
+ def history(pid,event_time,cutoff_dt):
+  return snapshot(pid,event_time,cutoff_dt)
+ return history,cache
+
 def build(c,s,include_unlabeled=False):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};ratings_comp={};ratings_comp_fast={};ratings_comp_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};ratings_comp={};ratings_comp_fast={};ratings_comp_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);entity_history,entity_cache=_make_entity_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    # Historical outcome labels are admitted only once their conservative realized
@@ -355,6 +428,23 @@ def build(c,s,include_unlabeled=False):
    f[f'{side}__recent_margin_delta']=f[f'{side}__recent_margin_mean_5']-f[f'{side}__recent_margin_mean_20'] if np.isfinite(f[f'{side}__recent_margin_mean_5']) and np.isfinite(f[f'{side}__recent_margin_mean_20']) else np.nan
    f[f'{side}__recent_margin_std_5']=float(np.std(rmg[-5:])) if len(rmg)>=2 else np.nan
    f[f'{side}__recent_margin_std_20']=float(np.std(rmg[-20:])) if len(rmg)>=2 else np.nan
+   # Participant/team profile history is optional but fully PIT-gated.
+   # Numeric attributes become direct profile features; stable text attributes use
+   # conservative one-hot indicators for common stance/role/position semantics.
+   profile_values=entity_history(pid,t,cutoff_dt)
+   for attr,val_tuple in profile_values.items():
+    if attr.endswith('_text'):
+     txt=val_tuple if isinstance(val_tuple,str) else ''
+     if not txt:continue
+     if 'stance' in attr or 'hand' in attr:
+      for token in ('orthodox','southpaw','switch','left','right','ambidextrous'):
+       f[f'{side}__profile__{attr}_{token}']=1.0 if token in txt else 0.0
+     continue
+    try:
+     val=float(val_tuple[0])
+    except Exception:
+     continue
+    f[f'{side}__profile__{attr}']=val
    stat_with_data=0
    stat_age_sum=0.0
    for st in cols:
@@ -392,6 +482,11 @@ def build(c,s,include_unlabeled=False):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for k in ('stat_coverage','stat_freshness_mean_days'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
+  profile_keys=sorted({k[3:] for k in f if k.startswith('A__profile__')} | {k[3:] for k in f if k.startswith('B__profile__')})
+  for k in profile_keys:
+   a=f.get('A__'+k,np.nan);b=f.get('B__'+k,np.nan)
+   if isinstance(a,(int,float)) and isinstance(b,(int,float)) and np.isfinite(a) and np.isfinite(b):
+    f['D__'+k]=float(a-b)
   f['D__elo_momentum']= (f['A__elo_momentum']-f['B__elo_momentum']) if np.isfinite(f['A__elo_momentum']) and np.isfinite(f['B__elo_momentum']) else np.nan
   f['D__elo_comp_momentum']=(f['A__elo_comp_momentum']-f['B__elo_comp_momentum']) if np.isfinite(f['A__elo_comp_momentum']) and np.isfinite(f['B__elo_comp_momentum']) else np.nan
   # Low-dimensional PIT-safe interaction features. They are derived only from
