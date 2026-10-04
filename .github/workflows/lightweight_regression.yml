@@ -66,6 +66,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_bleaguer_event_provenance.py
       - name: B.LEAGUE public availability evidence regression
         run: PYTHONPATH=. python scripts/test_bleaguer_public_availability_evidence.py
+      - name: PIT history expansion bridge guard regression
+        run: PYTHONPATH=. python scripts/test_pit_history_expansion_bridge_guard.py
       - name: Basketball target and exact PIT integrity regression
         run: PYTHONPATH=. python scripts/test_basketball_target_pit_integrity.py
       - name: Production safe continuation regression
