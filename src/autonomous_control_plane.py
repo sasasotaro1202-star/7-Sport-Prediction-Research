@@ -199,8 +199,7 @@ def action_health(
     )
     return {
         "run_status": run_status,
-                "status": "STALE" if sha_provenance_missing or sha_mismatch else (
-
+        "status": "STALE" if sha_provenance_missing or sha_mismatch else (
             "HEALTHY" if healthy else (
                 "FAILED" if conclusion in {"failure", "timed_out", "startup_failure", "cancelled"} else
                 ("STALE" if age is None or age > max_age_hours else "IN_PROGRESS")
@@ -836,7 +835,7 @@ def write_state(
 
     selected = dict(selected)
     selected["fingerprint"] = fingerprint(
-        state["head_sha"], selected["action"], selected["target"], selected["reason"]
+        fp, selected["action"], selected["target"], selected["reason"]
     )
     queue_ids = queue_fingerprints()
     queue_added = selected["fingerprint"] not in queue_ids
@@ -848,19 +847,19 @@ def write_state(
                 **selected,
             }, ensure_ascii=False, sort_keys=True) + "\n")
 
-    action_record = {
-        "recorded_at_utc": state["observed_at_utc"],
-        "head_sha": state["head_sha"],
-        "state_fingerprint": fp,
-        "selected_action": selected,
-        "dispatch_action": dispatch,
-        "automatic_promotion": False,
-    }
-    ACTION_LOG_OUT.parent.mkdir(parents=True, exist_ok=True)
-    with ACTION_LOG_OUT.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(action_record, ensure_ascii=False, sort_keys=True) + "\n")
-
     should_write = previous_fp != fp or not CONTROL_OUT.exists() or not HEALTH_OUT.exists()
+    if previous_fp != fp or not ACTION_LOG_OUT.exists():
+        action_record = {
+            "recorded_at_utc": state["observed_at_utc"],
+            "head_sha": state["head_sha"],
+            "state_fingerprint": fp,
+            "selected_action": selected,
+            "dispatch_action": dispatch,
+            "automatic_promotion": False,
+        }
+        ACTION_LOG_OUT.parent.mkdir(parents=True, exist_ok=True)
+        with ACTION_LOG_OUT.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(action_record, ensure_ascii=False, sort_keys=True) + "\n")
     if should_write:
         control = {
             "version": "autonomous-control-plane-v1",
@@ -889,6 +888,10 @@ def write_state(
                 "main_sha_recheck_required_before_push": True,
                 "actions_snapshot_is_provenance_input": True,
                 "automatic_dispatch_is_bounded_and_allowlisted": True,
+                "state_fingerprint_excludes_invocation_sha": True,
+                "state_fingerprint_excludes_volatile_action_age": True,
+                "state_fingerprint_excludes_derived_current_main_metadata": True,
+                "action_log_appends_only_on_decision_change": True,
             },
         }
         CONTROL_OUT.write_text(json.dumps(control, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
