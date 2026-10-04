@@ -7,6 +7,8 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
+import src.bleaguer_git_provenance as provenance
+
 from src.bleaguer_git_provenance import (
     apply,
     find_first_summary_provenance,
@@ -75,6 +77,59 @@ def main():
         "inst/extdata/games_202021.csv",
         "42c621a5437228a4d5a796f62116bee5cc44dce2",
     ) is None
+
+    # A later revision with explicit publication evidence must beat an earlier
+    # exact-but-unproven revision for the same event.
+    original_bound = provenance.secondary_publication_bound
+    try:
+        provenance.secondary_publication_bound = (
+            lambda path, sha: (
+                {
+                    "source_url": "https://example.invalid/evidence",
+                    "published_on": "2021-04-19",
+                    "public_availability_bound_utc": "2021-04-19T23:59:59+00:00",
+                    "evidence_level": "SECONDARY_INDEPENDENT_REFERENCE",
+                    "claim_supported": "synthetic",
+                    "revision_sha": sha,
+                }
+                if sha == "commit-new" else None
+            )
+        )
+        preferred = find_first_summary_provenance(
+            current,
+            [
+                ("commit-new", "2026-01-02T00:00:00+00:00", current),
+                ("commit-old", "2026-01-01T00:00:00+00:00", current),
+            ],
+        )
+        assert preferred["100"]["provenance_commit_sha"] == "commit-new"
+        assert preferred["100"]["publication_status"] == "PROVEN_BY_SECONDARY_DATE_BOUND"
+    finally:
+        provenance.secondary_publication_bound = original_bound
+
+    # Invalid chronology in the evidence registry must fail closed.
+    original_root = provenance.ROOT
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            evidence_path = root / "results/research/bleague_public_availability_evidence.json"
+            evidence_path.parent.mkdir(parents=True, exist_ok=True)
+            evidence_path.write_text(
+                '{"evidence":[{"revision_evidence":{"file":"inst/extdata/games_summary_202021.csv",'
+                '"exact_revision_sha":"bad-sha",'
+                '"revision_commit_timestamp_utc":"2021-05-01T00:00:00Z",'
+                '"next_file_touch_timestamp_utc":"2021-05-10T00:00:00Z",'
+                '"no_intervening_file_touch_between_revision_and_independent_publication":true,'
+                '"public_availability_bound":{"precision":"DATE_ONLY","latest_safe_utc":"2021-04-19T23:59:59Z"}}}]}',
+                encoding="utf-8",
+            )
+            provenance.ROOT = root
+            assert provenance.secondary_publication_bound(
+                "inst/extdata/games_summary_202021.csv",
+                "bad-sha",
+            ) is None
+    finally:
+        provenance.ROOT = original_root
 
     # Event 100 is exact in the first revision.
     # Event 101 has one exact row in each revision, but never both rows together.
