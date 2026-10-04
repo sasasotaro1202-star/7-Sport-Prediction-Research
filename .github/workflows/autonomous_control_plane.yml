@@ -124,6 +124,10 @@ jobs:
 
       - name: Inspect current GitHub evidence
         id: control
+        env:
+          CONTROL_PLANE_EVENT_WORKFLOW: ${{ github.event.workflow_run.name || '' }}
+          CONTROL_PLANE_EVENT_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
+          CONTROL_PLANE_EVENT_HEAD_SHA: ${{ github.event.workflow_run.head_sha || '' }}
         run: |
           set -euo pipefail
           python src/autonomous_control_plane.py --head-sha "${{ github.sha }}" > control_output.json
