@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "policy": "pit-safe-feature-pattern-optimization-v2",
   "principles": [
     "Never equate more columns with more information. Compare information patterns on chronological pre-holdout OOS.",
@@ -122,8 +122,8 @@
   },
   "search_budget": {
     "min_preholdout_folds": 6,
-    "stage1_max_patterns": 384,
-    "stage2_top_k": 24,
+    "stage1_max_patterns": 1024,
+    "stage2_top_k": 32,
     "stage2_models": 2,
     "bootstrap_samples": 2000,
     "complexity_penalty": "dispersion + feature_count tie-break + source_dependence penalty when predictive quality is comparable",
@@ -139,6 +139,41 @@
       "f1",
       "rugby",
       "boxing"
+    ],
+    "rankers": [
+      "absolute_correlation",
+      "mutual_information",
+      "extra_trees_importance"
+    ],
+    "sparse_sizes": [
+      8,
+      16,
+      24,
+      32,
+      48,
+      64,
+      96,
+      128,
+      192,
+      256,
+      "all"
+    ],
+    "pattern_dimensions": [
+      "family_subsets_1_to_4",
+      "leave_one_family_out",
+      "fine_grained_stat_blocks",
+      "A_B_D_orientation",
+      "signed_absolute_relative_ratio_representation",
+      "short_medium_long_history",
+      "summary_mean_median_quantile_last_trend_ewma_dispersion",
+      "profile_roster_availability_toggles",
+      "competition_phase_round_event_context",
+      "matchday_data_quality_toggles",
+      "outcome_ranked_top_k",
+      "ranker_union_intersection",
+      "family_balanced_selection",
+      "interaction_variants",
+      "sparsity_vs_richness"
     ]
   },
   "search_space": {
@@ -162,12 +197,12 @@
         "model_candidates": [
           "regularized_logistic"
         ],
-        "default_max_patterns": 384
+        "default_max_patterns": 1024
       },
       {
         "stage": 2,
         "name": "diverse_top_pattern_retest",
-        "top_k": 24,
+        "top_k": 32,
         "model_candidates": [
           "hist_gb",
           "extra_trees"
@@ -177,6 +212,11 @@
         "stage": 3,
         "name": "downstream_model_ecology",
         "rule": "selected pattern is passed to the full sport model ecology and later chronological OOS; no pattern-selection row may be reused as OOS evidence"
+      },
+      {
+        "stage": 2.5,
+        "name": "selection_stability_and_negative_control_check",
+        "description": "compare selected recipes against ranking-family disagreement, leave-one-family-out controls and per-period stability before downstream OOS"
       }
     ],
     "structured_dimensions": [
@@ -193,6 +233,7 @@
       "complexity/sparsity"
     ],
     "dependency_handling": "all comparisons use identical chronological folds; same-event snapshots are clustered elsewhere and never treated as independent samples",
-    "holdout_firewall": "pattern selection never reads frozen-holdout labels and never tunes against frozen-holdout performance"
+    "holdout_firewall": "pattern selection never reads frozen-holdout labels and never tunes against frozen-holdout performance",
+    "search_policy": "maximize structured diversity first, then select on robust chronological performance; never brute-force arbitrary powersets"
   }
 }
