@@ -58,6 +58,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_vlr_match_url_parser.py
       - name: B.LEAGUE official error diagnostics regression
         run: PYTHONPATH=. python scripts/test_basketball_official_error_diagnostics.py
+      - name: B.LEAGUE historical error observability regression
+        run: PYTHONPATH=. python scripts/test_bleague_historical_error_observability.py
       - name: B.LEAGUE official schedule fallback regression
         run: PYTHONPATH=. python scripts/test_bleague_schedule_parser_fallback.py
       - name: Match data expansion parser regression
