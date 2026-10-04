@@ -39,3 +39,11 @@ Automatic production scheduling is T-60-centered for the five active sports and 
 
 ## Loop
 MONITOR → DETECT → TRIAGE → RESEARCH → IMPLEMENT → TEST → PIT → OOS/WFO → CALIBRATION → ROBUSTNESS → HOLDOUT → ADOPT/HOLD/REJECT → RELEASE → PRODUCTION → RECONCILE → FAILURE ANALYSIS → MEMORY → NEXT RESEARCH.
+
+## GitHub-native autonomous control plane
+
+The detailed technical specification is tracked in `PROJECT_SOURCE.md`. When it conflicts with current runtime code, registry, or measured GitHub evidence, current GitHub state remains authoritative.
+
+The repository also runs `.github/workflows/autonomous_control_plane.yml` every three hours and on manual dispatch. It reconciles current release/PIT/prediction/experience/route/reproducibility evidence, ranks the next action using the project research-priority principle, persists a deduplicated research queue and automation-health state, and may dispatch only allowlisted research workflows under active-run and cooldown guards.
+
+Automatic model promotion is forbidden. PIT coverage repair does not bypass the fixed PIT-history cadence, and production heartbeat recovery remains owned by the existing production watchdog/pre-event workflow. Every autonomous write re-checks current `main` before push and fails closed on a concurrent branch update.
