@@ -1137,7 +1137,7 @@ JSONL破損、timestamp不正、memory欠損はUNKNOWN/DEGRADEDとして記録�
 
 === EVENT-DRIVEN FAILURE TRIAGE ===
 
-自動control planeは3時間cronだけを待たず、Production、PIT History Expansion、Production Failure Recoveryのcompleted failure eventを直接受ける。
+自動control planeは3時間cronだけを待たず、Production、PIT History Expansion、Production Failure Recovery、Autonomous Control Plane Regressionのcompleted failure eventを直接受ける。
 
 failure / timed_out / startup_failure / cancelled:
 → current-main SHA確認
