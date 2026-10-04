@@ -34,3 +34,23 @@ Repeated identical queue entries are deduplicated by deterministic fingerprint.
 A control-plane run being green proves only that reconciliation and safety checks completed. It does not imply PERFORMANCE_VERIFIED, ADOPTED, PRODUCTION, or STABLE.
 
 Research outputs remain subject to the existing chronological OOS, PIT, calibration, robustness, frozen-holdout, reproducibility, and release gates.
+
+## Action-aware autonomous execution
+
+The control plane also snapshots GitHub Actions state before deciding. It distinguishes:
+- no run observed
+- active run
+- successful recent run
+- stale run
+- failed/timed-out run
+
+The corresponding maintenance workflows can be re-dispatched only with bounded cooldowns and a current-main SHA guard.
+
+Automatic responsibilities remain separated by owner:
+- pre-event production heartbeat → production watchdog / pre-event prediction
+- PIT historical expansion → fixed 00:47/09:47/18:47 UTC cadence
+- production/data failure recovery → Production Failure Recovery
+- research/source/scope maintenance → autonomous control plane
+- model promotion → existing release gate only; never the control plane
+
+The system records the selected action and dispatch decision in an append-only action log. A green control-plane run means reconciliation completed, not that model performance improved or production was promoted.
