@@ -1,4 +1,4 @@
-name: All-Nine-Sport Feature Pattern Research
+name: All-Nine-Sport Exhaustive Feature Pattern Research
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
           - rugby
           - boxing
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -183,8 +183,8 @@ jobs:
               start,
               step,
               min_train=80,
-              max_patterns=384,
-              stage2_top_k=24,
+              max_patterns=1024,
+              stage2_top_k=32,
           )
           report.update({
               "sport": sport,
