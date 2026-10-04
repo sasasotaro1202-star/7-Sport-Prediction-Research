@@ -330,7 +330,7 @@ def canonical_bleaguer_event_id(schedule_row: dict[str, Any], schedule_path: str
     name = f"B.LEAGUE {home_id} vs {away_id}"
     source = "bleaguer-github"
     url = f"{RAW_BASE}/{schedule_path}"
-    payload = "|".join((SPORT, source, name, event_time, url))
+    payload = "|".join(("basketball", source, name, event_time, url))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
 
 
