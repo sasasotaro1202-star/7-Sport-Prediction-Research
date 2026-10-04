@@ -995,3 +995,78 @@ aggregateだけでなく、
 * source combination
 
 単位で分解する。
+
+
+=== AUTONOMOUS GITHUB EXECUTION CONTROL — V2 ===
+
+目的:
+GitHub Actions上でMONITOR→DETECT→TRIAGE→RESEARCH→VERIFY→RECONCILEを自動継続し、手動dispatchを原則不要にする。
+
+制御Plane:
+.github/workflows/autonomous_control_plane.yml
+src/autonomous_control_plane.py
+
+制御Planeは各3時間で実行され、先にGitHub Actionsの実行状態をsnapshotする。
+対象:
+* source_feasibility_audit.yml
+* scope_autofill.yml
+* production_runtime_health.yml
+* production_safety_audit.yml
+* nine_sport_lane_audit.yml
+* autonomous_research_sweep.yml
+* 24h_autonomous_research.yml
+* pre_event_prediction.yml
+
+Actions状態は、
+* MISSING
+* IN_PROGRESS
+* HEALTHY
+* STALE
+* FAILED
+を区別する。
+存在だけを成功証拠とはしない。
+
+自動dispatch対象:
+* SOURCE_FEASIBILITY
+* SCOPE_AUTOFILL
+* RUNTIME_HEALTH
+* SAFETY_AUDIT
+* LANE_AUDIT
+* RESEARCH_HEALTH
+* DEEP_RESEARCH
+
+各dispatchには個別cooldownを設定し、active runとの重複を禁止する。
+allowlist外Workflowは自動起動しない。
+
+ownership boundary:
+* pre-event production heartbeatはproduction watchdogが所有
+* PIT History Expansionは00:47/09:47/18:47 UTCの固定9時間cadenceが所有
+* Production Failure Recoveryはworkflow_run failure recoveryが所有
+* model promotionはproduction release gateだけが所有
+
+control planeは上記boundaryを迂回しない。
+
+Memory:
+* results/research/research_queue.jsonl
+* results/research/autonomous_action_log.jsonl
+* results/research/autonomous_control_plane.json
+* results/research/automation_health.json
+
+をGitHub-native memoryとして保持する。
+
+missing-as-zero禁止:
+accepted_models、PIT exact evidence、experience、route state等の欠損はUNKNOWN/UNVERIFIABLEとして扱い、0へ変換しない。
+
+promotion safety:
+* automatic model promotion = false
+* frozen holdout tuning = forbidden
+* PIT bypass = forbidden
+* scope implicit activation = forbidden
+
+mutable write safety:
+自動commit前後でcurrent main SHAを再確認し、concurrent updateがあればfail closedする。
+
+完成状態:
+control planeのGREENはreconciliation/automation safetyの成功だけを意味し、
+PERFORMANCE_VERIFIED、ADOPTED、PRODUCTION、STABLEを意味しない。
+OOS、PIT、calibration、robustness、frozen holdout、release gateは既存契約を維持する。
