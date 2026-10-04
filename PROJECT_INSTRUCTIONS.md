@@ -59,3 +59,6 @@ Actions state is treated as evidence, not as success by existence. Missing or ma
 The fixed PIT-history workflow now performs a strict B.LEAGUE exact-materialization step using only the already-registered research evidence, the exact commit-pinned source revision, and its conservative publication bound. Canonical event/participant resolution is required; zero exact rows is a hard failure, and no model/OOS/holdout/production promotion is implied by materialization.
 
 The F1 OpenF1 historical backfill records HTTP status for fetch failures. A complete 401/403-only outage with zero ingested and zero skipped rows is classified as DEFERRED_PIT and written to results/f1_openf1_backfill.json; mixed, unknown, or partial failures remain fail-closed rather than being silently downgraded.
+
+### Autonomous dispatch ordering safety
+The control plane must reconcile and persist its current state before starting any autonomous maintenance/research workflow. After persistence, it captures the resulting main SHA and re-checks the remote main ref immediately before dispatch. Any concurrent main change fails closed; the next scheduled control cycle may retry. Dispatch is never keyed to the pre-persistence invocation SHA.

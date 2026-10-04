@@ -1,0 +1,45 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+WORKFLOW = ROOT / ".github/workflows/autonomous_control_plane.yml"
+
+
+def main() -> int:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    dispatch_marker = "      - name: Dispatch at most one allowlisted autonomous workflow"
+    persist_marker = "      - name: Persist deterministic control-plane state"
+    final_marker = "      - name: Final control-plane status"
+
+    dispatch = text.index(dispatch_marker)
+    persist = text.index(persist_marker)
+    final = text.index(final_marker)
+
+    assert persist < dispatch < final, "dispatch must occur only after persistence"
+
+    persist_block = text[persist:dispatch]
+    dispatch_block = text[dispatch:final]
+
+    assert "id: persist" in persist_block
+    assert 'echo "persist_ok=true" >> "$GITHUB_OUTPUT"' in persist_block
+    assert 'echo "main_sha=' in persist_block
+    assert 'remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main"' in persist_block
+
+    assert "steps.control.outcome == 'success'" in dispatch_block
+    assert "steps.persist.outputs.persist_ok == 'true'" in dispatch_block
+    assert 'main_sha="${{ steps.persist.outputs.main_sha }}"' in dispatch_block
+    assert "STALE_MAIN_BEFORE_DISPATCH" in dispatch_block
+    assert 'test "$remote_sha" = "$main_sha"' in dispatch_block
+    assert 'gh workflow run "$DISPATCH_WORKFLOW" --ref main' in dispatch_block
+
+    assert '--arg sha "$main_sha"' in dispatch_block
+    assert '--arg sha "${{ github.sha }}"' not in dispatch_block
+
+    print("AUTONOMOUS_CONTROL_PLANE_DISPATCH_ORDER=PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
