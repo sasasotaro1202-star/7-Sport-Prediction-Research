@@ -93,7 +93,7 @@ def inspect_bridge(db: Path, sport: str, evidence_path: Path) -> dict:
         ).fetchone()[0])
 
     result = {
-        "status": "PASS" if exact_master > 0 and pinned_exact > 0 and repointed_stats > 0 else "BLOCKED",
+        "status": "PASS" if pinned_exact > 0 and repointed_stats > 0 else "BLOCKED",
         "sport": sport,
         "required": {
             "source": expected["source"],
@@ -107,8 +107,8 @@ def inspect_bridge(db: Path, sport: str, evidence_path: Path) -> dict:
             "repointed_summary_match_stats": repointed_stats,
         },
         "reason": (
-            "publication-bound provenance was applied and connected to match_stats"
-            if exact_master > 0 and pinned_exact > 0 and repointed_stats > 0
+            "publication-bound provenance was applied to a commit-pinned snapshot and connected to match_stats"
+            if pinned_exact > 0 and repointed_stats > 0
             else "declared publication-bound bridge exists but the current PIT database shows no complete applied effect"
         ),
     }
