@@ -142,10 +142,10 @@ def main() -> None:
         assert report["exact_feature_stat_rows"] == 24
         assert report["identity_scope"] == "canonical_schedule_key_event_identity; two-team vector matching is side-agnostic"
 
-        # The candidate target lies after the public-availability bound and
-        # exactly 10 days after the feature event, so its T-60 cutoff is after the public-availability bound and it must have both-team
-        # prior history.
-        assert report["candidate_target_events_total"] == 1
+        # Both fixture events are B.LEAGUE rows, so the raw candidate total
+        # includes the historical feature event as well as the target event.
+        # Only the target event has a T-60 cutoff at or after the bound.
+        assert report["candidate_target_events_total"] == 2
         assert report["candidate_target_events_cutoff_at_or_after_bound"] == 1
         assert report["candidate_targets_with_any_exact_history"] == 1
         assert report["candidate_targets_with_both_team_exact_history"] == 1
