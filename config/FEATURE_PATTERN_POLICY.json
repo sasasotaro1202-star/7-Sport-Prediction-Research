@@ -1,5 +1,5 @@
 {
-  "version": "participant-context-pattern-selection-v1",
+  "version": "2",
   "mission": "Select feature-family combinations for future generalization without treating all available data as automatically useful.",
   "pit_rule": "participant/team attributes and event-participant context are eligible only when effective_at_utc and independently proven source_available_at_utc are <= prediction_cutoff; unknown PIT is excluded.",
   "identity_rule": "Canonical participant/team IDs only. Fuzzy matching is never used for final feature attachment.",
@@ -36,7 +36,7 @@
     ]
   },
   "search": {
-    "strategy": "chronological_inner_oos_beam",
+    "strategy": "chronological_inner_oos_score_guided_beam",
     "inner_fraction_end": 0.5,
     "min_inner_rows": 240,
     "blocks": 3,
@@ -54,7 +54,12 @@
       "lexicographic_pattern"
     ],
     "holdout_access": false,
-    "main_oos_access": false
+    "main_oos_access": false,
+    "min_family_coverage": 0.1,
+    "selection_scope": "feature_families_only",
+    "patterns_exhaustive": false,
+    "main_oos_protected": true,
+    "holdout_protected": true
   },
   "acceptance": "Feature pattern is a candidate, not a promotion. Main chronological OOS, robustness, frozen holdout, PIT audit and release gates remain authoritative."
 }
