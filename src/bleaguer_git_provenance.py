@@ -9,14 +9,15 @@ For each immutable season CSV we:
   3. fetch candidate historical revisions,
   4. find historical GitHub commits whose blob content exactly matches the
      current content, and
-  5. record that as VERSION_EXACT evidence only.
+  5. combine exact-version evidence with separately registered public-availability
+     evidence when available, otherwise retain VERSION_EXACT evidence only.
 
 A Git commit timestamp is not, by itself, proof that the bytes were publicly
 reachable at that timestamp: a commit can be pushed after its authored/committed
-time. Therefore this tool deliberately never converts Git commit time into
-source_available_at_utc or strict-PIT EXACT status. Separate public-availability
-evidence (for example an independently timestamped archive capture) is required
-before PIT can consume the snapshot.
+time. The tool therefore converts a revision to strict-PIT EXACT only when a
+separately registered conservative public-availability bound proves the exact
+file+revision chronology. Without that bound, the result remains
+VERSION_EXACT_PUBLICATION_UNPROVEN and PIT stays fail-closed.
 """
 
 import argparse
@@ -193,31 +194,130 @@ def match_summary_revision(
 def find_first_summary_provenance(
     current_bytes: bytes,
     revisions: list[tuple[str, str, bytes]],
+    path: str | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Return the earliest commit where both current feature rows coexist exactly."""
+    """Prefer a publication-evidenced exact revision; otherwise keep the earliest exact revision."""
     targets = summary_targets_from_bytes(current_bytes)
-    remaining = set(targets)
     out: dict[str, dict[str, Any]] = {}
-    for commit_sha, commit_date, revision_bytes in sorted(revisions, key=lambda x: x[1]):
-        if not remaining:
-            break
-        matched = match_summary_revision(revision_bytes, targets, remaining)
+    unresolved: set[str] = set(targets)
+    revisions_sorted = sorted(revisions, key=lambda x: x[1])
+    for commit_sha, commit_date, revision_bytes in revisions_sorted:
+        matched = match_summary_revision(revision_bytes, targets, unresolved)
         for schedule_key in matched:
-            out[schedule_key] = {
+            bound = secondary_publication_bound(path, commit_sha) if path else None
+            candidate = {
                 "schedule_key": schedule_key,
                 "provenance_commit_sha": commit_sha,
                 "commit_timestamp_utc": iso(commit_date),
-                "publication_status": "UNPROVEN",
+                "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if bound else "UNPROVEN",
+                "public_availability_bound_utc": bound["public_availability_bound_utc"] if bound else None,
+                "publication_evidence": bound,
                 "content_hash": sha256_bytes(revision_bytes),
                 "matched_team_ids": sorted(targets[schedule_key]),
             }
-            remaining.remove(schedule_key)
+            current = out.get(schedule_key)
+            if bound:
+                out[schedule_key] = candidate
+                unresolved.discard(schedule_key)
+            elif current is None:
+                out[schedule_key] = candidate
+        if not unresolved and path is None:
+            break
     return out
 
 
 def pinned_raw_url(path: str, commit_sha: str) -> str:
     return f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{commit_sha}/{path}"
 
+
+def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | None:
+    """Return only explicitly registered conservative public-availability bounds.
+
+    The registry stores the canonical revision proof at the top level while
+    evidence entries carry the independent publication record. Older research
+    artifacts may also embed revision_evidence inside an evidence entry. Accept
+    either representation only when the exact file+revision binding and all
+    chronology guards pass.
+    """
+    evidence_path = ROOT / "results" / "research" / "bleague_public_availability_evidence.json"
+    try:
+        payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+    if payload.get("status") != "RESEARCH_EVIDENCE_ONLY":
+        return None
+    if payload.get("strict_pit_usable") is not False:
+        return None
+
+    target_path = str(path)
+    target_sha = str(commit_sha)
+    top_revision = payload.get("revision_evidence") or {}
+    evidence_items = payload.get("evidence") or []
+
+    candidates = []
+    for item in evidence_items:
+        nested = item.get("revision_evidence") or {}
+        if nested.get("file") == target_path and nested.get("exact_revision_sha") == target_sha:
+            candidates.append((item, nested))
+            continue
+
+        # Canonical registry form: the exact revision metadata is top-level,
+        # while the dated independent evidence entry identifies the source
+        # publication and explicitly references the same file.
+        if (
+            top_revision.get("file") == target_path
+            and top_revision.get("revision_sha") == target_sha
+            and target_path in [str(x) for x in (item.get("referenced_files") or [])]
+        ):
+            candidates.append((item, top_revision))
+
+    for item, revision in candidates:
+        bound_info = revision.get("public_availability_bound") or {}
+        if str(bound_info.get("precision") or "") != "DATE_ONLY":
+            continue
+
+        bound_ts = iso(str(bound_info.get("latest_safe_utc") or ""))
+        commit_ts = iso(str(revision.get("revision_commit_timestamp_utc") or ""))
+        next_touch = iso(str(revision.get("next_file_touch_timestamp_utc") or ""))
+        if not bound_ts or not commit_ts or bound_ts < commit_ts:
+            continue
+        if next_touch and bound_ts >= next_touch:
+            continue
+        if str(
+            revision.get(
+                "no_intervening_file_touch_between_revision_and_independent_publication"
+            )
+        ).lower() != "true":
+            continue
+
+        published_on = str(item.get("published_on") or "")
+        if not published_on:
+            continue
+        try:
+            published_date = datetime.fromisoformat(published_on).date()
+        except ValueError:
+            continue
+        if bound_ts[:10] != published_date.isoformat():
+            continue
+        source_url = str(item.get("source_url") or "")
+        if not source_url.startswith(("http://", "https://")):
+            continue
+        if target_path not in [str(x) for x in (item.get("referenced_files") or [])]:
+            continue
+
+        return {
+            "source_url": str(item.get("source_url") or ""),
+            "published_on": published_on,
+            "public_availability_bound_utc": bound_ts,
+            "evidence_level": str(
+                item.get("evidence_level") or "SECONDARY_INDEPENDENT_REFERENCE"
+            ),
+            "claim_supported": str(item.get("claim_supported") or ""),
+            "revision_sha": target_sha,
+        }
+
+    return None
 
 def stable_bleaguer_event_id(schedule_key: str) -> str:
     return hashlib.sha256(
@@ -271,6 +371,7 @@ def prove_path(path: str) -> dict[str, Any]:
         key=lambda c: iso(_commit_date(c) or "") or "9999-12-31T23:59:59+00:00",
     )
     matches: list[tuple[str, str]] = []
+    provisional_event_provenance: dict[str, dict[str, Any]] = {}
     for c in ordered_commits:
         sha = c.get("sha")
         commit_date = _commit_date(c)
@@ -284,19 +385,34 @@ def prove_path(path: str) -> dict[str, Any]:
         if remaining_events:
             matched = match_summary_revision(b, event_targets, remaining_events)
             for schedule_key in matched:
-                event_provenance[schedule_key] = {
+                bound = secondary_publication_bound(path, sha)
+                candidate = {
                     "schedule_key": schedule_key,
                     "provenance_commit_sha": sha,
                     "commit_timestamp_utc": iso(commit_date),
-                    "publication_status": "UNPROVEN",
+                    "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if bound else "UNPROVEN",
+                    "public_availability_bound_utc": bound["public_availability_bound_utc"] if bound else None,
+                    "publication_evidence": bound if bound else None,
                     "content_hash": sha256_bytes(b),
                     "matched_team_ids": sorted(event_targets[schedule_key]),
                     "pinned_source_url": pinned_raw_url(path, sha),
                 }
-                remaining_events.remove(schedule_key)
+                if bound:
+                    event_provenance[schedule_key] = candidate
+                    remaining_events.remove(schedule_key)
+                    provisional_event_provenance.pop(schedule_key, None)
+                elif schedule_key not in provisional_event_provenance:
+                    # Keep the earliest unproven candidate only as a fallback.
+                    # If a later revision carries explicit publication evidence,
+                    # that later evidence must win.
+                    provisional_event_provenance[schedule_key] = candidate
 
         if sha256_bytes(b) == current_hash:
             matches.append((sha, commit_date))
+
+    for schedule_key, candidate in provisional_event_provenance.items():
+        if schedule_key not in event_provenance:
+            event_provenance[schedule_key] = candidate
 
     result: dict[str, Any] = {
         "path": path,
@@ -308,13 +424,26 @@ def prove_path(path: str) -> dict[str, Any]:
         "event_provenance_unresolved": len(remaining_events),
     }
     if matches:
-        earliest_sha, earliest_date = sorted(matches, key=lambda x: x[1])[0]
+        ordered_matches = sorted(matches, key=lambda x: x[1])
+        evidenced = [
+            (sha, date, secondary_publication_bound(path, sha))
+            for sha, date in ordered_matches
+        ]
+        preferred_sha, preferred_date = ordered_matches[0]
+        preferred_bound = None
+        for sha, date, bound in evidenced:
+            if bound:
+                preferred_sha, preferred_date, preferred_bound = sha, date, bound
+                break
         result.update({
-            "provenance_commit_sha": earliest_sha,
-            "commit_timestamp_utc": iso(earliest_date),
+            "provenance_commit_sha": preferred_sha,
+            "commit_timestamp_utc": iso(preferred_date),
             "repository": f"{OWNER}/{REPO}",
             "branch": BRANCH,
-            "publication_status": "UNPROVEN",
+            "status": "PROVEN_BY_SECONDARY_DATE_BOUND" if preferred_bound else "VERSION_EXACT_PUBLICATION_UNPROVEN",
+            "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if preferred_bound else "UNPROVEN",
+            "public_availability_bound_utc": preferred_bound["public_availability_bound_utc"] if preferred_bound else None,
+            "publication_evidence": preferred_bound if preferred_bound else None,
         })
     else:
         result["reason"] = "no historical GitHub commit with identical bytes was found"
@@ -341,7 +470,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
     try:
         for p in proofs:
             url = f"{RAW_BASE}/{p['path']}"
-            if p["status"] == "VERSION_EXACT_PUBLICATION_UNPROVEN":
+            if p["status"] in ("VERSION_EXACT_PUBLICATION_UNPROVEN", "PROVEN_BY_SECONDARY_DATE_BOUND"):
                 version_exact_paths += 1
                 rows = con.execute(
                     "SELECT snapshot_id, provenance_json FROM source_snapshot "
@@ -359,14 +488,24 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         "branch": p["branch"],
                         "commit_sha": p["provenance_commit_sha"],
                         "commit_observed_at_utc": p["commit_timestamp_utc"],
-                        "publication_status": "UNPROVEN",
+                        "publication_status": p.get("publication_status") or "UNPROVEN",
                         "exact_current_blob": True,
                     })
-                    con.execute(
-                        "UPDATE source_snapshot SET source_available_at_utc=NULL, "
-                        "availability_status='VERSION_EXACT_PUBLICATION_UNPROVEN', provenance_json=? WHERE snapshot_id=?",
-                        (json.dumps(old, ensure_ascii=False), snapshot_id),
-                    )
+                    bound_utc = p.get("public_availability_bound_utc")
+                    if bound_utc:
+                        old["public_availability_bound_utc"] = bound_utc
+                        old["publication_evidence"] = p.get("publication_evidence")
+                        con.execute(
+                            "UPDATE source_snapshot SET source_available_at_utc=?, "
+                            "availability_status='EXACT', provenance_json=? WHERE snapshot_id=?",
+                            (bound_utc, json.dumps(old, ensure_ascii=False), snapshot_id),
+                        )
+                    else:
+                        con.execute(
+                            "UPDATE source_snapshot SET source_available_at_utc=NULL, "
+                            "availability_status='VERSION_EXACT_PUBLICATION_UNPROVEN', provenance_json=? WHERE snapshot_id=?",
+                            (json.dumps(old, ensure_ascii=False), snapshot_id),
+                        )
                     updated += 1
 
             # Event-level proof is intentionally stored behind a commit-pinned
@@ -382,7 +521,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     "SELECT event_time_utc FROM event WHERE event_id=? AND sport='basketball'",
                     (event_id,),
                 ).fetchone()
-                if not event_row or ep.get("publication_status") != "UNPROVEN" or not ep.get("pinned_source_url"):
+                if not event_row or ep.get("publication_status") not in ("UNPROVEN", "PROVEN_BY_SECONDARY_DATE_BOUND") or not ep.get("pinned_source_url"):
                     continue
                 current_summary_url = url
                 cur = con.execute(
@@ -404,10 +543,14 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     "matched_team_ids": ep.get("matched_team_ids", []),
                     "commit_sha": ep["provenance_commit_sha"],
                     "commit_observed_at_utc": ep["commit_timestamp_utc"],
-                    "publication_status": "UNPROVEN",
+                    "publication_status": ep.get("publication_status") or "UNPROVEN",
+                    "public_availability_bound_utc": ep.get("public_availability_bound_utc"),
+                    "publication_evidence": ep.get("publication_evidence"),
                     "exact_feature_rows_in_same_revision": True,
                     "source_url_pinned_to_commit": True,
                 }
+                bound_utc = ep.get("public_availability_bound_utc")
+                availability_status = "EXACT" if bound_utc else "VERSION_EXACT_PUBLICATION_UNPROVEN"
                 con.execute(
                     """INSERT OR REPLACE INTO source_snapshot(
                            snapshot_id,sport,source,source_url,retrieved_at_utc,
@@ -420,20 +563,24 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         "bleaguer-github",
                         ep["pinned_source_url"],
                         p.get("checked_at_utc") or utcnow(),
-                        None,
+                        bound_utc,
                         None,
                         ep["content_hash"],
                         None,
-                        "bleaguer-git-provenance-v3-version-only",
-                        "VERSION_EXACT_PUBLICATION_UNPROVEN",
+                        "bleaguer-git-provenance-v4-secondary-public-bound",
+                        availability_status,
                         json.dumps(provenance, ensure_ascii=False),
                     ),
                 )
                 event_version_exact += 1
-                # Do not rewrite match_stats to an unproven historical URL.
-                # Version provenance remains diagnostic only. The current-source
-                # feature row stays untouched until independent public-availability
-                # evidence upgrades a source_snapshot to TRUE EXACT.
+                if bound_utc:
+                    con.execute(
+                        "UPDATE match_stats SET source_url=? "
+                        "WHERE sport='basketball' AND event_id=? AND source='bleaguer-github' AND source_url=?",
+                        (ep["pinned_source_url"], event_id, current_summary_url),
+                    )
+                # Without an explicit bound, preserve strict fail-closed semantics
+                # and do not rewrite match_stats.
         con.commit()
     finally:
         con.close()
@@ -464,7 +611,7 @@ def main() -> int:
         proofs = list(ex.map(prove_path, paths))
 
     result = {
-        "version": "github-version-provenance-v3-publication-unproven",
+        "version": "github-version-provenance-v4-secondary-public-bound",
         "checked_at_utc": utcnow(),
         "paths": proofs,
         "apply": apply(Path(args.db), proofs),
