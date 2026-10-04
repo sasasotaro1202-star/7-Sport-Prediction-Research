@@ -62,59 +62,37 @@ jobs:
             gh run list --workflow "${workflow}" --repo "${GITHUB_REPOSITORY}" --limit 50               --json databaseId,status,conclusion,headSha,createdAt,updatedAt               > "controller-runs/${key}.json"
           done
 
-      - name: Compute next action
+      - name: Compute report timestamps and next action
         env:
           FORCE: ${{ inputs.force }}
-          RELEASE_COMMIT_TIME: ${{ vars.RELEASE_GATE_COMMIT_TIME }}
-          QUALITY_COMMIT_TIME: ${{ vars.QUALITY_GATE_COMMIT_TIME }}
         shell: bash
         run: |
           set -euo pipefail
-          release_time="${RELEASE_COMMIT_TIME:-}"
-          quality_time="${QUALITY_COMMIT_TIME:-}"
-          if ! [[ "${release_time}" =~ ^[0-9]+$ ]]; then
-            release_time=""
-          fi
-          if ! [[ "${quality_time}" =~ ^[0-9]+$ ]]; then
-            quality_time=""
-          fi
+          release_time="$(git log -1 --format=%ct -- results/release_gate.json 2>/dev/null || true)"
+          quality_time="$(git log -1 --format=%ct -- results/quality_gate.json 2>/dev/null || true)"
 
           args=(
             --main-sha "${GITHUB_SHA}"
             --runs-json-dir controller-runs
           )
-          [ -n "${release_time}" ] && args+=(--release-commit-time "${release_time}")
-          [ -n "${quality_time}" ] && args+=(--quality-commit-time "${quality_time}")
-          [ "${FORCE}" = "true" ] && args+=(--force)
+          [[ "${release_time}" =~ ^[0-9]+$ ]] && args+=(--release-commit-time "${release_time}")
+          [[ "${quality_time}" =~ ^[0-9]+$ ]] && args+=(--quality-commit-time "${quality_time}")
+          [[ "${FORCE}" = "true" ]] && args+=(--force)
 
           PYTHONPATH=. python src/autonomous_next_action_controller.py "${args[@]}"
 
-      - name: Recompute report commit timestamps from Git history
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
+          python - "${release_time:-}" "${quality_time:-}" <<'PY'
           import json
-          import subprocess
+          import sys
           from pathlib import Path
 
-          report = Path("results/autonomous_next_action.json")
-          row = json.loads(report.read_text(encoding="utf-8"))
-
-          def commit_time(path):
-              try:
-                  out = subprocess.check_output(
-                      ["git", "log", "-1", "--format=%ct", "--", path],
-                      text=True,
-                  ).strip()
-              except subprocess.CalledProcessError:
-                  return None
-              return int(out) if out.isdigit() else None
-
-          row.setdefault("git_report_commit_times", {})
-          row["git_report_commit_times"]["release_gate"] = commit_time("results/release_gate.json")
-          row["git_report_commit_times"]["quality_gate"] = commit_time("results/quality_gate.json")
-          report.write_text(json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          path = Path("results/autonomous_next_action.json")
+          row = json.loads(path.read_text(encoding="utf-8"))
+          row["git_report_commit_times"] = {
+              "release_gate": int(sys.argv[1]) if sys.argv[1].isdigit() else None,
+              "quality_gate": int(sys.argv[2]) if sys.argv[2].isdigit() else None,
+          }
+          path.write_text(json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           PY
 
       - name: Dispatch selected bounded action
