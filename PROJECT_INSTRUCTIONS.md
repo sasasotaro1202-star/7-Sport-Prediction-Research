@@ -74,3 +74,7 @@ MONITOR → DETECT → TRIAGE → RESEARCH → IMPLEMENT → TEST → PIT → PA
 
 ### Pattern-search meta-leakage firewall
 Outcome-aware ranking (correlation/MI/tree importance) must be fit only on the first chronological training window before pattern-validation folds. It must not inspect labels from its own validation folds or later OOS/frozen holdout. Pattern selection remains research-only until downstream OOS, robustness, calibration and frozen-holdout gates pass.
+
+
+### Exhaustive pattern-search model/ranker rule
+The all-nine-sport feature-pattern search currently uses five independent ranking views for candidate generation: absolute Pearson correlation, Spearman correlation, mutual information, multivariate Logistic coefficient magnitude, and ExtraTrees importance. Stage 2 retests the top patterns with four model variants: HistGradientBoosting, shallow HistGradientBoosting, ExtraTrees, and wide ExtraTrees. Outcome-aware rankers are fit only on the first chronological training window; later inner confirmation folds, downstream OOS and frozen holdout remain unseen. A pattern may be applied to downstream research only after the nested confirmation and existing OOS/robustness/holdout gates; pattern screening itself never authorizes production.

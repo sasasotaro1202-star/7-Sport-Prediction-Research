@@ -1085,6 +1085,7 @@ scope minimum data requirementsを明示する。
 ⸻
 
 32-A. FEATURE PATTERN SEARCH — ALL NINE SPORTS
+The candidate-generation ranker set is five-way (Pearson, Spearman, mutual information, Logistic coefficient magnitude, ExtraTrees importance) and the confirmation model set is four-way (HistGradientBoosting, shallow HistGradientBoosting, ExtraTrees, wide ExtraTrees). Nested inner confirmation is required before a pattern can influence downstream research; later OOS and frozen holdout are untouched.
 
 「データ量が多い」ことと「予測に効く情報構成が良い」ことを同一視しない。
 本プロジェクトに定義された9競技すべてをpattern-research対象とする。
