@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "policy": "pit-safe-feature-pattern-optimization-v1",
+  "version": 2,
+  "policy": "pit-safe-feature-pattern-optimization-v2",
   "principles": [
     "Never equate more columns with more information. Compare information patterns on chronological pre-holdout OOS.",
     "Feature availability, identity and PIT are upstream gates. Pattern selection cannot rescue invalid provenance.",
@@ -121,11 +121,66 @@
     ]
   },
   "search_budget": {
-    "max_patterns": 14,
-    "minimum_preholdout_folds": 3,
-    "screen_model": "logistic_regularized_pit_safe",
-    "robustness": "recent_weighted_logloss_plus_dispersion",
-    "tie_break": "lower_feature_count",
-    "holdout_touch": false
+    "min_preholdout_folds": 6,
+    "stage1_max_patterns": 128,
+    "stage2_top_k": 12,
+    "stage2_models": 2,
+    "bootstrap_samples": 2000,
+    "complexity_penalty": "dispersion plus feature-count tie-break; do not select a larger pattern without material robust gain",
+    "acceptance_hint": "pattern screen alone cannot authorize production; downstream OOS/robustness/holdout gates remain mandatory"
+  },
+  "search_space": {
+    "stages": [
+      {
+        "stage": 1,
+        "name": "broad_structured_screen",
+        "pattern_families": 9,
+        "representations": [
+          "all",
+          "diff_only",
+          "side_only",
+          "context_plus_diff",
+          "robust_summary",
+          "short_horizon",
+          "medium_horizon",
+          "long_horizon",
+          "structure_only",
+          "information_quality"
+        ],
+        "model_candidates": [
+          "regularized_logistic"
+        ],
+        "default_max_patterns": 128
+      },
+      {
+        "stage": 2,
+        "name": "diverse_top_pattern_retest",
+        "top_k": 12,
+        "model_candidates": [
+          "hist_gb",
+          "extra_trees"
+        ]
+      },
+      {
+        "stage": 3,
+        "name": "downstream_model_ecology",
+        "rule": "selected feature pattern is re-evaluated by the full sport model pool, ensemble search, calibration, uncertainty and routing before any release decision"
+      }
+    ],
+    "structured_dimensions": [
+      "family subsets",
+      "fine-grained performance blocks",
+      "A/B/D encoding",
+      "short/medium/long history emphasis",
+      "summary statistic variants",
+      "profile inclusion/exclusion",
+      "roster inclusion/exclusion",
+      "matchday information inclusion/exclusion",
+      "quality/coverage inclusion/exclusion",
+      "interaction inclusion/exclusion",
+      "complexity/sparsity"
+    ],
+    "dependency_handling": "all comparisons use identical chronological folds; same-event snapshots are clustered elsewhere and never treated as independent samples",
+    "holdout_firewall": "pattern selection never reads frozen-holdout labels and never tunes against frozen-holdout performance"
   }
 }
