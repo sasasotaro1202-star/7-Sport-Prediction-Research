@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "status": "RESEARCH_EVIDENCE_ONLY",
+  "scope": "basketball",
+  "source_family": "bleaguer",
+  "strict_pit_usable": false,
+  "reason": "Independent publication evidence establishes that the named historical corpus was publicly used by a dated publication, but it does not identify the exact source revision or an exact publication timestamp. Therefore it cannot set source_available_at_utc for strict PIT.",
+  "evidence": [
+    {
+      "source_url": "https://rnsr0371.boy.jp/2021/04/19/simulation_chiba202021/",
+      "published_on": "2021-04-19",
+      "time_precision": "DATE_ONLY",
+      "source_type": "independent_public_analysis",
+      "referenced_repository": "https://github.com/rintaromasuda/bleaguer",
+      "referenced_files": [
+        "inst/extdata/games_summary_202021.csv",
+        "inst/extdata/teams.csv"
+      ],
+      "claim_supported": "The published analysis states that its 2020-21 B.LEAGUE dataset was built using games_summary_202021.csv and teams.csv from rintaromasuda/bleaguer.",
+      "evidence_level": "SECONDARY_INDEPENDENT_REFERENCE",
+      "pit_status": "UNPROVEN"
+    },
+    {
+      "source_url": "https://rnsr0371.boy.jp/2021/09/17/home_court_advantage_at_bleague/",
+      "published_on": "2021-09-17",
+      "time_precision": "DATE_ONLY",
+      "source_type": "independent_public_analysis",
+      "referenced_repository": "https://github.com/rintaromasuda/bleaguer",
+      "referenced_files": [
+        "inst/extdata/games_202021.csv",
+        "inst/extdata/games_summary_202021.csv",
+        "inst/extdata/teams.csv"
+      ],
+      "claim_supported": "The published follow-up analysis states that it used games_202021.csv, games_summary_202021.csv, and teams.csv from rintaromasuda/bleaguer.",
+      "evidence_level": "SECONDARY_INDEPENDENT_REFERENCE",
+      "pit_status": "UNPROVEN"
+    }
+  ],
+  "next_required_for_pit": [
+    "pin exact historical content revision",
+    "prove that exact revision was public no later than the independent publication date/time",
+    "link exact event feature rows to the pinned revision",
+    "set source_available_at_utc only after both content and public-time evidence are independently satisfied"
+  ]
+}
