@@ -1084,6 +1084,132 @@ scope minimum data requirementsを明示する。
 
 ⸻
 
+32-A. FEATURE PATTERN SEARCH — ALL SPORTS
+
+「データ量を増やす」だけでは不十分。
+同じevent情報から得られる複数の表現・粒度・履歴窓・組合せを候補として生成し、
+chronological pre-holdout OOSで比較して最善のpatternを選ぶ。
+
+探索対象は少なくとも以下を含む。
+
+* identity/strength
+  * Elo / competition-Elo
+  * opponent strength
+  * H2H
+  * prior participation
+
+* form/load
+  * recent win/loss rates
+  * short/medium/long windows
+  * streaks
+  * score/margin
+  * rest
+  * schedule congestion
+
+* performance history
+  * prior team/player/athlete statistics
+  * mean / median / quantiles
+  * last / trend / EWMA
+  * stat-specific windows
+  * stable vs volatile performance
+
+* entity profile
+  * athlete/player age
+  * height / reach / weight
+  * stance / role / position
+  * experience
+  * class / weight class
+  * canonical identity history
+
+* roster/team context
+  * roster composition
+  * starters
+  * lineup confirmation
+  * role/position
+  * availability/injury/suspension
+  * team composition changes
+
+* competition/event context
+  * competition
+  * season
+  * phase
+  * round
+  * event type
+  * rules
+  * Bo1/Bo3/Bo5 or equivalent structure
+  * venue/travel/context where applicable
+
+* matchday intelligence
+  * late official updates
+  * lineup/availability changes
+  * weather where relevant
+  * market/news signals where allowed
+  * source disagreement
+  * freshness
+
+* data-quality context
+  * source reliability
+  * coverage
+  * missingness
+  * freshness
+  * PIT completeness
+  * revision state
+
+* representation patterns
+  * A-only
+  * B-only
+  * A+B
+  * A-B difference
+  * absolute difference
+  * relative difference / ratio only where semantically safe
+  * robust summary vs full summary
+  * short vs medium vs long history
+  * interaction vs no interaction
+  * quality-aware vs quality-blind
+  * matchday-aware vs baseline-only
+
+競技別の重点も保持する。
+
+Basketball:
+team strength、team/player performance、shot/rebound/assist等の履歴、
+roster/availability、schedule load、competition/season/phaseを個別評価する。
+
+Volleyball:
+team strength、attack/serve/receive/block/error等の履歴、
+player/roster/rotation/availability、set-level form、schedule load、
+competition/phaseを個別評価する。
+
+VALORANT:
+team rating、player/map performance、roster changes、map/pool context、
+series format、recent form、competition/stageを個別評価する。
+
+UFC / RIZIN:
+fighter strength、career/fight-history、height/weight/reach/stance/age、
+weight class、opponent-style、inactivity、camp/availability等を候補化し、
+各情報のPIT証明がないものは候補から除外またはUNVERIFIABLEとして扱う。
+
+Tennis / F1 / Rugby / Boxing:
+deferred中でも上記の原則をsport-specific feature schemaとして維持し、
+scope/PIT gates通過後に同じpattern search frameworkで評価する。
+
+重要ルール:
+
+1. 「全特徴を入れる」を自動的な最善解としない。
+2. 任意の全組合せを無制限に総当たりせず、意味のあるstructured patternを広く探索する。
+3. feature pattern selection自体をinner/pre-holdout researchとして扱い、frozen holdoutで選択しない。
+4. 各candidateは同一chronological foldで比較する。
+5. 新しいfamily追加だけでなく、leave-one-family-out、差分-only、profile-off、roster-off、
+   matchday-off、interaction-off等のnegative/control patternも必ず比較する。
+6. 複雑度が近い候補では、少ないfeature・少ない依存source・高い安定性を優先する。
+7. 平均改善だけでなく、recent period、worst fold、Brier、ECE、calibration、
+   data coverage、PIT coverage、OOD、uncertainty、compute costを併記する。
+8. 同一eventの複数snapshotは独立sampleとして扱わず、event-cluster dependencyを考慮する。
+9. pattern screen単体ではADOPTED/PRODUCTIONにしない。downstream model OOS、
+   robustness、frozen holdout、release gateを必ず通過する。
+10. patternごとの採否理由とnegative resultをResearch Memoryへ保存する。
+
+⸻
+
 32. FEATURE LINEAGE
 
 各featureは、
