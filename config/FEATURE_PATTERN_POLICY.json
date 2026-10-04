@@ -127,7 +127,9 @@
     "stage2_models": 2,
     "bootstrap_samples": 2000,
     "complexity_penalty": "dispersion plus feature-count tie-break; do not select a larger pattern without material robust gain",
-    "acceptance_hint": "pattern screen alone cannot authorize production; downstream OOS/robustness/holdout gates remain mandatory"
+    "acceptance_hint": "pattern screen alone cannot authorize production; downstream OOS/robustness/holdout gates remain mandatory",
+    "max_patterns": 64,
+    "stage1_patterns": 64
   },
   "search_space": {
     "stages": [
