@@ -3,6 +3,14 @@ name: B.LEAGUE Public Availability PIT Shadow Audit
 on:
   push:
     branches: [main]
+    paths:
+      - "scripts/bleague_public_availability_shadow_audit.py"
+      - "scripts/test_bleague_public_availability_shadow_audit.py"
+      - "scripts/test_bleague_public_availability_shadow_audit_unit.py"
+      - "scripts/test_bleaguer_public_availability_evidence.py"
+      - "results/research/bleague_public_availability_evidence.json"
+      - "src/bleaguer_git_provenance.py"
+      - ".github/workflows/bleague_public_availability_shadow_audit.yml"
   workflow_dispatch:
   pull_request:
     branches: [main]
