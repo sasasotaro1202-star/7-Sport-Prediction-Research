@@ -228,6 +228,9 @@ def main():
         proof[0]["publication_evidence"] = {"source_url": "https://example.invalid/evidence"}
         proof[0]["repository"] = "rintaromasuda/bleaguer"
         proof[0]["branch"] = "master"
+        proof[0]["event_provenance"][0]["publication_status"] = "PROVEN_BY_SECONDARY_DATE_BOUND"
+        proof[0]["event_provenance"][0]["public_availability_bound_utc"] = "2021-12-02T23:59:59+00:00"
+        proof[0]["event_provenance"][0]["publication_evidence"] = {"source_url": "https://example.invalid/evidence"}
         result = apply(db, proof)
         assert result["event_version_provenance"] == 1
         con = sqlite3.connect(db)
