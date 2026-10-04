@@ -173,6 +173,60 @@ def main():
         assert '"publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND"' in snap[4]
         assert repointed == (pinned_url,)
 
+    # Without an explicit publication bound, version evidence remains
+    # outside strict PIT and must not rewrite source timing.
+    with tempfile.TemporaryDirectory() as td:
+        db = Path(td) / "unproven.sqlite"
+        con = sqlite3.connect(db)
+        con.executescript(
+            """
+            CREATE TABLE source_snapshot(
+                snapshot_id TEXT PRIMARY KEY, sport TEXT, source TEXT,
+                source_url TEXT, retrieved_at_utc TEXT,
+                source_available_at_utc TEXT, event_time_utc TEXT,
+                content_hash TEXT, payload_path TEXT, parser_version TEXT,
+                availability_status TEXT, provenance_json TEXT
+            );
+            CREATE TABLE event(event_id TEXT PRIMARY KEY, sport TEXT, event_time_utc TEXT);
+            CREATE TABLE match_stats(
+                stat_id TEXT PRIMARY KEY, event_id TEXT, sport TEXT,
+                source TEXT, source_url TEXT
+            );
+            """
+        )
+        eid = stable_bleaguer_event_id("301")
+        current_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/master/inst/extdata/games_summary_202122.csv"
+        pinned_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/abc123/inst/extdata/games_summary_202122.csv"
+        con.execute("INSERT INTO event VALUES(?,?,?)", (eid, "basketball", "2022-01-02T00:00:00+00:00"))
+        con.execute("INSERT INTO match_stats VALUES(?,?,?,?,?)", ("stat-2", eid, "basketball", "bleaguer-github", current_url))
+        con.commit()
+        con.close()
+        proof = [{
+            "path": "inst/extdata/games_summary_202122.csv",
+            "status": "VERSION_EXACT_PUBLICATION_UNPROVEN",
+            "repository": "rintaromasuda/bleaguer",
+            "branch": "master",
+            "event_provenance": [{
+                "schedule_key": "301",
+                "provenance_commit_sha": "abc123",
+                "commit_timestamp_utc": "2021-12-01T00:00:00+00:00",
+                "publication_status": "UNPROVEN",
+                "content_hash": "hash-301",
+                "matched_team_ids": ["A", "B"],
+                "pinned_source_url": pinned_url
+            }]
+        }]
+        result = apply(db, proof)
+        assert result["event_version_provenance"] == 1
+        con = sqlite3.connect(db)
+        snap = con.execute(
+            "SELECT source_available_at_utc,event_time_utc,availability_status FROM source_snapshot WHERE sport='basketball'"
+        ).fetchone()
+        repointed = con.execute("SELECT source_url FROM match_stats WHERE stat_id='stat-2'").fetchone()
+        con.close()
+        assert snap == (None, None, "VERSION_EXACT_PUBLICATION_UNPROVEN")
+        assert repointed == (current_url,)
+
     print("BLEAGUER_EVENT_PROVENANCE=PASS")
 
 
