@@ -19,6 +19,12 @@ def main() -> int:
 
     assert persist < dispatch < final, "dispatch must occur only after persistence"
 
+    assert "workflow_run:" in text
+    assert "Active-Scope Target v4.5.15 Production" in text
+    assert "PIT History Expansion" in text
+    assert "Production Failure Recovery" in text
+    assert "github.event.workflow_run.conclusion == 'failure'" in text
+
     persist_block = text[persist:dispatch]
     dispatch_block = text[dispatch:final]
 
