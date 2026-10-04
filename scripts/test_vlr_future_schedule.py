@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from bs4 import BeautifulSoup
+
 from src.seven_sport_production import (
     _vlr_event_competition_id,
     _vlr_event_time,
@@ -36,7 +38,7 @@ def main() -> int:
     )
     assert event_time == "2026-08-11T08:00:00+00:00", event_time
 
-    soup = __import__("bs4").BeautifulSoup(future_html, "lxml")
+    soup = BeautifulSoup(future_html, "lxml")
     assert _vlr_match_status(soup, event_time, now) == "SCHEDULED"
     assert _vlr_event_competition_id(soup, "https://www.vlr.gg/724631/example") == "vlr:event:2286"
 
@@ -61,7 +63,7 @@ def main() -> int:
         reference_year=2026,
     )
     assert completed_time == "2026-08-10T10:40:00+00:00", completed_time
-    assert _vlr_match_status(soup=__import__("bs4").BeautifulSoup(completed_html, "lxml"),
+    assert _vlr_match_status(soup=BeautifulSoup(completed_html, "lxml"),
                              event_time=completed_time,
                              reference_now=now) == "COMPLETED"
 
@@ -71,7 +73,7 @@ def main() -> int:
     noisy_future = future_html.replace(
         "</body>", '<div class="navigation">completed matches</div></body>'
     )
-    noisy_soup = __import__("bs4").BeautifulSoup(noisy_future, "lxml")
+    noisy_soup = BeautifulSoup(noisy_future, "lxml")
     assert _vlr_match_status(noisy_soup, event_time, now) == "SCHEDULED"
 
     # Persistent historical pagination can be far beyond the first pages.
