@@ -743,13 +743,28 @@ def evaluate_patterns(
     # selection folds; they must never see labels from their own test windows.
     folds = _folds(len(y), start, step)
     folds = [f for f in folds if len(np.unique(y[f[0]:f[1]])) > 1]
-    if len(folds) < 3:
+    if len(folds) < 4:
         return {
             "status": "SKIPPED",
             "reason": "too_few_preholdout_pattern_folds",
             "folds": len(folds),
         }
-    ranker_fit_end = int(folds[0][0])
+    # Nested inner confirmation: broad candidate screening uses the earlier
+    # folds, while the final pattern/model choice is confirmed on untouched
+    # later folds inside the same pre-holdout prefix. This reduces winner's
+    # curse from searching hundreds of candidates.
+    confirmation_count = max(2, min(3, len(folds) // 3))
+    screen_folds = folds[:-confirmation_count]
+    confirmation_folds = folds[-confirmation_count:]
+    if len(screen_folds) < 2:
+        return {
+            "status": "SKIPPED",
+            "reason": "too_few_pattern_screen_folds_after_confirmation_split",
+            "folds": len(folds),
+            "screen_folds": len(screen_folds),
+            "confirmation_folds": len(confirmation_folds),
+        }
+    ranker_fit_end = int(screen_folds[0][0])
     if ranker_fit_end < max(int(min_train), 80):
         return {
             "status": "SKIPPED",
@@ -793,7 +808,7 @@ def evaluate_patterns(
         idx = [feature_names.index(f) for f in cand["features"] if f in feature_names]
         if not idx:
             continue
-        scores = _evaluate_one_pattern(X, y, idx, folds, "logistic")
+        scores = _evaluate_one_pattern(X, y, idx, screen_folds, "logistic")
         summary = _robust_score(scores)
         if summary.get("status") == "EVALUATED":
             stage1[cand["pattern_id"]] = {
@@ -817,7 +832,7 @@ def evaluate_patterns(
         cand = stage1[pid]
         idx = [feature_names.index(f) for f in cand["features"] if f in feature_names]
         for model_kind in ("hist_gb", "extra_trees"):
-            scores = _evaluate_one_pattern(X, y, idx, folds, model_kind)
+            scores = _evaluate_one_pattern(X, y, idx, confirmation_folds, model_kind)
             summary = _robust_score(scores)
             if summary.get("status") != "EVALUATED":
                 continue
@@ -848,7 +863,8 @@ def evaluate_patterns(
     base_idx = [feature_names.index(f) for f in baseline["features"] if f in feature_names]
     paired_delta = []
     aligned_baseline_scores = []
-    for train_end, test_end in folds:
+    aligned_selected_scores = []
+    for train_end, test_end in confirmation_folds:
         if len(np.unique(y[:train_end])) < 2 or len(np.unique(y[train_end:test_end])) < 2:
             continue
         selected_model = _pattern_model(selected_model_kind)
@@ -861,14 +877,10 @@ def evaluate_patterns(
         mb = _metric(y[train_end:test_end], pb)
         paired_delta.append(float(ms["logloss"] - mb["logloss"]))
         aligned_baseline_scores.append(mb)
+        aligned_selected_scores.append(ms)
 
     baseline_aligned_summary = _robust_score(aligned_baseline_scores)
-    selected_aligned_summary = _robust_score(
-        [_metric(y[a:b], _pattern_model(selected_model_kind).fit(
-            X[:a, selected_idx], y[:a]
-        ).predict_proba(X[a:b, selected_idx])[:, 1]) for a, b in folds
-         if len(np.unique(y[:a])) > 1 and len(np.unique(y[a:b])) > 1]
-    )
+    selected_aligned_summary = _robust_score(aligned_selected_scores)
     baseline_ll = float(baseline_aligned_summary.get("logloss_mean", baseline["logloss_mean"]))
     selected_ll = float(selected_aligned_summary.get("logloss_mean", selected_record["logloss_mean"]))
     relative_improvement = float((baseline_ll - selected_ll) / max(abs(baseline_ll), 1e-12))
@@ -879,6 +891,9 @@ def evaluate_patterns(
         "status": "EVALUATED",
         "sport": sport,
         "fold_count": len(folds),
+        "screen_fold_count": len(screen_folds),
+        "confirmation_fold_count": len(confirmation_folds),
+        "confirmation_folds_start": [int(a) for a, _ in confirmation_folds],
         "candidate_count": len(candidates),
         "stage1_candidate_count": len(stage1),
         "stage1_ranker_candidate_count": len(ranked_candidates),
@@ -902,9 +917,9 @@ def evaluate_patterns(
         "selected_aligned_summary": selected_aligned_summary,
         "paired_bootstrap": bootstrap,
         "selection_rule": (
-            "rankers fit only on the first chronological training window; stage1 broad structured logistic screen; "
-            "stage2 top-pattern HistGradientBoosting/ExtraTrees; recent-weighted LogLoss + dispersion penalty; "
-            "lower feature count only as tie-break"
+            "rankers fit only on the first chronological training window; stage1 broad structured logistic screen "
+            "on earlier inner folds; stage2 top-pattern HistGradientBoosting/ExtraTrees confirmed on later inner folds; "
+            "recent-weighted LogLoss + dispersion penalty; lower feature count only as tie-break"
         ),
         "holdout_touched": False,
         "production_adoption": "NOT_AUTHORIZED_BY_PATTERN_SCREEN_ALONE",
