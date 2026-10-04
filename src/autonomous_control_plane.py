@@ -51,7 +51,35 @@ def load_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     return obj, None
 
 
-def age_hours(payload: dict[str, Any] | None, keys: tuple[str, ...], ref: datetime) -> float | None:
+def explicit_int(
+    obj: dict[str, Any],
+    key: str,
+    errors: dict[str, str],
+    label: str,
+) -> int | None:
+    if key not in obj:
+        errors[label] = "MISSING"
+        return None
+    value = obj.get(key)
+    if isinstance(value, bool):
+        errors[label] = "INVALID"
+        return None
+    try:
+        integer = int(value)
+    except (TypeError, ValueError):
+        errors[label] = "INVALID"
+        return None
+    if integer != value:
+        errors[label] = "INVALID"
+        return None
+    return integer
+
+
+def age_hours(
+    payload: dict[str, Any] | None,
+    keys: tuple[str, ...],
+    ref: datetime,
+) -> float | None:
     if not payload:
         return None
     for key in keys:
@@ -110,32 +138,114 @@ def inspect() -> dict[str, Any]:
     timing = payloads["timing_routes"] or {}
     repro = payloads["reproducibility_manifest"] or {}
 
-    coverage = release.get("coverage") or {}
-    accepted_model_gap = [
-        s for s in ACTIVE_SPORTS
-        if int((coverage.get(s) or {}).get("accepted_models", 0) or 0) == 0
-    ]
+    coverage = release.get("coverage")
+    if not isinstance(coverage, dict):
+        coverage = {}
+        errors["release_gate.coverage"] = "MISSING_OR_INVALID"
+
+    accepted_model_gap: list[str] = []
+    for sport in ACTIVE_SPORTS:
+        entry = coverage.get(sport)
+        if not isinstance(entry, dict):
+            errors[f"release_gate.coverage.{sport}"] = "MISSING_OR_INVALID"
+            continue
+        accepted = explicit_int(
+            entry,
+            "accepted_models",
+            errors,
+            f"release_gate.coverage.{sport}.accepted_models",
+        )
+        if accepted is not None and accepted == 0:
+            accepted_model_gap.append(sport)
+
+    checks = quality.get("checks")
+    if not isinstance(checks, list):
+        checks = []
+        errors["quality_gate.checks"] = "MISSING_OR_INVALID"
 
     pit_check = next(
-        (x for x in (quality.get("checks") or []) if x.get("check") == "pit_leakage"),
-        {},
+        (x for x in checks if isinstance(x, dict) and x.get("check") == "pit_leakage"),
+        None,
     )
-    exact_pit = int(pit_check.get("exact_pass", 0) or 0)
+    if pit_check is None:
+        pit_exact = None
+        errors["quality_gate.pit_leakage"] = "MISSING"
+    else:
+        pit_exact = explicit_int(
+            pit_check,
+            "exact_pass",
+            errors,
+            "quality_gate.pit_leakage.exact_pass",
+        )
+    pending = quality.get("pending")
+    if pending is None:
+        pending = []
+    if not isinstance(pending, list):
+        errors["quality_gate.pending"] = "INVALID"
+        pending = []
     pit_pending = (
-        "no_exact_pit_replay_rows" in set(quality.get("pending") or [])
-        or exact_pit == 0
+        "no_exact_pit_replay_rows" in set(pending)
+        or pit_exact is None
+        or pit_exact == 0
     )
 
+    future_generated = future.get("generated_at_utc")
     future_age = age_hours(future, ("generated_at_utc",), ref)
-    future_statuses = {
-        str(x.get("status") or "UNKNOWN")
-        for x in (future.get("sports") or [])
-        if isinstance(x, dict)
-    }
+    future_age_class = (
+        "MISSING"
+        if future_age is None
+        else ("FRESH" if future_age < 0.75 else "STALE")
+    )
+    sports_field = future.get("sports")
+    if not isinstance(sports_field, list):
+        errors["future_predictions.sports"] = "MISSING_OR_INVALID"
+        future_statuses: set[str] = set()
+    else:
+        future_statuses = {
+            str(x.get("status") or "UNKNOWN")
+            for x in sports_field
+            if isinstance(x, dict)
+        }
 
     head_sha = os.environ.get("GITHUB_SHA") or "UNKNOWN"
     manifest_sha = str(repro.get("source_git_commit_sha") or "")
     repro_match = bool(head_sha != "UNKNOWN" and manifest_sha and head_sha == manifest_sha)
+
+    def observed_int(
+        parent: dict[str, Any],
+        key: str,
+        label: str,
+    ) -> int | None:
+        return explicit_int(parent, key, errors, label)
+
+    experience_archive = observed_int(
+        experience,
+        "prediction_archive_total",
+        "experience_summary.prediction_archive_total",
+    )
+    experience_scored = observed_int(
+        experience,
+        "resolved_scored_total",
+        "experience_summary.resolved_scored_total",
+    )
+    experience_unresolved = observed_int(
+        experience,
+        "unresolved_total",
+        "experience_summary.unresolved_total",
+    )
+
+    route_source = routes.get("source")
+    if not isinstance(route_source, dict):
+        route_source = {}
+        errors["production_route_observability.source"] = "MISSING_OR_INVALID"
+    route_registry = routes.get("route_registry")
+    if not isinstance(route_registry, dict):
+        route_registry = {}
+        errors["production_route_observability.route_registry"] = "MISSING_OR_INVALID"
+    timing_registry = routes.get("timing_registry")
+    if not isinstance(timing_registry, dict):
+        timing_registry = {}
+        errors["production_route_observability.timing_registry"] = "MISSING_OR_INVALID"
 
     return {
         "observed_at_utc": ref.isoformat(),
@@ -152,36 +262,49 @@ def inspect() -> dict[str, Any]:
         "errors": errors,
         "quality": {
             "status": quality.get("status", "UNKNOWN"),
-            "pending": list(quality.get("pending") or []),
-            "pit_exact_pass": exact_pit,
+            "pending": pending,
+            "pit_exact_pass": pit_exact,
             "pit_research_blocked": pit_pending,
         },
         "release": {
             "status": release.get("status", "UNKNOWN"),
-            "publish": bool(release.get("publish", False)),
+            "publish": release.get("publish") if "publish" in release else None,
             "active_accepted_model_gap": accepted_model_gap,
         },
         "future_prediction": {
+            "generated_at_utc": future_generated,
             "age_hours": future_age,
+            "age_class": future_age_class,
             "statuses": sorted(future_statuses),
         },
         "experience": {
-            "archive_total": int(experience.get("prediction_archive_total", 0) or 0),
-            "scored_total": int(experience.get("resolved_scored_total", 0) or 0),
-            "unresolved_total": int(experience.get("unresolved_total", 0) or 0),
+            "archive_total": experience_archive,
+            "scored_total": experience_scored,
+            "unresolved_total": experience_unresolved,
+            "generated_at_utc": experience.get("generated_at_utc"),
         },
         "route_observability": {
-            "prediction_rows": int(routes.get("source", {}).get("prediction_rows", 0) or 0),
-            "accepted_routes": int(
-                (routes.get("route_registry") or {}).get("accepted_route_count", 0) or 0
+            "prediction_rows": observed_int(
+                route_source, "prediction_rows", "production_route_observability.source.prediction_rows"
             ),
-            "accepted_timing_routes": int(
-                (routes.get("timing_registry") or {}).get("accepted_route_count", 0) or 0
+            "accepted_routes": observed_int(
+                route_registry,
+                "accepted_route_count",
+                "production_route_observability.route_registry.accepted_route_count",
+            ),
+            "accepted_timing_routes": observed_int(
+                timing_registry,
+                "accepted_route_count",
+                "production_route_observability.timing_registry.accepted_route_count",
             ),
         },
         "timing": {
             "status": timing.get("status", "UNKNOWN"),
-            "route_count": len(timing.get("routes") or {}),
+            "route_count": len(timing.get("routes") or {}) if isinstance(timing.get("routes") or {}, dict) else None,
+        },
+        "dual_learning": {
+            "status": (payloads["dual_learning"] or {}).get("status", "UNKNOWN"),
+            "generated_at_utc": (payloads["dual_learning"] or {}).get("finished_at_utc"),
         },
     }
 
@@ -200,13 +323,12 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "generalization": 1.0,
             "information_value": 1.0,
             "cost": 1.0,
-            "reason": "exact PIT evidence is absent or explicitly pending; production-grade OOS cannot advance safely",
+            "reason": "exact PIT evidence is absent, explicitly pending, or unresolvable; production-grade OOS cannot advance safely",
             "auto_dispatch": False,
             "dispatch_policy": "respect_fixed_pit_boundary_or_existing_watchdog",
         })
 
-    age = state["future_prediction"]["age_hours"]
-    if age is None or age >= 0.75:
+    if state["future_prediction"]["age_class"] in {"MISSING", "STALE"}:
         candidates.append({
             "action": "PRODUCTION_HEARTBEAT",
             "workflow": ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"],
@@ -233,23 +355,23 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "generalization": 1.0,
             "information_value": 0.9,
             "cost": 2.0,
-            "reason": "active sports lack accepted models; continue chronological/OOS research without automatic production promotion",
+            "reason": "active sports lack accepted models based on explicit release-gate evidence; continue chronological/OOS research without automatic production promotion",
             "auto_dispatch": True,
             "dispatch_policy": "only_when_no_current_run_and_heavy_research_cooldown_elapsed",
         })
 
-    if state["reproducibility"]["status"] != "MATCH":
+    if state["errors"] or state["reproducibility"]["status"] != "MATCH":
         candidates.append({
             "action": "RESEARCH_HEALTH",
             "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
-            "target": "reproducibility",
-            "impact": 13.0,
+            "target": "evidence_integrity",
+            "impact": 15.0,
             "evidence_gap": 0.9,
             "failure_relevance": 0.9,
             "generalization": 0.8,
             "information_value": 0.8,
             "cost": 1.0,
-            "reason": "reproducibility manifest does not match the executing HEAD; stale evidence must not be treated as current",
+            "reason": "evidence is incomplete, malformed, or provenance-stale; reconcile health without treating missing values as zero",
             "auto_dispatch": True,
             "dispatch_policy": "only_when_no_current_run_and_health_cooldown_elapsed",
         })
@@ -287,25 +409,40 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
     selected["selection_rule"] = "max(priority) with deterministic action/target tie-break"
 
     dispatchable = [c for c in candidates if c.get("auto_dispatch")]
-    dispatch = None
-    if dispatchable:
-        dispatch = dict(dispatchable[0])
+    dispatch = dict(dispatchable[0]) if dispatchable else None
+    if dispatch is not None:
         dispatch["status"] = "DISPATCH_CANDIDATE"
         dispatch["automatic_promotion"] = False
-
     return selected, dispatch
 
 
-def state_fingerprint(state: dict[str, Any], selected: dict[str, Any], dispatch: dict[str, Any] | None) -> str:
+def state_fingerprint(
+    state: dict[str, Any],
+    selected: dict[str, Any],
+    dispatch: dict[str, Any] | None,
+) -> str:
+    future = state["future_prediction"]
+    experience = state["experience"]
+    dual = state["dual_learning"]
     normalized = {
         "head_sha": state["head_sha"],
         "errors": state["errors"],
         "quality": state["quality"],
         "release": state["release"],
-        "future_prediction": state["future_prediction"],
-        "experience": state["experience"],
+        "future_prediction": {
+            "generated_at_utc": future["generated_at_utc"],
+            "age_class": future["age_class"],
+            "statuses": future["statuses"],
+        },
+        "experience": {
+            "archive_total": experience["archive_total"],
+            "scored_total": experience["scored_total"],
+            "unresolved_total": experience["unresolved_total"],
+            "generated_at_utc": experience["generated_at_utc"],
+        },
         "route_observability": state["route_observability"],
         "timing": state["timing"],
+        "dual_learning": dual,
         "selected": {
             "action": selected["action"],
             "workflow": selected["workflow"],
@@ -338,7 +475,6 @@ def write_state(
     )
     queue_ids = queue_fingerprints()
     queue_added = selected["fingerprint"] not in queue_ids
-
     if queue_added:
         with QUEUE_OUT.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps({
@@ -347,22 +483,14 @@ def write_state(
                 **selected,
             }, ensure_ascii=False, sort_keys=True) + "\n")
 
-    should_write = (
-        previous_fp != fp
-        or not CONTROL_OUT.exists()
-        or not HEALTH_OUT.exists()
-    )
+    should_write = previous_fp != fp or not CONTROL_OUT.exists() or not HEALTH_OUT.exists()
     if should_write:
         control = {
             "version": "autonomous-control-plane-v1",
             "generated_at_utc": state["observed_at_utc"],
             "head_sha": state["head_sha"],
             "state_fingerprint": fp,
-            "status": (
-                "DEGRADED"
-                if state["errors"] or state["reproducibility"]["status"] != "MATCH"
-                else "READY"
-            ),
+            "status": "DEGRADED" if state["errors"] or state["reproducibility"]["status"] != "MATCH" else "READY",
             "active_sports": list(ACTIVE_SPORTS),
             "deferred_sports": list(DEFERRED_SPORTS),
             "observations": state,
@@ -379,16 +507,13 @@ def write_state(
                 "no_model_auto_promotion": True,
                 "no_frozen_holdout_tuning": True,
                 "pit_fail_closed": True,
+                "missing_not_zero": True,
                 "single_writer": True,
                 "main_sha_recheck_required_before_push": True,
             },
         }
-        CONTROL_OUT.write_text(
-            json.dumps(control, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-
-        health = {
+        CONTROL_OUT.write_text(json.dumps(control, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        HEALTH_OUT.write_text(json.dumps({
             "version": "automation-health-v1",
             "generated_at_utc": state["observed_at_utc"],
             "head_sha": state["head_sha"],
@@ -400,10 +525,7 @@ def write_state(
             "reproducibility_status": state["reproducibility"]["status"],
             "pit_exact_pass": state["quality"]["pit_exact_pass"],
             "queue_entry_added": queue_added,
-        }
-        HEALTH_OUT.write_text(
-            json.dumps(health, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     return {
         "state_fingerprint": fp,
@@ -415,9 +537,7 @@ def write_state(
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(
-        description="Deterministic GitHub-native research control plane"
-    )
+    ap = argparse.ArgumentParser(description="Deterministic GitHub-native research control plane")
     ap.add_argument("--head-sha", default=os.environ.get("GITHUB_SHA", "UNKNOWN"))
     args = ap.parse_args()
     os.environ["GITHUB_SHA"] = str(args.head_sha)
@@ -425,7 +545,6 @@ def main() -> int:
     state = inspect()
     selected, dispatch = choose_actions(state)
     persisted = write_state(state, selected, dispatch)
-
     print(json.dumps({
         "status": "DISPATCH_CANDIDATE",
         "head_sha": args.head_sha,
