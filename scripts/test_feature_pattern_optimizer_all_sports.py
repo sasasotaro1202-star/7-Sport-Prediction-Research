@@ -35,7 +35,8 @@ def main() -> int:
     assert classify_feature("AD__stat_points__mean") == "performance_history"
 
     patterns = broad_pattern_grid("basketball", names, max_patterns=384)
-    assert len(patterns) >= 20
+    assert len(patterns) >= 30
+    assert len(broad_pattern_grid("basketball", names, max_patterns=1024)) >= 30
     pids = {p["pattern_id"] for p in patterns}
     assert any("profile" in p.lower() for p in pids)
     assert any("subset_" in p for p in pids)
@@ -54,11 +55,12 @@ def main() -> int:
         "volleyball",
         start=150,
         step=25,
-        max_patterns=96,
-        stage2_top_k=16,
+        max_patterns=160,
+        stage2_top_k=20,
     )
     assert report["status"] == "EVALUATED"
-    assert report["candidate_count"] >= 20
+    assert report["candidate_count"] >= 30
+    assert report["stage1_ranker_candidate_count"] > 0
     assert report["stage2_candidate_count"] > 0
     assert report["holdout_touched"] is False
     assert report["production_adoption"] == "NOT_AUTHORIZED_BY_PATTERN_SCREEN_ALONE"
