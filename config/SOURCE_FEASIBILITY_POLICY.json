@@ -7,7 +7,8 @@
     "A reachable source may still be PIT_UNPROVEN.",
     "Paid/commercial sources are never required for the active free-source audit.",
     "At least one critical event/schedule source must be reachable for each active sport; otherwise the sport is DATA_SOURCE_OUTAGE.",
-    "Historical/PIT readiness remains a separate gate."
+    "Historical/PIT readiness remains a separate gate.",
+    "Participant/entity context is a first-class data surface. A source being able to expose a profile does not make it prediction-eligible; effective_at and source_available_at must independently satisfy the cutoff."
   ],
   "active_sports": {
     "basketball": [
@@ -251,6 +252,37 @@
         "critical": false,
         "pit_status": "UNPROVEN",
         "role": "secondary_statistics_reference"
+      },
+      {
+        "source_id": "ufcstats_fighter_profile",
+        "name": "UFCStats fighter profile",
+        "url": "https://ufcstats.com/",
+        "kind": "public_statistics",
+        "capabilities": [
+          "fighter_identity",
+          "fighter_profile",
+          "height",
+          "weight",
+          "reach",
+          "stance",
+          "date_of_birth",
+          "career_record",
+          "career_stats"
+        ],
+        "required_signals": [
+          "Height",
+          "Weight",
+          "Reach",
+          "STANCE",
+          "DOB",
+          "Record",
+          "Career statistics"
+        ],
+        "probe_mode": "html_text",
+        "critical": false,
+        "cost_status": "FREE_PUBLIC",
+        "pit_status": "UNPROVEN",
+        "role": "participant_context_profile_source"
       },
       {
         "source_id": "ufc_tidytuesday_fallback",
