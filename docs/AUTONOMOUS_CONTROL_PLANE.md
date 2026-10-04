@@ -23,11 +23,13 @@ PIT coverage repair is queued, not used to bypass the repository's fixed PIT-his
 
 The production heartbeat remains owned by the existing production watchdog/pre-event workflow.
 
-Only autonomous_research_sweep.yml and 24h_autonomous_research.yml are eligible for automatic dispatch.
+Only workflows in the explicit autonomous dispatch allowlist are eligible for automatic dispatch. This includes bounded source/scope/runtime/safety/lane maintenance and research workflows; production, PIT History Expansion, Production Failure Recovery, Production Watchdog, Production Invariants, and Lightweight Regression remain monitor-only owners.
 
 The persistence step re-checks main before pushing. A concurrent main-branch update causes a visible failure instead of overwriting newer state.
 
 Repeated identical queue entries are deduplicated by deterministic fingerprint.
+
+No-churn persistence excludes invocation SHA and volatile `age_hours` from the state fingerprint, so materially unchanged evidence does not create self-generated main commits.
 
 ## Status semantics
 
