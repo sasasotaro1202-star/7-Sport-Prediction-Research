@@ -33,10 +33,10 @@ def main() -> int:
     reconcile_marker = "      - name: Resolve current main for control-plane execution"
     assert reconcile_marker in text
     reconcile = text.index(reconcile_marker)
-    verify_marker = "      - name: Verify executing SHA is current main"
-    verify = text.index(verify_marker)
-    assert reconcile < verify, "current-main resolution must precede the schedule/manual verification"
-    reconcile_block = text[reconcile:verify]
+    regression_marker = "      - name: Run control-plane regression"
+    regression = text.index(regression_marker)
+    assert reconcile < regression, "current-main resolution must precede control-plane execution"
+    reconcile_block = text[reconcile:regression]
     assert "github.event_name == 'workflow_run'" in reconcile_block
     assert "git fetch origin main --depth=1" in reconcile_block
     assert 'git checkout --detach "$remote_sha"' in reconcile_block
