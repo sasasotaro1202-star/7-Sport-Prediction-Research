@@ -4,6 +4,14 @@ on:
   schedule:
     - cron: '7 */3 * * *'
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Active-Scope Target v4.5.15 Production
+      - PIT History Expansion
+      - Production Failure Recovery
+      - Autonomous Control Plane Regression
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -20,6 +28,12 @@ env:
 jobs:
   control:
     name: Reconcile / Decide / Dispatch / Persist
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'timed_out' ||
+      github.event.workflow_run.conclusion == 'startup_failure' ||
+      github.event.workflow_run.conclusion == 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -74,6 +88,7 @@ jobs:
               "production_watchdog.yml",
               "production_invariants.yml",
               "lightweight_regression.yml",
+              "autonomous_control_plane_regression.yml",
           ]
           output = {"generated_at_utc": None, "head_sha": os.environ.get("GITHUB_SHA", ""), "workflows": {}, "errors": {}}
           for workflow in workflows:
@@ -108,6 +123,10 @@ jobs:
 
       - name: Inspect current GitHub evidence
         id: control
+        env:
+          CONTROL_PLANE_EVENT_WORKFLOW: ${{ github.event.workflow_run.name || '' }}
+          CONTROL_PLANE_EVENT_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
+          CONTROL_PLANE_EVENT_HEAD_SHA: ${{ github.event.workflow_run.head_sha || '' }}
         run: |
           set -euo pipefail
           python src/autonomous_control_plane.py --head-sha "${{ github.sha }}" > control_output.json
