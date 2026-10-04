@@ -8,6 +8,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SPORTS = ("valorant", "basketball", "volleyball", "ufc", "rizin")
+HORIZONS_BY_SPORT = {
+    "valorant": "60,180,300,600",
+    "basketball": "120,300,600,1200",
+    "volleyball": "60,180,300,600",
+    "ufc": "60,120,300,600",
+    "rizin": "60,120,300,600",
+}
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -96,7 +103,7 @@ def run_eval(sport: str) -> dict:
         "--outcomes", str(outcome_path.relative_to(ROOT)),
         "--output", str(output_path.relative_to(ROOT)),
         "--mode", "in_event",
-        "--horizons-seconds", "900,1800,3600,7200",
+        "--horizons-seconds", HORIZONS_BY_SPORT.get(sport, "60,180,300,600"),
         "--n-folds", "6",
         "--min-train-events", "24",
         "--k", "20",
