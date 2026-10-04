@@ -103,6 +103,56 @@ def main():
     )
     assert bound is not None
     assert bound["public_availability_bound_utc"] == "2021-04-19T23:59:59+00:00"
+
+    # The first evidence item contains a partial nested revision copy. The
+    # complete chronology guard is stored in canonical top-level metadata.
+    original_root = provenance.ROOT
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            evidence_path = root / "results/research/bleague_public_availability_evidence.json"
+            evidence_path.parent.mkdir(parents=True, exist_ok=True)
+            evidence_path.write_text(
+                json.dumps({
+                    "status": "RESEARCH_EVIDENCE_ONLY",
+                    "strict_pit_usable": False,
+                    "revision_evidence": {
+                        "file": "inst/extdata/games_summary_202021.csv",
+                        "revision_sha": "canonical-sha",
+                        "revision_commit_timestamp_utc": "2021-04-13T23:29:05Z",
+                        "next_file_touch_timestamp_utc": "2021-05-11T13:51:31Z",
+                        "no_intervening_file_touch_between_revision_and_independent_publication": True,
+                        "public_availability_bound": {
+                            "precision": "DATE_ONLY",
+                            "latest_safe_utc": "2021-04-19T23:59:59Z"
+                        }
+                    },
+                    "evidence": [{
+                        "source_url": "https://example.invalid/primary",
+                        "published_on": "2021-04-19",
+                        "referenced_files": ["inst/extdata/games_summary_202021.csv"],
+                        "revision_evidence": {
+                            "file": "inst/extdata/games_summary_202021.csv",
+                            "exact_revision_sha": "canonical-sha",
+                            "revision_commit_timestamp_utc": "2021-04-13T23:29:05Z",
+                            "public_availability_bound": {
+                                "precision": "DATE_ONLY",
+                                "latest_safe_utc": "2021-04-19T23:59:59Z"
+                            }
+                        }
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            provenance.ROOT = root
+            canonical_bound = secondary_publication_bound(
+                "inst/extdata/games_summary_202021.csv", "canonical-sha"
+            )
+            assert canonical_bound is not None
+            assert canonical_bound["public_availability_bound_utc"] == "2021-04-19T23:59:59+00:00"
+    finally:
+        provenance.ROOT = original_root
+
     assert secondary_publication_bound(
         "inst/extdata/games_202021.csv",
         "42c621a5437228a4d5a796f62116bee5cc44dce2",
