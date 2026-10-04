@@ -1,6 +1,13 @@
 name: Temporal Trajectory Intelligence Research
 
 on:
+  push:
+    paths:
+      - "src/trajectory_intelligence_oos.py"
+      - "tests/test_trajectory_intelligence_oos.py"
+      - "scripts/trajectory_research_runner.py"
+      - "config/TEMPORAL_TRAJECTORY_POLICY.json"
+      - ".github/workflows/temporal_trajectory_research.yml"
   schedule:
     - cron: "43 5 * * 1"
   workflow_dispatch:
