@@ -14,6 +14,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score,brier_score_loss,log_loss
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from src import participant_context_features as participant_context
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research';SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
 POLICY={'valorant':('rating','acs','adr','kast','k_d','fk_fd'),'basketball':('points','rebounds','assists','steals','blocks','turnovers','fieldGoalPct','threePointPct','freeThrowPct'),'volleyball':('attack','serve','receive','block','error','sideout'),'tennis':('ace','double_fault','first_serve','first_serve_points_won','break_points_saved','break_points_won'),'ufc':('sig_str','takedown','td_pct','sub_attempts','control_time'),'rizin':('sig_str','takedown','td_pct','sub_attempts','control_time'),'f1':(),'rugby':(),'boxing':()}
 def utc():return datetime.now(timezone.utc).isoformat()
@@ -260,7 +261,7 @@ def _make_stat_history_loader(c,s):
  return history,cache
 
 def build(c,s,include_unlabeled=False):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};ratings_comp={};ratings_comp_fast={};ratings_comp_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};ratings_comp={};ratings_comp_fast={};ratings_comp_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);participant_index=participant_context.build_index(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    # Historical outcome labels are admitted only once their conservative realized
@@ -308,6 +309,10 @@ def build(c,s,include_unlabeled=False):
    j+=1
   if eid not in labels and not include_unlabeled:continue
   p=pairs[eid];f={};strict_evidence=0
+  prediction_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
+  prediction_cutoff_dt=prediction_dt-timedelta(minutes=60)
+  event_context=participant_context.event_participant_features(c,eid,prediction_cutoff_dt)
+  profile_by_side={}
   comp=str(p.get('competition_id') or '').lower()
   f['competition_is_asian_games']=1.0 if ('asian games' in comp or 'アジア大会' in comp) else 0.0
   f['competition_is_bleague']=1.0 if ('b.league' in comp or 'b league' in comp or 'bリーグ' in comp) else 0.0
@@ -382,6 +387,14 @@ def build(c,s,include_unlabeled=False):
      stat_age_sum+=float(ages[0]) if len(ages) else 0.0
    f[f'{side}__stat_coverage']=float(stat_with_data/len(cols)) if cols else np.nan
    f[f'{side}__stat_freshness_mean_days']=float(stat_age_sum/stat_with_data) if stat_with_data else np.nan
+   profile=participant_context.features_for(participant_index,pid,prediction_cutoff_dt)
+   profile_by_side[side]=profile
+   for key,value in profile.items():
+    f[f'{side}__{key}']=float(value)
+   for key,value in event_context.get(side,{}).items():
+    f[f'{side}__{key}']=float(value)
+  f.update(participant_context.difference_features(profile_by_side.get('A',{}),profile_by_side.get('B',{})))
+  f.update(participant_context.difference_features(event_context.get('A',{}),event_context.get('B',{})))
   for k in ('elo','elo_fast','elo_slow','elo_comp','elo_comp_fast','elo_comp_slow','elo_comp_momentum','history_n','rest_days','games_last_7d','games_last_14d','games_last_30d','short_rest_flag'):
    a=f[f'A__{k}'];b=f[f'B__{k}'];f[f'D__{k}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
   for k in ('recent_winrate_5','recent_winrate_10','recent_winrate_20','recent_form_delta','current_streak','streak_won','streak_lost'):
