@@ -389,6 +389,7 @@ def build(c,s,include_unlabeled=False):
    f[f'{side}__stat_freshness_mean_days']=float(stat_age_sum/stat_with_data) if stat_with_data else np.nan
    profile=participant_context.features_for(participant_index,pid,prediction_cutoff_dt)
    profile_by_side[side]=profile
+   strict_evidence += len(profile) + len(event_context.get(side,{}))
    for key,value in profile.items():
     f[f'{side}__{key}']=float(value)
    for key,value in event_context.get(side,{}).items():
