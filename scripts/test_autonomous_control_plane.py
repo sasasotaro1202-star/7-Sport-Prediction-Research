@@ -225,7 +225,8 @@ def main() -> int:
 
         # Recent observed failures must become an autonomous research signal.
         selected_failure, dispatch_failure = cp.choose_actions(state)
-        assert selected_failure["target"] == "recent_failures"
+        assert selected_failure["action"] == "PIT_COVERAGE_REPAIR"
+        assert selected_failure["target"] == "active_scope"
         assert dispatch_failure is not None
         assert dispatch_failure["workflow"] == "autonomous_research_sweep.yml"
 
