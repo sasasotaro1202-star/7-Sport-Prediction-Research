@@ -258,19 +258,25 @@ def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | 
     candidates = []
     for item in evidence_items:
         nested = item.get("revision_evidence") or {}
-        if nested.get("file") == target_path and nested.get("exact_revision_sha") == target_sha:
-            candidates.append((item, nested))
-            continue
 
-        # Canonical registry form: the exact revision metadata is top-level,
-        # while the dated independent evidence entry identifies the source
-        # publication and explicitly references the same file.
-        if (
+        # The canonical top-level revision record may contain the complete
+        # chronology guards while an older evidence item keeps only a partial
+        # nested copy. Prefer the complete canonical record whenever the item
+        # explicitly references the same file+revision; never downgrade to an
+        # incomplete nested copy that can erase valid publication evidence.
+        canonical_matches = (
             top_revision.get("file") == target_path
             and top_revision.get("revision_sha") == target_sha
             and target_path in [str(x) for x in (item.get("referenced_files") or [])]
-        ):
+        )
+        nested_matches = (
+            nested.get("file") == target_path
+            and nested.get("exact_revision_sha") == target_sha
+        )
+        if canonical_matches:
             candidates.append((item, top_revision))
+        elif nested_matches:
+            candidates.append((item, nested))
 
     for item, revision in candidates:
         bound_info = revision.get("public_availability_bound") or {}
