@@ -669,7 +669,7 @@ def _feature_ranking_candidates(
         for k in sizes:
             add(f"rank__{rname}__top{k}", ranked[:k], "outcome_ranked_top_k")
 
-    top_sizes = [k for k in (16, 32, 64, 128] if k <= len(names)]
+    top_sizes = [k for k in (16, 32, 64, 128) if k <= len(names)]
     ranker_names = ("corr", "spearman", "mutual_info", "logistic_coef", "tree_importance")
     for k in top_sizes:
         sets = [set(views[x][:k]) for x in ranker_names]
