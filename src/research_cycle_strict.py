@@ -327,7 +327,7 @@ def _carry_forward_previous(c, sport, previous, current_features):
     if not isinstance(previous, dict) or previous.get("status") != "TRAINED":
         return None
     feature_version=str(previous.get("feature_version") or "")
-    if not (feature_version.startswith("strict-pit-v13-") or feature_version.startswith("strict-pit-v14-") or feature_version.startswith("strict-pit-v15-") or feature_version.startswith("strict-pit-v16-") or feature_version.startswith("strict-pit-v17-") or feature_version.startswith("strict-pit-v18-") or feature_version.startswith("strict-pit-v19-") or feature_version.startswith("strict-pit-v20-")):
+    if not (feature_version.startswith("strict-pit-v13-") or feature_version.startswith("strict-pit-v14-") or feature_version.startswith("strict-pit-v15-") or feature_version.startswith("strict-pit-v16-") or feature_version.startswith("strict-pit-v17-") or feature_version.startswith("strict-pit-v18-") or feature_version.startswith("strict-pit-v19-") or feature_version.startswith("strict-pit-v20-") or feature_version.startswith("strict-pit-v21-") or feature_version.startswith("strict-pit-v22-")):
         return None
     if sport in ("basketball", "volleyball") and previous.get("competition_scope_policy") != "competition_target_only":
         return None
@@ -660,6 +660,8 @@ def train(s):
     # All repository sports enter the same feature-pattern research surface.
     # Deferred sports are screened without production training; if PIT-safe rows
     # are unavailable the result remains explicitly deferred.
+    if s=='boxing':
+     return boxing()
     if s in ALL_SPORTS and s in DEFERRED_SPORTS:
      return _run_feature_pattern_only(s)
     # Fail-closed guard: deferred sports must never enter generic strict training.
