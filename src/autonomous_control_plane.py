@@ -282,7 +282,6 @@ def inspect() -> dict[str, Any]:
         "timing_routes": RESULTS / "timing_routes.json",
         "reproducibility_manifest": RESULTS.parent / "reproducibility_manifest.json",
         "dual_learning": RESULTS / "dual_learning_cycle.json",
-        "failure_memory": RESULTS.parent / "failure_memory.jsonl",
     }
     payloads: dict[str, dict[str, Any] | None] = {}
     errors: dict[str, str] = {}
