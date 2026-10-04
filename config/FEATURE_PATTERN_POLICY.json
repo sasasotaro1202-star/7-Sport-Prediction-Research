@@ -124,7 +124,7 @@
     "min_preholdout_folds": 6,
     "stage1_max_patterns": 1024,
     "stage2_top_k": 32,
-    "stage2_models": 2,
+    "stage2_models": 4,
     "bootstrap_samples": 2000,
     "complexity_penalty": "dispersion + feature_count tie-break + source_dependence penalty when predictive quality is comparable",
     "acceptance_hint": "pattern screen is never production authorization",
@@ -223,7 +223,9 @@
         "top_k": 32,
         "model_candidates": [
           "hist_gb",
-          "extra_trees"
+          "hist_gb_shallow",
+          "extra_trees",
+          "extra_trees_wide"
         ]
       },
       {
