@@ -10,8 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  # Keep PR validation isolated so one pull request cannot cancel another PR's research evidence.
-  group: upset-uncertainty-research-${{ github.ref }}
+  group: upset-uncertainty-research
   cancel-in-progress: true
 
 env:
