@@ -45,16 +45,47 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Verify executing SHA is current main
+      - name: Resolve current main and verify execution SHA
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "$remote_sha" = "${{ github.sha }}" || {
-            echo "STALE_MAIN_RUN expected=$remote_sha actual=${{ github.sha }}"
-            exit 1
-          }
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            git fetch origin main --depth=1
+            git checkout --detach "$remote_sha"
+
+            event_head="${{ github.event.workflow_run.head_sha || '' }}"
+            ancestor=false
+            relation="UNVERIFIED_OR_DIVERGED"
+            if [ -n "$event_head" ]; then
+              if [ "$event_head" = "$remote_sha" ]; then
+                ancestor=true
+                relation="SAME_CURRENT_MAIN"
+              else
+                compare_status="$(gh api "repos/${{ github.repository }}/compare/$event_head...$remote_sha" --jq '.status')"
+                if [ "$compare_status" = "ahead" ]; then
+                  ancestor=true
+                  relation="ANCESTOR_OF_CURRENT_MAIN"
+                fi
+              fi
+            fi
+            echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=$ancestor" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_RELATION=$relation" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_WORKFLOW=${{ github.event.workflow_run.name || '' }}" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_CONCLUSION=${{ github.event.workflow_run.conclusion || '' }}" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_HEAD_SHA=${{ github.event.workflow_run.head_sha || '' }}" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_RUN_ID=${{ github.event.workflow_run.id || '' }}" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_MAIN_RECONCILIATION relation=$relation current_main=$remote_sha event_head=$event_head"
+          else
+            test "$remote_sha" = "${{ github.sha }}" || {
+              echo "STALE_MAIN_RUN expected=$remote_sha actual=${{ github.sha }}"
+              exit 1
+            }
+            echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Run control-plane regression
         run: python scripts/test_autonomous_control_plane.py
@@ -129,7 +160,8 @@ jobs:
           CONTROL_PLANE_EVENT_HEAD_SHA: ${{ github.event.workflow_run.head_sha || '' }}
         run: |
           set -euo pipefail
-          python src/autonomous_control_plane.py --head-sha "${{ github.sha }}" > control_output.json
+          main_sha="${CONTROL_PLANE_CURRENT_MAIN_SHA:-${{ github.sha }}}"
+          python src/autonomous_control_plane.py --head-sha "$main_sha" > control_output.json
           cat control_output.json
           python - <<'PY'
           import json
@@ -172,8 +204,8 @@ jobs:
               results/research/research_queue.jsonl \
               results/research/autonomous_action_log.jsonl; then
             remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-            test "$remote_sha" = "${{ github.sha }}" || {
-              echo "STALE_MAIN_NO_CHANGE expected=${{ github.sha }} actual=$remote_sha" >&2
+            test "$remote_sha" = "$CONTROL_PLANE_CURRENT_MAIN_SHA" || {
+              echo "STALE_MAIN_NO_CHANGE expected=$CONTROL_PLANE_CURRENT_MAIN_SHA actual=$remote_sha" >&2
               exit 1
             }
             echo "persist_ok=true" >> "$GITHUB_OUTPUT"
@@ -192,8 +224,8 @@ jobs:
           git commit -m "ops: reconcile autonomous research control plane"
 
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "$remote_sha" = "${{ github.sha }}" || {
-            echo "STALE_MAIN_BEFORE_PUSH expected=$remote_sha actual=${{ github.sha }}" >&2
+          test "$remote_sha" = "$CONTROL_PLANE_CURRENT_MAIN_SHA" || {
+            echo "STALE_MAIN_BEFORE_PUSH expected=$CONTROL_PLANE_CURRENT_MAIN_SHA actual=$remote_sha" >&2
             exit 1
           }
 
