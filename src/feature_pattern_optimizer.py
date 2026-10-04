@@ -753,7 +753,7 @@ def evaluate_patterns(
     # folds, while the final pattern/model choice is confirmed on untouched
     # later folds inside the same pre-holdout prefix. This reduces winner's
     # curse from searching hundreds of candidates.
-    confirmation_count = max(2, min(3, len(folds) // 3))
+    confirmation_count = 3 if len(folds) >= 6 else 2
     screen_folds = folds[:-confirmation_count]
     confirmation_folds = folds[-confirmation_count:]
     if len(screen_folds) < 2:
@@ -912,6 +912,9 @@ def evaluate_patterns(
         },
         "relative_logloss_improvement_vs_baseline": relative_improvement,
         "paired_fold_deltas_selected_minus_baseline": paired_delta,
+        "confirmation_non_degraded_fraction": (
+            float(np.mean(np.asarray(paired_delta) <= 0.0)) if paired_delta else None
+        ),
         "selected_model_kind": selected_model_kind,
         "baseline_aligned_to_selected_model": baseline_aligned_summary,
         "selected_aligned_summary": selected_aligned_summary,
@@ -956,7 +959,18 @@ def select_features(pattern_report: dict, fallback: Iterable[str]) -> tuple[list
     folds = int(pattern_report.get("fold_count") or 0)
     baseline_count = int(baseline.get("feature_count") or len(fallback))
     selected_count = int((rec or {}).get("feature_count") or 0)
-    stable = folds >= 6 and rel >= 0.005
+    confirmation_folds = int(pattern_report.get("confirmation_fold_count") or 0)
+    non_degraded = pattern_report.get("confirmation_non_degraded_fraction")
+    try:
+        non_degraded = float(non_degraded) if non_degraded is not None else None
+    except (TypeError, ValueError):
+        non_degraded = None
+    stable = (
+        folds >= 6
+        and confirmation_folds >= 3
+        and rel >= 0.005
+        and (non_degraded is None or non_degraded >= (2.0 / 3.0))
+    )
     if prob is not None:
         stable = stable and prob >= 0.75
     if p05 is not None:
