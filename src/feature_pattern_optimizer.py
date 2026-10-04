@@ -468,15 +468,22 @@ def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: i
 def _rank_feature_views(X: np.ndarray, y: np.ndarray, feature_names: list[str]) -> dict[str, list[str]]:
     X = np.asarray(X, dtype=float)
     y = np.asarray(y, dtype=int)
+    empty = {"corr": [], "spearman": [], "mutual_info": [], "logistic_coef": [], "tree_importance": []}
     if len(y) < 80 or X.ndim != 2 or X.shape[1] != len(feature_names):
-        return {"corr": [], "mutual_info": [], "tree_importance": []}
+        return empty
     Xi = SimpleImputer(strategy="median", add_indicator=False).fit_transform(X)
     names = list(feature_names)
     corr = np.zeros(Xi.shape[1], dtype=float)
+    spearman = np.zeros(Xi.shape[1], dtype=float)
     for j in range(Xi.shape[1]):
-        sx = float(np.std(Xi[:, j]))
+        x = Xi[:, j]
+        sx = float(np.std(x))
         sy = float(np.std(y))
-        corr[j] = abs(float(np.corrcoef(Xi[:, j], y)[0, 1])) if sx > 1e-12 and sy > 1e-12 else 0.0
+        if sx > 1e-12 and sy > 1e-12:
+            corr[j] = float(np.nan_to_num(abs(np.corrcoef(x, y)[0, 1]), nan=0.0, posinf=0.0, neginf=0.0))
+            rx = np.argsort(np.argsort(x, kind="mergesort"), kind="mergesort").astype(float)
+            ry = np.argsort(np.argsort(y, kind="mergesort"), kind="mergesort").astype(float)
+            spearman[j] = float(np.nan_to_num(abs(np.corrcoef(rx, ry)[0, 1]), nan=0.0, posinf=0.0, neginf=0.0))
     try:
         mi = np.nan_to_num(
             mutual_info_classif(Xi, y, discrete_features=False, random_state=20261004),
@@ -485,6 +492,14 @@ def _rank_feature_views(X: np.ndarray, y: np.ndarray, feature_names: list[str]) 
     except Exception:
         mi = np.zeros(Xi.shape[1], dtype=float)
     try:
+        logistic = Pipeline([
+            ("s", StandardScaler()),
+            ("m", LogisticRegression(max_iter=1400, C=0.2, solver="liblinear")),
+        ]).fit(Xi, y)
+        coef = np.nan_to_num(np.abs(logistic.named_steps["m"].coef_[0]), nan=0.0, posinf=0.0, neginf=0.0)
+    except Exception:
+        coef = np.zeros(Xi.shape[1], dtype=float)
+    try:
         tree = ExtraTreesClassifier(
             n_estimators=180, min_samples_leaf=8, max_features="sqrt",
             class_weight="balanced", n_jobs=1, random_state=20261005,
@@ -492,11 +507,18 @@ def _rank_feature_views(X: np.ndarray, y: np.ndarray, feature_names: list[str]) 
         imp = np.nan_to_num(tree.feature_importances_, nan=0.0, posinf=0.0, neginf=0.0)
     except Exception:
         imp = np.zeros(Xi.shape[1], dtype=float)
+
+    def order(scores):
+        return [names[i] for i in np.argsort(-np.asarray(scores), kind="mergesort")]
+
     return {
-        "corr": [names[i] for i in np.argsort(-corr, kind="mergesort")],
-        "mutual_info": [names[i] for i in np.argsort(-mi, kind="mergesort")],
-        "tree_importance": [names[i] for i in np.argsort(-imp, kind="mergesort")],
+        "corr": order(corr),
+        "spearman": order(spearman),
+        "mutual_info": order(mi),
+        "logistic_coef": order(coef),
+        "tree_importance": order(imp),
     }
+
 
 
 def _feature_ranking_candidates(
@@ -547,18 +569,20 @@ def _feature_ranking_candidates(
         for k in sizes:
             add(f"rank__{rname}__top{k}", ranked[:k], "outcome_ranked_top_k")
 
-    top_sizes = [k for k in (16, 32, 64, 128) if k <= len(names)]
+    top_sizes = [k for k in (16, 32, 64, 128] if k <= len(names)]
+    ranker_names = ("corr", "spearman", "mutual_info", "logistic_coef", "tree_importance")
     for k in top_sizes:
-        corr_set, mi_set, tree_set = (set(views[x][:k]) for x in ("corr", "mutual_info", "tree_importance"))
-        add(f"rank__union3__top{k}", sorted(corr_set | mi_set | tree_set), "union_of_three_rankers")
-        add(f"rank__intersection3__top{k}", sorted(corr_set & mi_set & tree_set), "intersection_of_three_rankers")
-        add(f"rank__corr_mi__top{k}", sorted(corr_set & mi_set), "intersection_corr_mi")
-        add(f"rank__corr_tree__top{k}", sorted(corr_set & tree_set), "intersection_corr_tree")
-        add(f"rank__mi_tree__top{k}", sorted(mi_set & tree_set), "intersection_mi_tree")
+        sets = [set(views[x][:k]) for x in ranker_names]
+        add(f"rank__union5__top{k}", sorted(set.union(*sets)), "union_of_five_rankers")
+        add(f"rank__intersection5__top{k}", sorted(set.intersection(*sets)), "intersection_of_five_rankers")
+        for a_idx in range(len(ranker_names)):
+            for b_idx in range(a_idx + 1, len(ranker_names)):
+                ra, rb = ranker_names[a_idx], ranker_names[b_idx]
+                add(f"rank__{ra}_{rb}__top{k}", sorted(sets[a_idx] & sets[b_idx]), "intersection_pair_rankers")
 
     # Stability across multiple earlier prefixes of the selection period.
     prefix_fracs = (0.55, 0.70, 0.85, 1.0)
-    for rname in ("corr", "mutual_info", "tree_importance"):
+    for rname in ("corr", "spearman", "mutual_info", "logistic_coef", "tree_importance"):
         for k in (16, 32, 64):
             counts = {name: 0 for name in names}
             used = 0
@@ -584,7 +608,7 @@ def _feature_ranking_candidates(
 
     # Stability consensus across rankers and prefixes.
     stability_sets = []
-    for rname in ("corr", "mutual_info", "tree_importance"):
+    for rname in ("corr", "spearman", "mutual_info", "logistic_coef", "tree_importance"):
         for k in (16, 32, 64):
             counts = {name: 0 for name in names}
             for frac in prefix_fracs[:3]:
@@ -599,7 +623,7 @@ def _feature_ranking_candidates(
 
     # Family-balanced selections using multiple ranking views.
     for per_family in (2, 4, 6, 8, 12):
-        for rname in ("corr", "mutual_info", "tree_importance"):
+        for rname in ("corr", "spearman", "mutual_info", "logistic_coef", "tree_importance"):
             cols = []
             ranked = views[rname]
             for _, fam_cols in sorted(families.items()):
