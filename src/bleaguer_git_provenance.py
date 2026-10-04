@@ -194,25 +194,35 @@ def match_summary_revision(
 def find_first_summary_provenance(
     current_bytes: bytes,
     revisions: list[tuple[str, str, bytes]],
+    path: str | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Return the earliest commit where both current feature rows coexist exactly."""
+    """Prefer a publication-evidenced exact revision; otherwise keep the earliest exact revision."""
     targets = summary_targets_from_bytes(current_bytes)
-    remaining = set(targets)
     out: dict[str, dict[str, Any]] = {}
-    for commit_sha, commit_date, revision_bytes in sorted(revisions, key=lambda x: x[1]):
-        if not remaining:
-            break
-        matched = match_summary_revision(revision_bytes, targets, remaining)
+    unresolved: set[str] = set(targets)
+    revisions_sorted = sorted(revisions, key=lambda x: x[1])
+    for commit_sha, commit_date, revision_bytes in revisions_sorted:
+        matched = match_summary_revision(revision_bytes, targets, unresolved)
         for schedule_key in matched:
-            out[schedule_key] = {
+            bound = secondary_publication_bound(path, commit_sha) if path else None
+            candidate = {
                 "schedule_key": schedule_key,
                 "provenance_commit_sha": commit_sha,
                 "commit_timestamp_utc": iso(commit_date),
-                "publication_status": "UNPROVEN",
+                "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if bound else "UNPROVEN",
+                "public_availability_bound_utc": bound["public_availability_bound_utc"] if bound else None,
+                "publication_evidence": bound,
                 "content_hash": sha256_bytes(revision_bytes),
                 "matched_team_ids": sorted(targets[schedule_key]),
             }
-            remaining.remove(schedule_key)
+            current = out.get(schedule_key)
+            if bound:
+                out[schedule_key] = candidate
+                unresolved.discard(schedule_key)
+            elif current is None:
+                out[schedule_key] = candidate
+        if not unresolved and path is None:
+            break
     return out
 
 

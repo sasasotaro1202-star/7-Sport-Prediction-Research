@@ -101,6 +101,7 @@ def main():
                 ("commit-new", "2026-01-02T00:00:00+00:00", current),
                 ("commit-old", "2026-01-01T00:00:00+00:00", current),
             ],
+            path="inst/extdata/games_summary_202021.csv",
         )
         assert preferred["100"]["provenance_commit_sha"] == "commit-new"
         assert preferred["100"]["publication_status"] == "PROVEN_BY_SECONDARY_DATE_BOUND"
