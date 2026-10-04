@@ -1,0 +1,172 @@
+name: Autonomous Next-Action Controller
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Dispatch one bounded research action even when the normal cooldown would hold"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "37 * * * *"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: autonomous-next-action-controller
+  cancel-in-progress: true
+
+jobs:
+  controller:
+    name: "Select and dispatch next safe research action"
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Verify checkout is current main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          test "${remote_sha}" = "${GITHUB_SHA}" || {
+            echo "STALE_MAIN_RUN expected=${remote_sha} actual=${GITHUB_SHA}"
+            exit 1
+          }
+          echo "MAIN_SHA=${GITHUB_SHA}" >> "${GITHUB_ENV}"
+
+      - name: Verify controller contract
+        run: |
+          set -euo pipefail
+          python -m py_compile src/autonomous_next_action_controller.py
+          PYTHONPATH=. python scripts/test_autonomous_next_action_controller.py
+
+      - name: Collect current-main research workflow state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p controller-runs
+          for entry in "scope_autofill:scope_autofill.yml" "autonomous_research_sweep:autonomous_research_sweep.yml"; do
+            key="${entry%%:*}"
+            workflow="${entry#*:}"
+            gh run list --workflow "${workflow}" --repo "${GITHUB_REPOSITORY}" --limit 50               --json databaseId,status,conclusion,headSha,createdAt,updatedAt               > "controller-runs/${key}.json"
+          done
+
+      - name: Compute next action
+        env:
+          FORCE: ${{ inputs.force }}
+          RELEASE_COMMIT_TIME: ${{ vars.RELEASE_GATE_COMMIT_TIME }}
+          QUALITY_COMMIT_TIME: ${{ vars.QUALITY_GATE_COMMIT_TIME }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_time="${RELEASE_COMMIT_TIME:-}"
+          quality_time="${QUALITY_COMMIT_TIME:-}"
+          if ! [[ "${release_time}" =~ ^[0-9]+$ ]]; then
+            release_time=""
+          fi
+          if ! [[ "${quality_time}" =~ ^[0-9]+$ ]]; then
+            quality_time=""
+          fi
+
+          args=(
+            --main-sha "${GITHUB_SHA}"
+            --runs-json-dir controller-runs
+          )
+          [ -n "${release_time}" ] && args+=(--release-commit-time "${release_time}")
+          [ -n "${quality_time}" ] && args+=(--quality-commit-time "${quality_time}")
+          [ "${FORCE}" = "true" ] && args+=(--force)
+
+          PYTHONPATH=. python src/autonomous_next_action_controller.py "${args[@]}"
+
+      - name: Recompute report commit timestamps from Git history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          report = Path("results/autonomous_next_action.json")
+          row = json.loads(report.read_text(encoding="utf-8"))
+
+          def commit_time(path):
+              try:
+                  out = subprocess.check_output(
+                      ["git", "log", "-1", "--format=%ct", "--", path],
+                      text=True,
+                  ).strip()
+              except subprocess.CalledProcessError:
+                  return None
+              return int(out) if out.isdigit() else None
+
+          row.setdefault("git_report_commit_times", {})
+          row["git_report_commit_times"]["release_gate"] = commit_time("results/release_gate.json")
+          row["git_report_commit_times"]["quality_gate"] = commit_time("results/quality_gate.json")
+          report.write_text(json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Dispatch selected bounded action
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(python -c 'import json; print(json.load(open("results/autonomous_next_action.json"))["status"])')"
+          workflow="$(python -c 'import json; print(json.load(open("results/autonomous_next_action.json")).get("workflow",""))')"
+          if [ "${status}" != "DISPATCH" ]; then
+            echo "NO_DISPATCH status=${status}"
+            exit 0
+          fi
+          test -n "${workflow}"
+          before="$(date -u +%s)"
+          echo "DISPATCHING workflow=${workflow} ref=main reason=$(python -c 'import json; print(json.load(open("results/autonomous_next_action.json"))["reason"])')"
+          gh workflow run "${workflow}" --repo "${GITHUB_REPOSITORY}" --ref main
+
+          for attempt in 1 2 3 4 5; do
+            sleep 3
+            found="$(gh run list --workflow "${workflow}" --repo "${GITHUB_REPOSITORY}" --limit 20               --json databaseId,status,headSha,createdAt               | jq --arg sha "${GITHUB_SHA}" --argjson before "${before}"                 '[.[] | select(.headSha==$sha and (.createdAt | fromdateiso8601) >= $before)] | length')"
+            if [ "${found}" -ge 1 ]; then
+              echo "DISPATCH_VERIFIED workflow=${workflow} main=${GITHUB_SHA}"
+              exit 0
+            fi
+          done
+          echo "DISPATCH_UNVERIFIED workflow=${workflow} main=${GITHUB_SHA}" >&2
+          exit 1
+
+      - name: Publish controller summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat results/autonomous_next_action.json
+          {
+            echo "## Autonomous next action"
+            echo
+            echo "```json"
+            cat results/autonomous_next_action.json
+            echo "```"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload controller evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autonomous-next-action-${{ github.run_id }}
+          path: |
+            results/autonomous_next_action.json
+            controller-runs/*.json
+          if-no-files-found: warn
+          retention-days: 14
