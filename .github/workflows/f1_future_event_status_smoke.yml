@@ -7,10 +7,20 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "src/seven_sport_production.py"
+      - "scripts/test_f1_event_status.py"
+      - ".github/workflows/f1_future_event_status_smoke.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  # Keep deferred F1 status validation branch-scoped and avoid duplicate runs
+  # when a research branch receives rapid successive commits.
+  group: f1-future-event-status-smoke-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   f1-status-smoke:
