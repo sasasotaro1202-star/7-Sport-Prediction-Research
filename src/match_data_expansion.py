@@ -26,7 +26,7 @@ from src.seven_sport_production import add_snapshot, connect, sid, clean
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data/db/sports_v45.sqlite"
 ACTIVE_SPORTS = ("valorant", "basketball", "volleyball", "ufc", "rizin")
-PARSER_VERSION = "match-data-expansion-v2"
+PARSER_VERSION = "match-data-expansion-v3-participant-profile-pit"
 DETAIL_SOURCE_BY_SPORT = {
     "basketball": "bleague-game-detail",
     "valorant": "vlr-match-detail",
@@ -467,6 +467,155 @@ def _write_key_values(con, event, values, source, retrieved, exact):
     return written
 
 
+def _ufcstats_profile_links(html):
+    soup = BeautifulSoup(html, "lxml")
+    out = {}
+    for node in soup.select("a[href*='/fighter-details/']"):
+        name = clean(node.get_text(" ", strip=True))
+        href = clean(node.get("href"))
+        if not name or not href:
+            continue
+        if href.startswith("/"):
+            href = "https://ufcstats.com" + href
+        if "ufcstats.com/fighter-details/" not in href:
+            continue
+        out[name.casefold()] = href
+    return out
+
+
+def _ufc_profile_number(kind, raw):
+    if raw is None:
+        return None
+    text = clean(raw)
+    if not text:
+        return None
+    if kind == "height_cm":
+        m = re.search(r"(\d+)\s*['’]\s*(\d+(?:\.\d+)?)?\s*(?:\\"|in)?", text)
+        if m:
+            return float(m.group(1)) * 30.48 + float(m.group(2) or 0.0) * 2.54
+    if kind == "weight_kg":
+        m = re.search(r"(\d+(?:\.\d+)?)\s*(?:lb|lbs|pounds)", text, re.I)
+        if m:
+            return float(m.group(1)) * 0.45359237
+    if kind == "reach_cm":
+        m = re.search(r"(\d+(?:\.\d+)?)\s*(?:\\"|in|inch|inches)", text, re.I)
+        if m:
+            return float(m.group(1)) * 2.54
+    m = re.search(r"-?\d+(?:\.\d+)?", text.replace(",", ""))
+    return float(m.group()) if m else None
+
+
+def _record_triplet(html):
+    text = " ".join(_label_value_lines(html))
+    m = re.search(r"Record\s*:\s*(\d+)-(\d+)-(\d+)", text, re.I)
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2)), int(m.group(3))
+
+
+def _write_ufc_participant_profile_history(con, event, event_html, event_retrieved, lead_minutes):
+    """Persist fighter profile observations against canonical participant IDs.
+
+    Profiles are only eligible for research/prediction when the fighter-profile
+    page itself was observed no later than the event cutoff. A late observation
+    is retained as UNVERIFIABLE evidence but never exposed by the PIT feature
+    loader.
+    """
+    if event.get("sport") != "ufc":
+        return 0
+    participants = _participants(con, event["event_id"])
+    if len(participants) < 2:
+        return 0
+    links = _ufcstats_profile_links(event_html)
+    if not links and "/fighter-details/" in str(event.get("source_url") or ""):
+        links = {}
+    written = 0
+    event_time = _dt(event.get("event_time_utc"))
+    if event_time is None:
+        return 0
+    cutoff = event_time - timedelta(minutes=int(lead_minutes))
+    for side, pid, _team_id, canonical_name in participants:
+        profile_url = links.get(str(canonical_name or "").casefold())
+        if not profile_url:
+            continue
+        try:
+            raw, profile_retrieved, _ = _http_get(profile_url)
+        except Exception:
+            continue
+        exact, available_at = _exact_for_cutoff(profile_retrieved, event_time, lead_minutes)
+        content_hash = hashlib.sha256(raw.encode("utf-8", "ignore")).hexdigest()
+        add_snapshot(
+            con,
+            "ufc",
+            "ufcstats-fighter-profile",
+            profile_url,
+            profile_retrieved.isoformat(),
+            event["event_time_utc"],
+            content_hash,
+            "EXACT" if exact else "UNVERIFIABLE",
+            source_available_at_utc=available_at,
+            provenance={
+                "sport": "ufc",
+                "participant_id": pid,
+                "participant_side": side,
+                "parser": PARSER_VERSION,
+                "evidence": "prospective_fighter_profile_observation" if exact else "late_fighter_profile_observation",
+                "prediction_lead_minutes": int(lead_minutes),
+            },
+        )
+        data = parse_ufcstats_detail(raw)
+        values = {
+            "height_cm": (_ufc_profile_number("height_cm", data.get("height")), None),
+            "weight_kg": (_ufc_profile_number("weight_kg", data.get("weight")), None),
+            "reach_cm": (_ufc_profile_number("reach_cm", data.get("reach")), None),
+            "dob": (None, data.get("dob")),
+            "stance": (None, data.get("stance")),
+        }
+        rec = _record_triplet(raw)
+        if rec:
+            values.update({
+                "career_wins": (float(rec[0]), None),
+                "career_losses": (float(rec[1]), None),
+                "career_draws": (float(rec[2]), None),
+            })
+        for key, value in data.get("career_stats", {}).items():
+            if isinstance(value, (int, float)):
+                values[f"fighter.career_{key.lower()}"] = (float(value), None)
+        for attribute, (value_num, value_text) in values.items():
+            if value_num is None and not value_text:
+                continue
+            history_id = sid(
+                PARSER_VERSION,
+                pid,
+                event["event_id"],
+                attribute,
+                value_num,
+                value_text,
+                profile_url,
+                profile_retrieved.isoformat(),
+            )
+            con.execute(
+                """
+                INSERT OR REPLACE INTO participant_history(
+                  history_id,participant_id,sport,event_id,observed_at_utc,
+                  effective_at_utc,attribute,value_text,value_num,value_json,
+                  source,source_url,quality_status,confidence
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    history_id, pid, "ufc", event["event_id"],
+                    profile_retrieved.isoformat(),
+                    profile_retrieved.isoformat(),
+                    attribute, value_text, value_num, None,
+                    "ufcstats-fighter-profile", profile_url,
+                    "EXACT" if exact else "UNVERIFIABLE",
+                    1.0 if exact else 0.0,
+                ),
+            )
+            written += 1
+    return written
+
+
 def _write_source_specific_detail(con, event, html, retrieved, source, exact):
     host = urlparse(event["source_url"]).netloc.lower()
     if "fiba.basketball" in host:
@@ -788,6 +937,10 @@ def enrich_one(con, event, lead_minutes=60):
         written += _write_source_specific_detail(
             con, event, raw, retrieved, source, exact
         )
+        if event["sport"] == "ufc":
+            written += _write_ufc_participant_profile_history(
+                con, event, raw, retrieved, lead_minutes
+            )
 
         return {
             "status": "OK",
