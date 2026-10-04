@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -22,6 +23,8 @@ def bind(root: Path) -> None:
 
 
 def fixture(root: Path) -> None:
+    recent_utc = datetime.now(timezone.utc) - timedelta(minutes=10)
+    recent_iso = recent_utc.isoformat().replace("+00:00", "Z")
     (root / "results").mkdir(parents=True, exist_ok=True)
     (root / "results/research").mkdir(parents=True, exist_ok=True)
     (root / "results/automation_state").mkdir(parents=True, exist_ok=True)
@@ -79,7 +82,7 @@ def fixture(root: Path) -> None:
     (root / "results/failure_memory.jsonl").write_text(
         json.dumps({
             "record_id": "run-test",
-            "recorded_at_utc": "2026-10-04T04:00:00+00:00",
+            "recorded_at_utc": recent_iso,
             "failure_class": "COLLECTION_WORKFLOW_FAILURE",
             "unknown_details_are_not_inferred": True,
         }) + "\n",
@@ -109,7 +112,7 @@ def fixture(root: Path) -> None:
             "latest": {"databaseId": 7, "status": "completed", "conclusion": "success", "createdAt": "2026-10-03T00:00:00Z", "headSha": "new-sha"},
         },
         "pre_event_prediction.yml": {
-            "latest": {"databaseId": 8, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T08:00:00Z", "headSha": "new-sha"},
+            "latest": {"databaseId": 8, "status": "completed", "conclusion": "success", "createdAt": recent_iso, "headSha": "new-sha"},
         },
     }
     cp.ACTIONS_SNAPSHOT.write_text(json.dumps({"workflows": workflows, "errors": {}}), encoding="utf-8")
@@ -207,6 +210,35 @@ def main() -> int:
         assert selected_failure["target"] == "recent_failures"
         assert dispatch_failure is not None
         assert dispatch_failure["workflow"] == "autonomous_research_sweep.yml"
+
+        # The triggering workflow_run failure remains actionable even when the
+        # latest snapshot has already moved to a newer successful run.
+        (root / "results/failure_memory.jsonl").unlink()
+        workflows = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
+        workflows["workflows"]["v4_5_15_production.yml"] = {
+            "latest": {
+                "databaseId": 99,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": recent_iso,
+                "headSha": "new-sha",
+            }
+        }
+        cp.ACTIONS_SNAPSHOT.write_text(json.dumps(workflows), encoding="utf-8")
+        os.environ["CONTROL_PLANE_EVENT_WORKFLOW"] = "v4_5_15_production.yml"
+        os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
+        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
+        event_state = cp.inspect()
+        _, event_dispatch = cp.choose_actions(event_state)
+        assert event_dispatch is not None
+        assert event_dispatch["target"] == "workflow_event_failure:production"
+        assert event_dispatch["workflow"] == "autonomous_research_sweep.yml"
+
+        # A stale event SHA is fail-closed and must not create this event signal.
+        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "stale-sha"
+        stale_state = cp.inspect()
+        _, stale_dispatch = cp.choose_actions(stale_state)
+        assert stale_dispatch is None or stale_dispatch["target"] != "workflow_event_failure:production"
 
     print("AUTONOMOUS_CONTROL_PLANE_V2=PASS")
     return 0

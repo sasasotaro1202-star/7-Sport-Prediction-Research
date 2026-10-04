@@ -29,6 +29,7 @@ MONITORED_WORKFLOWS = {
     "watchdog": "production_watchdog.yml",
     "invariants": "production_invariants.yml",
     "lightweight_regression": "lightweight_regression.yml",
+    "control_plane_regression": "autonomous_control_plane_regression.yml",
 }
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "research"
@@ -338,6 +339,7 @@ def inspect() -> dict[str, Any]:
         "watchdog": action_health(actions, MONITORED_WORKFLOWS["watchdog"], 0.5, current_main_sha=head_sha),
         "invariants": action_health(actions, MONITORED_WORKFLOWS["invariants"], 4.5, current_main_sha=head_sha),
         "lightweight_regression": action_health(actions, MONITORED_WORKFLOWS["lightweight_regression"], 4.5, current_main_sha=head_sha),
+        "control_plane_regression": action_health(actions, MONITORED_WORKFLOWS["control_plane_regression"], 4.5, current_main_sha=head_sha),
     }
 
     coverage = release.get("coverage")
@@ -515,6 +517,44 @@ def inspect() -> dict[str, Any]:
 def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
     candidates: list[dict[str, Any]] = []
 
+    # A workflow_run failure is first-class evidence. It must survive a race
+    # where a newer successful run replaces the Actions snapshot's latest row.
+    event_workflow = os.environ.get("CONTROL_PLANE_EVENT_WORKFLOW", "")
+    event_conclusion = os.environ.get("CONTROL_PLANE_EVENT_CONCLUSION", "")
+    event_head_sha = os.environ.get("CONTROL_PLANE_EVENT_HEAD_SHA", "")
+    event_target = next(
+        (
+            target
+            for target, workflow in MONITORED_WORKFLOWS.items()
+            if workflow == event_workflow
+        ),
+        None,
+    )
+    if (
+        event_target is not None
+        and event_conclusion in {"failure", "timed_out", "startup_failure", "cancelled"}
+        and state["head_sha"] != "UNKNOWN"
+        and event_head_sha == state["head_sha"]
+    ):
+        candidates.append({
+            "action": "RESEARCH_HEALTH",
+            "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
+            "target": f"workflow_event_failure:{event_target}",
+            "impact": 28.0,
+            "evidence_gap": 1.0,
+            "failure_relevance": 1.0,
+            "generalization": 1.0,
+            "information_value": 1.0,
+            "cost": 1.0,
+            "reason": (
+                f"workflow_run reported {event_conclusion} for current-main "
+                f"monitored workflow {event_target}; use event evidence directly "
+                "before later snapshot rows can mask the triggering failure"
+            ),
+            "auto_dispatch": True,
+            "dispatch_policy": "event_payload_first_failure_triage_on_current_main_sha",
+        })
+
     if state["quality"]["pit_research_blocked"]:
         candidates.append({
             "action": "PIT_COVERAGE_REPAIR",
@@ -602,6 +642,41 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
         11.0,
         "nine-sport lane audit evidence is missing, stale, or failed",
     )
+
+    # Snapshot-only fallback covers failures observed between event delivery
+    # and the next snapshot refresh. SHA match is mandatory.
+    for monitored_target in (
+        "production",
+        "pit_history",
+        "failure_recovery",
+        "control_plane_regression",
+    ):
+        health = state["actions"].get(monitored_target) or {}
+        age = health.get("age_hours")
+        if (
+            health.get("status") == "FAILED"
+            and state["head_sha"] != "UNKNOWN"
+            and health.get("head_sha") == state["head_sha"]
+            and isinstance(age, (int, float))
+            and age <= 24.0
+        ):
+            candidates.append({
+                "action": "RESEARCH_HEALTH",
+                "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
+                "target": f"workflow_failure:{monitored_target}",
+                "impact": 26.0,
+                "evidence_gap": 1.0,
+                "failure_relevance": 1.0,
+                "generalization": 1.0,
+                "information_value": 1.0,
+                "cost": 1.0,
+                "reason": (
+                    f"current-main monitored workflow {monitored_target} failed within "
+                    "the last 24 hours; triage without waiting for Failure Memory persistence"
+                ),
+                "auto_dispatch": True,
+                "dispatch_policy": "event_driven_failure_triage_on_current_main_sha",
+            })
 
     if state.get("failure_memory", {}).get("recent_24h", 0) > 0:
         candidates.append({
