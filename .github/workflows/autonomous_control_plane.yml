@@ -132,8 +132,54 @@ jobs:
           echo "dispatch_action=$dispatch_action" >> "$GITHUB_OUTPUT"
           echo "dispatch_workflow=$dispatch_workflow" >> "$GITHUB_OUTPUT"
 
+      - name: Persist deterministic control-plane state
+        id: persist
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- \
+              results/research/autonomous_control_plane.json \
+              results/research/automation_health.json \
+              results/research/research_queue.jsonl \
+              results/research/autonomous_action_log.jsonl; then
+            remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+            test "$remote_sha" = "${{ github.sha }}" || {
+              echo "STALE_MAIN_NO_CHANGE expected=${{ github.sha }} actual=$remote_sha" >&2
+              exit 1
+            }
+            echo "persist_ok=true" >> "$GITHUB_OUTPUT"
+            echo "main_sha=$remote_sha" >> "$GITHUB_OUTPUT"
+            echo "CONTROL_PLANE_GIT=NO_CHANGE main_sha=$remote_sha"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            results/research/autonomous_control_plane.json \
+            results/research/automation_health.json \
+            results/research/research_queue.jsonl \
+            results/research/autonomous_action_log.jsonl
+          git commit -m "ops: reconcile autonomous research control plane"
+
+          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "${{ github.sha }}" || {
+            echo "STALE_MAIN_BEFORE_PUSH expected=$remote_sha actual=${{ github.sha }}" >&2
+            exit 1
+          }
+
+          git push origin HEAD:main
+
+          new_main_sha="$(git rev-parse HEAD)"
+          echo "persist_ok=true" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$new_main_sha" >> "$GITHUB_OUTPUT"
+          echo "CONTROL_PLANE_GIT=PUSHED main_sha=$new_main_sha"
+
+
       - name: Dispatch at most one allowlisted autonomous workflow
-        if: steps.control.outputs.dispatch_action != 'NONE'
+        if: steps.control.outcome == 'success' && steps.persist.outputs.persist_ok == 'true' && steps.control.outputs.dispatch_action != 'NONE'
         env:
           GH_TOKEN: ${{ github.token }}
           DISPATCH_ACTION: ${{ steps.control.outputs.dispatch_action }}
@@ -168,12 +214,19 @@ jobs:
               ;;
           esac
 
+          main_sha="${{ steps.persist.outputs.main_sha }}"
+          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "$main_sha" || {
+            echo "STALE_MAIN_BEFORE_DISPATCH expected=$main_sha actual=$remote_sha" >&2
+            exit 1
+          }
+
           state="$(gh run list --workflow "$DISPATCH_WORKFLOW" --limit 50 \
             --json databaseId,status,createdAt,headSha,event,conclusion)"
-          active="$(printf '%s' "$state" | jq --arg sha "${{ github.sha }}" \
+          active="$(printf '%s' "$state" | jq --arg sha "$main_sha" \
             '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
 
-          latest="$(printf '%s' "$state" | jq -r --arg sha "${{ github.sha }}" \
+          latest="$(printf '%s' "$state" | jq -r --arg sha "$main_sha" \
             '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')"
 
           dispatch=false
@@ -201,37 +254,6 @@ jobs:
             echo "AUTO_DISPATCH_SKIPPED reason=$reason"
           fi
 
-      - name: Persist deterministic control-plane state
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- \
-              results/research/autonomous_control_plane.json \
-              results/research/automation_health.json \
-              results/research/research_queue.jsonl \
-              results/research/autonomous_action_log.jsonl; then
-            echo "CONTROL_PLANE_GIT=NO_CHANGE"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            results/research/autonomous_control_plane.json \
-            results/research/automation_health.json \
-            results/research/research_queue.jsonl \
-            results/research/autonomous_action_log.jsonl
-          git commit -m "ops: reconcile autonomous research control plane"
-
-          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "$remote_sha" = "${{ github.sha }}" || {
-            echo "STALE_MAIN_BEFORE_PUSH expected=$remote_sha actual=${{ github.sha }}" >&2
-            exit 1
-          }
-
-          git push origin HEAD:main
 
       - name: Final control-plane status
         if: always()
