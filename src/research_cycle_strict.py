@@ -237,6 +237,81 @@ def _rank_valid_oos_candidates(oos):
     )
     return ranked, rejected
 
+def _run_feature_pattern_only(s):
+    """Run the broad feature-pattern screen for any repository sport.
+
+    This is research-only. It deliberately bypasses model/production training
+    gates for deferred sports, but still refuses to invent PIT evidence.
+    """
+    c = sqlite3.connect(DB)
+    try:
+        try:
+            rows, fs = base.build(c, s)
+        except Exception as exc:
+            return {
+                "sport": s,
+                "status": "DEFERRED_PATTERN_RESEARCH_FAILED",
+                "reason": f"feature_pattern_build_exception:{type(exc).__name__}:{exc}",
+                "production_changed": False,
+                "promotion_allowed": False,
+            }
+        if len(rows) < 30:
+            return {
+                "sport": s,
+                "status": "DEFERRED_PATTERN_DATA",
+                "reason": "insufficient_PIT_safe_labeled_rows_for_pattern_screen",
+                "rows": len(rows),
+                "features": len(fs),
+                "production_changed": False,
+                "promotion_allowed": False,
+            }
+        # Require usable binary labels and an explicit frozen-holdout boundary if
+        # one is already registered. This screen never creates or tunes a holdout.
+        labeled = [r for r in rows if r[2] in (0, 1)]
+        if len(labeled) < 30:
+            return {
+                "sport": s,
+                "status": "DEFERRED_PATTERN_DATA",
+                "reason": "insufficient_binary_labeled_rows_for_pattern_screen",
+                "rows": len(rows),
+                "labeled_rows": len(labeled),
+                "features": len(fs),
+                "production_changed": False,
+                "promotion_allowed": False,
+            }
+        X = np.array([[r[3].get(f, np.nan) for f in fs] for r in labeled], dtype=float)
+        y = np.array([r[2] for r in labeled], dtype=int)
+        if len(np.unique(y)) < 2:
+            return {
+                "sport": s,
+                "status": "DEFERRED_PATTERN_DATA",
+                "reason": "single_class_labels_for_pattern_screen",
+                "rows": len(rows),
+                "labeled_rows": len(labeled),
+                "features": len(fs),
+                "production_changed": False,
+                "promotion_allowed": False,
+            }
+        # Freeze nothing here: this is a discovery/screen stage only.
+        pattern_start = max(80, int(len(labeled) * 0.55))
+        pattern_step = max(20, int(np.ceil(max(1, len(labeled) - pattern_start) / 8)))
+        report = feature_pattern_optimizer.evaluate_patterns(
+            X, y, fs, s, pattern_start, pattern_step, max_patterns=128, stage2_top_k=16
+        )
+        return _write_result(s, {
+            "sport": s,
+            "status": "PATTERN_SCREENED" if report.get("status") == "EVALUATED" else "DEFERRED_PATTERN_SCREEN",
+            "pattern_scope": "RESEARCH_ONLY_NO_PRODUCTION",
+            "rows": len(rows),
+            "labeled_rows": len(labeled),
+            "features": len(fs),
+            "feature_pattern_selection": report,
+            "promotion_allowed": False,
+            "production_changed": False,
+        })
+    finally:
+        c.close()
+
 def _write_result(s, payload):
     """Persist every research outcome, including DEFERRED/REJECTED states."""
     RESULTS.mkdir(parents=True,exist_ok=True)
@@ -582,14 +657,13 @@ def _rank_oos_candidates(oos):
     )
 
 def train(s):
-    if s=='f1':
-     return _write_result(s,f1())
-    if s=='boxing':
-     return boxing()
+    # All repository sports enter the same feature-pattern research surface.
+    # Deferred sports are screened without production training; if PIT-safe rows
+    # are unavailable the result remains explicitly deferred.
+    if s in ALL_SPORTS and s in DEFERRED_SPORTS:
+     return _run_feature_pattern_only(s)
     # Fail-closed guard: deferred sports must never enter generic strict training.
     # Each deferred sport requires its own source/PIT/OOS proof before promotion.
-    if s in DEFERRED_SPORTS:
-     return _write_result(s,{'sport':s,'status':'DEFERRED_PIT','reason':'sport_specific_PIT_gate_not_enabled_for_generic_strict_training','production_changed':False,'promotion_allowed':False})
     if s in ('tennis','rugby'):
      return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'DEFERRED_BY_PROJECT_SCOPE','promotion_policy':'Do not train or publish until sport-specific PIT, chronological OOS and frozen-holdout requirements are enabled'})
     c=sqlite3.connect(DB)
