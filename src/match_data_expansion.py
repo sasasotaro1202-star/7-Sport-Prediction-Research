@@ -807,6 +807,29 @@ def enrich_one(con, event, lead_minutes=60):
         }
 
 
+EVENT_ROW_COLUMNS = (
+    "event_id",
+    "sport",
+    "event_time_utc",
+    "event_type",
+    "status",
+    "source_url",
+)
+
+
+def _event_row_to_dict(row):
+    """Normalize sqlite tuple/Row/mapping rows into the event dict contract."""
+    if isinstance(row, sqlite3.Row):
+        return dict(row)
+    if isinstance(row, dict):
+        return dict(row)
+    if not isinstance(row, (tuple, list)) or len(row) != len(EVENT_ROW_COLUMNS):
+        raise TypeError(
+            f"unsupported select_events row shape: {type(row).__name__}"
+        )
+    return dict(zip(EVENT_ROW_COLUMNS, row))
+
+
 def select_events(con, sport, horizon_days=14, max_events=40):
     now = _now()
     upper = now + timedelta(days=int(horizon_days))
@@ -858,7 +881,7 @@ def run(sport, horizon_days=14, max_events=40, lead_minutes=60):
     skipped_fresh = 0
     errors = 0
     for row in selected:
-        event = dict(row)
+        event = _event_row_to_dict(row)
         source = DETAIL_SOURCE_BY_SPORT.get(sport, f"{urlparse(event['source_url']).netloc}-event-detail")
         event_dt = _dt(event["event_time_utc"])
         if event_dt is None:
