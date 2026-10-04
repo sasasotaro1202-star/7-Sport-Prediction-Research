@@ -47,3 +47,10 @@ The detailed technical specification is tracked in `PROJECT_SOURCE.md`. When it 
 The repository also runs `.github/workflows/autonomous_control_plane.yml` every three hours and on manual dispatch. It reconciles current release/PIT/prediction/experience/route/reproducibility evidence, ranks the next action using the project research-priority principle, persists a deduplicated research queue and automation-health state, and may dispatch only allowlisted research workflows under active-run and cooldown guards.
 
 Automatic model promotion is forbidden. PIT coverage repair does not bypass the fixed PIT-history cadence, and production heartbeat recovery remains owned by the existing production watchdog/pre-event workflow. Every autonomous write re-checks current `main` before push and fails closed on a concurrent branch update.
+
+### Autonomous GitHub execution layer
+The autonomous control plane is the operational orchestrator. Every three hours it snapshots the state of relevant GitHub Actions workflows, reconciles release/PIT/prediction/experience/route/reproducibility evidence, prioritizes the next action, and may dispatch only bounded allowlisted maintenance/research workflows. It may recover stale or failed source-feasibility, scope-autofill, runtime-health, safety-audit, and lane-audit jobs, and may launch bounded research when active model coverage is still incomplete.
+
+Existing owners remain authoritative: the production watchdog owns pre-event heartbeat recovery; PIT History Expansion keeps its fixed 9-hour cadence; Production Failure Recovery owns failure-specific recovery. The control plane must not bypass these contracts.
+
+Actions state is treated as evidence, not as success by existence. Missing or malformed evidence remains UNKNOWN/UNVERIFIABLE and is never converted to zero. Automatic model promotion, frozen-holdout tuning, and silent scope activation remain forbidden.

@@ -15,12 +15,19 @@ ALLOWED_WORKFLOWS = {
     "PRODUCTION_HEARTBEAT": "pre_event_prediction.yml",
     "RESEARCH_HEALTH": "autonomous_research_sweep.yml",
     "DEEP_RESEARCH": "24h_autonomous_research.yml",
+    "SOURCE_FEASIBILITY": "source_feasibility_audit.yml",
+    "SCOPE_AUTOFILL": "scope_autofill.yml",
+    "RUNTIME_HEALTH": "production_runtime_health.yml",
+    "SAFETY_AUDIT": "production_safety_audit.yml",
+    "LANE_AUDIT": "nine_sport_lane_audit.yml",
 }
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "research"
 CONTROL_OUT = RESULTS / "autonomous_control_plane.json"
 HEALTH_OUT = RESULTS / "automation_health.json"
 QUEUE_OUT = RESULTS / "research_queue.jsonl"
+ACTION_LOG_OUT = RESULTS / "autonomous_action_log.jsonl"
+ACTIONS_SNAPSHOT = ROOT / "results" / "automation_state" / "actions_snapshot.json"
 
 
 def now_utc() -> datetime:
@@ -110,8 +117,79 @@ def queue_fingerprints() -> set[str]:
     return out
 
 
+def load_actions_snapshot() -> tuple[dict[str, Any], dict[str, str]]:
+    if not ACTIONS_SNAPSHOT.exists():
+        return {}, {"actions_snapshot": "MISSING"}
+    try:
+        payload = json.loads(ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {}, {"actions_snapshot": f"INVALID:{type(exc).__name__}"}
+    if not isinstance(payload, dict):
+        return {}, {"actions_snapshot": "WRONG_SHAPE"}
+    errors = payload.get("errors")
+    if errors is None:
+        errors = {}
+    if not isinstance(errors, dict):
+        errors = {"actions_snapshot.errors": "INVALID"}
+    workflows = payload.get("workflows")
+    if not isinstance(workflows, dict):
+        return {}, {**errors, "actions_snapshot.workflows": "MISSING_OR_INVALID"}
+    return workflows, {str(k): str(v) for k, v in errors.items()}
+
+
+def action_health(
+    workflows: dict[str, Any],
+    workflow: str,
+    max_age_hours: float,
+) -> dict[str, Any]:
+    raw = workflows.get(workflow)
+    if not isinstance(raw, dict):
+        return {
+            "status": "MISSING",
+            "age_hours": None,
+            "head_sha": None,
+            "conclusion": None,
+            "run_id": None,
+            "stale": True,
+        }
+    latest = raw.get("latest")
+    if not isinstance(latest, dict):
+        return {
+            "status": "MISSING",
+            "age_hours": None,
+            "head_sha": None,
+            "conclusion": None,
+            "run_id": None,
+            "stale": True,
+        }
+    created = parse_dt(latest.get("createdAt"))
+    age = None
+    if created is not None:
+        age = max(0.0, (now_utc() - created).total_seconds() / 3600.0)
+    conclusion = str(latest.get("conclusion") or "")
+    run_status = str(latest.get("status") or "")
+    healthy = (
+        conclusion == "success"
+        and run_status == "completed"
+        and age is not None
+        and age <= max_age_hours
+    )
+    return {
+        "status": "HEALTHY" if healthy else (
+            "FAILED" if conclusion in {"failure", "timed_out", "startup_failure", "cancelled"} else
+            ("STALE" if age is None or age > max_age_hours else "IN_PROGRESS")
+        ),
+        "age_hours": age,
+        "head_sha": latest.get("headSha"),
+        "conclusion": conclusion or None,
+        "run_id": latest.get("databaseId"),
+        "stale": not healthy,
+    }
+
+
 def inspect() -> dict[str, Any]:
     ref = now_utc()
+    actions, action_errors = load_actions_snapshot()
     files = {
         "release_gate": RESULTS.parent / "release_gate.json",
         "quality_gate": RESULTS.parent / "quality_gate.json",
@@ -137,6 +215,19 @@ def inspect() -> dict[str, Any]:
     routes = payloads["route_observability"] or {}
     timing = payloads["timing_routes"] or {}
     repro = payloads["reproducibility_manifest"] or {}
+
+    for key, value in action_errors.items():
+        errors[key] = value
+    action_summary = {
+        "source_feasibility": action_health(actions, "source_feasibility_audit.yml", 4.5),
+        "scope_autofill": action_health(actions, "scope_autofill.yml", 7.0),
+        "runtime_health": action_health(actions, "production_runtime_health.yml", 1.5),
+        "safety_audit": action_health(actions, "production_safety_audit.yml", 4.5),
+        "lane_audit": action_health(actions, "nine_sport_lane_audit.yml", 7.5),
+        "research_sweep": action_health(actions, "autonomous_research_sweep.yml", 7.0),
+        "deep_research": action_health(actions, "24h_autonomous_research.yml", 26.0),
+        "pre_event_prediction": action_health(actions, "pre_event_prediction.yml", 0.5),
+    }
 
     coverage = release.get("coverage")
     if not isinstance(coverage, dict):
@@ -302,6 +393,7 @@ def inspect() -> dict[str, Any]:
             "status": timing.get("status", "UNKNOWN"),
             "route_count": len(timing.get("routes") or {}) if isinstance(timing.get("routes") or {}, dict) else None,
         },
+        "actions": action_summary,
         "dual_learning": {
             "status": (payloads["dual_learning"] or {}).get("status", "UNKNOWN"),
             "generated_at_utc": (payloads["dual_learning"] or {}).get("finished_at_utc"),
@@ -343,6 +435,62 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "auto_dispatch": False,
             "dispatch_policy": "existing_production_watchdog_owns_heartbeat_recovery",
         })
+
+    actions = state.get("actions") or {}
+
+    def add_maintenance_action(
+        action: str,
+        target: str,
+        priority_base: float,
+        reason: str,
+    ) -> None:
+        health = actions.get(target) or {}
+        if health.get("stale"):
+            candidates.append({
+                "action": action,
+                "workflow": ALLOWED_WORKFLOWS[action],
+                "target": target,
+                "impact": priority_base,
+                "evidence_gap": 0.8,
+                "failure_relevance": 0.8 if health.get("status") == "FAILED" else 0.6,
+                "generalization": 0.8,
+                "information_value": 0.8,
+                "cost": 1.0,
+                "reason": reason,
+                "auto_dispatch": True,
+                "dispatch_policy": "bounded_recovery_when_missing_stale_or_failed",
+            })
+
+    add_maintenance_action(
+        "SOURCE_FEASIBILITY",
+        "source_feasibility",
+        17.0,
+        "active/deferred source feasibility evidence is missing, stale, or failed",
+    )
+    add_maintenance_action(
+        "SCOPE_AUTOFILL",
+        "scope_autofill",
+        13.0,
+        "scope discovery/autofill heartbeat is missing, stale, or failed",
+    )
+    add_maintenance_action(
+        "RUNTIME_HEALTH",
+        "runtime_health",
+        19.0,
+        "production runtime health evidence is missing, stale, or failed",
+    )
+    add_maintenance_action(
+        "SAFETY_AUDIT",
+        "safety_audit",
+        18.0,
+        "production safety audit evidence is missing, stale, or failed",
+    )
+    add_maintenance_action(
+        "LANE_AUDIT",
+        "lane_audit",
+        11.0,
+        "nine-sport lane audit evidence is missing, stale, or failed",
+    )
 
     if state["release"]["active_accepted_model_gap"]:
         candidates.append({
@@ -442,6 +590,7 @@ def state_fingerprint(
         },
         "route_observability": state["route_observability"],
         "timing": state["timing"],
+        "actions": state.get("actions"),
         "dual_learning": dual,
         "selected": {
             "action": selected["action"],
@@ -483,6 +632,18 @@ def write_state(
                 **selected,
             }, ensure_ascii=False, sort_keys=True) + "\n")
 
+    action_record = {
+        "recorded_at_utc": state["observed_at_utc"],
+        "head_sha": state["head_sha"],
+        "state_fingerprint": fp,
+        "selected_action": selected,
+        "dispatch_action": dispatch,
+        "automatic_promotion": False,
+    }
+    ACTION_LOG_OUT.parent.mkdir(parents=True, exist_ok=True)
+    with ACTION_LOG_OUT.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(action_record, ensure_ascii=False, sort_keys=True) + "\n")
+
     should_write = previous_fp != fp or not CONTROL_OUT.exists() or not HEALTH_OUT.exists()
     if should_write:
         control = {
@@ -510,6 +671,8 @@ def write_state(
                 "missing_not_zero": True,
                 "single_writer": True,
                 "main_sha_recheck_required_before_push": True,
+                "actions_snapshot_is_provenance_input": True,
+                "automatic_dispatch_is_bounded_and_allowlisted": True,
             },
         }
         CONTROL_OUT.write_text(json.dumps(control, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
