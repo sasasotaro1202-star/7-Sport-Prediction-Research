@@ -324,7 +324,8 @@ def event_participant_features(
     cutoff_ts = cutoff.timestamp()
     for side, seed, lineup_status, effective_at in rows:
         et = _dt(effective_at)
-        if et is not None and et.timestamp() > cutoff_ts:
+        # Unknown effective time is fail-closed; source availability alone is not enough.
+        if et is None or et.timestamp() > cutoff_ts:
             continue
         if seed is not None:
             try:
