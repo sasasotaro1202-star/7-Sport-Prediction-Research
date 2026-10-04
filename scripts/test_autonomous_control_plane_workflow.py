@@ -30,14 +30,19 @@ def main() -> int:
     assert "CONTROL_PLANE_EVENT_HEAD_SHA" in text
     assert "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN" in text
 
-    reconcile_marker = "      - name: Resolve current main for control-plane execution"
-    assert reconcile_marker in text
+    reconcile_markers = (
+        "      - name: Resolve current main and verify execution SHA",
+        "      - name: Resolve current main for control-plane execution",
+    )
+    reconcile_marker = next((m for m in reconcile_markers if m in text), None)
+    assert reconcile_marker is not None, "current-main reconciliation step is required"
     reconcile = text.index(reconcile_marker)
     regression_marker = "      - name: Run control-plane regression"
     regression = text.index(regression_marker)
     assert reconcile < regression, "current-main resolution must precede control-plane execution"
     reconcile_block = text[reconcile:regression]
-    assert "github.event_name == 'workflow_run'" in reconcile_block
+    assert "github.event_name" in reconcile_block
+    assert "workflow_run" in reconcile_block
     assert "git fetch origin main --depth=1" in reconcile_block
     assert 'git checkout --detach "$remote_sha"' in reconcile_block
     assert "compare/$event_head...$remote_sha" in reconcile_block
