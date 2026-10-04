@@ -203,8 +203,13 @@ def main() -> int:
         assert failure_dispatch["target"] == "workflow_event_failure:production"
         assert failure_dispatch["action"] == "RESEARCH_HEALTH"
         assert failure_dispatch["workflow"] == "autonomous_research_sweep.yml"
-        assert failure_dispatch["action"] == "RESEARCH_HEALTH"
-        assert failure_dispatch["workflow"] == "autonomous_research_sweep.yml"
+
+        # A failure event from an older SHA must fail closed and not create
+        # an autonomous research dispatch for the current main.
+        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "old-sha"
+        stale_event_state = cp.inspect()
+        _, stale_dispatch = cp.choose_actions(stale_event_state)
+        assert stale_dispatch is None or stale_dispatch["target"] != "workflow_event_failure:production"
 
     print("AUTONOMOUS_CONTROL_PLANE_V2=PASS")
     return 0
