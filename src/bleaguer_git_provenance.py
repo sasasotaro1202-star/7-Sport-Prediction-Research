@@ -228,6 +228,8 @@ def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | 
         return None
     for item in payload.get("evidence") or []:
         revision = item.get("revision_evidence") or {}
+        if str(revision.get("file") or "") != str(path):
+            continue
         if str(revision.get("exact_revision_sha") or "") != str(commit_sha):
             continue
         bound_info = revision.get("public_availability_bound") or {}
