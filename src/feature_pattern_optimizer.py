@@ -16,6 +16,7 @@ from typing import Iterable
 
 import numpy as np
 from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
+from sklearn.feature_selection import mutual_info_classif
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
@@ -176,6 +177,22 @@ def _representative_features(names: list[str], mode: str) -> list[str]:
         return [n for n in names if classify_feature(n) in {"identity_strength", "form_load", "performance_history", "entity_profile", "team_roster_context", "competition_context"}]
     if mode == "information_quality":
         return [n for n in names if classify_feature(n) in {"data_quality", "matchday_intelligence"} or n.lower().startswith("d__")]
+    if mode == "derived_only":
+        return [n for n in names if n.lower().startswith(("d__", "ad__", "m__", "r__", "q__"))]
+    if mode == "raw_only":
+        return [n for n in names if n.lower().startswith(("a__", "b__"))]
+    if mode == "last_only":
+        return [n for n in names if "__last" in n.lower() or n.lower().startswith(("d__elo", "d__recent_"))]
+    if mode == "trend_only":
+        return [n for n in names if any(x in n.lower() for x in ("__trend", "momentum", "delta"))]
+    if mode == "dispersion_only":
+        return [n for n in names if any(x in n.lower() for x in ("__std", "__iqr", "__q25", "__q75"))]
+    if mode == "count_age_only":
+        return [n for n in names if any(x in n.lower() for x in ("__n", "age_days", "history_n", "coverage"))]
+    if mode == "profile_roster_context":
+        return [n for n in names if classify_feature(n) in {"entity_profile", "team_roster_context", "competition_context", "matchday_intelligence"}]
+    if mode == "performance_form":
+        return [n for n in names if classify_feature(n) in {"performance_history", "form_load"}]
     raise ValueError(f"unknown representation mode: {mode}")
 
 
@@ -213,7 +230,7 @@ def candidate_family_sets(sport: str, feature_names: Iterable[str], max_patterns
     return out
 
 
-def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: int = 384) -> list[dict]:
+def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: int = 1024) -> list[dict]:
     """Generate a broad but structured pattern search space.
 
     The grid spans family subsets, fine-grained blocks, A/B/D representations,
@@ -246,14 +263,14 @@ def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: i
             "note": note,
         })
 
-    reps = ("all", "diff_only", "side_only", "context_plus_diff", "robust_summary", "short_horizon", "medium_horizon", "long_horizon", "structure_only", "information_quality")
+    reps = ("all", "diff_only", "side_only", "context_plus_diff", "robust_summary", "short_horizon", "medium_horizon", "long_horizon", "structure_only", "information_quality", "derived_only", "raw_only", "last_only", "trend_only", "dispersion_only", "count_age_only", "profile_roster_context", "performance_form")
 
     # Global representations.
     for rep in reps:
         add(f"global__{rep}", available, rep)
 
     # Core ± one family, across meaningful representations.
-    for rep in ("all", "diff_only", "robust_summary", "short_horizon", "medium_horizon", "long_horizon", "structure_only"):
+    for rep in ("all", "diff_only", "robust_summary", "short_horizon", "medium_horizon", "long_horizon", "structure_only", "derived_only", "raw_only", "last_only", "trend_only", "dispersion_only", "performance_form"):
         if core:
             add(f"core__{rep}", core, rep)
         for x in available:
@@ -413,6 +430,122 @@ def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: i
     return selected
 
 
+def _feature_ranking_candidates(
+    X: np.ndarray,
+    y: np.ndarray,
+    feature_names: list[str],
+    families: dict[str, list[str]],
+    max_additional: int = 512,
+) -> list[dict]:
+    """Outcome-aware feature subset candidates, fit only on the pattern-selection prefix.
+
+    Rankings are used only to generate research candidates. They are never fit on
+    later OOS or frozen-holdout rows. Three ranking views plus family-balanced
+    selections create complementary sparse/rich patterns.
+    """
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y, dtype=int)
+    if len(y) < 120 or X.ndim != 2 or X.shape[1] != len(feature_names):
+        return []
+    Xi = SimpleImputer(strategy="median", add_indicator=False).fit_transform(X)
+    names = list(feature_names)
+    # Constant/invalid columns receive zero score rather than being force-ranked.
+    corr = np.zeros(Xi.shape[1], dtype=float)
+    for j in range(Xi.shape[1]):
+        x = Xi[:, j]
+        sx = float(np.std(x))
+        sy = float(np.std(y))
+        corr[j] = abs(float(np.corrcoef(x, y)[0, 1])) if sx > 1e-12 and sy > 1e-12 else 0.0
+    try:
+        mi = np.nan_to_num(
+            mutual_info_classif(Xi, y, discrete_features=False, random_state=20261004),
+            nan=0.0, posinf=0.0, neginf=0.0,
+        )
+    except Exception:
+        mi = np.zeros(Xi.shape[1], dtype=float)
+    try:
+        tree = ExtraTreesClassifier(
+            n_estimators=220,
+            min_samples_leaf=8,
+            max_features="sqrt",
+            class_weight="balanced",
+            n_jobs=1,
+            random_state=20261005,
+        ).fit(Xi, y)
+        imp = np.nan_to_num(tree.feature_importances_, nan=0.0, posinf=0.0, neginf=0.0)
+    except Exception:
+        imp = np.zeros(Xi.shape[1], dtype=float)
+
+    def order(scores):
+        return [names[i] for i in np.argsort(-np.asarray(scores), kind="mergesort")]
+
+    rankings = {
+        "corr": order(corr),
+        "mutual_info": order(mi),
+        "tree_importance": order(imp),
+    }
+    out = []
+    seen = set()
+    sizes = tuple(k for k in (8, 16, 24, 32, 48, 64, 96, 128, 192, 256) if k < len(names)) + (len(names),)
+
+    def add(pid, cols, note):
+        cols = [str(x) for x in cols if str(x) in names]
+        cols = list(dict.fromkeys(cols))
+        if not cols:
+            return
+        key = tuple(sorted(cols))
+        if key in seen:
+            return
+        seen.add(key)
+        out.append({
+            "pattern_id": pid,
+            "families": sorted({classify_feature(x) for x in cols}),
+            "representation": "ranked_subset",
+            "feature_count": len(cols),
+            "features": sorted(cols),
+            "note": note,
+        })
+
+    for rname, ranked in rankings.items():
+        for k in sizes:
+            add(f"rank__{rname}__top{k}", ranked[:k], "outcome_ranked_top_k")
+
+    # Union/intersection of independent ranking views.
+    top_sizes = [k for k in (16, 32, 64, 128) if k <= len(names)]
+    for k in top_sizes:
+        corr_set, mi_set, tree_set = (set(rankings[x][:k]) for x in ("corr", "mutual_info", "tree_importance"))
+        add(f"rank__union3__top{k}", sorted(corr_set | mi_set | tree_set), "union_of_three_rankers")
+        add(f"rank__intersection3__top{k}", sorted(corr_set & mi_set & tree_set), "intersection_of_three_rankers")
+        add(f"rank__corr_mi__top{k}", sorted(corr_set & mi_set), "intersection_corr_mi")
+        add(f"rank__corr_tree__top{k}", sorted(corr_set & tree_set), "intersection_corr_tree")
+        add(f"rank__mi_tree__top{k}", sorted(mi_set & tree_set), "intersection_mi_tree")
+
+    # Family-balanced top-k: prevent a strong family from crowding every other
+    # information family out of the candidate search.
+    for per_family in (2, 4, 6, 8, 12):
+        cols = []
+        for fam_name, fam_cols in sorted(families.items()):
+            available = set(fam_cols)
+            cols.extend([n for n in rankings["tree_importance"] if n in available][:per_family])
+        add(f"rank__family_balanced__{per_family}", cols, "family_balanced_tree_rank")
+
+    # Cross-ranking family-balanced variants.
+    for per_family in (3, 6, 10):
+        cols = []
+        for fam_name, fam_cols in sorted(families.items()):
+            available = set(fam_cols)
+            cands = [
+                n for n in rankings["corr"] if n in available
+            ] + [
+                n for n in rankings["mutual_info"] if n in available
+            ]
+            merged = list(dict.fromkeys(cands))
+            cols.extend(merged[:per_family])
+        add(f"rank__family_balanced_corr_mi__{per_family}", cols, "family_balanced_corr_mi_rank")
+
+    return out[: max(1, int(max_additional))]
+
+
 def _metric(y: np.ndarray, p: np.ndarray) -> dict:
     y = np.asarray(y, dtype=int)
     p = np.clip(np.asarray(p, dtype=float), 1e-6, 1 - 1e-6)
@@ -523,8 +656,8 @@ def evaluate_patterns(
     start: int,
     step: int,
     min_train: int = 80,
-    max_patterns: int = 384,
-    stage2_top_k: int = 24,
+    max_patterns: int = 1024,
+    stage2_top_k: int = 32,
 ) -> dict:
     """Multi-stage chronological pattern search.
 
@@ -536,7 +669,26 @@ def evaluate_patterns(
     y = np.asarray(y, dtype=int)
     if X.ndim != 2 or len(X) != len(y):
         return {"status": "FAILED", "reason": "invalid_pattern_matrix_shape"}
-    candidates = broad_pattern_grid(sport, feature_names, max_patterns=max_patterns)
+    base_budget = max(256, min(int(max_patterns), 1024))
+    candidates = broad_pattern_grid(sport, feature_names, max_patterns=base_budget)
+    families = family_members(feature_names)
+    ranked_candidates = _feature_ranking_candidates(
+        X, y, feature_names, families, max_additional=max(256, base_budget // 2)
+    )
+    candidates.extend(ranked_candidates)
+    # Deduplicate after adding outcome-ranked candidates, then keep a wide,
+    # deterministic search budget.
+    deduped = []
+    seen_cols = set()
+    for cand in candidates:
+        key = tuple(cand.get("features") or [])
+        if not key or key in seen_cols:
+            continue
+        seen_cols.add(key)
+        deduped.append(cand)
+        if len(deduped) >= base_budget:
+            break
+    candidates = deduped
     if len(candidates) < 2:
         return {"status": "SKIPPED", "reason": "too_few_structured_pattern_candidates", "candidates": candidates}
     folds = _folds(len(y), start, step)
@@ -632,6 +784,7 @@ def evaluate_patterns(
         "fold_count": len(folds),
         "candidate_count": len(candidates),
         "stage1_candidate_count": len(stage1),
+        "stage1_ranker_candidate_count": len(ranked_candidates),
         "stage2_candidate_count": len(stage2),
         "stage1_ranked": ranked1[: min(25, len(ranked1))],
         "stage2_ranked": stage2_ranked[: min(25, len(stage2_ranked))],
