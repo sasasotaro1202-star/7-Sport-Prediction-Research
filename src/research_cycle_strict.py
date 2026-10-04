@@ -632,7 +632,7 @@ def train(s):
      pattern_start=max(80,int(sel*0.55))
      pattern_step=max(20,int(np.ceil(max(1,sel-pattern_start)/6)))
      feature_pattern_report=feature_pattern_optimizer.evaluate_patterns(
-      X,y,fs,s,pattern_start,pattern_step,max_patterns=14
+      X,y,fs,s,pattern_start,pattern_step,max_patterns=64
      )
      selected_fs,selected_pattern_id=feature_pattern_optimizer.select_features(
       feature_pattern_report,fs
