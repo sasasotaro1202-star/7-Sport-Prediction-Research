@@ -332,8 +332,12 @@ def main():
         stale = next(r for r in snap_rows if r[0] == "snapshot-stale")
         repointed = con.execute("SELECT source_url FROM match_stats WHERE stat_id='stat-1'").fetchone()
         con.close()
-        assert snap[1:5] == (pinned_url, "2021-12-02T23:59:59+00:00", None, "EXACT")
+        # The current raw URL snapshot is upgraded in place when its blob hash
+        # matches the proven revision. The event-level pinned snapshot is created
+        # separately and match_stats is repointed to that immutable URL.
+        assert snap[1:5] == (current_url, "2021-12-02T23:59:59+00:00", None, "EXACT")
         assert '"publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND"' in snap[5]
+        assert '"exact_current_blob": true' in snap[5]
         assert stale[1:] == (
             current_url, None, None, "VERSION_EXACT_PUBLICATION_UNPROVEN", "{}"
         )
