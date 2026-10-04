@@ -86,7 +86,7 @@ jobs:
           from datetime import datetime, timezone
           from pathlib import Path
 
-          path = Path("results/failure_memory.jsonl")
+          path = Path("recovery-artifacts/failure_record.json")
           path.parent.mkdir(parents=True, exist_ok=True)
           record_id = f"run-{os.environ['RUN_ID']}-attempt-{os.environ['RUN_ATTEMPT']}"
 
@@ -148,15 +148,61 @@ jobs:
           print(json.dumps(record, ensure_ascii=False, sort_keys=True))
           PY
 
-      - name: Validate failure memory
+      - name: Validate prepared failure memory record
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
+          path = Path("recovery-artifacts/failure_record.json")
+          assert path.is_file(), "prepared failure memory record missing"
+          row = json.loads(path.read_text(encoding="utf-8"))
+          assert row.get("record_id"), "failure memory record_id missing"
+          assert row.get("schema_version") == 1
+          assert row.get("unknown_details_are_not_inferred") is True
+          print(f"FAILURE_MEMORY_PREPARED_ID={row['record_id']}")
+          PY
+
+      - name: Append failure memory to latest main and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          # There are no local commits to preserve. Reset to freshly fetched main
+          # before applying the append so a staged file can never block rebase.
+          git reset --hard origin/main
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          record_path = Path("recovery-artifacts/failure_record.json")
+          target = Path("results/failure_memory.jsonl")
+          record = json.loads(record_path.read_text(encoding="utf-8"))
+          target.parent.mkdir(parents=True, exist_ok=True)
+
+          existing_ids = set()
+          if target.exists():
+              for line in target.read_text(encoding="utf-8").splitlines():
+                  if line.strip():
+                      old = json.loads(line)
+                      if old.get("record_id"):
+                          existing_ids.add(str(old["record_id"]))
+
+          if record["record_id"] not in existing_ids:
+              with target.open("a", encoding="utf-8") as handle:
+                  handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+              print(f"FAILURE_MEMORY_COMMIT=APPENDED id={record['record_id']}")
+          else:
+              print(f"FAILURE_MEMORY_COMMIT=ALREADY_RECORDED id={record['record_id']}")
+          PY
+          python - <<'PY'
+          import json
+          from pathlib import Path
           path = Path("results/failure_memory.jsonl")
-          assert path.is_file(), "failure memory missing"
+          assert path.is_file(), "failure memory missing after append"
           rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
           ids = [row.get("record_id") for row in rows]
           assert all(ids), "failure memory record_id missing"
@@ -165,23 +211,12 @@ jobs:
           assert all(row.get("unknown_details_are_not_inferred") is True for row in rows)
           print(f"FAILURE_MEMORY_RECORDS={len(rows)}")
           PY
-
-      - name: Commit failure memory to current main
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add results/failure_memory.jsonl
           git diff --cached --check
           if git diff --cached --quiet; then
             echo 'FAILURE_MEMORY_COMMIT=NO_CHANGE'
             exit 0
           fi
-          git fetch origin main
-          git rebase origin/main
-          git add results/failure_memory.jsonl
-          git diff --cached --check
           git commit -m "ops: record production failure memory"
           git push origin HEAD:main
 
