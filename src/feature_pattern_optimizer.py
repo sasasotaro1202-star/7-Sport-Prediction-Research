@@ -738,10 +738,33 @@ def evaluate_patterns(
     if X.ndim != 2 or len(X) != len(y):
         return {"status": "FAILED", "reason": "invalid_pattern_matrix_shape"}
     base_budget = max(256, min(int(max_patterns), 1024))
+    # Build chronological evaluation folds BEFORE any outcome-aware candidate
+    # generation. Rankers are fit only on the first training window of the
+    # selection folds; they must never see labels from their own test windows.
+    folds = _folds(len(y), start, step)
+    folds = [f for f in folds if len(np.unique(y[f[0]:f[1]])) > 1]
+    if len(folds) < 3:
+        return {
+            "status": "SKIPPED",
+            "reason": "too_few_preholdout_pattern_folds",
+            "folds": len(folds),
+        }
+    ranker_fit_end = int(folds[0][0])
+    if ranker_fit_end < max(int(min_train), 80):
+        return {
+            "status": "SKIPPED",
+            "reason": "pattern_ranker_training_window_too_small",
+            "ranker_fit_rows": ranker_fit_end,
+        }
+
     candidates = broad_pattern_grid(sport, feature_names, max_patterns=base_budget)
     families = family_members(feature_names)
     ranked_candidates = _feature_ranking_candidates(
-        X, y, feature_names, families, max_additional=max(256, base_budget // 2)
+        X[:ranker_fit_end],
+        y[:ranker_fit_end],
+        feature_names,
+        families,
+        max_additional=max(256, base_budget // 2),
     )
     candidates.extend(ranked_candidates)
     # Deduplicate after adding outcome-ranked candidates, then keep a wide,
@@ -758,10 +781,6 @@ def evaluate_patterns(
             break
     candidates = deduped
     if len(candidates) < 2:
-        return {"status": "SKIPPED", "reason": "too_few_structured_pattern_candidates", "candidates": candidates}
-    folds = _folds(len(y), start, step)
-    folds = [f for f in folds if len(np.unique(y[f[0]:f[1]])) > 1]
-    if len(folds) < 3:
         return {
             "status": "SKIPPED",
             "reason": "too_few_preholdout_pattern_folds",
@@ -863,6 +882,8 @@ def evaluate_patterns(
         "candidate_count": len(candidates),
         "stage1_candidate_count": len(stage1),
         "stage1_ranker_candidate_count": len(ranked_candidates),
+        "ranker_fit_rows": int(ranker_fit_end),
+        "ranker_fit_excludes_first_test_fold": True,
         "stage2_candidate_count": len(stage2),
         "stage1_ranked": ranked1[: min(25, len(ranked1))],
         "stage2_ranked": stage2_ranked[: min(25, len(stage2_ranked))],
@@ -881,8 +902,9 @@ def evaluate_patterns(
         "selected_aligned_summary": selected_aligned_summary,
         "paired_bootstrap": bootstrap,
         "selection_rule": (
-            "stage1 broad structured logistic screen; stage2 top-pattern HistGradientBoosting/ExtraTrees; "
-            "recent-weighted LogLoss + dispersion penalty; lower feature count only as tie-break"
+            "rankers fit only on the first chronological training window; stage1 broad structured logistic screen; "
+            "stage2 top-pattern HistGradientBoosting/ExtraTrees; recent-weighted LogLoss + dispersion penalty; "
+            "lower feature count only as tie-break"
         ),
         "holdout_touched": False,
         "production_adoption": "NOT_AUTHORIZED_BY_PATTERN_SCREEN_ALONE",
