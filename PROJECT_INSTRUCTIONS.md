@@ -69,6 +69,11 @@ The autonomous control plane treats a successful Actions run as usable health ev
 ### Failure-memory-driven autonomous research
 The control plane reads append-only `results/failure_memory.jsonl` each cycle, distinguishes recent recorded failures from missing/invalid evidence, and raises bounded research follow-up when failures occurred within the last 24 hours. Failure details are never inferred from absent fields. Production Failure Recovery remains the owner of failure-specific retry; the control plane only converts observed failures into research priority.
 
+### Event-triggered current-main reconciliation
+When invoked by a monitored workflow failure event, the control plane first resolves the actual remote `main` SHA. It checks out that current main before inspection, records the triggering workflow/head SHA, and verifies whether the event SHA is the current commit or an ancestor of current main. Only failure/timed_out/startup_failure/cancelled events with verified current-main or ancestor provenance become RESEARCH_HEALTH signals. Unrelated/diverged event SHA is fail-closed. Scheduled/manual invocations still require the executing SHA to equal current main.
+
+The control plane reads append-only `results/failure_memory.jsonl` each cycle, distinguishes recent recorded failures from missing/invalid evidence, and raises bounded research follow-up when failures occurred within the last 24 hours. Failure details are never inferred from absent fields. Production Failure Recovery remains the owner of failure-specific retry; the control plane only converts observed failures into research priority.
+
 The Actions snapshot also monitors production, PIT History Expansion, Production Failure Recovery, Production Watchdog, Production Invariants, and Lightweight Regression as evidence-only workflows. Monitoring does not grant permission to dispatch or promote them.
 
 
