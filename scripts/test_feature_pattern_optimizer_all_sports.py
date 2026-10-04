@@ -62,6 +62,9 @@ def main() -> int:
     assert report["candidate_count"] >= 30
     assert report["stage1_ranker_candidate_count"] > 0
     assert report["stage2_candidate_count"] > 0
+    assert report["selected_model_kind"] in {"hist_gb", "extra_trees"}
+    assert report["baseline_aligned_to_selected_model"]["status"] == "EVALUATED"
+    assert report["selected_aligned_summary"]["status"] == "EVALUATED"
     assert report["holdout_touched"] is False
     assert report["production_adoption"] == "NOT_AUTHORIZED_BY_PATTERN_SCREEN_ALONE"
 
