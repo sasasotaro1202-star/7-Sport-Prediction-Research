@@ -97,7 +97,7 @@ jobs:
       - name: Materialize immutable historical corpus
         if: steps.cadence.outputs.run == 'true' && matrix.sport == 'basketball'
         run: python -m src.basketball_cdn_backfill --historical
-      - name: Record historical version provenance (publication remains unproven)
+      - name: Record historical version provenance (strict PIT uses explicit publication evidence)
         if: steps.cadence.outputs.run == 'true'
         run: |
           set -euo pipefail

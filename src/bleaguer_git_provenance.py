@@ -9,14 +9,15 @@ For each immutable season CSV we:
   3. fetch candidate historical revisions,
   4. find historical GitHub commits whose blob content exactly matches the
      current content, and
-  5. record that as VERSION_EXACT evidence only.
+  5. combine exact-version evidence with separately registered public-availability
+     evidence when available, otherwise retain VERSION_EXACT evidence only.
 
 A Git commit timestamp is not, by itself, proof that the bytes were publicly
 reachable at that timestamp: a commit can be pushed after its authored/committed
-time. Therefore this tool deliberately never converts Git commit time into
-source_available_at_utc or strict-PIT EXACT status. Separate public-availability
-evidence (for example an independently timestamped archive capture) is required
-before PIT can consume the snapshot.
+time. The tool therefore converts a revision to strict-PIT EXACT only when a
+separately registered conservative public-availability bound proves the exact
+file+revision chronology. Without that bound, the result remains
+VERSION_EXACT_PUBLICATION_UNPROVEN and PIT stays fail-closed.
 """
 
 import argparse
@@ -413,6 +414,7 @@ def prove_path(path: str) -> dict[str, Any]:
             "commit_timestamp_utc": iso(preferred_date),
             "repository": f"{OWNER}/{REPO}",
             "branch": BRANCH,
+            "status": "PROVEN_BY_SECONDARY_DATE_BOUND" if preferred_bound else "VERSION_EXACT_PUBLICATION_UNPROVEN",
             "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if preferred_bound else "UNPROVEN",
             "public_availability_bound_utc": preferred_bound["public_availability_bound_utc"] if preferred_bound else None,
             "publication_evidence": preferred_bound if preferred_bound else None,
