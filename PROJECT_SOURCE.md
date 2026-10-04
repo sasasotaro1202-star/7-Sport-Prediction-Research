@@ -1097,3 +1097,20 @@ F1 OpenF1 deferred-PIT classification:
 * PIT bypass = forbidden
 * missing = zero conversion = forbidden
 * materialization/report status != performance verification
+
+
+=== AUTONOMOUS DISPATCH ORDERING SAFETY ===
+
+control planeの安全順序は、
+RECONCILE
+→ PERSIST CURRENT CONTROL STATE
+→ CAPTURE RESULTING MAIN SHA
+→ RECHECK REMOTE MAIN
+→ DISPATCH ALLOWLISTED WORKFLOW
+とする。
+
+状態commitをdispatch後に置いてはならない。dispatch先Workflowが旧main SHAで開始されるraceを防ぐ。
+
+persist前後またはdispatch直前にmainが変化した場合はFAIL CLOSEDとし、次回のcontrol cycleで再評価する。dispatch eligibilityとcooldown判定は、control-plane invocation時のgithub.shaではなく、reconciled current main SHAを基準とする。
+
+このordering safetyはautomation integrityのためのものであり、performance verification、OOS、PIT validation、holdout、production approvalを意味しない。
