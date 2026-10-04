@@ -108,6 +108,80 @@ def main():
     finally:
         provenance.secondary_publication_bound = original_bound
 
+    # The evidence registry itself must remain explicitly research-only.
+    original_root = provenance.ROOT
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            evidence_path = root / "results/research/bleague_public_availability_evidence.json"
+            evidence_path.parent.mkdir(parents=True, exist_ok=True)
+            evidence_path.write_text(
+                json.dumps({
+                    "status": "PRODUCTION_EVIDENCE",
+                    "strict_pit_usable": True,
+                    "revision_evidence": {
+                        "file": "inst/extdata/games_summary_202021.csv",
+                        "revision_sha": "commit-new",
+                        "revision_commit_timestamp_utc": "2021-04-13T23:29:05Z",
+                        "next_file_touch_timestamp_utc": "2021-05-11T13:51:31Z",
+                        "no_intervening_file_touch_between_revision_and_independent_publication": True,
+                        "public_availability_bound": {
+                            "precision": "DATE_ONLY",
+                            "latest_safe_utc": "2021-04-19T23:59:59Z"
+                        }
+                    },
+                    "evidence": [{
+                        "source_url": "https://example.invalid/evidence",
+                        "published_on": "2021-04-19",
+                        "referenced_files": ["inst/extdata/games_summary_202021.csv"]
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            provenance.ROOT = root
+            assert provenance.secondary_publication_bound(
+                "inst/extdata/games_summary_202021.csv", "commit-new"
+            ) is None
+    finally:
+        provenance.ROOT = original_root
+
+    # An invalid publication date or non-URL evidence must fail closed.
+    original_root = provenance.ROOT
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            evidence_path = root / "results/research/bleague_public_availability_evidence.json"
+            evidence_path.parent.mkdir(parents=True, exist_ok=True)
+            evidence_path.write_text(
+                json.dumps({
+                    "status": "RESEARCH_EVIDENCE_ONLY",
+                    "strict_pit_usable": False,
+                    "revision_evidence": {
+                        "file": "inst/extdata/games_summary_202021.csv",
+                        "revision_sha": "commit-new",
+                        "revision_commit_timestamp_utc": "2021-04-13T23:29:05Z",
+                        "next_file_touch_timestamp_utc": "2021-05-11T13:51:31Z",
+                        "no_intervening_file_touch_between_revision_and_independent_publication": True,
+                        "public_availability_bound": {
+                            "precision": "DATE_ONLY",
+                            "latest_safe_utc": "2021-04-19T23:59:59Z"
+                        }
+                    },
+                    "evidence": [{
+                        "source_url": "not-a-url",
+                        "published_on": "2021-04-20",
+                        "referenced_files": ["inst/extdata/games_summary_202021.csv"]
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            provenance.ROOT = root
+            assert provenance.secondary_publication_bound(
+                "inst/extdata/games_summary_202021.csv", "commit-new"
+            ) is None
+    finally:
+        provenance.ROOT = original_root
+
     # Invalid chronology in the evidence registry must fail closed.
     original_root = provenance.ROOT
     try:

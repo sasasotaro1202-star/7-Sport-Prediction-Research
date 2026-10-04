@@ -245,6 +245,11 @@ def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | 
     except (FileNotFoundError, json.JSONDecodeError):
         return None
 
+    if payload.get("status") != "RESEARCH_EVIDENCE_ONLY":
+        return None
+    if payload.get("strict_pit_usable") is not False:
+        return None
+
     target_path = str(path)
     target_sha = str(commit_sha)
     top_revision = payload.get("revision_evidence") or {}
@@ -287,7 +292,18 @@ def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | 
             continue
 
         published_on = str(item.get("published_on") or "")
-        if published_on and not bound_ts.startswith(published_on):
+        if not published_on:
+            continue
+        try:
+            published_date = datetime.fromisoformat(published_on).date()
+        except ValueError:
+            continue
+        if bound_ts[:10] != published_date.isoformat():
+            continue
+        source_url = str(item.get("source_url") or "")
+        if not source_url.startswith(("http://", "https://")):
+            continue
+        if target_path not in [str(x) for x in (item.get("referenced_files") or [])]:
             continue
 
         return {
