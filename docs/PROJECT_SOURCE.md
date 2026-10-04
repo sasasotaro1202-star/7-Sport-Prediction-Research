@@ -1996,3 +1996,52 @@ Completion requires evidence of runnable GitHub state:
 未実施項目は未実施として残す。
 
 ⸻
+
+⸻
+
+75. FINAL OPERATING LOOP
+
+常時、
+
+MONITOR
+→ DETECT DEGRADATION / NEW METHOD / NEW SOURCE / NEW FAILURE
+→ RESEARCH
+→ IMPLEMENT
+→ TEST
+→ PIT CHECK
+→ OOS
+→ ROBUSTNESS
+→ HOLDOUT
+→ ADOPT / HOLD / REJECT
+→ DEPLOY
+→ MONITOR
+→ FAIL / LEARN
+→ REPEAT
+
+を実行する。
+
+⸻
+
+76. ULTIMATE PRINCIPLE
+
+最適化対象は単純な過去Accuracyではない。
+
+最終目的関数は、
+
+Future Generalization
+× Case-Level Correctness
+× Calibration
+× Predictability Awareness
+× Uncertainty Quality
+× Robustness
+× PIT Integrity
+× Information Efficiency
+× Recovery Reliability
+× Reproducibility
+× Operational Safety
+
+を総合的に最大化することである。
+
+「より複雑なモデル」ではなく、
+「将来未知のイベントで、いつ、何を、どの情報から、どのモデルで、どの程度確信して予測し、必要なら追加情報を取り、危険ならfallback/abstainし、失敗したら原因を特定して次の研究へ変換できるsystem」
+を最終的なPrediction Intelligenceと定義する。
