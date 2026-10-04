@@ -381,7 +381,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
     try:
         for p in proofs:
             url = f"{RAW_BASE}/{p['path']}"
-            if p["status"] == "VERSION_EXACT_PUBLICATION_UNPROVEN":
+            if p["status"] in ("VERSION_EXACT_PUBLICATION_UNPROVEN", "PROVEN_BY_SECONDARY_DATE_BOUND"):
                 version_exact_paths += 1
                 rows = con.execute(
                     "SELECT snapshot_id, provenance_json FROM source_snapshot "
@@ -399,14 +399,24 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         "branch": p["branch"],
                         "commit_sha": p["provenance_commit_sha"],
                         "commit_observed_at_utc": p["commit_timestamp_utc"],
-                        "publication_status": "UNPROVEN",
+                        "publication_status": p.get("publication_status") or "UNPROVEN",
                         "exact_current_blob": True,
                     })
-                    con.execute(
-                        "UPDATE source_snapshot SET source_available_at_utc=NULL, "
-                        "availability_status='VERSION_EXACT_PUBLICATION_UNPROVEN', provenance_json=? WHERE snapshot_id=?",
-                        (json.dumps(old, ensure_ascii=False), snapshot_id),
-                    )
+                    bound_utc = p.get("public_availability_bound_utc")
+                    if bound_utc:
+                        old["public_availability_bound_utc"] = bound_utc
+                        old["publication_evidence"] = p.get("publication_evidence")
+                        con.execute(
+                            "UPDATE source_snapshot SET source_available_at_utc=?, "
+                            "availability_status='EXACT', provenance_json=? WHERE snapshot_id=?",
+                            (bound_utc, json.dumps(old, ensure_ascii=False), snapshot_id),
+                        )
+                    else:
+                        con.execute(
+                            "UPDATE source_snapshot SET source_available_at_utc=NULL, "
+                            "availability_status='VERSION_EXACT_PUBLICATION_UNPROVEN', provenance_json=? WHERE snapshot_id=?",
+                            (json.dumps(old, ensure_ascii=False), snapshot_id),
+                        )
                     updated += 1
 
             # Event-level proof is intentionally stored behind a commit-pinned
@@ -422,7 +432,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     "SELECT event_time_utc FROM event WHERE event_id=? AND sport='basketball'",
                     (event_id,),
                 ).fetchone()
-                if not event_row or ep.get("publication_status") != "UNPROVEN" or not ep.get("pinned_source_url"):
+                if not event_row or ep.get("publication_status") not in ("UNPROVEN", "PROVEN_BY_SECONDARY_DATE_BOUND") or not ep.get("pinned_source_url"):
                     continue
                 current_summary_url = url
                 cur = con.execute(
@@ -444,10 +454,14 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     "matched_team_ids": ep.get("matched_team_ids", []),
                     "commit_sha": ep["provenance_commit_sha"],
                     "commit_observed_at_utc": ep["commit_timestamp_utc"],
-                    "publication_status": "UNPROVEN",
+                    "publication_status": ep.get("publication_status") or "UNPROVEN",
+                    "public_availability_bound_utc": ep.get("public_availability_bound_utc"),
+                    "publication_evidence": ep.get("publication_evidence"),
                     "exact_feature_rows_in_same_revision": True,
                     "source_url_pinned_to_commit": True,
                 }
+                bound_utc = ep.get("public_availability_bound_utc")
+                availability_status = "EXACT" if bound_utc else "VERSION_EXACT_PUBLICATION_UNPROVEN"
                 con.execute(
                     """INSERT OR REPLACE INTO source_snapshot(
                            snapshot_id,sport,source,source_url,retrieved_at_utc,
@@ -460,20 +474,24 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         "bleaguer-github",
                         ep["pinned_source_url"],
                         p.get("checked_at_utc") or utcnow(),
-                        None,
+                        bound_utc,
                         None,
                         ep["content_hash"],
                         None,
-                        "bleaguer-git-provenance-v3-version-only",
-                        "VERSION_EXACT_PUBLICATION_UNPROVEN",
+                        "bleaguer-git-provenance-v4-secondary-public-bound",
+                        availability_status,
                         json.dumps(provenance, ensure_ascii=False),
                     ),
                 )
                 event_version_exact += 1
-                # Do not rewrite match_stats to an unproven historical URL.
-                # Version provenance remains diagnostic only. The current-source
-                # feature row stays untouched until independent public-availability
-                # evidence upgrades a source_snapshot to TRUE EXACT.
+                if bound_utc:
+                    con.execute(
+                        "UPDATE match_stats SET source_url=? "
+                        "WHERE sport='basketball' AND event_id=? AND source='bleaguer-github' AND source_url=?",
+                        (ep["pinned_source_url"], event_id, current_summary_url),
+                    )
+                # Without an explicit bound, preserve strict fail-closed semantics
+                # and do not rewrite match_stats.
         con.commit()
     finally:
         con.close()
@@ -504,7 +522,7 @@ def main() -> int:
         proofs = list(ex.map(prove_path, paths))
 
     result = {
-        "version": "github-version-provenance-v3-publication-unproven",
+        "version": "github-version-provenance-v4-secondary-public-bound",
         "checked_at_utc": utcnow(),
         "paths": proofs,
         "apply": apply(Path(args.db), proofs),
