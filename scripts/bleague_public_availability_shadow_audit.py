@@ -181,7 +181,6 @@ def target_team_ids(con: sqlite3.Connection, event_id: str) -> set[str]:
         """SELECT team_id
              FROM event_participant
             WHERE event_id=?
-              AND sport='basketball'
               AND side IN ('A','B')
               AND team_id IS NOT NULL""",
         (event_id,),
@@ -191,7 +190,7 @@ def target_team_ids(con: sqlite3.Connection, event_id: str) -> set[str]:
 
 def audit_db(
     con: sqlite3.Connection,
-    exact_rows: dict[str, list[dict[str, float]]],
+    exact_rows: dict[str, dict[str, dict[str, float]]],
     matched_schedule_keys: set[str],
     bound: datetime,
 ) -> dict:
