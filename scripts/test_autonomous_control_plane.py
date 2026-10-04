@@ -195,6 +195,12 @@ def main() -> int:
         same_evidence_new_sha["actions"]["runtime_health"]["age_hours"] = (
             original_runtime_age + 0.1 if original_runtime_age is not None else 0.1
         )
+        # These fields are derived from the control-plane invocation SHA and
+        # current wall-clock time, not from a new workflow run.
+        same_evidence_new_sha["actions"]["runtime_health"]["current_main_sha"] = "next-sha"
+        same_evidence_new_sha["actions"]["runtime_health"]["sha_match"] = False
+        same_evidence_new_sha["actions"]["runtime_health"]["stale"] = True
+        same_evidence_new_sha["actions"]["runtime_health"]["status"] = "STALE"
         selected_next, dispatch_next = cp.choose_actions(same_evidence_new_sha)
         second = cp.write_state(same_evidence_new_sha, selected_next, dispatch_next)
 
