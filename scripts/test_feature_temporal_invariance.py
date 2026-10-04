@@ -75,6 +75,7 @@ def build_fixture() -> sqlite3.Connection:
          "70 in", 70.0, None, "fixture", url, "EXACT", 1.0),
     )
     c.commit()
+    return c
 
 
 def event_features(c: sqlite3.Connection, event_id: str) -> dict[str, float]:
