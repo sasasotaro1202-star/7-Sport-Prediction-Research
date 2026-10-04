@@ -60,6 +60,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_basketball_official_error_diagnostics.py
       - name: B.LEAGUE historical error observability regression
         run: PYTHONPATH=. python scripts/test_bleague_historical_error_observability.py
+      - name: PIT history expansion bridge guard regression
+        run: PYTHONPATH=. python scripts/test_pit_history_expansion_bridge_guard.py
       - name: B.LEAGUE official schedule fallback regression
         run: PYTHONPATH=. python scripts/test_bleague_schedule_parser_fallback.py
       - name: Match data expansion parser regression
