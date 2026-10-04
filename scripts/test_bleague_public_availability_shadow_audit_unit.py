@@ -63,7 +63,7 @@ def main() -> None:
         feature_id = stable_bleaguer_event_id(feature_key)
         target_id = stable_bleaguer_event_id(target_key)
         feature_time = "2021-04-10T00:00:00+00:00"
-        target_time = "2021-04-20T00:00:00+00:00"
+        target_time = "2021-04-20T02:00:00+00:00"
 
         for event_id, event_time in ((feature_id, feature_time), (target_id, target_time)):
             con.execute(
@@ -143,8 +143,8 @@ def main() -> None:
         assert report["identity_scope"] == "canonical_schedule_key_event_identity; two-team vector matching is side-agnostic"
 
         # The candidate target lies after the public-availability bound and
-        # exactly 10 days after the feature event, so it must have both-team
-        # prior history at T-60.
+        # exactly 10 days after the feature event, so its T-60 cutoff is after the public-availability bound and it must have both-team
+        # prior history.
         assert report["candidate_target_events_total"] == 1
         assert report["candidate_target_events_cutoff_at_or_after_bound"] == 1
         assert report["candidate_targets_with_any_exact_history"] == 1
