@@ -53,7 +53,7 @@ def main() -> int:
     assert report["status"] == "EVALUATED"
     assert report["candidate_count"] >= 3
     assert report["holdout_touched"] is False
-    assert report["selected_pattern_id"] in report["results"]
+    assert report["selected_pattern"]["pattern_id"] == report["selected_pattern_id"]
     print("FEATURE_PATTERN_OPTIMIZER=PASS")
     return 0
 
