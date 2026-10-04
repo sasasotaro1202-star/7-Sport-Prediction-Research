@@ -1,6 +1,6 @@
 {
-  "version": 7,
-  "policy": "source-feasibility-and-pit-separation-v7",
+  "version": 8,
+  "policy": "source-feasibility-and-pit-separation-v8",
   "principle": [
     "Reachability is not historical availability.",
     "Non-empty HTML/JSON is not sufficient; required signals must be observed.",
@@ -355,5 +355,119 @@
       "Ascension",
       "Game Changers"
     ]
-  }
+  },
+  "feature_family_capability_policy": {
+    "basketball": [
+      "team_strength",
+      "team_history",
+      "team_season_efficiency",
+      "player_roster",
+      "starter_lineup",
+      "player_statistics",
+      "competition_phase",
+      "venue",
+      "matchday_availability"
+    ],
+    "volleyball": [
+      "team_strength",
+      "team_history",
+      "set_performance",
+      "player_roster",
+      "rotation_starters",
+      "player_statistics",
+      "competition_phase",
+      "venue",
+      "matchday_availability"
+    ],
+    "valorant": [
+      "team_strength",
+      "player_map_statistics",
+      "roster_changes",
+      "patch",
+      "map_pool",
+      "series_format",
+      "event_stage",
+      "matchday_status"
+    ],
+    "ufc": [
+      "fighter_strength",
+      "fighter_history",
+      "fighter_profile",
+      "physical_attributes",
+      "fight_statistics",
+      "stance",
+      "weight_class",
+      "rules",
+      "card_changes"
+    ],
+    "rizin": [
+      "fighter_strength",
+      "fighter_history",
+      "fighter_profile",
+      "physical_attributes",
+      "fight_statistics",
+      "stance",
+      "weight_class",
+      "rules",
+      "card_changes"
+    ],
+    "tennis": [
+      "player_strength",
+      "surface_history",
+      "serve_return_statistics",
+      "tournament_round",
+      "player_availability",
+      "match_conditions"
+    ],
+    "f1": [
+      "driver_team_strength",
+      "circuit_history",
+      "qualifying_race_semantics",
+      "car_team_state",
+      "roster",
+      "track_weather"
+    ],
+    "rugby": [
+      "team_strength",
+      "team_history",
+      "roster_selection",
+      "scoring_style",
+      "competition_phase",
+      "rest_travel",
+      "weather_venue"
+    ],
+    "boxing": [
+      "fighter_strength",
+      "fighter_profile",
+      "weight_class",
+      "opponent_strength",
+      "inactivity",
+      "result_method_history",
+      "bout_context"
+    ]
+  },
+  "feature_pattern_rules": {
+    "must_search_all_active_sports": true,
+    "selection_is_chronological": true,
+    "holdout_is_score_only": true,
+    "unknown_pit_is_fail_closed": true,
+    "no_missing_to_zero": true,
+    "source_value_is_not_feature_value": true,
+    "preferred_pattern_dimensions": [
+      "family",
+      "difference",
+      "ratio",
+      "trend",
+      "rolling_window",
+      "recency_weight",
+      "interaction",
+      "missingness",
+      "source_quality"
+    ],
+    "max_search_patterns": 14
+  },
+  "notes": [
+    "Player/team/profile data is a candidate information layer across all active sports; availability and identity are separate from feature usefulness.",
+    "Feature-pattern selection must compare alternatives before production adoption; adding a field never implies adoption."
+  ]
 }
