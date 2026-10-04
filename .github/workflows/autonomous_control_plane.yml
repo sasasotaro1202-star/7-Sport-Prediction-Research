@@ -9,6 +9,7 @@ on:
       - Active-Scope Target v4.5.15 Production
       - PIT History Expansion
       - Production Failure Recovery
+      - Autonomous Control Plane Regression
     types:
       - completed
 
@@ -88,6 +89,7 @@ jobs:
               "production_watchdog.yml",
               "production_invariants.yml",
               "lightweight_regression.yml",
+              "autonomous_control_plane_regression.yml",
           ]
           output = {"generated_at_utc": None, "head_sha": os.environ.get("GITHUB_SHA", ""), "workflows": {}, "errors": {}}
           for workflow in workflows:
