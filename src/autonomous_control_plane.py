@@ -585,6 +585,39 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
         "nine-sport lane audit evidence is missing, stale, or failed",
     )
 
+    # Event-driven failure triage must work even when Failure Recovery has not
+    # persisted the append-only memory record yet. Only failures observed on
+    # the current main SHA are eligible, so stale-SHA guard failures do not
+    # become false research regressions.
+    for monitored_target in ("production", "pit_history", "failure_recovery"):
+        health = actions.get(monitored_target) or {}
+        age = health.get("age_hours")
+        if (
+            health.get("status") == "FAILED"
+            and state["head_sha"] != "UNKNOWN"
+            and health.get("head_sha") == state["head_sha"]
+            and isinstance(age, (int, float))
+            and age <= 24.0
+        ):
+            candidates.append({
+                "action": "RESEARCH_HEALTH",
+                "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
+                "target": f"workflow_failure:{monitored_target}",
+                "impact": 26.0,
+                "evidence_gap": 1.0,
+                "failure_relevance": 1.0,
+                "generalization": 1.0,
+                "information_value": 1.0,
+                "cost": 1.0,
+                "reason": (
+                    f"current-main monitored workflow {monitored_target} failed within "
+                    "the last 24 hours; triage the observed failure immediately without "
+                    "waiting for Failure Memory persistence"
+                ),
+                "auto_dispatch": True,
+                "dispatch_policy": "event_driven_failure_triage_on_current_main_sha",
+            })
+
     if state.get("failure_memory", {}).get("recent_24h", 0) > 0:
         candidates.append({
             "action": "RESEARCH_HEALTH",
