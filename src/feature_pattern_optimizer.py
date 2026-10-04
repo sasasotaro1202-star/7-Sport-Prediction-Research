@@ -821,30 +821,40 @@ def evaluate_patterns(
     if baseline is None:
         baseline = stage1[ranked1[-1]]
 
-    # Paired fold evidence against the all-feature baseline when possible.
+    # Paired fold evidence must use the SAME model family as the selected
+    # pattern. Otherwise a stage-2 tree winner would be compared to a
+    # logistic baseline, making the adoption signal methodologically invalid.
+    selected_model_kind = str(selected_record.get("model") or "logistic")
     selected_idx = [feature_names.index(f) for f in selected_record["features"] if f in feature_names]
     base_idx = [feature_names.index(f) for f in baseline["features"] if f in feature_names]
     paired_delta = []
+    aligned_baseline_scores = []
     for train_end, test_end in folds:
         if len(np.unique(y[:train_end])) < 2 or len(np.unique(y[train_end:test_end])) < 2:
             continue
-        selected_model = _pattern_model("logistic")
-        base_model = _pattern_model("logistic")
+        selected_model = _pattern_model(selected_model_kind)
+        base_model = _pattern_model(selected_model_kind)
         selected_model.fit(X[:train_end, selected_idx], y[:train_end])
         base_model.fit(X[:train_end, base_idx], y[:train_end])
         ps = selected_model.predict_proba(X[train_end:test_end, selected_idx])[:, 1]
         pb = base_model.predict_proba(X[train_end:test_end, base_idx])[:, 1]
-        paired_delta.append(
-            float(
-                _metric(y[train_end:test_end], ps)["logloss"]
-                - _metric(y[train_end:test_end], pb)["logloss"]
-            )
-        )
+        ms = _metric(y[train_end:test_end], ps)
+        mb = _metric(y[train_end:test_end], pb)
+        paired_delta.append(float(ms["logloss"] - mb["logloss"]))
+        aligned_baseline_scores.append(mb)
 
-    baseline_ll = float(baseline["logloss_mean"])
-    selected_ll = float(selected_record["logloss_mean"])
+    baseline_aligned_summary = _robust_score(aligned_baseline_scores)
+    selected_aligned_summary = _robust_score(
+        [_metric(y[a:b], _pattern_model(selected_model_kind).fit(
+            X[:a, selected_idx], y[:a]
+        ).predict_proba(X[a:b, selected_idx])[:, 1]) for a, b in folds
+         if len(np.unique(y[:a])) > 1 and len(np.unique(y[a:b])) > 1]
+    )
+    baseline_ll = float(baseline_aligned_summary.get("logloss_mean", baseline["logloss_mean"]))
+    selected_ll = float(selected_aligned_summary.get("logloss_mean", selected_record["logloss_mean"]))
     relative_improvement = float((baseline_ll - selected_ll) / max(abs(baseline_ll), 1e-12))
     bootstrap = _paired_bootstrap(paired_delta)
+
 
     return {
         "status": "EVALUATED",
@@ -866,6 +876,9 @@ def evaluate_patterns(
         },
         "relative_logloss_improvement_vs_baseline": relative_improvement,
         "paired_fold_deltas_selected_minus_baseline": paired_delta,
+        "selected_model_kind": selected_model_kind,
+        "baseline_aligned_to_selected_model": baseline_aligned_summary,
+        "selected_aligned_summary": selected_aligned_summary,
         "paired_bootstrap": bootstrap,
         "selection_rule": (
             "stage1 broad structured logistic screen; stage2 top-pattern HistGradientBoosting/ExtraTrees; "
