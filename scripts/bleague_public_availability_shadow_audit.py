@@ -75,7 +75,7 @@ def _fetch_bytes(url: str) -> bytes:
     raise last or RuntimeError(f"failed to fetch {url}")
 
 
-def parse_summary_rows(data: bytes) -> dict[str, list[dict[str, float]]]:
+def parse_summary_rows(data: bytes) -> dict[str, dict[str, dict[str, float]]]:
     groups: dict[str, dict[str, dict[str, float]]] = {}
     text = data.decode("utf-8-sig", errors="strict")
     for row in csv.DictReader(io.StringIO(text)):
@@ -94,7 +94,7 @@ def parse_summary_rows(data: bytes) -> dict[str, list[dict[str, float]]]:
             continue
         groups.setdefault(schedule_key, {})[team_id] = values
     return {
-        key: list(team_rows.values())
+        key: team_rows
         for key, team_rows in groups.items()
         if len(team_rows) == 2
     }
@@ -210,11 +210,19 @@ def audit_db(
             continue
         matched_events_present += 1
         db_info = db_feature_vectors(con, event_id)
-        raw_vectors = [
-            normalized_vector(values, SUMMARY_NUMERIC_FIELDS)
-            for values in exact_rows[schedule_key]
-        ]
-        if db_info and vectors_match(raw_vectors, db_info["vectors"]):
+        raw_team_vectors = {
+            team_id: normalized_vector(values, SUMMARY_NUMERIC_FIELDS)
+            for team_id, values in exact_rows[schedule_key].items()
+        }
+        if db_info and set(raw_team_vectors) == set(db_info["participant_ids"]):
+            db_by_team = dict(zip(db_info["participant_ids"], db_info["vectors"]))
+            teamwise_match = all(
+                raw_team_vectors[team_id] == db_by_team[team_id]
+                for team_id in raw_team_vectors
+            )
+        else:
+            teamwise_match = False
+        if teamwise_match:
             exact_feature_vector_events += 1
             exact_feature_stat_rows += len(raw_vectors) * len(DB_STAT_NAMES)
             feature_events[event_id] = {
