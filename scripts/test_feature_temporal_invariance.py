@@ -106,7 +106,7 @@ def assert_same(a: dict[str, float], b: dict[str, float]) -> None:
 
 def test_vlr_match_time_parser() -> None:
     html = """<div class="match-header-date"><span class="moment-tz-convert" data-utc-ts="1713996000"></span></div>"""
-    assert parse_vlr_match_event_time(html) == "2024-04-24T20:40:00+00:00"
+    assert parse_vlr_match_event_time(html) == "2024-04-24T22:00:00+00:00"
     # Relative result-feed ages must not be interpreted as event timestamps.
     assert parse_vlr_match_event_time('<div class="match-header-date">2h 44m ago</div>') is None
 
