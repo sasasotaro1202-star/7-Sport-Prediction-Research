@@ -7,34 +7,33 @@ Optimize Future Generalization, case-level correctness, probabilistic quality, c
 ## Every run
 Re-check the latest GitHub HEAD/default branch, code/config, tests, workflows, Actions, artifacts, registries, production/champion/challenger state, current research/OOS/holdout evidence, failures and backlog. Prefer REUSE → REPAIR → INTEGRATE → TEST → VERIFY. Never rewrite past evidence to improve apparent results. Treat current HEAD as authoritative over prior chat results.
 
-## Cross-sport data rule
+## Cross-sport data and feature-pattern rule
 All nine project sports are covered by one evidence discipline and one feature-pattern research architecture:
-VALORANT, Basketball, Volleyball, UFC, RIZIN, Tennis, F1, Rugby and Boxing.
-Production/deferred status affects whether a sport can currently train or release, but never removes it from the research design.
+VALORANT, Basketball, Volleyball, Tennis, UFC, RIZIN, F1, Rugby and Boxing.
+Production/research/deferred status controls release eligibility, but never removes a sport from the research design.
 
-For every sport, actively test:
-identity/strength, recent form/load, historical performance statistics, participant/entity profile, team/roster context, competition/phase/event context, matchday intelligence, data/source quality and derived interactions.
-Use sport-specific semantics and source availability; never assume one universal feature recipe.
+For every sport, actively test these information families using sport-specific semantics:
+identity/strength, recent form/load, historical performance statistics, participant/entity profile,
+team/roster context, competition/phase/event context, matchday intelligence, data/source quality,
+and derived interactions/representations.
 
-## Feature-pattern research
-For all nine sports, never assume that the largest feature set is optimal.
+Required pattern dimensions:
+family on/off; leave-one-family-out; family subsets through structured multi-family combinations;
+fine-grained statistic blocks; A/B/D; side-only/difference-only; signed and absolute difference;
+relative/rate representations when semantically valid; short/medium/long history; mean/median/quantiles;
+last/trend/EWMA; profile/roster/matchday/quality toggles; interaction toggles; sparse vs rich patterns.
 
-The search must cover:
-family inclusion/exclusion; leave-one-family-out controls; single/pair/triple/quadruple family subsets; fine-grained statistic blocks; A/B/D encodings; side-only vs difference-only; short/medium/long history; mean/median/quantile/last/trend/EWMA summaries; profile and roster toggles; matchday toggles; quality-aware vs quality-blind variants; interaction variants; relative/rate representations; and complexity/sparsity alternatives.
-
-Use a staged search:
-1. broad structured screening on an early training prefix;
+Search stages:
+1. broad structured screen on an early non-holdout prefix;
 2. multi-model retest of diverse winners;
-3. downstream full model/ensemble/routing evaluation on later chronological OOS;
-4. robustness, calibration and frozen-holdout verification.
+3. downstream full model/ensemble/router evaluation on later chronological OOS;
+4. calibration, robustness and frozen-holdout verification.
 
-Pattern selection must not inspect the later OOS evaluation rows or frozen holdout. Record negative results, source dependence, PIT coverage, stability, complexity and compute cost.
+The pattern selector must never see later OOS rows or frozen-holdout labels. Same-event snapshots remain clustered/dependent.
+Never treat more columns as inherently better. Record negative patterns, source dependence, PIT/coverage,
+stability, complexity and compute cost. Pattern screening alone cannot authorize ADOPTED/PRODUCTION.
 
-Basketball, Volleyball, VALORANT, UFC, RIZIN, Tennis, F1, Rugby and Boxing all use this architecture. Sport-specific information is added only when actually available and PIT-valid; deferred status does not authorize unproven data.
-
-Missing, delayed, unresolved or unproven information remains UNKNOWN/UNVERIFIABLE and cannot be converted into synthetic evidence.
-
-Pattern selection alone is never production authorization; all downstream OOS/WFO, robustness, calibration, frozen-holdout, release and monitoring gates remain mandatory.
+Missing, delayed, unresolved or unproven information remains UNKNOWN/UNVERIFIABLE and is never converted into synthetic evidence.
 
 ## PIT / time
 Separate event/market time, prediction cutoff, source availability, publication, retrieval, effective time and revision time. Only use information demonstrably available by cutoff. Unknown/unverifiable availability is fail-closed for production-quality OOS. A pre-event audit must not PASS a prediction generated after its own cutoff. Same-event snapshots at different cutoffs are dependent observations and are evaluated as event clusters.
