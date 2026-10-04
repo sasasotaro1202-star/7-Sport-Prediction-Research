@@ -112,7 +112,7 @@ def fixture(root: Path) -> None:
             "latest": {"databaseId": 7, "status": "completed", "conclusion": "success", "createdAt": "2026-10-03T00:00:00Z", "headSha": "new-sha"},
         },
         "pre_event_prediction.yml": {
-            "latest": {"databaseId": 8, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T08:00:00Z", "headSha": "new-sha"},
+            "latest": {"databaseId": 8, "status": "completed", "conclusion": "success", "createdAt": recent_iso, "headSha": "new-sha"},
         },
     }
     cp.ACTIONS_SNAPSHOT.write_text(json.dumps({"workflows": workflows, "errors": {}}), encoding="utf-8")
