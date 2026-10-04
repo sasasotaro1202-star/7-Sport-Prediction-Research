@@ -219,6 +219,40 @@ def pinned_raw_url(path: str, commit_sha: str) -> str:
     return f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{commit_sha}/{path}"
 
 
+def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | None:
+    """Return only explicitly registered conservative public-availability bounds."""
+    evidence_path = ROOT / "results" / "research" / "bleague_public_availability_evidence.json"
+    try:
+        payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+    for item in payload.get("evidence") or []:
+        revision = item.get("revision_evidence") or {}
+        if str(revision.get("exact_revision_sha") or "") != str(commit_sha):
+            continue
+        bound_info = revision.get("public_availability_bound") or {}
+        if str(bound_info.get("precision") or "") != "DATE_ONLY":
+            continue
+        bound_ts = iso(str(bound_info.get("latest_safe_utc") or ""))
+        commit_ts = iso(str(revision.get("revision_commit_timestamp_utc") or ""))
+        next_touch = iso(str(revision.get("next_file_touch_timestamp_utc") or ""))
+        if not bound_ts or not commit_ts or bound_ts < commit_ts:
+            continue
+        if next_touch and bound_ts >= next_touch:
+            continue
+        if str(revision.get("no_intervening_file_touch_between_revision_and_independent_publication")).lower() != "true":
+            continue
+        return {
+            "source_url": str(item.get("source_url") or ""),
+            "published_on": str(item.get("published_on") or ""),
+            "public_availability_bound_utc": bound_ts,
+            "evidence_level": str(item.get("evidence_level") or "SECONDARY_INDEPENDENT_REFERENCE"),
+            "claim_supported": str(item.get("claim_supported") or ""),
+            "revision_sha": str(commit_sha),
+        }
+    return None
+
+
 def stable_bleaguer_event_id(schedule_key: str) -> str:
     return hashlib.sha256(
         f"basketball|bleaguer|{schedule_key}".encode("utf-8")
@@ -284,11 +318,14 @@ def prove_path(path: str) -> dict[str, Any]:
         if remaining_events:
             matched = match_summary_revision(b, event_targets, remaining_events)
             for schedule_key in matched:
+                bound = secondary_publication_bound(path, sha)
                 event_provenance[schedule_key] = {
                     "schedule_key": schedule_key,
                     "provenance_commit_sha": sha,
                     "commit_timestamp_utc": iso(commit_date),
-                    "publication_status": "UNPROVEN",
+                    "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if bound else "UNPROVEN",
+                    "public_availability_bound_utc": bound["public_availability_bound_utc"] if bound else None,
+                    "publication_evidence": bound if bound else None,
                     "content_hash": sha256_bytes(b),
                     "matched_team_ids": sorted(event_targets[schedule_key]),
                     "pinned_source_url": pinned_raw_url(path, sha),
@@ -309,12 +346,15 @@ def prove_path(path: str) -> dict[str, Any]:
     }
     if matches:
         earliest_sha, earliest_date = sorted(matches, key=lambda x: x[1])[0]
+        bound = secondary_publication_bound(path, earliest_sha)
         result.update({
             "provenance_commit_sha": earliest_sha,
             "commit_timestamp_utc": iso(earliest_date),
             "repository": f"{OWNER}/{REPO}",
             "branch": BRANCH,
-            "publication_status": "UNPROVEN",
+            "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if bound else "UNPROVEN",
+            "public_availability_bound_utc": bound["public_availability_bound_utc"] if bound else None,
+            "publication_evidence": bound if bound else None,
         })
     else:
         result["reason"] = "no historical GitHub commit with identical bytes was found"
@@ -341,7 +381,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
     try:
         for p in proofs:
             url = f"{RAW_BASE}/{p['path']}"
-            if p["status"] == "VERSION_EXACT_PUBLICATION_UNPROVEN":
+            if p["status"] in ("VERSION_EXACT_PUBLICATION_UNPROVEN", "PROVEN_BY_SECONDARY_DATE_BOUND"):
                 version_exact_paths += 1
                 rows = con.execute(
                     "SELECT snapshot_id, provenance_json FROM source_snapshot "
@@ -359,14 +399,24 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         "branch": p["branch"],
                         "commit_sha": p["provenance_commit_sha"],
                         "commit_observed_at_utc": p["commit_timestamp_utc"],
-                        "publication_status": "UNPROVEN",
+                        "publication_status": p.get("publication_status") or "UNPROVEN",
                         "exact_current_blob": True,
                     })
-                    con.execute(
-                        "UPDATE source_snapshot SET source_available_at_utc=NULL, "
-                        "availability_status='VERSION_EXACT_PUBLICATION_UNPROVEN', provenance_json=? WHERE snapshot_id=?",
-                        (json.dumps(old, ensure_ascii=False), snapshot_id),
-                    )
+                    bound_utc = p.get("public_availability_bound_utc")
+                    if bound_utc:
+                        old["public_availability_bound_utc"] = bound_utc
+                        old["publication_evidence"] = p.get("publication_evidence")
+                        con.execute(
+                            "UPDATE source_snapshot SET source_available_at_utc=?, "
+                            "availability_status='EXACT', provenance_json=? WHERE snapshot_id=?",
+                            (bound_utc, json.dumps(old, ensure_ascii=False), snapshot_id),
+                        )
+                    else:
+                        con.execute(
+                            "UPDATE source_snapshot SET source_available_at_utc=NULL, "
+                            "availability_status='VERSION_EXACT_PUBLICATION_UNPROVEN', provenance_json=? WHERE snapshot_id=?",
+                            (json.dumps(old, ensure_ascii=False), snapshot_id),
+                        )
                     updated += 1
 
             # Event-level proof is intentionally stored behind a commit-pinned
@@ -382,7 +432,7 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     "SELECT event_time_utc FROM event WHERE event_id=? AND sport='basketball'",
                     (event_id,),
                 ).fetchone()
-                if not event_row or ep.get("publication_status") != "UNPROVEN" or not ep.get("pinned_source_url"):
+                if not event_row or ep.get("publication_status") not in ("UNPROVEN", "PROVEN_BY_SECONDARY_DATE_BOUND") or not ep.get("pinned_source_url"):
                     continue
                 current_summary_url = url
                 cur = con.execute(
@@ -404,10 +454,14 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                     "matched_team_ids": ep.get("matched_team_ids", []),
                     "commit_sha": ep["provenance_commit_sha"],
                     "commit_observed_at_utc": ep["commit_timestamp_utc"],
-                    "publication_status": "UNPROVEN",
+                    "publication_status": ep.get("publication_status") or "UNPROVEN",
+                    "public_availability_bound_utc": ep.get("public_availability_bound_utc"),
+                    "publication_evidence": ep.get("publication_evidence"),
                     "exact_feature_rows_in_same_revision": True,
                     "source_url_pinned_to_commit": True,
                 }
+                bound_utc = ep.get("public_availability_bound_utc")
+                availability_status = "EXACT" if bound_utc else "VERSION_EXACT_PUBLICATION_UNPROVEN"
                 con.execute(
                     """INSERT OR REPLACE INTO source_snapshot(
                            snapshot_id,sport,source,source_url,retrieved_at_utc,
@@ -420,20 +474,24 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
                         "bleaguer-github",
                         ep["pinned_source_url"],
                         p.get("checked_at_utc") or utcnow(),
-                        None,
+                        bound_utc,
                         None,
                         ep["content_hash"],
                         None,
-                        "bleaguer-git-provenance-v3-version-only",
-                        "VERSION_EXACT_PUBLICATION_UNPROVEN",
+                        "bleaguer-git-provenance-v4-secondary-public-bound",
+                        availability_status,
                         json.dumps(provenance, ensure_ascii=False),
                     ),
                 )
                 event_version_exact += 1
-                # Do not rewrite match_stats to an unproven historical URL.
-                # Version provenance remains diagnostic only. The current-source
-                # feature row stays untouched until independent public-availability
-                # evidence upgrades a source_snapshot to TRUE EXACT.
+                if bound_utc:
+                    con.execute(
+                        "UPDATE match_stats SET source_url=? "
+                        "WHERE sport='basketball' AND event_id=? AND source='bleaguer-github' AND source_url=?",
+                        (ep["pinned_source_url"], event_id, current_summary_url),
+                    )
+                # Without an explicit bound, preserve strict fail-closed semantics
+                # and do not rewrite match_stats.
         con.commit()
     finally:
         con.close()
@@ -464,7 +522,7 @@ def main() -> int:
         proofs = list(ex.map(prove_path, paths))
 
     result = {
-        "version": "github-version-provenance-v3-publication-unproven",
+        "version": "github-version-provenance-v4-secondary-public-bound",
         "checked_at_utc": utcnow(),
         "paths": proofs,
         "apply": apply(Path(args.db), proofs),
