@@ -174,7 +174,7 @@ def main() -> int:
         assert state["actions"]["safety_audit"]["status"] == "STALE"
         assert state["actions"]["safety_audit"]["sha_match"] is False
         selected, dispatch = cp.choose_actions(state)
-        assert selected["action"] == "RUNTIME_HEALTH" or selected["action"] == "DEEP_RESEARCH", selected
+        assert selected["action"] == "PIT_COVERAGE_REPAIR", selected
         assert dispatch is not None
         assert dispatch["workflow"] in {
             "production_runtime_health.yml",
