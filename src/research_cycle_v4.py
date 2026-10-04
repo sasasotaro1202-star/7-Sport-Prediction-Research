@@ -535,6 +535,41 @@ def build(c,s,include_unlabeled=False):
    f['D__h2h_winrate_5']=np.nan;f['D__h2h_winrate_20']=np.nan;f['D__h2h_matches']=0.0
   # H2H state is materialized above; only now derive the H2H×Elo challenger interaction.
   f['D__h2h_x_elo']=_mul(f.get('D__h2h_winrate_20',np.nan),f['D__elo'])
+  # Broad PIT-safe representation layer. Values are derived only from A/B
+  # features already admitted at the event cutoff. The resulting variants are
+  # candidates; downstream OOS chooses whether any are useful.
+  base_pair_names=sorted({k[3:] for k in f if k.startswith('A__')} & {k[3:] for k in f if k.startswith('B__')})
+  for name in base_pair_names:
+   a=f.get('A__'+name,np.nan); b=f.get('B__'+name,np.nan)
+   if np.isfinite(a) and np.isfinite(b):
+    f['AD__'+name]=float(abs(a-b))
+    f['M__'+name]=float((a+b)/2.0)
+    denom=abs(a)+abs(b)+1e-6
+    f['R__'+name]=float((a-b)/denom)
+    if a>=0 and b>0:
+     f['Q__'+name]=float(np.clip(a/b,0.0,100.0))
+   else:
+    f['AD__'+name]=np.nan
+    f['M__'+name]=np.nan
+    f['R__'+name]=np.nan
+    f['Q__'+name]=np.nan
+  # A small deterministic interaction grid spans strength/form/load/profile/
+  # performance and availability without exploding into an arbitrary powerset.
+  interaction_pairs=(
+   ('D__elo','D__recent_winrate_20'),
+   ('D__elo','D__recent_winrate_5'),
+   ('D__elo','D__rest_days'),
+   ('D__elo','D__stat_coverage'),
+   ('D__recent_winrate_5','D__rest_days'),
+   ('D__recent_winrate_20','D__rest_days'),
+   ('D__h2h_winrate_20','D__elo'),
+   ('D__lineup_known','D__elo'),
+   ('D__availability_out','D__elo'),
+   ('D__availability_uncertain','D__elo'),
+  )
+  for left,right in interaction_pairs:
+   if left in f and right in f:
+    f[left.replace('D__','D__')+'__x__'+right.replace('D__','')] = _mul(f[left],f[right])
   for st in cols:
    for suf in ('mean','median','q25','q75','iqr','last','std','trend','ewma5','n','age_days'):
     a=f[f'A__{st}__{suf}'];b=f[f'B__{st}__{suf}'];f[f'D__{st}__{suf}']=a-b if np.isfinite(a) and np.isfinite(b) else np.nan
