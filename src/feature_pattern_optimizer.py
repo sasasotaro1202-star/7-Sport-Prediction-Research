@@ -299,7 +299,7 @@ def _representative_features(names: list[str], mode: str) -> list[str]:
 def candidate_family_sets(sport: str, feature_names: Iterable[str], max_patterns: int = 14) -> list[dict]:
     """Backward-compatible family patterns plus a much broader structured grid."""
     features = sorted(set(map(str, feature_names)))
-    families = family_members(features)
+    families = family_members(features, sport)
     available = [x for x in _sport_priority(sport) if families.get(x)]
     if not available:
         return [{"pattern_id": "all_features", "families": [], "features": features}]
