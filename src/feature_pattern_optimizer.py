@@ -430,32 +430,18 @@ def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: i
     return selected
 
 
-def _feature_ranking_candidates(
-    X: np.ndarray,
-    y: np.ndarray,
-    feature_names: list[str],
-    families: dict[str, list[str]],
-    max_additional: int = 512,
-) -> list[dict]:
-    """Outcome-aware feature subset candidates, fit only on the pattern-selection prefix.
-
-    Rankings are used only to generate research candidates. They are never fit on
-    later OOS or frozen-holdout rows. Three ranking views plus family-balanced
-    selections create complementary sparse/rich patterns.
-    """
+def _rank_feature_views(X: np.ndarray, y: np.ndarray, feature_names: list[str]) -> dict[str, list[str]]:
     X = np.asarray(X, dtype=float)
     y = np.asarray(y, dtype=int)
-    if len(y) < 120 or X.ndim != 2 or X.shape[1] != len(feature_names):
-        return []
+    if len(y) < 80 or X.ndim != 2 or X.shape[1] != len(feature_names):
+        return {"corr": [], "mutual_info": [], "tree_importance": []}
     Xi = SimpleImputer(strategy="median", add_indicator=False).fit_transform(X)
     names = list(feature_names)
-    # Constant/invalid columns receive zero score rather than being force-ranked.
     corr = np.zeros(Xi.shape[1], dtype=float)
     for j in range(Xi.shape[1]):
-        x = Xi[:, j]
-        sx = float(np.std(x))
+        sx = float(np.std(Xi[:, j]))
         sy = float(np.std(y))
-        corr[j] = abs(float(np.corrcoef(x, y)[0, 1])) if sx > 1e-12 and sy > 1e-12 else 0.0
+        corr[j] = abs(float(np.corrcoef(Xi[:, j], y)[0, 1])) if sx > 1e-12 and sy > 1e-12 else 0.0
     try:
         mi = np.nan_to_num(
             mutual_info_classif(Xi, y, discrete_features=False, random_state=20261004),
@@ -465,28 +451,43 @@ def _feature_ranking_candidates(
         mi = np.zeros(Xi.shape[1], dtype=float)
     try:
         tree = ExtraTreesClassifier(
-            n_estimators=220,
-            min_samples_leaf=8,
-            max_features="sqrt",
-            class_weight="balanced",
-            n_jobs=1,
-            random_state=20261005,
+            n_estimators=180, min_samples_leaf=8, max_features="sqrt",
+            class_weight="balanced", n_jobs=1, random_state=20261005,
         ).fit(Xi, y)
         imp = np.nan_to_num(tree.feature_importances_, nan=0.0, posinf=0.0, neginf=0.0)
     except Exception:
         imp = np.zeros(Xi.shape[1], dtype=float)
-
-    def order(scores):
-        return [names[i] for i in np.argsort(-np.asarray(scores), kind="mergesort")]
-
-    rankings = {
-        "corr": order(corr),
-        "mutual_info": order(mi),
-        "tree_importance": order(imp),
+    return {
+        "corr": [names[i] for i in np.argsort(-corr, kind="mergesort")],
+        "mutual_info": [names[i] for i in np.argsort(-mi, kind="mergesort")],
+        "tree_importance": [names[i] for i in np.argsort(-imp, kind="mergesort")],
     }
+
+
+def _feature_ranking_candidates(
+    X: np.ndarray,
+    y: np.ndarray,
+    feature_names: list[str],
+    families: dict[str, list[str]],
+    max_additional: int = 512,
+) -> list[dict]:
+    """Generate sparse/rich candidates from several outcome-aware ranking views.
+
+    Ranking is computed only inside the pattern-selection prefix. Stability views
+    re-fit the rankers on multiple earlier prefixes of that prefix and reward
+    features that recur, reducing one-window selection noise.
+    """
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y, dtype=int)
+    if len(y) < 120 or X.ndim != 2 or X.shape[1] != len(feature_names):
+        return []
+
+    views = _rank_feature_views(X, y, feature_names)
+    if not any(views.values()):
+        return []
+    names = list(feature_names)
     out = []
     seen = set()
-    sizes = tuple(k for k in (8, 16, 24, 32, 48, 64, 96, 128, 192, 256) if k < len(names)) + (len(names),)
 
     def add(pid, cols, note):
         cols = [str(x) for x in cols if str(x) in names]
@@ -506,42 +507,74 @@ def _feature_ranking_candidates(
             "note": note,
         })
 
-    for rname, ranked in rankings.items():
+    sizes = tuple(k for k in (8, 16, 24, 32, 48, 64, 96, 128, 192, 256) if k < len(names)) + (len(names),)
+    for rname, ranked in views.items():
         for k in sizes:
             add(f"rank__{rname}__top{k}", ranked[:k], "outcome_ranked_top_k")
 
-    # Union/intersection of independent ranking views.
     top_sizes = [k for k in (16, 32, 64, 128) if k <= len(names)]
     for k in top_sizes:
-        corr_set, mi_set, tree_set = (set(rankings[x][:k]) for x in ("corr", "mutual_info", "tree_importance"))
+        corr_set, mi_set, tree_set = (set(views[x][:k]) for x in ("corr", "mutual_info", "tree_importance"))
         add(f"rank__union3__top{k}", sorted(corr_set | mi_set | tree_set), "union_of_three_rankers")
         add(f"rank__intersection3__top{k}", sorted(corr_set & mi_set & tree_set), "intersection_of_three_rankers")
         add(f"rank__corr_mi__top{k}", sorted(corr_set & mi_set), "intersection_corr_mi")
         add(f"rank__corr_tree__top{k}", sorted(corr_set & tree_set), "intersection_corr_tree")
         add(f"rank__mi_tree__top{k}", sorted(mi_set & tree_set), "intersection_mi_tree")
 
-    # Family-balanced top-k: prevent a strong family from crowding every other
-    # information family out of the candidate search.
-    for per_family in (2, 4, 6, 8, 12):
-        cols = []
-        for fam_name, fam_cols in sorted(families.items()):
-            available = set(fam_cols)
-            cols.extend([n for n in rankings["tree_importance"] if n in available][:per_family])
-        add(f"rank__family_balanced__{per_family}", cols, "family_balanced_tree_rank")
+    # Stability across multiple earlier prefixes of the selection period.
+    prefix_fracs = (0.55, 0.70, 0.85, 1.0)
+    for rname in ("corr", "mutual_info", "tree_importance"):
+        for k in (16, 32, 64):
+            counts = {name: 0 for name in names}
+            used = 0
+            for frac in prefix_fracs:
+                cut = max(80, min(len(y), int(len(y) * frac)))
+                if cut < 80 or len(np.unique(y[:cut])) < 2:
+                    continue
+                view = _rank_feature_views(X[:cut], y[:cut], feature_names).get(rname, [])
+                if not view:
+                    continue
+                used += 1
+                for name in view[:k]:
+                    counts[name] += 1
+            for threshold in (2, 3, 4):
+                if used >= threshold:
+                    stable = [name for name in names if counts.get(name, 0) >= threshold]
+                    stable = sorted(stable, key=lambda n: (-counts[n], n))
+                    add(
+                        f"stability__{rname}__top{k}__ge{threshold}",
+                        stable,
+                        "multi_prefix_rank_stability",
+                    )
 
-    # Cross-ranking family-balanced variants.
-    for per_family in (3, 6, 10):
-        cols = []
-        for fam_name, fam_cols in sorted(families.items()):
-            available = set(fam_cols)
-            cands = [
-                n for n in rankings["corr"] if n in available
-            ] + [
-                n for n in rankings["mutual_info"] if n in available
-            ]
-            merged = list(dict.fromkeys(cands))
-            cols.extend(merged[:per_family])
-        add(f"rank__family_balanced_corr_mi__{per_family}", cols, "family_balanced_corr_mi_rank")
+    # Stability consensus across rankers and prefixes.
+    stability_sets = []
+    for rname in ("corr", "mutual_info", "tree_importance"):
+        for k in (16, 32, 64):
+            counts = {name: 0 for name in names}
+            for frac in prefix_fracs[:3]:
+                cut = max(80, min(len(y), int(len(y) * frac)))
+                view = _rank_feature_views(X[:cut], y[:cut], feature_names).get(rname, [])
+                for name in view[:k]:
+                    counts[name] += 1
+            stability_sets.append(set(n for n, cnt in counts.items() if cnt >= 2))
+    if stability_sets:
+        add("stability__ranker_consensus", sorted(set.intersection(*stability_sets)), "stable_multi_ranker_consensus")
+        add("stability__ranker_union", sorted(set.union(*stability_sets)), "stable_multi_ranker_union")
+
+    # Family-balanced selections using multiple ranking views.
+    for per_family in (2, 4, 6, 8, 12):
+        for rname in ("corr", "mutual_info", "tree_importance"):
+            cols = []
+            ranked = views[rname]
+            for _, fam_cols in sorted(families.items()):
+                available = set(fam_cols)
+                cols.extend([n for n in ranked if n in available][:per_family])
+            add(
+                f"rank__family_balanced__{rname}__{per_family}",
+                cols,
+                "family_balanced_rank",
+            )
 
     return out[: max(1, int(max_additional))]
 
