@@ -28,6 +28,12 @@ def build_fixture() -> sqlite3.Connection:
           source_available_at_utc TEXT, event_time_utc TEXT,
           availability_status TEXT
         );
+        CREATE TABLE participant_history(
+          history_id TEXT PRIMARY KEY, participant_id TEXT, sport TEXT, event_id TEXT,
+          observed_at_utc TEXT, effective_at_utc TEXT, attribute TEXT,
+          value_text TEXT, value_num REAL, value_json TEXT, source TEXT,
+          source_url TEXT, quality_status TEXT, confidence REAL
+        );
         CREATE TABLE match_stats(
           stat_id TEXT PRIMARY KEY, event_id TEXT, participant_id TEXT,
           sport TEXT, stat_name TEXT, value_num REAL, effective_at_utc TEXT,
@@ -62,8 +68,13 @@ def build_fixture() -> sqlite3.Connection:
                 "INSERT INTO match_stats VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (f"{eid}-{pid}", eid, pid, "ufc", "sig_str", value, ts, avail, "fixture", url),
             )
+    # Add a PIT-safe participant profile observation for fighter a.
+    c.execute(
+        "INSERT INTO participant_history VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("ph1", "a", "ufc", "e1", avail, avail, "profile.height",
+         "70 in", 70.0, None, "fixture", url, "EXACT", 1.0),
+    )
     c.commit()
-    return c
 
 
 def event_features(c: sqlite3.Connection, event_id: str) -> dict[str, float]:
@@ -86,6 +97,8 @@ def assert_same(a: dict[str, float], b: dict[str, float]) -> None:
 def main() -> int:
     c = build_fixture()
     before = event_features(c, "e2")
+    profile_keys = [k for k in before if "profile__height" in k]
+    assert profile_keys, "PIT-safe participant profile feature was not materialized"
 
     # Mutate only data belonging to the future event e3.
     c.execute("UPDATE event_outcome SET outcome='B', score_a=0.0, score_b=1.0 WHERE event_id='e3'")
