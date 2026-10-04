@@ -69,9 +69,11 @@ def test_future_features_do_not_leak_into_anchor():
     mutated = []
     for row in rows:
         item = dict(row)
-        if row["prediction_time_utc"] != row["event_time_utc"]:
-            minute = int(row["prediction_time_utc"][14:16]) if False else 1
-            item["feature_vector"] = [999999.0, -999999.0, minute]
+        event_time = datetime.fromisoformat(row["event_time_utc"])
+        earliest_anchor = event_time - timedelta(minutes=180)
+        if datetime.fromisoformat(row["prediction_time_utc"]) > earliest_anchor:
+            # Only later snapshots are mutated; the canonical earliest anchor stays identical.
+            item["feature_vector"] = [999999.0, -999999.0, 1]
         mutated.append(item)
     b = ti.build_trajectory_cases(ti.validate_snapshots(mutated)["snapshots"], outcomes, [3600, 5400])
     ca, cb = ti.canonical_event_cases(a["cases"]), ti.canonical_event_cases(b["cases"])
