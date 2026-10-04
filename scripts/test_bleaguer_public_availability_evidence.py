@@ -40,13 +40,14 @@ def main() -> None:
     assert bound["precision"] == "DATE_ONLY"
     assert bound["latest_safe_utc"] == "2021-04-19T23:59:59Z"
     assert bound["semantics"] == "conservative_latest_possible_publication_time"
+    bound_utc = bound["latest_safe_utc"]
     assert ev["revision_evidence"]["exact_revision_sha"] == rev["revision_sha"]
     assert ev["revision_evidence"]["pit_status"] == "CANDIDATE_DATE_BOUND_NOT_YET_WIRED"
 
     # The provenance chain must be chronological and the safe bound may never
     # be earlier than either the exact revision commit or the publication date.
-    assert parse_utc(rev["revision_commit_timestamp_utc"]) <= parse_utc(bound)
-    assert parse_utc(rev["next_file_touch_timestamp_utc"]) > parse_utc(bound)
+    assert parse_utc(rev["revision_commit_timestamp_utc"]) <= parse_utc(bound_utc)
+    assert parse_utc(rev["next_file_touch_timestamp_utc"]) > parse_utc(bound_utc)
 
     source = (ROOT / "src/bleaguer_git_provenance.py").read_text(encoding="utf-8")
     assert 'def secondary_publication_bound' in source
