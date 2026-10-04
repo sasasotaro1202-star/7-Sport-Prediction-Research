@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -22,6 +23,8 @@ def bind(root: Path) -> None:
 
 
 def fixture(root: Path) -> None:
+    recent_utc = datetime.now(timezone.utc) - timedelta(hours=1)
+    recent_iso = recent_utc.isoformat().replace("+00:00", "Z")
     (root / "results").mkdir(parents=True, exist_ok=True)
     (root / "results/research").mkdir(parents=True, exist_ok=True)
     (root / "results/automation_state").mkdir(parents=True, exist_ok=True)
@@ -79,7 +82,7 @@ def fixture(root: Path) -> None:
     (root / "results/failure_memory.jsonl").write_text(
         json.dumps({
             "record_id": "run-test",
-            "recorded_at_utc": "2026-10-04T04:00:00+00:00",
+            "recorded_at_utc": recent_iso,
             "failure_class": "COLLECTION_WORKFLOW_FAILURE",
             "unknown_details_are_not_inferred": True,
         }) + "\n",
@@ -174,7 +177,7 @@ def main() -> int:
                 "databaseId": 99,
                 "status": "completed",
                 "conclusion": "failure",
-                "createdAt": "2026-10-04T09:30:00Z",
+                "createdAt": recent_iso,
                 "headSha": "new-sha",
             }
         }
