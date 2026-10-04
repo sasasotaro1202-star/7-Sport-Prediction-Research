@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "engine_version": "trajectory-intelligence-v1",
+  "status": "RESEARCH_ONLY",
+  "production_auto_promotion": false,
+  "modes": {
+    "pre_event": {
+      "rule": "prediction_time_utc < event_time_utc"
+    },
+    "in_event": {
+      "rule": "event_time_utc <= prediction_time_utc < event_end_time_utc"
+    }
+  },
+  "default_horizons_seconds": [900, 1800, 3600, 7200],
+  "require_all_horizons": true,
+  "canonical_anchor_policy": "earliest",
+  "chronological_folds": 6,
+  "minimum_training_events": 24,
+  "nearest_trajectory_k": 20,
+  "required_snapshot_fields": [
+    "event_id",
+    "event_time_utc",
+    "prediction_time_utc",
+    "source_available_at_utc",
+    "feature_vector",
+    "observed_state_vector"
+  ],
+  "outcome_contract": ["outcome", "outcome_status"],
+  "prohibited": {
+    "future_snapshot_features_as_anchor_features": true,
+    "retrieval_time_as_pit_proof": true,
+    "random_split": true,
+    "independent_snapshot_bootstrap": true,
+    "automatic_production_promotion": true,
+    "frozen_holdout_tuning": true
+  },
+  "acceptance_principle": "Future Generalization first; OOS, robustness, and frozen-holdout evidence are required before any production consideration."
+}
