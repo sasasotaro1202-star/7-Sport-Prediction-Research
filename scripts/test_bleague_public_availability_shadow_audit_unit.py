@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+import importlib.util
 import sqlite3
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.bleague_public_availability_shadow_audit import (
-    DB_STAT_NAMES,
-    audit_db,
-    stable_bleaguer_event_id,
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location(
+    "bleague_public_availability_shadow_audit",
+    ROOT / "scripts/bleague_public_availability_shadow_audit.py",
 )
+assert SPEC is not None and SPEC.loader is not None
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+
+DB_STAT_NAMES = MODULE.DB_STAT_NAMES
+audit_db = MODULE.audit_db
+stable_bleaguer_event_id = MODULE.stable_bleaguer_event_id
 
 
 def main() -> None:
