@@ -253,7 +253,7 @@ class EmpiricalTrajectoryMemory:
         q_repr = np.column_stack([(clean_query - self.med) / self.scale, missing_query.astype(float)])
         d = np.linalg.norm(self.X[idx] - np.average(self.X[idx], axis=0, weights=weights), axis=1)
         nearest = float(np.min(np.linalg.norm(self.X[idx] - q_repr[0], axis=1))) if len(idx) else None
-        similarity = float(np.exp(-float(np.median(d)) / 2.0)) if len(d) else 0.0
+        similarity = float(np.exp(-float(nearest) / 2.0)) if nearest is not None else 0.0
         support = float(min(1.0, np.sqrt(len(rows) / max(len(self.cases), 1))))
         return {
             "event_id": event_id,
