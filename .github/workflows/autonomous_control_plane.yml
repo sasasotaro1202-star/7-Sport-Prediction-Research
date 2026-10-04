@@ -45,6 +45,59 @@ jobs:
       - name: Run control-plane regression
         run: python scripts/test_autonomous_control_plane.py
 
+      - name: Snapshot current GitHub Actions state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p results/automation_state
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          workflows = [
+              "source_feasibility_audit.yml",
+              "scope_autofill.yml",
+              "production_runtime_health.yml",
+              "production_safety_audit.yml",
+              "nine_sport_lane_audit.yml",
+              "autonomous_research_sweep.yml",
+              "24h_autonomous_research.yml",
+              "pre_event_prediction.yml",
+          ]
+          output = {"generated_at_utc": None, "head_sha": os.environ.get("GITHUB_SHA", ""), "workflows": {}, "errors": {}}
+          for workflow in workflows:
+              cmd = [
+                  "gh", "run", "list", "--workflow", workflow, "--branch", "main",
+                  "--limit", "20",
+                  "--json", "databaseId,status,conclusion,createdAt,headSha,event,name",
+              ]
+              proc = subprocess.run(cmd, capture_output=True, text=True)
+              if proc.returncode != 0:
+                  output["errors"][workflow] = proc.stderr.strip() or f"exit={proc.returncode}"
+                  continue
+              try:
+                  rows = json.loads(proc.stdout or "[]")
+              except json.JSONDecodeError as exc:
+                  output["errors"][workflow] = f"INVALID_JSON:{exc}"
+                  continue
+              rows = [x for x in rows if isinstance(x, dict)]
+              rows.sort(key=lambda x: str(x.get("createdAt") or ""), reverse=True)
+              output["workflows"][workflow] = {
+                  "latest": rows[0] if rows else None,
+                  "recent": rows[:20],
+              }
+          from datetime import datetime, timezone
+          output["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
+          Path("results/automation_state/actions_snapshot.json").write_text(
+              json.dumps(output, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(output, ensure_ascii=False))
+          PY
+
       - name: Inspect current GitHub evidence
         id: control
         run: |
@@ -61,6 +114,11 @@ jobs:
             "PRODUCTION_HEARTBEAT":"pre_event_prediction.yml",
             "RESEARCH_HEALTH":"autonomous_research_sweep.yml",
             "DEEP_RESEARCH":"24h_autonomous_research.yml",
+            "SOURCE_FEASIBILITY":"source_feasibility_audit.yml",
+            "SCOPE_AUTOFILL":"scope_autofill.yml",
+            "RUNTIME_HEALTH":"production_runtime_health.yml",
+            "SAFETY_AUDIT":"production_safety_audit.yml",
+            "LANE_AUDIT":"nine_sport_lane_audit.yml",
           }
           assert selected["workflow"] == allowed[selected["action"]]
           dispatch=o.get("dispatch_action")
@@ -83,6 +141,21 @@ jobs:
         run: |
           set -euo pipefail
           case "$DISPATCH_WORKFLOW" in
+            source_feasibility_audit.yml)
+              cooldown=14400
+              ;;
+            scope_autofill.yml)
+              cooldown=21600
+              ;;
+            production_runtime_health.yml)
+              cooldown=5400
+              ;;
+            production_safety_audit.yml)
+              cooldown=14400
+              ;;
+            nine_sport_lane_audit.yml)
+              cooldown=21600
+              ;;
             autonomous_research_sweep.yml)
               cooldown=21600
               ;;
@@ -137,7 +210,8 @@ jobs:
           if git diff --quiet -- \
               results/research/autonomous_control_plane.json \
               results/research/automation_health.json \
-              results/research/research_queue.jsonl; then
+              results/research/research_queue.jsonl \
+              results/research/autonomous_action_log.jsonl; then
             echo "CONTROL_PLANE_GIT=NO_CHANGE"
             exit 0
           fi
@@ -147,7 +221,8 @@ jobs:
           git add \
             results/research/autonomous_control_plane.json \
             results/research/automation_health.json \
-            results/research/research_queue.jsonl
+            results/research/research_queue.jsonl \
+            results/research/autonomous_action_log.jsonl
           git commit -m "ops: reconcile autonomous research control plane"
 
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
