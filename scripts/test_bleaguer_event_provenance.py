@@ -10,6 +10,7 @@ from pathlib import Path
 from src.bleaguer_git_provenance import (
     apply,
     find_first_summary_provenance,
+    secondary_publication_bound,
     stable_bleaguer_event_id,
     summary_row_fingerprint,
     summary_targets_from_bytes,
@@ -63,6 +64,17 @@ def main():
     current = csv_bytes(current_rows)
     targets = summary_targets_from_bytes(current)
     assert set(targets) == {"100", "101"}
+
+    bound = secondary_publication_bound(
+        "inst/extdata/games_summary_202021.csv",
+        "42c621a5437228a4d5a796f62116bee5cc44dce2",
+    )
+    assert bound is not None
+    assert bound["public_availability_bound_utc"] == "2021-04-19T23:59:59+00:00"
+    assert secondary_publication_bound(
+        "inst/extdata/games_202021.csv",
+        "42c621a5437228a4d5a796f62116bee5cc44dce2",
+    ) is None
 
     # Event 100 is exact in the first revision.
     # Event 101 has one exact row in each revision, but never both rows together.
