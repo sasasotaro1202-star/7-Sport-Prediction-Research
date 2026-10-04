@@ -94,10 +94,23 @@ def scope_deficit(release_gate: dict | None, quality_gate: dict | None) -> tuple
     return bool(reasons), reasons
 
 
+def is_hard_stop_failure(row: dict) -> bool:
+    conclusion = str(row.get("conclusion", "")).lower()
+    if conclusion not in {"failure", "timed_out", "startup_failure"}:
+        return False
+    failure_class = str(row.get("failure_class", "")).upper()
+    workflow_name = str(row.get("workflow_name", "")).upper()
+    # Research-only/shadow failures must not freeze the autonomous research loop.
+    hard_markers = ("PRODUCTION", "DATA", "PIT_", "RECOVERY")
+    return any(marker in failure_class for marker in hard_markers) or any(
+        marker in workflow_name for marker in ("PRODUCTION", "DATA", "PIT", "RECOVERY")
+    )
+
+
 def recent_failure_count(failures: list[dict], now: datetime, hours: float = 6.0) -> int:
     count = 0
     for row in failures:
-        if str(row.get("conclusion", "")).lower() not in {"failure", "timed_out", "startup_failure"}:
+        if not is_hard_stop_failure(row):
             continue
         recorded = age_hours(row.get("recorded_at_utc"), now)
         if recorded is not None and recorded <= hours:
