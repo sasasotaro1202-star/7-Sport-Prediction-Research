@@ -61,6 +61,8 @@ def main() -> int:
     assert report["status"] == "EVALUATED"
     assert report["candidate_count"] >= 30
     assert report["stage1_ranker_candidate_count"] > 0
+    assert report["ranker_fit_rows"] == 150
+    assert report["ranker_fit_excludes_first_test_fold"] is True
     assert report["stage2_candidate_count"] > 0
     assert report["selected_model_kind"] in {"hist_gb", "extra_trees"}
     assert report["baseline_aligned_to_selected_model"]["status"] == "EVALUATED"
