@@ -66,7 +66,8 @@ def main() -> int:
     assert report["confirmation_fold_count"] == 3
     assert 0.0 <= report["confirmation_non_degraded_fraction"] <= 1.0
     assert report["stage2_candidate_count"] > 0
-    assert report["selected_model_kind"] in {"hist_gb", "extra_trees"}
+    assert report["stage2_candidate_count"] >= 4
+    assert report["selected_model_kind"] in {"hist_gb", "hist_gb_shallow", "extra_trees", "extra_trees_wide"}
     assert report["baseline_aligned_to_selected_model"]["status"] == "EVALUATED"
     assert report["selected_aligned_summary"]["status"] == "EVALUATED"
     assert report["holdout_touched"] is False
