@@ -181,12 +181,6 @@ def main() -> int:
             "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
         }
 
-    state_path = ROOT / "results/research/trajectory_system_state.json"
-    state_content = json.dumps(state, ensure_ascii=False, indent=2) + "\n"
-    old_state = state_path.read_text(encoding="utf-8") if state_path.exists() else ""
-    state_path.write_text(state_content, encoding="utf-8")
-    changed["_state_changed"] = old_state != state_content
-
     statuses = [str(v.get("evaluation_status") or "UNKNOWN") for v in state["sports"].values()]
     if any(x == "EVALUATED" for x in statuses):
         state["status"] = "READY"
@@ -194,7 +188,13 @@ def main() -> int:
         state["status"] = "INSUFFICIENT_OOS"
     else:
         state["status"] = "BLOCKED"
-    
+
+    state_path = ROOT / "results/research/trajectory_system_state.json"
+    state_content = json.dumps(state, ensure_ascii=False, indent=2) + "\n"
+    old_state = state_path.read_text(encoding="utf-8") if state_path.exists() else ""
+    state_path.write_text(state_content, encoding="utf-8")
+    changed["_state_changed"] = old_state != state_content
+
     print(json.dumps({
         "changed": changed,
         "state": state,
