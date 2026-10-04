@@ -728,8 +728,10 @@ def collect_vlr(c, h, pages):
                 x, u,
                 reference_year=retrieved_dt.year if retrieved_dt else None,
             )
+            # Status is a present-time operational state. Cached retrieval time
+            # is not the current clock and must not freeze an event in SCHEDULED.
             status = _vlr_match_status(
-                soup, event_time, retrieved_dt or datetime.now(timezone.utc)
+                soup, event_time, datetime.now(timezone.utc)
             )
             competition_id = _vlr_event_competition_id(soup, u)
             season = _vlr_year_hint(
