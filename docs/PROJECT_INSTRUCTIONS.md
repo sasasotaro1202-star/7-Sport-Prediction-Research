@@ -70,3 +70,7 @@ Automatic production scheduling is T-60-centered for the five active sports and 
 
 ## Loop
 MONITOR → DETECT → TRIAGE → RESEARCH → IMPLEMENT → TEST → PIT → PATTERN_SCREEN → OOS/WFO → CALIBRATION → ROBUSTNESS → HOLDOUT → ADOPT/HOLD/REJECT → RELEASE → PRODUCTION → RECONCILE → FAILURE ANALYSIS → MEMORY → NEXT RESEARCH.
+
+
+### Pattern-search meta-leakage firewall
+Outcome-aware ranking (correlation/MI/tree importance) must be fit only on the first chronological training window before pattern-validation folds. It must not inspect labels from its own validation folds or later OOS/frozen holdout. Pattern selection remains research-only until downstream OOS, robustness, calibration and frozen-holdout gates pass.
