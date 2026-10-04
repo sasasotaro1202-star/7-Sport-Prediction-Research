@@ -167,6 +167,22 @@ Primary research families: fighter strength/form, opponent-adjusted history, fig
 ### Tennis / F1 / Rugby / Boxing
 The same pattern-search contract applies when these lanes become PIT-valid. Sport-specific semantics remain mandatory; deferred status is not bypassed merely because candidate feature data exists.
 
+### Exhaustive pattern search contract
+
+The same structured search applies to all nine sports:
+VALORANT, Basketball, Volleyball, Tennis, UFC, RIZIN, F1, Rugby and Boxing.
+
+The current research budget is up to 1,024 structured candidates per sport before downstream OOS.
+Candidate dimensions include family subsets (1–4), leave-one-family-out controls, fine-grained statistic blocks,
+A/B/D representations, signed/absolute/relative/ratio representations, short/medium/long history,
+mean/median/quantile/last/trend/EWMA/dispersion summaries, profile/roster/availability/matchday/quality toggles,
+interaction variants, sparse-vs-rich feature sets, and outcome-aware feature ranking using absolute correlation,
+mutual information, ExtraTrees importance, ranker unions/intersections, and family-balanced selection.
+
+Outcome-aware ranking is performed only inside the early pattern-selection prefix. Later chronological OOS and frozen
+holdout rows are excluded from pattern selection. Pattern winners are research candidates only; source PIT,
+identity, coverage, calibration, robustness, holdout and release gates remain mandatory.
+
 ## Feature selection
 The feature-pattern optimizer evaluates multiple family combinations on pre-holdout chronological windows and records:
 - candidate family composition
