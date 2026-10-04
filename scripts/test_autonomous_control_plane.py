@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import os
 import sys
@@ -142,8 +143,12 @@ def main() -> int:
         assert dispatch["automatic_promotion"] is False
 
         first = cp.write_state(state, selected, dispatch)
-        same_evidence_new_sha = dict(state)
+        same_evidence_new_sha = copy.deepcopy(state)
         same_evidence_new_sha["head_sha"] = "next-sha"
+        original_runtime_age = same_evidence_new_sha["actions"]["runtime_health"]["age_hours"]
+        same_evidence_new_sha["actions"]["runtime_health"]["age_hours"] = (
+            original_runtime_age + 0.1 if original_runtime_age is not None else 0.1
+        )
         selected_next, dispatch_next = cp.choose_actions(same_evidence_new_sha)
         second = cp.write_state(same_evidence_new_sha, selected_next, dispatch_next)
 
