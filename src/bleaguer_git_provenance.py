@@ -318,11 +318,14 @@ def prove_path(path: str) -> dict[str, Any]:
         if remaining_events:
             matched = match_summary_revision(b, event_targets, remaining_events)
             for schedule_key in matched:
+                bound = secondary_publication_bound(path, sha)
                 event_provenance[schedule_key] = {
                     "schedule_key": schedule_key,
                     "provenance_commit_sha": sha,
                     "commit_timestamp_utc": iso(commit_date),
-                    "publication_status": "UNPROVEN",
+                    "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if bound else "UNPROVEN",
+                    "public_availability_bound_utc": bound["public_availability_bound_utc"] if bound else None,
+                    "publication_evidence": bound if bound else None,
                     "content_hash": sha256_bytes(b),
                     "matched_team_ids": sorted(event_targets[schedule_key]),
                     "pinned_source_url": pinned_raw_url(path, sha),
@@ -343,12 +346,15 @@ def prove_path(path: str) -> dict[str, Any]:
     }
     if matches:
         earliest_sha, earliest_date = sorted(matches, key=lambda x: x[1])[0]
+        bound = secondary_publication_bound(path, earliest_sha)
         result.update({
             "provenance_commit_sha": earliest_sha,
             "commit_timestamp_utc": iso(earliest_date),
             "repository": f"{OWNER}/{REPO}",
             "branch": BRANCH,
-            "publication_status": "UNPROVEN",
+            "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if bound else "UNPROVEN",
+            "public_availability_bound_utc": bound["public_availability_bound_utc"] if bound else None,
+            "publication_evidence": bound if bound else None,
         })
     else:
         result["reason"] = "no historical GitHub commit with identical bytes was found"
