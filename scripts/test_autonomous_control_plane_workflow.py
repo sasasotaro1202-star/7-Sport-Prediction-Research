@@ -24,6 +24,9 @@ def main() -> int:
     assert "PIT History Expansion" in text
     assert "Production Failure Recovery" in text
     assert "github.event.workflow_run.conclusion == 'failure'" in text
+    assert "CONTROL_PLANE_EVENT_WORKFLOW" in text
+    assert "CONTROL_PLANE_EVENT_CONCLUSION" in text
+    assert "CONTROL_PLANE_EVENT_HEAD_SHA" in text
 
     persist_block = text[persist:dispatch]
     dispatch_block = text[dispatch:final]
