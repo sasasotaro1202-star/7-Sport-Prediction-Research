@@ -783,6 +783,8 @@ def write_state(
                 "main_sha_recheck_required_before_push": True,
                 "actions_snapshot_is_provenance_input": True,
                 "automatic_dispatch_is_bounded_and_allowlisted": True,
+                "state_fingerprint_excludes_invocation_sha": True,
+                "action_log_appends_only_on_decision_change": True,
             },
         }
         CONTROL_OUT.write_text(json.dumps(control, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
