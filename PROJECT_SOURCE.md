@@ -1137,6 +1137,35 @@ recent failureが存在する場合、観測済みfailureをroot-cause research�
 
 Failure Recoveryのownershipは変更しない。Production Failure Recoveryはworkflow_runとしてretry/fresh-current-main recoveryを担当し、control planeはその結果を研究priorityへ反映するだけとする。
 
+=== EVENT-TRIGGERED CURRENT-MAIN RECONCILIATION ===
+
+workflow_run failure event受信時も、まずremote main SHAを解決し、そのcurrent mainをcheckoutしてからcontrol planeを評価する。
+
+event_head_sha == current_main
+または
+event_head_shaがcurrent mainのverified ancestor
+の場合のみevent failureをRESEARCH_HEALTH signalとして扱う。
+
+ancestor判定はGitHub compare APIのaheadを利用し、diverged/behind/unknownはfail-closed。
+scheduled/manual runは従来どおりgithub.sha == current mainを要求する。
+
+Failure Memoryが先にmainを進めた場合でも、triggering failure eventを失わず、current main上で安全にresearchへ接続する。
+automatic model promotion、PIT bypass、holdout tuningは変更しない。
+
+
+Failure Memoryは単なる保存先ではなく、次researchのevidence inputとして扱う。
+
+control planeは毎cycle、append-only failure_memory.jsonlを読み、
+* recent_24h
+* recent_7d
+* failure_class
+* latest failure
+を監査する。
+
+recent failureが存在する場合、観測済みfailureをroot-cause researchへ変換するRESEARCH_HEALTH candidateをpriorityへ追加する。これはproduction retryやpromotionではない。
+
+Failure Recoveryのownershipは変更しない。Production Failure Recoveryはworkflow_runとしてretry/fresh-current-main recoveryを担当し、control planeはその結果を研究priorityへ反映するだけとする。
+
 Actions evidenceはdispatch allowlistとmonitor-only workflowを分離する。production、PIT History Expansion、Production Failure Recovery、Production Watchdog、Production Invariants、Lightweight Regressionは監視対象だが、自動dispatch許可対象ではない。
 
 JSONL破損、timestamp不正、memory欠損はUNKNOWN/DEGRADEDとして記録し、failure件数を0に偽装しない。
