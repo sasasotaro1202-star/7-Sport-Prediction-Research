@@ -1237,6 +1237,7 @@ opponent-adjusted record、inactivity、result-method historyを候補化する�
 7. 平均LogLossだけでなく、Brier、ECE、latest/worst fold、recent period、regime、
    data coverage、PIT coverage、OOD、uncertainty、source dependence、compute costを比較する。
 8. 同程度の性能なら、複雑度、feature数、source依存、欠損依存が少なく安定したpatternを優先する。
+9. Stage 2でtree系modelが勝者になった場合、pattern benefitのpaired比較も同じmodel familyのbaselineで計算し、model family mismatchによる誤った改善判定を禁止する。
 9. pattern screenの勝者はADOPTED/PRODUCTIONではない。downstream OOS/WFO、calibration、
    robustness、frozen holdout、release gateを必ず通過する。
 10. negative resultをResearch Memoryへ保存し、同じ失敗patternを無限に再探索しない。
