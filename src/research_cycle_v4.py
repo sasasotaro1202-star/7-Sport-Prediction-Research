@@ -314,9 +314,11 @@ def _make_entity_history_loader(c,s):
   for attr,vnum,vtext,eff,source,url,obs,quality in load(pid):
    try:
     eff_dt=datetime.fromisoformat(str(eff).replace('Z','+00:00'))
+    obs_dt=datetime.fromisoformat(str(obs).replace('Z','+00:00')) if obs else None
    except Exception:
     continue
    if eff_dt>=event_dt or eff_dt>cutoff:continue
+   if obs_dt is None or obs_dt>cutoff:continue
    if not exact_available(source,url,cutoff):continue
    attr_n=re.sub(r'[^a-z0-9_]+','_',str(attr or '').lower()).strip('_')
    if not attr_n:continue
@@ -360,7 +362,7 @@ def _make_team_history_loader(c,s):
   key=str(tid)
   if key in cache:return cache[key]
   try:
-   rows=c.execute("""SELECT attribute,value_num,value_text,effective_at_utc,source,source_url
+   rows=c.execute("""SELECT attribute,value_num,value_text,effective_at_utc,source,source_url,observed_at_utc
                       FROM team_history
                      WHERE sport=? AND team_id=?
                        AND effective_at_utc IS NOT NULL""",(s,key)).fetchall()
@@ -383,10 +385,14 @@ def _make_team_history_loader(c,s):
  def snapshot(tid,event_time,cutoff):
   event_dt=datetime.fromisoformat(str(event_time).replace('Z','+00:00'))
   candidates={}
-  for attr,vnum,vtext,eff,source,url in load(tid):
-   try: eff_dt=datetime.fromisoformat(str(eff).replace('Z','+00:00'))
-   except Exception: continue
+  for attr,vnum,vtext,eff,source,url,obs in load(tid):
+   try:
+    eff_dt=datetime.fromisoformat(str(eff).replace('Z','+00:00'))
+    obs_dt=datetime.fromisoformat(str(obs).replace('Z','+00:00')) if obs else None
+   except Exception:
+    continue
    if eff_dt>=event_dt or eff_dt>cutoff: continue
+   if obs_dt is None or obs_dt>cutoff: continue
    if not exact_available(source,url,cutoff): continue
    attr_n=re.sub(r'[^a-z0-9_]+','_',str(attr or '').lower()).strip('_')
    if not attr_n: continue
