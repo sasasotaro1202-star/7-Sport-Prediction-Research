@@ -58,6 +58,8 @@ def validate_snapshot(row: Mapping[str, Any], mode: str = "pre_event") -> dict[s
             raise PITValidationError("PREDICTION_OUTSIDE_EVENT_WINDOW")
     return {
         "event_id": event_id,
+        "sport": str(row.get("sport") or ""),
+        "competition_id": str(row.get("competition_id") or "") or None,
         "event_time": event_time,
         "prediction_time": prediction_time,
         "available_at": available_at,
@@ -95,6 +97,7 @@ class TrajectoryCase:
     event_id: str
     event_time: datetime
     anchor_time: datetime
+    scope_key: str | None
     anchor_features: np.ndarray
     horizons_seconds: tuple[int, ...]
     future_states: tuple[np.ndarray, ...]
@@ -138,6 +141,7 @@ def build_trajectory_cases(
                     event_id,
                     anchor["event_time"],
                     anchor["prediction_time"],
+                    str(anchor.get("competition_id") or "") or None,
                     anchor["feature_vector"].copy(),
                     horizons,
                     tuple(future),
