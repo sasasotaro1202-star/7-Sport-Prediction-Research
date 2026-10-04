@@ -448,8 +448,8 @@ def main():
     require('__elo_momentum' in research_base and '__h2h_winrate_5' in research_base,'research features lack rating-momentum/head-to-head signals')
     require('__recent_margin_mean_5' in research_base and '__recent_margin_delta' in research_base,
             'research features lack score-margin strength signals')
-    require('strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features' in strict_src,
-            'strict model feature version was not bumped to v19 after PIT-safe H2H interaction semantics changed')
+    require('strict-pit-v22-rich-patterns-nested-pattern-screen' in strict_src,
+            'strict model feature version is not aligned with the current PIT-safe nested pattern-screen schema')
     carry_fn_start=strict_src.find('def _carry_forward_previous')
     carry_fn_end=strict_src.find('def ', carry_fn_start+5) if carry_fn_start>=0 else -1
     carry_fn=strict_src[carry_fn_start:carry_fn_end] if carry_fn_start>=0 and carry_fn_end>carry_fn_start else ''
