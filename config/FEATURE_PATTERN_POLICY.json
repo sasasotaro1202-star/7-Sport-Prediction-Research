@@ -181,7 +181,10 @@
       "multi_prefix_rank_stability",
       "ranker_consensus",
       "leave_one_family_out_negative_controls"
-    ]
+    ],
+    "nested_confirmation": true,
+    "confirmation_folds": 3,
+    "multiple_comparison_control": "nested inner confirmation plus downstream chronological OOS; no holdout tuning"
   },
   "search_space": {
     "stages": [
@@ -235,9 +238,12 @@
         "selection_checks": [
           "ranker_agreement",
           "multi_prefix_stability",
+          "nested_inner_confirmation",
           "leave_one_family_out_control",
           "complexity_and_source_dependence"
-        ]
+        ],
+        "minimum_confirmation_folds": 3,
+        "confirmation_policy": "later inner folds within the pre-holdout prefix; never the downstream OOS or frozen holdout"
       }
     ],
     "structured_dimensions": [
