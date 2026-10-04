@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-10-04T19:23:49.435081+00:00",
-  "source_git_commit_sha": "fadb977661c61e25f2aa42dc4bf50941e3acabd6",
+  "generated_at_utc": "2026-10-04T23:33:56.078569+00:00",
+  "source_git_commit_sha": "008930218e07f3bcce6f5cfd41c0b7be1c123ef8",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -17,7 +17,7 @@
   "event_counts": {
     "valorant": 9566,
     "basketball": 96,
-    "volleyball": 21230,
+    "volleyball": 21231,
     "tennis": 0,
     "ufc": 9513,
     "rizin": 1252,
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 324653056,
-      "sha256": "17b37c8eb704672cc100d1078d916d6b27427685b37c70ffa887acaad0820d1a"
+      "bytes": 324767744,
+      "sha256": "b8b63e1702b87532f393a96e1ac6dc3cd35fbdc8d577dfc76a347d1069851d6c"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -58,13 +58,13 @@
       "path": "results/quality_gate.json",
       "exists": true,
       "bytes": 3761,
-      "sha256": "bf61fee6ab5ab4ed9c4ec0b630f073694634d92deb160920acb0064c78aa108c"
+      "sha256": "edd38b11872384a13741eaeedbb99bc6783be6aa97923ce5f57b8eaab6519f08"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
       "bytes": 4388,
-      "sha256": "f2088036c7d653455aef75c0a74d0efd59f541a579c69daa745143e4cdfacc2b"
+      "sha256": "4ea42fc913a98978ac75d20d1b0b72f4b38bea40ce2184e3766bfc448a7a4c4d"
     },
     {
       "path": "results/pit_replay.json",
@@ -113,38 +113,38 @@
     {
       "path": "results/research/competition_routes.json",
       "exists": true,
-      "bytes": 495021,
-      "sha256": "83ab41c82d90d23e20d20c6d54d41da55df4a3a7505cf9dc2b74e39fd31f0c22"
+      "bytes": 495076,
+      "sha256": "916aa1d08ed80b0a235374b07d735b87185cb3d10ed03ed4d6d5b5182b67c607"
     },
     {
       "path": "results/research/dual_learning_cycle.json",
       "exists": true,
       "bytes": 1460,
-      "sha256": "5961ff30e0c573c26619d6f009352794024e2cd44a156b2797efc2e516287451"
+      "sha256": "83419e9b79d951ddf07c21ff2fc66784c7be2a503a9ceef078fc5a4ca8e93bbc"
     },
     {
       "path": "results/research/dual_learning_logs/experience_learning.log",
       "exists": true,
       "bytes": 178,
-      "sha256": "e14a8bbc99a348ba9db0f36da78fcd6a195eb441e80827f9beef0c0e41e39562"
+      "sha256": "a2d744f2d76e8a2831cc9c1c1a9332d710b0cfeafc9b730c21e7ca2c94f62f2b"
     },
     {
       "path": "results/research/dual_learning_logs/historical_research.log",
       "exists": true,
-      "bytes": 513494,
-      "sha256": "6aa96f487e7185018395c402ee7d9b3050dbef24466540f17982f7eb0b1d2859"
+      "bytes": 512226,
+      "sha256": "5bb959a3f557fd9a67158960c569b03d835dce409261746fe2be487cb3e1b351"
     },
     {
       "path": "results/research/experience_learning.json",
       "exists": true,
       "bytes": 1332,
-      "sha256": "b6ef0d197c1cb46b8af17c4cbca2589e8d3102d77d5aa4e97abe93c4bb414e5a"
+      "sha256": "89d369c2d1f4c3d0eeb896bc7a4f11b0bd665ea0b083be2c2f11d01f429b1566"
     },
     {
       "path": "results/research/experience_research_candidates.json",
       "exists": true,
       "bytes": 582,
-      "sha256": "84448900b398626cdce3eb4b41a881b126d309d70ff88d2a8efc7b46e99de4e8"
+      "sha256": "28cfb814d70f2a41fafa933baddf99178a48938e8e2671fac294afbace180640"
     },
     {
       "path": "results/research/f1.json",
@@ -156,7 +156,7 @@
       "path": "results/research/production_route_observability.json",
       "exists": true,
       "bytes": 2721,
-      "sha256": "dbd1f91cefb95a942bb57691f2469cef4e6a99c5d5fb4c14007c7fa96b931adc"
+      "sha256": "41aef8e9832d78ee333e41241d652d4ff3ba629b72fb7aff33eec5a8bd499157"
     },
     {
       "path": "results/research/rizin.json",
@@ -185,8 +185,8 @@
     {
       "path": "results/research/ufc.json",
       "exists": true,
-      "bytes": 469969,
-      "sha256": "3af849bef67576174b9fa58ca355eee784e84dad5d2e216ed60366c6a19901ca"
+      "bytes": 468701,
+      "sha256": "1c1e3c881830822a9b525b2590222eff3a5b90c150c2b3cfe32cf01503c3fc2d"
     },
     {
       "path": "results/research/ufc_frozen_holdout.json",
@@ -197,14 +197,14 @@
     {
       "path": "results/research/ufc_ultimate_intelligence.json",
       "exists": true,
-      "bytes": 13074,
-      "sha256": "d6df9eac8b8ea710197d739b3de4f7049b91fed21d85d2ecb49f3ab125b53540"
+      "bytes": 13081,
+      "sha256": "7f119573eacdd9bad54efbb7a80c6556543c3e3b156e12b077d7c237c19ff48a"
     },
     {
       "path": "results/research/ufc_ultimate_v13.json",
       "exists": true,
-      "bytes": 383269,
-      "sha256": "e479599324d8f7110865d36c4c0d9586a3f9729f59977dad9513bb01dc3d2096"
+      "bytes": 382009,
+      "sha256": "c0b33a1c53bc67dbebc0438ebc8bda9b37f88f4dd3cfdaccb29d537448968202"
     },
     {
       "path": "results/research/valorant.json",
@@ -246,7 +246,7 @@
       "path": "models/research/ufc_current.joblib",
       "exists": true,
       "bytes": 740169,
-      "sha256": "c436ebc8a7c295bf7eb1c7919c2fdc2f8c7c7ce6fc5b8f408806cf84ff3d3717"
+      "sha256": "3d3eb12cf75b4b912e4f39ffe66517a57112703655093217c76ba1e8a8d2e4ab"
     },
     {
       "path": "models/research/valorant_current.joblib",
