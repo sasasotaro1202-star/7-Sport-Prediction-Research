@@ -1134,3 +1134,18 @@ Failure Recoveryのownershipは変更しない。Production Failure Recoveryはw
 Actions evidenceはdispatch allowlistとmonitor-only workflowを分離する。production、PIT History Expansion、Production Failure Recovery、Production Watchdog、Production Invariants、Lightweight Regressionは監視対象だが、自動dispatch許可対象ではない。
 
 JSONL破損、timestamp不正、memory欠損はUNKNOWN/DEGRADEDとして記録し、failure件数を0に偽装しない。
+
+=== EVENT-DRIVEN FAILURE TRIAGE ===
+
+自動control planeは3時間cronだけを待たず、Production、PIT History Expansion、Production Failure Recoveryのcompleted failure eventを直接受ける。
+
+failure / timed_out / startup_failure / cancelled:
+→ current-main SHA確認
+→ Failure Memory存在確認
+→ 未記録でもActionsのobserved failureをresearch signal化
+→ bounded RESEARCH_HEALTH dispatch
+→ Production Failure Recoveryのretry ownershipは変更しない。
+
+current main以外のSHAで終了したrunは、この経路からfresh regressionとして扱わない。stale-SHA guard failureはrecovery/ordering evidenceとして保持し、誤った性能劣化と混同しない。
+
+success eventはfailure-triggered triageを起動しない。automatic model promotion、PIT bypass、holdout tuningは引き続き禁止。
