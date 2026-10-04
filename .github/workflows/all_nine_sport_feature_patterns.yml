@@ -5,6 +5,8 @@ on:
     paths:
       - "src/feature_pattern_optimizer.py"
       - "src/research_cycle_v4.py"
+      - "src/public_history_backfill.py"
+      - "src/valorant_git_provenance.py"
       - "config/FEATURE_PATTERN_POLICY.json"
       - "scripts/test_feature_pattern_optimizer_all_sports.py"
       - ".github/workflows/all_nine_sport_feature_patterns.yml"
