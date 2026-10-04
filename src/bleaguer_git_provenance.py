@@ -360,16 +360,25 @@ def prove_path(path: str) -> dict[str, Any]:
         "event_provenance_unresolved": len(remaining_events),
     }
     if matches:
-        earliest_sha, earliest_date = sorted(matches, key=lambda x: x[1])[0]
-        bound = secondary_publication_bound(path, earliest_sha)
+        ordered_matches = sorted(matches, key=lambda x: x[1])
+        evidenced = [
+            (sha, date, secondary_publication_bound(path, sha))
+            for sha, date in ordered_matches
+        ]
+        preferred_sha, preferred_date = ordered_matches[0]
+        preferred_bound = None
+        for sha, date, bound in evidenced:
+            if bound:
+                preferred_sha, preferred_date, preferred_bound = sha, date, bound
+                break
         result.update({
-            "provenance_commit_sha": earliest_sha,
-            "commit_timestamp_utc": iso(earliest_date),
+            "provenance_commit_sha": preferred_sha,
+            "commit_timestamp_utc": iso(preferred_date),
             "repository": f"{OWNER}/{REPO}",
             "branch": BRANCH,
-            "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if bound else "UNPROVEN",
-            "public_availability_bound_utc": bound["public_availability_bound_utc"] if bound else None,
-            "publication_evidence": bound if bound else None,
+            "publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND" if preferred_bound else "UNPROVEN",
+            "public_availability_bound_utc": preferred_bound["public_availability_bound_utc"] if preferred_bound else None,
+            "publication_evidence": preferred_bound if preferred_bound else None,
         })
     else:
         result["reason"] = "no historical GitHub commit with identical bytes was found"
