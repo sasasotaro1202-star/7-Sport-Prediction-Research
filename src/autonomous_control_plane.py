@@ -836,7 +836,8 @@ def state_fingerprint(
                 "relation_to_current_main",
             )
         },
-        "failure_memory": state.get("failure_memory"),        "dual_learning": dual,
+        "failure_memory": state.get("failure_memory"),
+        "dual_learning": dual,
         "selected": {
             "action": selected["action"],
             "workflow": selected["workflow"],
