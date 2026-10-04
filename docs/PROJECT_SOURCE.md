@@ -1229,6 +1229,7 @@ opponent-adjusted record、inactivity、result-method historyを候補化する�
 1. 全特徴投入をdefault bestとしない。
 2. 任意の巨大powersetを無制限に総当たりせず、意味のあるstructured patternを可能な限り広く探索する。
 3. family subsetsだけでなく、fine-grained statistic blocks、representation、history depth、
+   familyごとに異なるrepresentationを持つheterogeneous combinations
    profile/roster/matchday/qualityのon/off、interactionのon/off、negative controlsを比較する。
 4. pattern selectionは早いnon-holdout prefixで行い、その後のchronological OOS評価期間を再利用しない。
 5. Stage 1で広範囲screen、Stage 2で複数model familyによる再評価、Stage 3で通常のmodel/ensemble/router OOSへ接続する。
