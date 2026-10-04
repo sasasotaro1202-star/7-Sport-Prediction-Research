@@ -96,6 +96,40 @@ Registry、PIT検証、データ可用性、OOS、robustness、holdout、product
 既存Workflowの存在自体を成功条件にしない。
 各Workflowが実際に正しいデータ、正しいPIT、正しい評価、artifact保存、失敗処理を実行しているかを検証する。
 
+2A. GITHUB-SIDE AUTONOMOUS NEXT-ACTION CONTROL
+
+The repository contains `.github/workflows/autonomous_next_action_controller.yml` as the bounded GitHub-side orchestration layer.
+
+It runs hourly and by manual dispatch.
+
+Before dispatching anything it must:
+
+* verify that the workflow is operating on the current `main` SHA
+* verify that the canonical active scope is exactly basketball/volleyball/ufc/rizin/valorant
+* treat release/quality reports as untrusted when their Git commit age exceeds the freshness window
+* stop dispatching after three recent recorded production/data failures
+* inspect active/recent runs for the same current-main SHA
+* dispatch at most one already-existing research workflow inside the cooldown window
+
+Decision policy:
+
+* fresh active-scope/PIT/model coverage deficits → `scope_autofill.yml`
+* otherwise → `autonomous_research_sweep.yml`
+
+The controller is not a promotion engine.
+It must never mutate:
+
+* prediction targets
+* canonical scope
+* timing policy
+* model artifacts
+* OOS/frozen-holdout evidence
+* production release gates
+
+A successful controller run proves only that the next research workflow was selected/dispatch-verified; it does not prove research success, OOS improvement, production approval, or model adoption.
+
+⸻
+
 ⸻
 
 3. SPORT REGISTRY
