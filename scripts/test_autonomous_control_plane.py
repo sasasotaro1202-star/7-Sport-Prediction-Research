@@ -115,7 +115,25 @@ def fixture(root: Path) -> None:
     cp.ACTIONS_SNAPSHOT.write_text(json.dumps({"workflows": workflows, "errors": {}}), encoding="utf-8")
 
 
+def test_action_health_rejects_old_sha() -> None:
+    workflows = {
+        "production_safety_audit.yml": {
+            "latest": {
+                "databaseId": 99,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": "2099-01-01T00:00:00Z",
+                "headSha": "old-sha",
+            }
+        }
+    }
+    health = cp.action_health(workflows, "production_safety_audit.yml", 4.5, current_main_sha="current-sha")
+    assert health["status"] == "STALE"
+    assert health["stale"] is True
+
+
 def main() -> int:
+    test_action_health_rejects_old_sha()
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         bind(root)
