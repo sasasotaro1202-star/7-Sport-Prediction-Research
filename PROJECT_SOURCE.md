@@ -1122,6 +1122,10 @@ Actions health evidence is valid only when the latest observed run `headSha` mat
 
 SHA mismatch is separate from workflow failure. The health payload records both `head_sha` and `current_main_sha`, plus an explicit `sha_match` field when both are verifiable.
 
+=== CONTROL-PLANE NO-CHURN PERSISTENCE ===
+
+The control-plane evidence fingerprint excludes the invocation SHA and volatile Actions `age_hours`. State changes remain sensitive to meaningful evidence transitions such as workflow status, head SHA, conclusion, run ID, release/quality data, failure memory, route state, and research decisions. Queue fingerprints include the stable state fingerprint so repeated observations of the same decision are deduplicated, and the action log appends only when that fingerprint changes or the log is missing.
+
 === FAILURE-MEMORY-AWARE CONTROL PLANE ===
 
 Failure Memoryは単なる保存先ではなく、次researchのevidence inputとして扱う。
