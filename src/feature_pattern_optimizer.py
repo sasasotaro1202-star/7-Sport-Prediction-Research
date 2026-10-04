@@ -98,11 +98,106 @@ def classify_feature(name: str) -> str:
     return "data_quality"
 
 
-def feature_subgroup(name: str) -> str:
+SPORT_FEATURE_FAMILY_TOKENS = {
+    "valorant": {
+        "performance_history": ("rating", "acs", "adr", "kast", "kills", "deaths", "assists", "headshot", "first_kill", "clutch", "rounds", "map_", "mapwin"),
+        "form_load": ("recent_maps", "recent_series", "map_form", "series_form", "recent_rounds"),
+        "entity_profile": ("player_profile", "role", "agent_pool"),
+        "team_roster_context": ("roster_change", "lineup", "starter", "player_change"),
+        "competition_context": ("patch", "map_pool", "bo1", "bo3", "bo5", "series_format", "event_stage"),
+        "matchday_intelligence": ("matchday", "late_roster", "late_update", "standin", "stand_in"),
+    },
+    "basketball": {
+        "performance_history": ("points", "rebounds", "assists", "steals", "blocks", "turnovers", "fg%", "3pt", "threepoint", "freethrow", "true_shooting", "pace", "offensive_rating", "defensive_rating"),
+        "form_load": ("recent_game", "recent_points", "recent_margin", "rest_days", "schedule_load", "games_last_"),
+        "entity_profile": ("player_profile", "height", "position", "role"),
+        "team_roster_context": ("roster", "starter", "rotation", "lineup", "availability"),
+        "competition_context": ("league", "season", "stage", "round", "conference", "playoffs", "tipoff", "venue"),
+        "matchday_intelligence": ("injury", "suspension", "inactive", "late_lineup", "travel"),
+    },
+    "volleyball": {
+        "performance_history": ("attack", "serve", "receive", "block", "sideout", "ace", "kill", "error", "set_point", "sets_"),
+        "form_load": ("recent_sets", "recent_points", "rest_days", "schedule_load", "games_last_"),
+        "entity_profile": ("player_profile", "height", "position", "setter", "libero", "opposite"),
+        "team_roster_context": ("roster", "starter", "rotation", "lineup", "availability"),
+        "competition_context": ("league", "season", "stage", "round", "set_format", "venue"),
+        "matchday_intelligence": ("injury", "suspension", "inactive", "late_lineup", "travel"),
+    },
+    "tennis": {
+        "performance_history": ("aces", "double_fault", "first_serve", "second_serve", "break_point", "hold_rate", "return", "winners", "unforced_error", "tiebreak"),
+        "form_load": ("recent_matches", "recent_games", "recent_set", "rest_days", "inactivity"),
+        "entity_profile": ("player_profile", "handedness", "height", "age"),
+        "competition_context": ("surface", "tournament", "round", "best_of", "grand_slam", "indoor", "outdoor"),
+        "matchday_intelligence": ("injury", "withdrawal", "weather", "wind", "late_update"),
+    },
+    "ufc": {
+        "performance_history": ("sig_str", "takedown", "td_", "sub_attempt", "control_time", "knockdown", "strike", "submission", "clinch"),
+        "form_load": ("recent_fight", "win_streak", "loss_streak", "rest_days", "inactivity", "layoff"),
+        "entity_profile": ("height", "reach", "weight", "stance", "dob", "age"),
+        "competition_context": ("weight_class", "rounds", "rule", "five_round", "three_round", "event_type"),
+        "matchday_intelligence": ("replacement", "late_change", "injury", "weight_miss", "medical"),
+    },
+    "rizin": {
+        "performance_history": ("sig_str", "takedown", "td_", "sub_attempt", "control_time", "knockdown", "strike", "submission", "clinch"),
+        "form_load": ("recent_fight", "win_streak", "loss_streak", "rest_days", "inactivity", "layoff"),
+        "entity_profile": ("height", "reach", "weight", "stance", "dob", "age"),
+        "competition_context": ("weight_class", "rounds", "rule", "contract_weight", "event_type"),
+        "matchday_intelligence": ("replacement", "late_change", "injury", "weight_miss", "medical"),
+    },
+    "f1": {
+        "performance_history": ("lap_time", "race_pace", "sector", "fastest_lap", "pit_stop", "stint", "tyre", "tire", "overtake", "position"),
+        "form_load": ("recent_race", "recent_lap", "race_form", "rest_days"),
+        "entity_profile": ("driver_profile", "driver", "constructor", "team_profile"),
+        "competition_context": ("qualifying", "grid", "sprint", "race", "circuit", "grand_prix", "session"),
+        "matchday_intelligence": ("weather", "rain", "wind", "track_temperature", "grid_change", "penalty"),
+    },
+    "rugby": {
+        "performance_history": ("tries", "conversion", "tackle", "meters", "possession", "ruck", "scrum", "lineout", "turnover", "penalty", "points"),
+        "form_load": ("recent_match", "recent_points", "recent_margin", "rest_days", "travel"),
+        "entity_profile": ("player_profile", "position", "height", "weight"),
+        "team_roster_context": ("roster", "starter", "lineup", "availability", "selection"),
+        "competition_context": ("league", "season", "stage", "round", "six_nations", "world_cup", "venue"),
+        "matchday_intelligence": ("injury", "suspension", "late_selection", "weather", "travel"),
+    },
+    "boxing": {
+        "performance_history": ("jabs", "power_punch", "punch", "knockdown", "landed", "attempted", "strike", "result_method"),
+        "form_load": ("recent_fight", "win_streak", "loss_streak", "rest_days", "inactivity", "layoff"),
+        "entity_profile": ("height", "reach", "weight", "stance", "dob", "age"),
+        "competition_context": ("weight_class", "rounds", "bout", "title_fight", "venue"),
+        "matchday_intelligence": ("replacement", "late_change", "injury", "weight_miss", "medical"),
+    },
+}
+
+
+def classify_feature_for_sport(name: str, sport: str) -> str:
+    """Sport-specific semantic classification with generic fallback."""
+    n = re.sub(r"^(?:a|b|d|ad|m|r|q)__", "", str(name or "").lower())
+    rules = SPORT_FEATURE_FAMILY_TOKENS.get(str(sport).lower(), {})
+    # Interaction signals always remain interactions.
+    if "_x_" in n or "interaction" in n:
+        return "interaction"
+    # Prefer explicit quality/matchday markers before sport-specific performance.
+    if any(k in n for k in QUALITY_TOKENS):
+        return "data_quality"
+    for family in (
+        "matchday_intelligence",
+        "competition_context",
+        "entity_profile",
+        "team_roster_context",
+        "performance_history",
+        "form_load",
+    ):
+        tokens = rules.get(family, ())
+        if any(k in n for k in tokens):
+            return family
+    return classify_feature(name)
+
+
+def feature_subgroup(name: str, sport: str | None = None) -> str:
     """Return a deterministic fine-grained block used to build structured patterns."""
     n = str(name or "")
     low = n.lower()
-    family = classify_feature(n)
+    family = classify_feature_for_sport(n, sport) if sport else classify_feature(n)
     if family == "performance_history":
         # Prefer the underlying statistic identity over a summary suffix.
         base = low
@@ -136,17 +231,18 @@ def feature_subgroup(name: str) -> str:
     return f"{family}:all"
 
 
-def family_members(feature_names: Iterable[str]) -> dict[str, list[str]]:
+def family_members(feature_names: Iterable[str], sport: str | None = None) -> dict[str, list[str]]:
     out = {k: [] for k in FAMILY_ORDER}
     for name in feature_names:
-        out.setdefault(classify_feature(name), []).append(str(name))
+        family = classify_feature_for_sport(name, sport) if sport else classify_feature(name)
+        out.setdefault(family, []).append(str(name))
     return out
 
 
-def subgroup_members(feature_names: Iterable[str]) -> dict[str, list[str]]:
+def subgroup_members(feature_names: Iterable[str], sport: str | None = None) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for name in feature_names:
-        out.setdefault(feature_subgroup(name), []).append(str(name))
+        out.setdefault(feature_subgroup(name, sport), []).append(str(name))
     return out
 
 
@@ -238,8 +334,8 @@ def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: i
     interaction toggles. Duplicate column sets are removed.
     """
     features = sorted(set(map(str, feature_names)))
-    fam = family_members(features)
-    sub = subgroup_members(features)
+    fam = family_members(features, sport)
+    sub = subgroup_members(features, sport)
     available = [x for x in _sport_priority(sport) if fam.get(x)]
     priority = _sport_priority(sport)
     core = tuple(x for x in priority[:3] if x in available)
@@ -813,7 +909,7 @@ def evaluate_patterns(
         }
 
     candidates = broad_pattern_grid(sport, feature_names, max_patterns=base_budget)
-    families = family_members(feature_names)
+    families = family_members(feature_names, sport)
     ranked_candidates = _feature_ranking_candidates(
         X[:ranker_fit_end],
         y[:ranker_fit_end],
@@ -1027,6 +1123,7 @@ __all__ = [
     "FAMILY_ORDER",
     "SPORT_PRIORITY",
     "classify_feature",
+    "classify_feature_for_sport",
     "feature_subgroup",
     "family_members",
     "subgroup_members",
