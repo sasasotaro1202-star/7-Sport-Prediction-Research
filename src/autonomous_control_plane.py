@@ -21,6 +21,15 @@ ALLOWED_WORKFLOWS = {
     "SAFETY_AUDIT": "production_safety_audit.yml",
     "LANE_AUDIT": "nine_sport_lane_audit.yml",
 }
+
+MONITORED_WORKFLOWS = {
+    "production": "v4_5_15_production.yml",
+    "pit_history": "pit_history_expansion.yml",
+    "failure_recovery": "production_failure_recovery.yml",
+    "watchdog": "production_watchdog.yml",
+    "invariants": "production_invariants.yml",
+    "lightweight_regression": "lightweight_regression.yml",
+}
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "research"
 CONTROL_OUT = RESULTS / "autonomous_control_plane.json"
@@ -187,6 +196,80 @@ def action_health(
     }
 
 
+def load_failure_memory() -> tuple[dict[str, Any], dict[str, str]]:
+    path = RESULTS.parent / "failure_memory.jsonl"
+    if not path.exists():
+        return {
+            "records_total": 0,
+            "recent_24h": 0,
+            "recent_7d": 0,
+            "latest": None,
+            "latest_failure_at_utc": None,
+            "by_class_recent_24h": {},
+            "status": "MISSING",
+        }, {"failure_memory": "MISSING"}
+
+    rows: list[dict[str, Any]] = []
+    errors: dict[str, str] = {}
+    try:
+        raw_lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return {
+            "records_total": 0,
+            "recent_24h": 0,
+            "recent_7d": 0,
+            "latest": None,
+            "latest_failure_at_utc": None,
+            "by_class_recent_24h": {},
+            "status": "UNREADABLE",
+        }, {"failure_memory": f"UNREADABLE:{type(exc).__name__}"}
+
+    for idx, line in enumerate(raw_lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as exc:
+            errors[f"failure_memory.line_{idx}"] = f"INVALID_JSON:{exc}"
+            continue
+        if not isinstance(obj, dict):
+            errors[f"failure_memory.line_{idx}"] = "WRONG_SHAPE"
+            continue
+        rows.append(obj)
+
+    now = now_utc()
+    recent_24h_rows: list[dict[str, Any]] = []
+    recent_7d_rows: list[dict[str, Any]] = []
+    parsed_rows: list[tuple[datetime, dict[str, Any]]] = []
+    for obj in rows:
+        dt = parse_dt(obj.get("recorded_at_utc"))
+        if dt is None:
+            errors[f"failure_memory.recorded_at_utc.{obj.get('record_id', 'unknown')}"] = "MISSING_OR_INVALID"
+            continue
+        parsed_rows.append((dt, obj))
+        age_hours_value = max(0.0, (now - dt).total_seconds() / 3600.0)
+        if age_hours_value <= 24.0:
+            recent_24h_rows.append(obj)
+        if age_hours_value <= 168.0:
+            recent_7d_rows.append(obj)
+
+    parsed_rows.sort(key=lambda pair: pair[0], reverse=True)
+    latest = parsed_rows[0][1] if parsed_rows else None
+    by_class: dict[str, int] = {}
+    for obj in recent_24h_rows:
+        failure_class = str(obj.get("failure_class") or "UNKNOWN")
+        by_class[failure_class] = by_class.get(failure_class, 0) + 1
+
+    return {
+        "records_total": len(rows),
+        "recent_24h": len(recent_24h_rows),
+        "recent_7d": len(recent_7d_rows),
+        "latest": latest,
+        "latest_failure_at_utc": parsed_rows[0][0].isoformat() if parsed_rows else None,
+        "by_class_recent_24h": dict(sorted(by_class.items())),
+        "status": "OK" if not errors else "DEGRADED",
+    }, errors
+
 def inspect() -> dict[str, Any]:
     ref = now_utc()
     actions, action_errors = load_actions_snapshot()
@@ -215,8 +298,11 @@ def inspect() -> dict[str, Any]:
     routes = payloads["route_observability"] or {}
     timing = payloads["timing_routes"] or {}
     repro = payloads["reproducibility_manifest"] or {}
+    failure_memory, failure_memory_errors = load_failure_memory()
 
     for key, value in action_errors.items():
+        errors[key] = value
+    for key, value in failure_memory_errors.items():
         errors[key] = value
     action_summary = {
         "source_feasibility": action_health(actions, "source_feasibility_audit.yml", 4.5),
@@ -227,6 +313,12 @@ def inspect() -> dict[str, Any]:
         "research_sweep": action_health(actions, "autonomous_research_sweep.yml", 7.0),
         "deep_research": action_health(actions, "24h_autonomous_research.yml", 26.0),
         "pre_event_prediction": action_health(actions, "pre_event_prediction.yml", 0.5),
+        "production": action_health(actions, MONITORED_WORKFLOWS["production"], 1.5),
+        "pit_history": action_health(actions, MONITORED_WORKFLOWS["pit_history"], 12.0),
+        "failure_recovery": action_health(actions, MONITORED_WORKFLOWS["failure_recovery"], 12.0),
+        "watchdog": action_health(actions, MONITORED_WORKFLOWS["watchdog"], 0.5),
+        "invariants": action_health(actions, MONITORED_WORKFLOWS["invariants"], 4.5),
+        "lightweight_regression": action_health(actions, MONITORED_WORKFLOWS["lightweight_regression"], 4.5),
     }
 
     coverage = release.get("coverage")
@@ -394,6 +486,7 @@ def inspect() -> dict[str, Any]:
             "route_count": len(timing.get("routes") or {}) if isinstance(timing.get("routes") or {}, dict) else None,
         },
         "actions": action_summary,
+        "failure_memory": failure_memory,
         "dual_learning": {
             "status": (payloads["dual_learning"] or {}).get("status", "UNKNOWN"),
             "generated_at_utc": (payloads["dual_learning"] or {}).get("finished_at_utc"),
@@ -492,6 +585,21 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
         "nine-sport lane audit evidence is missing, stale, or failed",
     )
 
+    if state.get("failure_memory", {}).get("recent_24h", 0) > 0:
+        candidates.append({
+            "action": "RESEARCH_HEALTH",
+            "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
+            "target": "recent_failures",
+            "impact": 24.0,
+            "evidence_gap": 0.95,
+            "failure_relevance": 1.0,
+            "generalization": 1.0,
+            "information_value": 0.95,
+            "cost": 1.0,
+            "reason": "recent production/research failures are recorded in Failure Memory; convert observed failures into bounded root-cause research before performance changes",
+            "auto_dispatch": True,
+            "dispatch_policy": "bounded_failure-followup_when_recent_failure_memory_exists",
+        })
     if state["release"]["active_accepted_model_gap"]:
         candidates.append({
             "action": "DEEP_RESEARCH",
@@ -591,6 +699,7 @@ def state_fingerprint(
         "route_observability": state["route_observability"],
         "timing": state["timing"],
         "actions": state.get("actions"),
+        "failure_memory": state.get("failure_memory"),
         "dual_learning": dual,
         "selected": {
             "action": selected["action"],

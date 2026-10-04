@@ -1114,3 +1114,23 @@ RECONCILE
 persist前後またはdispatch直前にmainが変化した場合はFAIL CLOSEDとし、次回のcontrol cycleで再評価する。dispatch eligibilityとcooldown判定は、control-plane invocation時のgithub.shaではなく、reconciled current main SHAを基準とする。
 
 このordering safetyはautomation integrityのためのものであり、performance verification、OOS、PIT validation、holdout、production approvalを意味しない。
+
+
+=== FAILURE-MEMORY-AWARE CONTROL PLANE ===
+
+Failure Memoryは単なる保存先ではなく、次researchのevidence inputとして扱う。
+
+control planeは毎cycle、append-only failure_memory.jsonlを読み、
+* recent_24h
+* recent_7d
+* failure_class
+* latest failure
+を監査する。
+
+recent failureが存在する場合、観測済みfailureをroot-cause researchへ変換するRESEARCH_HEALTH candidateをpriorityへ追加する。これはproduction retryやpromotionではない。
+
+Failure Recoveryのownershipは変更しない。Production Failure Recoveryはworkflow_runとしてretry/fresh-current-main recoveryを担当し、control planeはその結果を研究priorityへ反映するだけとする。
+
+Actions evidenceはdispatch allowlistとmonitor-only workflowを分離する。production、PIT History Expansion、Production Failure Recovery、Production Watchdog、Production Invariants、Lightweight Regressionは監視対象だが、自動dispatch許可対象ではない。
+
+JSONL破損、timestamp不正、memory欠損はUNKNOWN/DEGRADEDとして記録し、failure件数を0に偽装しない。

@@ -58,6 +58,7 @@ jobs:
           from pathlib import Path
 
           workflows = [
+              # Auto-dispatch allowlist
               "source_feasibility_audit.yml",
               "scope_autofill.yml",
               "production_runtime_health.yml",
@@ -66,6 +67,13 @@ jobs:
               "autonomous_research_sweep.yml",
               "24h_autonomous_research.yml",
               "pre_event_prediction.yml",
+              # Monitor-only production/recovery evidence
+              "v4_5_15_production.yml",
+              "pit_history_expansion.yml",
+              "production_failure_recovery.yml",
+              "production_watchdog.yml",
+              "production_invariants.yml",
+              "lightweight_regression.yml",
           ]
           output = {"generated_at_utc": None, "head_sha": os.environ.get("GITHUB_SHA", ""), "workflows": {}, "errors": {}}
           for workflow in workflows:
