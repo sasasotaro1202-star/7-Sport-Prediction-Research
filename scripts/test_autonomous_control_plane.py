@@ -181,8 +181,9 @@ def main() -> int:
         cp.ACTIONS_SNAPSHOT.write_text(json.dumps(workflows), encoding="utf-8")
         failure_state = cp.inspect()
         selected_action, failure_dispatch = cp.choose_actions(failure_state)
-        assert selected_action["target"] == "workflow_failure:production"
+        assert selected_action["action"] == "PIT_COVERAGE_REPAIR"
         assert failure_dispatch is not None
+        assert failure_dispatch["target"] == "workflow_failure:production"
         assert failure_dispatch["action"] == "RESEARCH_HEALTH"
         assert failure_dispatch["workflow"] == "autonomous_research_sweep.yml"
 
