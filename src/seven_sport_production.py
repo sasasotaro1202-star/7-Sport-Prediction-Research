@@ -608,7 +608,35 @@ def main():
                     d.year if d.month >= 9 else d.year - 1
                     for d in (start,end)
                 })
-                collect_official(c,season_years)
+                official_total, official_errors, official_requests, official_empty_pages = collect_official(c,season_years)
+                if official_errors:
+                    errors.extend(
+                        {
+                            "sport": "basketball",
+                            "stage": "official_schedule",
+                            **item,
+                        }
+                        for item in official_errors
+                    )
+                if (
+                    official_total == 0
+                    and official_requests > 0
+                    and official_empty_pages == official_requests
+                    and not official_errors
+                ):
+                    errors.append(
+                        {
+                            "sport": "basketball",
+                            "stage": "official_schedule",
+                            "error_type": "PARSER_ZERO",
+                            "error": (
+                                "B.LEAGUE official schedule requests all returned successfully "
+                                "but no machine-readable matches were parsed"
+                            ),
+                            "requests": int(official_requests),
+                            "empty_pages": int(official_empty_pages),
+                        }
+                    )
             elif sport=='tennis':
                 collect_espn(c,h,sport,['atp','wta'],start,end)
                 collect_wta_public(c,h,start,end)
