@@ -681,7 +681,8 @@ def state_fingerprint(
     experience = state["experience"]
     dual = state["dual_learning"]
     normalized = {
-        "head_sha": state["head_sha"],
+        # The invocation SHA is provenance, not evidence state. Including it here
+        # would force a self-commit every time the control plane advances main.
         "errors": state["errors"],
         "quality": state["quality"],
         "release": state["release"],
@@ -729,7 +730,7 @@ def write_state(
 
     selected = dict(selected)
     selected["fingerprint"] = fingerprint(
-        state["head_sha"], selected["action"], selected["target"], selected["reason"]
+        fp, selected["action"], selected["target"], selected["reason"]
     )
     queue_ids = queue_fingerprints()
     queue_added = selected["fingerprint"] not in queue_ids
@@ -741,19 +742,19 @@ def write_state(
                 **selected,
             }, ensure_ascii=False, sort_keys=True) + "\n")
 
-    action_record = {
-        "recorded_at_utc": state["observed_at_utc"],
-        "head_sha": state["head_sha"],
-        "state_fingerprint": fp,
-        "selected_action": selected,
-        "dispatch_action": dispatch,
-        "automatic_promotion": False,
-    }
-    ACTION_LOG_OUT.parent.mkdir(parents=True, exist_ok=True)
-    with ACTION_LOG_OUT.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(action_record, ensure_ascii=False, sort_keys=True) + "\n")
-
     should_write = previous_fp != fp or not CONTROL_OUT.exists() or not HEALTH_OUT.exists()
+    if previous_fp != fp or not ACTION_LOG_OUT.exists():
+        action_record = {
+            "recorded_at_utc": state["observed_at_utc"],
+            "head_sha": state["head_sha"],
+            "state_fingerprint": fp,
+            "selected_action": selected,
+            "dispatch_action": dispatch,
+            "automatic_promotion": False,
+        }
+        ACTION_LOG_OUT.parent.mkdir(parents=True, exist_ok=True)
+        with ACTION_LOG_OUT.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(action_record, ensure_ascii=False, sort_keys=True) + "\n")
     if should_write:
         control = {
             "version": "autonomous-control-plane-v1",
