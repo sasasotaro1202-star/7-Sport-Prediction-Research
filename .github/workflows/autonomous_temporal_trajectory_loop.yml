@@ -1,0 +1,195 @@
+name: Autonomous Temporal Trajectory Loop
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_run:
+    workflows:
+      - Pre-Event Adaptive Timing Prediction
+      - Active-Scope Target v4.5.15 Production
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: autonomous-temporal-trajectory-loop
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Collect trajectory state / ${{ matrix.sport }}
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        sport: [valorant, basketball, volleyball, ufc, rizin]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install lightweight trajectory runtime
+        run: python -m pip install --disable-pip-version-check --no-input "numpy>=1.26,<3"
+
+      - name: Restore latest active-scope database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: trajectory-seed-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            active-scope-target-db-v4-${{ matrix.sport }}-
+            pre-event-target-db-v1-${{ matrix.sport }}-
+
+      - name: Verify database availability
+        env:
+          SPORT_NAME: ${{ matrix.sport }}
+        run: |
+          set -euo pipefail
+          if [ ! -s data/db/sports_v45.sqlite ]; then
+            echo "TRAJECTORY_DB_STATUS=BLOCKED_NO_CACHE sport=$SPORT_NAME"
+          else
+            python - <<'PY'
+          import os
+          import sqlite3
+          con=sqlite3.connect('data/db/sports_v45.sqlite')
+          try:
+              n=con.execute("SELECT COUNT(*) FROM event WHERE sport=?",(os.environ["SPORT_NAME"],)).fetchone()[0]
+          finally:
+              con.close()
+          print(f"TRAJECTORY_DB_STATUS=READY sport={os.environ['SPORT_NAME']} events={n}")
+          PY
+          fi
+
+      - name: Collect PIT-valid in-event trajectory snapshots
+        env:
+          PYTHONPATH: .
+          SPORT_NAME: ${{ matrix.sport }}
+        run: |
+          set -euo pipefail
+          mkdir -p trajectory_delta
+          if [ -s data/db/sports_v45.sqlite ]; then
+            python -m src.trajectory_snapshot_collector               --sport "$SPORT_NAME"               --db data/db/sports_v45.sqlite               --output-dir trajectory_delta               --sample-minutes 5
+          else
+            printf '%s
+' "{"status":"BLOCKED","sport":"$SPORT_NAME","reason":"DATABASE_UNAVAILABLE","promotion_status":"RESEARCH_ONLY_NO_AUTO_PROMOTION"}" > "trajectory_delta/trajectory_collect_$SPORT_NAME.json"
+            : > "trajectory_delta/trajectory_snapshots_$SPORT_NAME.jsonl"
+            printf '%s
+' '{}' > "trajectory_delta/trajectory_outcomes_$SPORT_NAME.json"
+          fi
+
+      - name: Preserve collection delta
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trajectory-delta-${{ matrix.sport }}
+          path: trajectory_delta
+          if-no-files-found: warn
+          retention-days: 30
+
+  merge_and_research:
+    name: Merge / OOS / Persist
+    needs: collect
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Download all sport trajectory deltas
+        uses: actions/download-artifact@v4
+        with:
+          pattern: trajectory-delta-*
+          path: trajectory_artifacts
+          merge-multiple: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install lightweight trajectory runtime
+        run: python -m pip install --disable-pip-version-check --no-input "numpy>=1.26,<3"
+
+      - name: Reconcile against newest main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          latest_main="$(git rev-parse origin/main)"
+          git reset --hard "$latest_main"
+          echo "TRAJECTORY_MERGE_BASE_SHA=$latest_main" >> "$GITHUB_ENV"
+
+      - name: Merge deltas and rerun chronological OOS
+        env:
+          PYTHONPATH: .
+        run: |
+          set -euo pipefail
+          python scripts/merge_trajectory_ledger.py             --artifact-root trajectory_artifacts             --sports valorant,basketball,volleyball,ufc,rizin
+
+      - name: Verify persistence inputs before push
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git diff --check
+          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "$TRAJECTORY_MERGE_BASE_SHA" || {
+            echo "STALE_MAIN_BEFORE_TRAJECTORY_PUSH expected=$TRAJECTORY_MERGE_BASE_SHA actual=$remote_sha" >&2
+            exit 1
+          }
+
+      - name: Persist trajectory ledger and research evidence
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- results/research/trajectory_snapshots_valorant.jsonl results/research/trajectory_snapshots_basketball.jsonl results/research/trajectory_snapshots_volleyball.jsonl results/research/trajectory_snapshots_ufc.jsonl results/research/trajectory_snapshots_rizin.jsonl results/research/trajectory_outcomes_valorant.json results/research/trajectory_outcomes_basketball.json results/research/trajectory_outcomes_volleyball.json results/research/trajectory_outcomes_ufc.json results/research/trajectory_outcomes_rizin.json results/research/trajectory_intelligence_valorant.json results/research/trajectory_intelligence_basketball.json results/research/trajectory_intelligence_volleyball.json results/research/trajectory_intelligence_ufc.json results/research/trajectory_intelligence_rizin.json results/research/trajectory_system_state.json; then
+            echo "TRAJECTORY_PERSIST=NO_CHANGE"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/research/trajectory_*.jsonl results/research/trajectory_outcomes_*.json results/research/trajectory_intelligence_*.json results/research/trajectory_system_state.json
+          git commit -m "ops: persist autonomous temporal trajectory research"
+          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "$TRAJECTORY_MERGE_BASE_SHA" || {
+            echo "STALE_MAIN_BEFORE_TRAJECTORY_PUSH expected=$TRAJECTORY_MERGE_BASE_SHA actual=$remote_sha" >&2
+            exit 1
+          }
+          git push origin HEAD:main
+          echo "TRAJECTORY_PERSIST=PUSHED main_sha=$(git rev-parse HEAD)"
+
+      - name: Publish trajectory system state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trajectory-system-state-${{ github.run_id }}
+          path: |
+            results/research/trajectory_system_state.json
+            results/research/trajectory_intelligence_*.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Keep collection failures visible
+        if: always()
+        env:
+          COLLECT_RESULT: ${{ needs.collect.result }}
+        run: |
+          set -euo pipefail
+          echo "TRAJECTORY_COLLECTION_MATRIX_RESULT=$COLLECT_RESULT"
+          if [ "$COLLECT_RESULT" != "success" ]; then
+            echo "One or more trajectory collectors failed; persisted evidence remains explicit, but the loop is not green." >&2
+            exit 1
+          fi
