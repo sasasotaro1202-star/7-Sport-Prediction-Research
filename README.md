@@ -56,3 +56,7 @@ The production target is:
 `discover → collect → normalize → provenance/QC → PIT replay → exact PIT OOS → sport-specific features → multiple calibrated models → matchup/interaction analysis → weakness analysis → challenger validation → gated adoption → future prediction → maintenance`.
 
 The system is optimized for production accuracy first: runtime improvements come from caching, parallel I/O, checkpointing and incremental recomputation rather than reducing the historical/OOS information used by the models.
+
+### Temporal trajectory intelligence (research-only)
+
+`src/trajectory_intelligence_oos.py` adds a PIT-gated temporal trajectory research layer. It treats multiple snapshots of one event as an event cluster, keeps one canonical evaluation anchor per event, retrieves complete historical future paths instead of recursively feeding model predictions back into the next horizon, and reports horizon-specific state uncertainty plus outcome probability. It supports `pre_event` and `in_event` contracts, requires explicit `source_available_at_utc`, and never auto-promotes or mutates the production champion. The research workflow is `.github/workflows/temporal_trajectory_research.yml`; without PIT-valid trajectory inputs it records `BLOCKED` rather than claiming a result.
