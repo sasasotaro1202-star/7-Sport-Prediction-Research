@@ -203,7 +203,7 @@ def main() -> int:
         )
         missing = cp.inspect()
         assert missing["release"]["active_accepted_model_gap"] == []
-        assert "release_gate.coverage.valorant.accepted_models" in missing["errors"]
+        assert missing["errors"]["release_gate.coverage.valorant"] == "MISSING_OR_INVALID"
 
         # Recent observed failures must become an autonomous research signal.
         selected_failure, dispatch_failure = cp.choose_actions(state)
