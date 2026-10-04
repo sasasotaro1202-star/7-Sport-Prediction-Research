@@ -15,7 +15,7 @@ def build_fixture() -> sqlite3.Connection:
           event_time_utc TEXT, status TEXT
         );
         CREATE TABLE event_participant(
-          event_id TEXT, participant_id TEXT, side TEXT
+          event_id TEXT, participant_id TEXT, team_id TEXT, side TEXT
         );
         CREATE TABLE event_outcome(
           event_id TEXT PRIMARY KEY, sport TEXT, side_a_participant_id TEXT,
@@ -50,8 +50,8 @@ def build_fixture() -> sqlite3.Connection:
             "INSERT INTO event VALUES(?,?,?,?,?)",
             (eid, "ufc", "UFC", ts, "COMPLETED"),
         )
-        c.execute("INSERT INTO event_participant VALUES(?,?,?)", (eid, fa, "A"))
-        c.execute("INSERT INTO event_participant VALUES(?,?,?)", (eid, fb, "B"))
+        c.execute("INSERT INTO event_participant VALUES(?,?,?,?)", (eid, fa, None, "A"))
+        c.execute("INSERT INTO event_participant VALUES(?,?,?,?)", (eid, fb, None, "B"))
         url = f"https://example.test/{eid}"
         avail = "2024-12-31T00:00:00+00:00"
         c.execute(
