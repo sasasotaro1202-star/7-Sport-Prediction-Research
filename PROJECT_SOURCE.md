@@ -1070,3 +1070,30 @@ mutable write safety:
 control planeのGREENはreconciliation/automation safetyの成功だけを意味し、
 PERFORMANCE_VERIFIED、ADOPTED、PRODUCTION、STABLEを意味しない。
 OOS、PIT、calibration、robustness、frozen holdout、release gateは既存契約を維持する。
+
+
+=== PIT EVIDENCE AUTOMATION HARDENING — 2026-10-04 ===
+
+目的:
+GitHub ActionsだけでPIT証拠の不足・外部source制約を明示的に処理し、手動介入を減らしながらPIT fail-closedを維持する。
+
+B.LEAGUE exact PIT bridge:
+* 固定PIT History Expansion内で、先に既存のGit provenanceを記録した後に実行する。
+* 対象は既登録のRESEARCH_EVIDENCE_ONLY証拠に限定する。
+* games_summary_202021.csvのrevision SHA、games_202021.csvの同一revision、canonical event ID、participant解決を同時に検証する。
+* source_available_at_utcは登録済みの保守的publication boundだけを使用し、retrieval timeをPIT証拠にしない。
+* canonical eventが不足、participantが曖昧、exact rowが0件の場合はAPPLIED扱いにせず失敗する。
+* materialization成功はPIT evidenceの局所改善であり、OOS、robustness、frozen holdout、production promotionを意味しない。
+
+F1 OpenF1 deferred-PIT classification:
+* historical backfillのHTTP 401/403を明示記録する。
+* total=0、skipped=0、failedが全て401/403の場合のみDEFERRED_PITとする。
+* 500系、network error、unknown status、partial success、skipありはDEFERRED_PITにせずfail-closedする。
+* 毎回results/f1_openf1_backfill.jsonへ状態を保存し、失敗を隠さない。
+
+安全条件:
+* automatic model promotion = false
+* frozen holdout tuning = forbidden
+* PIT bypass = forbidden
+* missing = zero conversion = forbidden
+* materialization/report status != performance verification

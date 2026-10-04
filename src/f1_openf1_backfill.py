@@ -1,6 +1,7 @@
 from __future__ import annotations
 import hashlib, json, random, time
 from datetime import datetime, timezone
+from pathlib import Path
 import requests
 from src.storage.db_v45 import connect, utcnow
 BASE='https://api.openf1.org/v1'
@@ -48,6 +49,22 @@ def get(path,params=None,timeout=45,retries=5):
             raise
     raise last
 
+def _all_auth_deferred(failed: list[dict], total: int, skipped: int) -> bool:
+    """Treat only a complete 401/403-only source block as explicit PIT deferral."""
+    if total != 0 or skipped != 0 or not failed:
+        return False
+    statuses = []
+    for item in failed:
+        error = str(item.get("error") or "")
+        status = item.get("http_status")
+        if status is None:
+            import re
+            match = re.search(r"\\b(401|403)\\b", error)
+            status = int(match.group(1)) if match else None
+        statuses.append(status)
+    return all(status in {401, 403} for status in statuses)
+
+
 def num(x):
     try:return float(x)
     except:return None
@@ -58,7 +75,17 @@ def main():
     c=connect(); total=0; skipped=0; failed=[]
     for year in range(a.start_year,a.end_year+1):
         try:sessions,url=get('/sessions',{'year':year},a.timeout)
-        except Exception as e: failed.append({'year':year,'stage':'sessions','error':repr(e)}); continue
+        except requests.HTTPError as e:
+            response = getattr(e, 'response', None)
+            failed.append({
+                'year': year,
+                'stage': 'sessions',
+                'http_status': getattr(response, 'status_code', None),
+                'error': repr(e),
+            })
+            continue
+        except Exception as e:
+            failed.append({'year':year,'stage':'sessions','error':repr(e)}); continue
         for s in sessions:
             if str(s.get('session_name','')).lower()!='race': continue
             sk=s.get('session_key'); start=s.get('date_start'); eid=sid('f1-openf1',year,s.get('meeting_key'),sk)
@@ -68,7 +95,18 @@ def main():
             name=f"{s.get('country_name','')} {year} Race"; now=utcnow()
             c.execute('''INSERT INTO event(event_id,sport,competition_id,season,stage,round,event_time_utc,event_type,status,source_count,quality_status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(event_id) DO UPDATE SET event_time_utc=COALESCE(excluded.event_time_utc,event.event_time_utc),status=excluded.status,updated_at=excluded.updated_at''',(eid,'f1',str(s.get('meeting_key')),str(year),'race',str(s.get('session_key')),start,'race','COMPLETED',1,'PRESENT_NOT_PIT_VERIFIED',now,now))
             try: results,rurl=get('/session_result',{'session_key':sk},a.timeout)
-            except Exception as e: failed.append({'year':year,'session_key':sk,'stage':'session_result','error':repr(e)}); continue
+            except requests.HTTPError as e:
+                response = getattr(e, 'response', None)
+                failed.append({
+                    'year': year,
+                    'session_key': sk,
+                    'stage': 'session_result',
+                    'http_status': getattr(response, 'status_code', None),
+                    'error': repr(e),
+                })
+                continue
+            except Exception as e:
+                failed.append({'year':year,'session_key':sk,'stage':'session_result','error':repr(e)}); continue
             for z in results:
                 dn=z.get('driver_number'); pid=sid('f1-driver',dn)
                 c.execute('''INSERT INTO participant(participant_id,sport,participant_type,canonical_name,first_seen_at,last_seen_at) VALUES(?,?,?,?,?,?) ON CONFLICT(participant_id) DO UPDATE SET last_seen_at=excluded.last_seen_at''',(pid,'f1','driver',str(dn),now,now))
@@ -80,7 +118,20 @@ def main():
                 total+=1
             c.execute('INSERT OR REPLACE INTO source_snapshot(snapshot_id,source,source_url,retrieved_at_utc,source_available_at_utc,event_time_utc,parser_version,availability_status,provenance_json) VALUES(?,?,?,?,?,?,?,?,?)',(sid('openf1',sk), 'OpenF1',rurl,now,None,start,'openf1-v2','UNVERIFIABLE',json.dumps({'year':year,'session_key':sk})))
         c.commit()
-    report={'f1_openf1_driver_session_rows':total,'sessions_skipped_already_loaded':skipped,'failed_requests':failed,'status':'OK' if not failed else 'PARTIAL'}
+    deferred = _all_auth_deferred(failed, total, skipped)
+    report={
+        'f1_openf1_driver_session_rows': total,
+        'sessions_skipped_already_loaded': skipped,
+        'failed_requests': failed,
+        'status': 'DEFERRED_PIT' if deferred else ('OK' if not failed else 'PARTIAL'),
+        'reason': (
+            'OpenF1 API returned only 401/403 responses; historical availability cannot be proven'
+            if deferred else None
+        ),
+    }
+    out = Path('results/f1_openf1_backfill.json')
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')
     print(json.dumps(report,ensure_ascii=False)); c.close()
-    if failed and total==0 and skipped==0: raise SystemExit(2)
+    if failed and not deferred and total==0 and skipped==0: raise SystemExit(2)
 if __name__=='__main__': main()
