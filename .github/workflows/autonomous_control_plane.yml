@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '7 */3 * * *'
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Active-Scope Target v4.5.15 Production
+      - PIT History Expansion
+      - Production Failure Recovery
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -20,6 +27,12 @@ env:
 jobs:
   control:
     name: Reconcile / Decide / Dispatch / Persist
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'timed_out' ||
+      github.event.workflow_run.conclusion == 'startup_failure' ||
+      github.event.workflow_run.conclusion == 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -58,7 +71,8 @@ jobs:
           from pathlib import Path
 
           workflows = [
-              # Auto-dispatch allowlist
+              # Auto-dispatch allowlist. Pre-event heartbeat remains
+              # owner-controlled by Production Run Watchdog/Pre-Event.
               "source_feasibility_audit.yml",
               "scope_autofill.yml",
               "production_runtime_health.yml",
