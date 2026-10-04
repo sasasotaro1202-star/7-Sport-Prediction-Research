@@ -76,6 +76,16 @@ def fixture(root: Path) -> None:
         encoding="utf-8",
     )
 
+    (root / "results/failure_memory.jsonl").write_text(
+        json.dumps({
+            "record_id": "run-test",
+            "recorded_at_utc": "2026-10-04T04:00:00+00:00",
+            "failure_class": "COLLECTION_WORKFLOW_FAILURE",
+            "unknown_details_are_not_inferred": True,
+        }) + "\n",
+        encoding="utf-8",
+    )
+
     workflows = {
         "source_feasibility_audit.yml": {
             "latest": {"databaseId": 1, "status": "completed", "conclusion": "failure", "createdAt": "2026-10-04T00:00:00Z", "headSha": "new-sha"},
@@ -114,6 +124,8 @@ def main() -> int:
 
         state = cp.inspect()
         assert state["actions"]["source_feasibility"]["status"] == "FAILED"
+        assert state["failure_memory"]["records_total"] == 1
+        assert state["failure_memory"]["recent_24h"] == 1
         assert state["actions"]["pre_event_prediction"]["status"] == "HEALTHY"
         selected, dispatch = cp.choose_actions(state)
         assert selected["action"] == "RUNTIME_HEALTH" or selected["action"] == "DEEP_RESEARCH", selected
@@ -146,6 +158,12 @@ def main() -> int:
         missing = cp.inspect()
         assert missing["release"]["active_accepted_model_gap"] == []
         assert "release_gate.coverage.valorant.accepted_models" in missing["errors"]
+
+        # Recent observed failures must become an autonomous research signal.
+        selected_failure, dispatch_failure = cp.choose_actions(state)
+        assert selected_failure["target"] == "recent_failures"
+        assert dispatch_failure is not None
+        assert dispatch_failure["workflow"] == "autonomous_research_sweep.yml"
 
     print("AUTONOMOUS_CONTROL_PLANE_V2=PASS")
     return 0
