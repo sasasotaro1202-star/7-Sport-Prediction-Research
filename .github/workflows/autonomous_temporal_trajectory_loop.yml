@@ -117,11 +117,11 @@ jobs:
                   "sport": sport,
                   "reason": "DATABASE_UNAVAILABLE",
                   "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
-              }, ensure_ascii=False, sort_keys=True) + "\\n",
+              }, ensure_ascii=False, sort_keys=True) + "\n",
               encoding="utf-8",
           )
           Path(f"trajectory_delta/trajectory_snapshots_{sport}.jsonl").write_text("", encoding="utf-8")
-          Path(f"trajectory_delta/trajectory_outcomes_{sport}.json").write_text("{}\\n", encoding="utf-8")
+          Path(f"trajectory_delta/trajectory_outcomes_{sport}.json").write_text("{}\n", encoding="utf-8")
           PY
           fi
 
