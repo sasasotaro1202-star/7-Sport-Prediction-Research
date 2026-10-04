@@ -307,6 +307,7 @@ def prove_path(path: str) -> dict[str, Any]:
         key=lambda c: iso(_commit_date(c) or "") or "9999-12-31T23:59:59+00:00",
     )
     matches: list[tuple[str, str]] = []
+    provisional_event_provenance: dict[str, dict[str, Any]] = {}
     for c in ordered_commits:
         sha = c.get("sha")
         commit_date = _commit_date(c)
@@ -321,7 +322,7 @@ def prove_path(path: str) -> dict[str, Any]:
             matched = match_summary_revision(b, event_targets, remaining_events)
             for schedule_key in matched:
                 bound = secondary_publication_bound(path, sha)
-                event_provenance[schedule_key] = {
+                candidate = {
                     "schedule_key": schedule_key,
                     "provenance_commit_sha": sha,
                     "commit_timestamp_utc": iso(commit_date),
@@ -332,10 +333,22 @@ def prove_path(path: str) -> dict[str, Any]:
                     "matched_team_ids": sorted(event_targets[schedule_key]),
                     "pinned_source_url": pinned_raw_url(path, sha),
                 }
-                remaining_events.remove(schedule_key)
+                if bound:
+                    event_provenance[schedule_key] = candidate
+                    remaining_events.remove(schedule_key)
+                    provisional_event_provenance.pop(schedule_key, None)
+                elif schedule_key not in provisional_event_provenance:
+                    # Keep the earliest unproven candidate only as a fallback.
+                    # If a later revision carries explicit publication evidence,
+                    # that later evidence must win.
+                    provisional_event_provenance[schedule_key] = candidate
 
         if sha256_bytes(b) == current_hash:
             matches.append((sha, commit_date))
+
+    for schedule_key, candidate in provisional_event_provenance.items():
+        if schedule_key not in event_provenance:
+            event_provenance[schedule_key] = candidate
 
     result: dict[str, Any] = {
         "path": path,
