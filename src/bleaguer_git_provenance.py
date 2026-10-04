@@ -472,12 +472,18 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
             url = f"{RAW_BASE}/{p['path']}"
             if p["status"] in ("VERSION_EXACT_PUBLICATION_UNPROVEN", "PROVEN_BY_SECONDARY_DATE_BOUND"):
                 version_exact_paths += 1
+                # Only upgrade snapshots whose stored blob is byte-identical
+                # to the currently proven revision. A source URL can outlive or
+                # change contents, so URL equality alone is insufficient PIT proof.
                 rows = con.execute(
-                    "SELECT snapshot_id, provenance_json FROM source_snapshot "
+                    "SELECT snapshot_id, content_hash, provenance_json FROM source_snapshot "
                     "WHERE source='bleaguer-github' AND source_url=?",
                     (url,),
                 ).fetchall()
-                for snapshot_id, old_json in rows:
+                proven_hash = str(p.get("current_hash") or "")
+                for snapshot_id, content_hash, old_json in rows:
+                    if not proven_hash or str(content_hash or "") != proven_hash:
+                        continue
                     try:
                         old = json.loads(old_json) if old_json else {}
                     except Exception:
