@@ -1,0 +1,167 @@
+name: Autonomous Research Control Plane
+
+on:
+  schedule:
+    - cron: '7 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: autonomous-control-plane-main
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: '1'
+  PYTHONPATH: .
+
+jobs:
+  control:
+    name: Reconcile / Decide / Dispatch / Persist
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Verify executing SHA is current main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "${{ github.sha }}" || {
+            echo "STALE_MAIN_RUN expected=$remote_sha actual=${{ github.sha }}"
+            exit 1
+          }
+
+      - name: Run control-plane regression
+        run: python scripts/test_autonomous_control_plane.py
+
+      - name: Inspect current GitHub evidence
+        id: control
+        run: |
+          set -euo pipefail
+          python src/autonomous_control_plane.py --head-sha "${{ github.sha }}" > control_output.json
+          cat control_output.json
+          python - <<'PY'
+          import json
+          o=json.load(open("control_output.json",encoding="utf-8"))
+          assert o["automatic_promotion"] is False
+          selected=o["selected_action"]
+          allowed={
+            "PIT_COVERAGE_REPAIR":"pit_history_expansion.yml",
+            "PRODUCTION_HEARTBEAT":"pre_event_prediction.yml",
+            "RESEARCH_HEALTH":"autonomous_research_sweep.yml",
+            "DEEP_RESEARCH":"24h_autonomous_research.yml",
+          }
+          assert selected["workflow"] == allowed[selected["action"]]
+          dispatch=o.get("dispatch_action")
+          if dispatch:
+              assert dispatch["workflow"] == allowed[dispatch["action"]]
+              assert dispatch["automatic_promotion"] is False
+          PY
+
+          dispatch_action="$(python -c 'import json; o=json.load(open("control_output.json")); print((o.get("dispatch_action") or {}).get("action","NONE"))')"
+          dispatch_workflow="$(python -c 'import json; o=json.load(open("control_output.json")); print((o.get("dispatch_action") or {}).get("workflow",""))')"
+          echo "dispatch_action=$dispatch_action" >> "$GITHUB_OUTPUT"
+          echo "dispatch_workflow=$dispatch_workflow" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch at most one allowlisted autonomous workflow
+        if: steps.control.outputs.dispatch_action != 'NONE'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCH_ACTION: ${{ steps.control.outputs.dispatch_action }}
+          DISPATCH_WORKFLOW: ${{ steps.control.outputs.dispatch_workflow }}
+        run: |
+          set -euo pipefail
+          case "$DISPATCH_WORKFLOW" in
+            autonomous_research_sweep.yml)
+              cooldown=21600
+              ;;
+            24h_autonomous_research.yml)
+              cooldown=86400
+              ;;
+            *)
+              echo "UNEXPECTED_AUTOMATION_WORKFLOW=$DISPATCH_WORKFLOW" >&2
+              exit 1
+              ;;
+          esac
+
+          state="$(gh run list --workflow "$DISPATCH_WORKFLOW" --limit 50 \
+            --json databaseId,status,createdAt,headSha,event,conclusion)"
+          active="$(printf '%s' "$state" | jq --arg sha "${{ github.sha }}" \
+            '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
+
+          latest="$(printf '%s' "$state" | jq -r --arg sha "${{ github.sha }}" \
+            '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')"
+
+          dispatch=false
+          reason="active=$active latest=$latest cooldown=${cooldown}s action=$DISPATCH_ACTION"
+
+          if [ "$active" -eq 0 ]; then
+            if [ -z "$latest" ]; then
+              dispatch=true
+            else
+              latest_ts="$(date -u -d "$latest" +%s)"
+              now_ts="$(date -u +%s)"
+              age=$((now_ts-latest_ts))
+              if [ "$age" -ge "$cooldown" ]; then
+                dispatch=true
+              else
+                reason="$reason age=${age}s"
+              fi
+            fi
+          fi
+
+          if [ "$dispatch" = true ]; then
+            echo "AUTO_DISPATCH workflow=$DISPATCH_WORKFLOW action=$DISPATCH_ACTION reason=$reason"
+            gh workflow run "$DISPATCH_WORKFLOW" --ref main
+          else
+            echo "AUTO_DISPATCH_SKIPPED reason=$reason"
+          fi
+
+      - name: Persist deterministic control-plane state
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- \
+              results/research/autonomous_control_plane.json \
+              results/research/automation_health.json \
+              results/research/research_queue.jsonl; then
+            echo "CONTROL_PLANE_GIT=NO_CHANGE"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            results/research/autonomous_control_plane.json \
+            results/research/automation_health.json \
+            results/research/research_queue.jsonl
+          git commit -m "ops: reconcile autonomous research control plane"
+
+          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "${{ github.sha }}" || {
+            echo "STALE_MAIN_BEFORE_PUSH expected=$remote_sha actual=${{ github.sha }}" >&2
+            exit 1
+          }
+
+          git push origin HEAD:main
+
+      - name: Final control-plane status
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "CONTROL_PLANE_STATUS=COMPLETED_WITH_EXPLICIT_GATES"
+          echo "AUTOMATIC_MODEL_PROMOTION=false"
+          echo "PIT_AUTOMATIC_BYPASS=false"
