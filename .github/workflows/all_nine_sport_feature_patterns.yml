@@ -151,6 +151,7 @@ jobs:
                   "features": len(feature_names),
                   "holdout_touched": False,
                   "collection_exit_status": int(Path(f"results/feature_patterns/{sport}_collection_exit_status.txt").read_text().strip()),
+              "feature_family_coverage": family_coverage,
               }, ensure_ascii=False, indent=2))
               raise SystemExit(0)
 
@@ -175,6 +176,26 @@ jobs:
 
           start = max(80, int(prefix_end * 0.55))
           step = max(20, int(np.ceil((prefix_end - start) / 6)))
+          family_coverage = {}
+          from src.feature_pattern_optimizer import family_members
+          families = family_members(feature_names)
+          for fam_name, fam_cols in families.items():
+              if fam_cols:
+                  idx = [feature_names.index(f) for f in fam_cols if f in feature_names]
+                  arr = X[:, idx] if idx else np.empty((len(X), 0))
+                  observed = int(np.sum(np.any(np.isfinite(arr), axis=1))) if arr.size else 0
+                  family_coverage[fam_name] = {
+                      "feature_count": len(fam_cols),
+                      "row_observed_any": observed,
+                      "row_observed_rate": float(observed / len(X)) if len(X) else 0.0,
+                  }
+              else:
+                  family_coverage[fam_name] = {
+                      "feature_count": 0,
+                      "row_observed_any": 0,
+                      "row_observed_rate": 0.0,
+                  }
+
           report = evaluate_patterns(
               X[:prefix_end],
               y[:prefix_end],
