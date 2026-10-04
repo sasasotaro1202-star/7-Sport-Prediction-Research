@@ -1,12 +1,16 @@
 {
-  "version": "1.0",
-  "primary_target_accuracy": 0.80,
+  "version": "1.1",
+  "primary_target_accuracy": 0.8,
   "target_definition": "out_of_sample_accuracy",
-  "scope": "all_seven_sports_and_each_supported_prediction_market",
+  "scope": "current_canonical_active_prediction_scope_and_each_supported_prediction_market",
   "evaluation": {
     "method": "chronological_walk_forward_oos",
     "no_random_train_test_split": true,
-    "primary_probability_metrics": ["logloss", "brier", "ece"],
+    "primary_probability_metrics": [
+      "logloss",
+      "brier",
+      "ece"
+    ],
     "accuracy_is_required_but_not_sufficient": true,
     "minimum_oos_observations": 20
   },
@@ -23,5 +27,7 @@
     "report_sample_size": true,
     "report_market_specific_accuracy": true,
     "report_calibration_and_probability_metrics": true
-  }
+  },
+  "scope_source": "config/PROJECT_SCOPE_POLICY.json",
+  "deferred_sports_excluded_until_staged_promotion": true
 }

@@ -687,6 +687,14 @@ ECE ≈ 0.006162
 
 Riot / GRID等はdistinct candidate sourceとして調査可能だが、cost、license、availability、PITを必ず確認する。
 
+Current VLR schedule ingestion guard:
+
+* historical pagination state and current-schedule refresh are separated logically: page 1 of `/matches` is refreshed on every collector run even when the historical cursor is already beyond the configured page range
+* event_time is accepted from explicit JSON-LD startDate, explicit numeric start timestamp attached to the match-date element, or rendered date/time with an explicit timezone and year hint
+* rendered HTML from unrelated navigation is never used to classify a match as COMPLETED; future event_time is classified as SCHEDULED, while completed status requires match-header evidence
+* the explicit VLR event link is retained as competition identity (`vlr:event:<id>`) so target-scope routing does not depend on an absent/null competition field
+* these changes do not relax PIT: source availability remains EXACT only when explicit publication evidence proves availability by the prediction cutoff
+
 Rugby
 
 World Rugby official coverage系をreferenceとする。
