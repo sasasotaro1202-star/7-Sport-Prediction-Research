@@ -1,5 +1,5 @@
 {
-  "version": "2",
+  "version": "participant-context-pattern-selection-v2",
   "mission": "Select feature-family combinations for future generalization without treating all available data as automatically useful.",
   "pit_rule": "participant/team attributes and event-participant context are eligible only when effective_at_utc and independently proven source_available_at_utc are <= prediction_cutoff; unknown PIT is excluded.",
   "identity_rule": "Canonical participant/team IDs only. Fuzzy matching is never used for final feature attachment.",
