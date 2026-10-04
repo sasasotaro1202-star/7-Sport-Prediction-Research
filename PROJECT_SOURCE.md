@@ -1113,6 +1113,8 @@ RECONCILE
 
 persist前後またはdispatch直前にmainが変化した場合はFAIL CLOSEDとし、次回のcontrol cycleで再評価する。dispatch eligibilityとcooldown判定は、control-plane invocation時のgithub.shaではなく、reconciled current main SHAを基準とする。
 
+Control-plane persistenceでは、invocation SHA自体をobserved evidence fingerprintへ含めない。実質的に同一のevidence/decisionなら、main SHAだけが進んでもstate fingerprint、research queue fingerprint、action-log appendを再生成しない。これにより、control plane自身の定期実行が不要なmain commitを発生させ、長時間のproduction/PIT runを古いSHAとして無効化するリスクを抑える。
+
 このordering safetyはautomation integrityのためのものであり、performance verification、OOS、PIT validation、holdout、production approvalを意味しない。
 
 
