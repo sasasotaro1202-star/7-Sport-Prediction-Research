@@ -1187,6 +1187,8 @@ PIT-validな観測が不足する競技はUNKNOWN/UNVERIFIABLEとして止め、
   * short / medium / long history
   * interaction
   * quality-aware vs quality-blind
+  * source-bundle variants
+  * ranker-selected sparse/rich sets
 
 競技固有のcandidate例:
 
@@ -1237,6 +1239,10 @@ opponent-adjusted record、inactivity、result-method historyを候補化する�
 9. pattern screenの勝者はADOPTED/PRODUCTIONではない。downstream OOS/WFO、calibration、
    robustness、frozen holdout、release gateを必ず通過する。
 10. negative resultをResearch Memoryへ保存し、同じ失敗patternを無限に再探索しない。
+11. 基本研究budgetは1競技あたり最大1,024 structured candidates。
+12. outcome-aware sparse selectionでは absolute correlation、mutual information、ExtraTrees importance の複数rankingを比較し、union/intersection/family-balanced/stability candidatesを生成する。
+13. pattern selectionはearly non-holdout prefixだけを使用し、later chronological OOSとfrozen holdoutを完全分離する。
+14. Stage 2では上位多様候補を複数model familyで再評価し、pattern winnerだけでproductionへ変更しない。
 
 ⸻
 
