@@ -74,3 +74,7 @@ The Actions snapshot also monitors production, PIT History Expansion, Production
 
 ### Event-driven failure triage
 The autonomous control plane also listens to completed failures of production, PIT History Expansion, Production Failure Recovery, and its own fast regression workflow. It accepts only failure/timed_out/startup_failure/cancelled outcomes, requires the triggering run head SHA to match current main, and dispatches only bounded RESEARCH_HEALTH. The workflow_run payload is first-class evidence so newer snapshot rows cannot mask the triggering failure.
+
+
+### Control-plane no-churn persistence
+The autonomous control-plane fingerprint represents stable observed workflow evidence and the selected decision. It excludes invocation/current-main SHA metadata, volatile `age_hours`, and other derived freshness fields. The action log appends only when the stable state fingerprint changes or the log is absent. This prevents the control plane from creating self-generated main commits when no material evidence changed. Current-main SHA verification and dispatch-time SHA rechecks remain mandatory safety gates.
