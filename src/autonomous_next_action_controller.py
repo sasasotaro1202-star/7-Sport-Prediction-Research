@@ -155,9 +155,13 @@ def decide(
             }
 
     fresh_gate = bool(release_fresh and quality_fresh)
-    deficit, reasons = scope_deficit(release_gate if fresh_gate else None, quality_gate if fresh_gate else None)
+    deficit, reasons = scope_deficit(
+        release_gate if fresh_gate else None,
+        quality_gate if fresh_gate else None,
+    )
     evidence["gate_reports_fresh"] = fresh_gate
-    evidence["scope_deficit_reasons"] = reasons
+    # Never expose stale gate-derived deficits as current evidence.
+    evidence["scope_deficit_reasons"] = reasons if fresh_gate else []
 
     if fresh_gate and deficit:
         action = "scope_autofill"
