@@ -562,6 +562,7 @@ jobs:
           FUTURE_PREDICTION: ${{ steps.future_prediction.outcome }}
           ROUTE_OBSERVABILITY: ${{ steps.route_observability.outcome }}
           PERSIST_OUTPUTS: ${{ steps.persist_outputs.outcome }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           set -euo pipefail
           failed=0
@@ -569,7 +570,11 @@ jobs:
             local stage="$1"
             local result="$2"
             echo "FINAL_STAGE_${stage}=${result}"
-            if [ "$result" = "failure" ]; then failed=1; fi
+            case "$result" in
+              success|skipped) ;;
+              failure|cancelled) failed=1 ;;
+              *) echo "FINAL_STAGE_${stage}=UNKNOWN_RESULT_${result}" >&2; failed=1 ;;
+            esac
           }
           report PIT_REPLAY "$PIT_REPLAY"
           report INDEPENDENT_LEAKAGE "$INDEPENDENT_LEAKAGE"
@@ -589,8 +594,28 @@ jobs:
           report PRODUCTION_INVARIANTS "$PRODUCTION_INVARIANTS"
           report COMPILE_CHECK "$COMPILE_CHECK"
           report PERSIST_OUTPUTS "$PERSIST_OUTPUTS"
+
+          # A hard failure can occur in a step that is not represented by the
+          # explicit stage list above. Never let the final summary turn that
+          # into a false PASS.
+          case "$JOB_STATUS" in
+            success) ;;
+            failure)
+              echo "FINAL_JOB_STATUS=failure" >&2
+              failed=1
+              ;;
+            cancelled)
+              echo "FINAL_JOB_STATUS=cancelled" >&2
+              failed=1
+              ;;
+            *)
+              echo "FINAL_JOB_STATUS=UNKNOWN_$JOB_STATUS" >&2
+              failed=1
+              ;;
+          esac
+
           if [ "$failed" -ne 0 ]; then
-            echo "PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL; safe outputs were attempted but one or more stages failed." >&2
+            echo "PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL; safe outputs were attempted but one or more stages failed. job_status=$JOB_STATUS" >&2
             exit 1
           fi
           echo "PRODUCTION_FINAL_VERDICT=PASS"
