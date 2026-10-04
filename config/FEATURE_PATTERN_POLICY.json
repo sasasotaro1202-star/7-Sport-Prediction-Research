@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "policy": "pit-safe-feature-pattern-optimization-v2",
   "principles": [
     "Never equate more columns with more information. Compare information patterns on chronological pre-holdout OOS.",
@@ -122,14 +122,24 @@
   },
   "search_budget": {
     "min_preholdout_folds": 6,
-    "stage1_max_patterns": 128,
-    "stage2_top_k": 12,
+    "stage1_max_patterns": 384,
+    "stage2_top_k": 24,
     "stage2_models": 2,
     "bootstrap_samples": 2000,
-    "complexity_penalty": "dispersion plus feature-count tie-break; do not select a larger pattern without material robust gain",
-    "acceptance_hint": "pattern screen alone cannot authorize production; downstream OOS/robustness/holdout gates remain mandatory",
-    "max_patterns": 64,
-    "stage1_patterns": 64
+    "complexity_penalty": "dispersion + feature_count tie-break + source_dependence penalty when predictive quality is comparable",
+    "acceptance_hint": "pattern screen is never production authorization",
+    "selection_holdout_policy": "pattern selection uses only an early non-holdout prefix; later OOS and frozen holdout are untouched",
+    "all_project_sports": [
+      "valorant",
+      "basketball",
+      "volleyball",
+      "tennis",
+      "ufc",
+      "rizin",
+      "f1",
+      "rugby",
+      "boxing"
+    ]
   },
   "search_space": {
     "stages": [
@@ -152,12 +162,12 @@
         "model_candidates": [
           "regularized_logistic"
         ],
-        "default_max_patterns": 128
+        "default_max_patterns": 384
       },
       {
         "stage": 2,
         "name": "diverse_top_pattern_retest",
-        "top_k": 12,
+        "top_k": 24,
         "model_candidates": [
           "hist_gb",
           "extra_trees"
@@ -166,7 +176,7 @@
       {
         "stage": 3,
         "name": "downstream_model_ecology",
-        "rule": "selected feature pattern is re-evaluated by the full sport model pool, ensemble search, calibration, uncertainty and routing before any release decision"
+        "rule": "selected pattern is passed to the full sport model ecology and later chronological OOS; no pattern-selection row may be reused as OOS evidence"
       }
     ],
     "structured_dimensions": [
