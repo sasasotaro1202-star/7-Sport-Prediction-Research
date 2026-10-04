@@ -277,6 +277,16 @@ def main():
         pinned_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/abc123/inst/extdata/games_summary_202122.csv"
         con.execute("INSERT INTO event VALUES(?,?,?)", (eid, "basketball", "2022-01-01T00:00:00+00:00"))
         con.execute(
+            "INSERT INTO source_snapshot VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("snapshot-current", "basketball", "bleaguer-github", current_url,
+             "2026-10-04T00:00:00+00:00", None, None, "hash-300", None, "fixture", "VERSION_EXACT_PUBLICATION_UNPROVEN", "{}"),
+        )
+        con.execute(
+            "INSERT INTO source_snapshot VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("snapshot-stale", "basketball", "bleaguer-github", current_url,
+             "2026-10-04T00:00:00+00:00", None, None, "different-hash", None, "fixture", "VERSION_EXACT_PUBLICATION_UNPROVEN", "{}"),
+        )
+        con.execute(
             "INSERT INTO match_stats VALUES(?,?,?,?,?)",
             ("stat-1", eid, "basketball", "bleaguer-github", current_url),
         )
@@ -287,6 +297,7 @@ def main():
             "path": "inst/extdata/games_summary_202122.csv",
             "status": "VERSION_EXACT_PUBLICATION_UNPROVEN",
             "checked_at_utc": "2026-10-04T00:00:00+00:00",
+            "current_hash": "hash-300",
             "event_provenance": [{
                 "schedule_key": "300",
                 "provenance_commit_sha": "abc123",
@@ -308,14 +319,19 @@ def main():
         result = apply(db, proof)
         assert result["event_version_provenance"] == 1
         con = sqlite3.connect(db)
-        snap = con.execute(
-            "SELECT source_url,source_available_at_utc,event_time_utc,availability_status,provenance_json "
-            "FROM source_snapshot WHERE sport='basketball'"
-        ).fetchone()
+        snap_rows = con.execute(
+            "SELECT snapshot_id,source_url,source_available_at_utc,event_time_utc,availability_status,provenance_json "
+            "FROM source_snapshot WHERE sport='basketball' ORDER BY snapshot_id"
+        ).fetchall()
+        snap = next(r for r in snap_rows if r[0] == "snapshot-current")
+        stale = next(r for r in snap_rows if r[0] == "snapshot-stale")
         repointed = con.execute("SELECT source_url FROM match_stats WHERE stat_id='stat-1'").fetchone()
         con.close()
-        assert snap[0:4] == (pinned_url, "2021-12-02T23:59:59+00:00", None, "EXACT")
-        assert '"publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND"' in snap[4]
+        assert snap[1:5] == (pinned_url, "2021-12-02T23:59:59+00:00", None, "EXACT")
+        assert '"publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND"' in snap[5]
+        assert stale[1:] == (
+            current_url, None, None, "VERSION_EXACT_PUBLICATION_UNPROVEN", "{}"
+        )
         assert repointed == (pinned_url,)
 
     # Without an explicit publication bound, version evidence remains
