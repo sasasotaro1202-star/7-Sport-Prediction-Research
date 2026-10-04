@@ -106,6 +106,10 @@ jobs:
           else
             python -m src.valorant_git_provenance
           fi
+      - name: Materialize exact B.LEAGUE publication-bound PIT rows
+        if: steps.cadence.outputs.run == 'true' && matrix.sport == 'basketball'
+        run: python -m src.bleague_exact_pit_bridge --db data/db/sports_v45.sqlite
+
       - name: Require applied B.LEAGUE publication-bound PIT bridge
         if: steps.cadence.outputs.run == 'true' && matrix.sport == 'basketball'
         run: python -m src.pit_history_expansion_guard --db data/db/sports_v45.sqlite --sport basketball
