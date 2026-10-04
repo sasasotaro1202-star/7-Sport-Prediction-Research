@@ -31,7 +31,7 @@ def test_pit_feature_cutoff():
     assert "profile__age_years" not in got
 
 
-def _synthetic(n=360):
+def _synthetic(n=800):
     rng=np.random.default_rng(7)
     x=rng.normal(size=(n,8))
     y=(0.8*x[:,0]-0.4*x[:,1]+0.25*x[:,5]+rng.normal(scale=0.8,size=n)>0).astype(int)
@@ -48,6 +48,6 @@ def test_pattern_search_is_deterministic_and_avoids_test_region():
     out2=fps.select_feature_pattern(X,y,names,"ufc",min_rows=240)
     assert out1["status"]=="SELECTED"
     assert out1["selected_feature_names"]==out2["selected_feature_names"]
-    assert out1["search_data_max_index"] < len(y)*0.50
+    assert out1["search_data_max_index"] == int(len(y)*0.50)-1
     assert out1["main_oos_reserved_from_index"] >= out1["search_data_max_index"] + 1
     assert out1["holdout_access"] is False
