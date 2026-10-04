@@ -574,18 +574,43 @@ def evaluate_patterns(
 
 def select_features(pattern_report: dict, fallback: Iterable[str]) -> tuple[list[str], str]:
     fallback = sorted(set(map(str, fallback)))
-    if isinstance(pattern_report, dict) and pattern_report.get("status") == "EVALUATED":
-        rec = pattern_report.get("selected_pattern")
-        if isinstance(rec, dict) and rec.get("features"):
-            return sorted(set(map(str, rec["features"]))), str(rec.get("pattern_id") or "selected_pattern")
-        selected = str(pattern_report.get("selected_pattern_id") or "")
-        stage1 = {
-            str(x): x
-            for x in (pattern_report.get("stage1_ranked") or [])
-        }
-        chosen = stage1.get(selected)
-        if isinstance(chosen, dict) and chosen.get("features"):
-            return sorted(set(map(str, chosen["features"]))), selected
+    if not (isinstance(pattern_report, dict) and pattern_report.get("status") == "EVALUATED"):
+        return fallback, "all_features_fallback"
+
+    rec = pattern_report.get("selected_pattern")
+    baseline = pattern_report.get("baseline_pattern") or {}
+    rel = pattern_report.get("relative_logloss_improvement_vs_baseline")
+    boot = pattern_report.get("paired_bootstrap") or {}
+    try:
+        rel = float(rel)
+    except (TypeError, ValueError):
+        rel = float("-inf")
+    prob = boot.get("bootstrap_prob_improvement")
+    p05 = boot.get("bootstrap_p05_improvement")
+    try:
+        prob = float(prob) if prob is not None else None
+    except (TypeError, ValueError):
+        prob = None
+    try:
+        p05 = float(p05) if p05 is not None else None
+    except (TypeError, ValueError):
+        p05 = None
+
+    # The screen is allowed to reject a pattern even after extensive search.
+    # Apply only when paired chronological evidence is directionally stable; for
+    # small samples the downstream full OOS pipeline must remain on all features.
+    folds = int(pattern_report.get("fold_count") or 0)
+    baseline_count = int(baseline.get("feature_count") or len(fallback))
+    selected_count = int((rec or {}).get("feature_count") or 0)
+    stable = folds >= 6 and rel >= 0.005
+    if prob is not None:
+        stable = stable and prob >= 0.75
+    if p05 is not None:
+        stable = stable and p05 > 0.0
+    simpler_or_equal = selected_count <= baseline_count
+
+    if isinstance(rec, dict) and rec.get("features") and stable and simpler_or_equal:
+        return sorted(set(map(str, rec["features"]))), str(rec.get("pattern_id") or "selected_pattern")
     return fallback, "all_features_fallback"
 
 
