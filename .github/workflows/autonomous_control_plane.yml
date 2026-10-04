@@ -10,6 +10,7 @@ on:
       - PIT History Expansion
       - Production Failure Recovery
       - Autonomous Control Plane Regression
+      - Autonomous Temporal Trajectory Loop
     types:
       - completed
 
@@ -112,6 +113,7 @@ jobs:
               "autonomous_research_sweep.yml",
               "24h_autonomous_research.yml",
               "pre_event_prediction.yml",
+              "autonomous_temporal_trajectory_loop.yml",
               # Monitor-only production/recovery evidence
               "v4_5_15_production.yml",
               "pit_history_expansion.yml",
@@ -172,6 +174,7 @@ jobs:
             "PIT_COVERAGE_REPAIR":"pit_history_expansion.yml",
             "PRODUCTION_HEARTBEAT":"pre_event_prediction.yml",
             "RESEARCH_HEALTH":"autonomous_research_sweep.yml",
+            "TRAJECTORY_RESEARCH":"autonomous_temporal_trajectory_loop.yml",
             "DEEP_RESEARCH":"24h_autonomous_research.yml",
             "SOURCE_FEASIBILITY":"source_feasibility_audit.yml",
             "SCOPE_AUTOFILL":"scope_autofill.yml",
@@ -263,6 +266,9 @@ jobs:
               ;;
             autonomous_research_sweep.yml)
               cooldown=21600
+              ;;
+            autonomous_temporal_trajectory_loop.yml)
+              cooldown=1200
               ;;
             24h_autonomous_research.yml)
               cooldown=86400
