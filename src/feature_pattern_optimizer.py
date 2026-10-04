@@ -645,6 +645,22 @@ def _pattern_model(kind: str = "logistic"):
                 n_jobs=1, class_weight="balanced", random_state=92,
             )),
         ])
+    if kind == "hist_gb_shallow":
+        return Pipeline([
+            ("i", SimpleImputer(strategy="median", add_indicator=True)),
+            ("m", HistGradientBoostingClassifier(
+                max_iter=140, learning_rate=0.08, l2_regularization=3.0,
+                max_leaf_nodes=7, min_samples_leaf=15, random_state=93,
+            )),
+        ])
+    if kind == "extra_trees_wide":
+        return Pipeline([
+            ("i", SimpleImputer(strategy="median", add_indicator=True)),
+            ("m", ExtraTreesClassifier(
+                n_estimators=220, min_samples_leaf=8, max_features=0.7,
+                n_jobs=1, class_weight="balanced", random_state=94,
+            )),
+        ])
     raise ValueError(f"unknown pattern model: {kind}")
 
 
@@ -831,7 +847,7 @@ def evaluate_patterns(
     for pid in top1:
         cand = stage1[pid]
         idx = [feature_names.index(f) for f in cand["features"] if f in feature_names]
-        for model_kind in ("hist_gb", "extra_trees"):
+        for model_kind in ("hist_gb", "hist_gb_shallow", "extra_trees", "extra_trees_wide"):
             scores = _evaluate_one_pattern(X, y, idx, confirmation_folds, model_kind)
             summary = _robust_score(scores)
             if summary.get("status") != "EVALUATED":
