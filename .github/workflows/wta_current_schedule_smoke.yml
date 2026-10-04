@@ -7,10 +7,21 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "src/seven_sport_production.py"
+      - "scripts/test_wta_public_schedule.py"
+      - "scripts/test_wta_public_schedule_live.py"
+      - ".github/workflows/wta_current_schedule_smoke.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  # Coalesce push/PR validation for the same source branch so stale schedule
+  # smoke runs cannot accumulate behind newer commits.
+  group: wta-current-schedule-smoke-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   wta-current-smoke:
