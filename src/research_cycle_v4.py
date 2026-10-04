@@ -135,9 +135,10 @@ def pool(feature_names=None, symmetric=False):
  return models
 def pairmap(c,s):
  d={}
- for eid,t,p,side,comp in c.execute("SELECT e.event_id,e.event_time_utc,ep.participant_id,ep.side,e.competition_id FROM event e JOIN event_participant ep ON ep.event_id=e.event_id WHERE e.sport=? AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL ORDER BY e.event_time_utc,e.event_id,ep.side",(s,)).fetchall():
+ for eid,t,p,side,comp,tid in c.execute("SELECT e.event_id,e.event_time_utc,ep.participant_id,ep.side,e.competition_id,ep.team_id FROM event e JOIN event_participant ep ON ep.event_id=e.event_id WHERE e.sport=? AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL ORDER BY e.event_time_utc,e.event_id,ep.side",(s,)).fetchall():
   if not t or not target_event(s,'',comp): continue
   d.setdefault(eid,{'time':t,'competition_id':comp})[side]=p
+  d[eid][f'team_{side}']=tid
  return d
 def outcome_maps(c,s,pairs):
  labels={};hist=[]
@@ -353,8 +354,51 @@ def _make_entity_history_loader(c,s):
   return snapshot(pid,event_time,cutoff_dt)
  return history,cache
 
+def _make_team_history_loader(c,s):
+ cache={}
+ def load(tid):
+  key=str(tid)
+  if key in cache:return cache[key]
+  try:
+   rows=c.execute("""SELECT attribute,value_num,value_text,effective_at_utc,source,source_url
+                      FROM team_history
+                     WHERE sport=? AND team_id=?
+                       AND effective_at_utc IS NOT NULL""",(s,key)).fetchall()
+  except sqlite3.DatabaseError:
+   rows=[]
+  cache[key]=rows
+  return rows
+ def exact_available(source,source_url,cutoff):
+  if not source:return False
+  try:
+   row=c.execute("""SELECT 1 FROM source_snapshot
+                     WHERE source=? AND COALESCE(source_url,'')=COALESCE(?,'')
+                       AND availability_status='EXACT'
+                       AND source_available_at_utc IS NOT NULL
+                       AND datetime(source_available_at_utc)<=datetime(?)
+                     LIMIT 1""",(source,source_url,cutoff.isoformat())).fetchone()
+   return row is not None
+  except sqlite3.DatabaseError:
+   return False
+ def snapshot(tid,event_time,cutoff):
+  event_dt=datetime.fromisoformat(str(event_time).replace('Z','+00:00'))
+  candidates={}
+  for attr,vnum,vtext,eff,source,url in load(tid):
+   try: eff_dt=datetime.fromisoformat(str(eff).replace('Z','+00:00'))
+   except Exception: continue
+   if eff_dt>=event_dt or eff_dt>cutoff: continue
+   if not exact_available(source,url,cutoff): continue
+   attr_n=re.sub(r'[^a-z0-9_]+','_',str(attr or '').lower()).strip('_')
+   if not attr_n: continue
+   prev=candidates.get(attr_n)
+   if prev is None or eff_dt>prev[0]:
+    candidates[attr_n]=(eff_dt,vnum,vtext)
+  return {k:(float(v[1]),v[0].isoformat()) for k,v in candidates.items() if v[1] is not None}
+ return snapshot,cache
+
+
 def build(c,s,include_unlabeled=False):
- pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};ratings_comp={};ratings_comp_fast={};ratings_comp_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);entity_history,entity_cache=_make_entity_history_loader(c,s);j=0;rows=[]
+ pairs=pairmap(c,s);labels,hist=outcome_maps(c,s,pairs);margin_map=outcome_margin_map(c,s);cols=statcols(c,s);ratings={};ratings_fast={};ratings_slow={};ratings_comp={};ratings_comp_fast={};ratings_comp_slow={};counts={};last={};recent_results={};recent_times={};recent_opponent_elo={};recent_margins={};h2h={};stat_history,stat_cache=_make_stat_history_loader(c,s);entity_history,entity_cache=_make_entity_history_loader(c,s);team_history,team_cache=_make_team_history_loader(c,s);j=0;rows=[]
  for eid,t in sorted(((e,p['time']) for e,p in pairs.items()),key=lambda x:(x[1],x[0])):
   while j<len(hist) and hist[j][1]<t:
    # Historical outcome labels are admitted only once their conservative realized
@@ -450,6 +494,9 @@ def build(c,s,include_unlabeled=False):
    f[f'{side}__recent_margin_std_5']=float(np.std(rmg[-5:])) if len(rmg)>=2 else np.nan
    f[f'{side}__recent_margin_std_20']=float(np.std(rmg[-20:])) if len(rmg)>=2 else np.nan
    # Participant/team profile history is optional but fully PIT-gated.
+   # Define cutoff before reading any entity/team history.
+   pred_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
+   cutoff_dt=pred_dt-timedelta(minutes=60)
    # Numeric attributes become direct profile features; stable text attributes use
    # conservative one-hot indicators for common stance/role/position semantics.
    profile_values=entity_history(pid,t,cutoff_dt)
@@ -466,11 +513,17 @@ def build(c,s,include_unlabeled=False):
     except Exception:
      continue
     f[f'{side}__profile__{attr}']=val
+   team_id=p.get(f'team_{side}')
+   if team_id:
+    for attr,val_tuple in team_history(team_id,t,cutoff_dt).items():
+     try:
+      val=float(val_tuple[0])
+     except Exception:
+      continue
+     f[f'{side}__team_profile__{attr}']=val
    stat_with_data=0
    stat_age_sum=0.0
    for st in cols:
-    pred_dt=datetime.fromisoformat(t.replace('Z','+00:00'))
-    cutoff_dt=pred_dt-__import__('datetime').timedelta(minutes=60)
     v=stat_history(pid,st,t,cutoff_dt)
     strict_evidence += len(v)
     x=np.array([z[0] for z in v],float)
