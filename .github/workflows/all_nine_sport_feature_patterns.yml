@@ -69,8 +69,21 @@ jobs:
             nine-sport-research-db-v4-${{ matrix.sport }}-
             nine-sport-target-db-v4-${{ matrix.sport }}-
 
-      - name: Initialize database schema
-        run: python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+      - name: Initialize sport-scoped database schema
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          from src.storage.db_v45 import SCHEMA
+          sport = "${{ matrix.sport }}"
+          db_name = "rugby_v45.sqlite" if sport == "rugby" else "boxing_v45.sqlite" if sport == "boxing" else "sports_v45.sqlite"
+          path = Path("data/db") / db_name
+          path.parent.mkdir(parents=True, exist_ok=True)
+          con = sqlite3.connect(path)
+          con.executescript(SCHEMA)
+          con.close()
+          print(f"INITIALIZED_DB={path}")
+          PY
 
       - name: Collect current sport research evidence
         shell: bash
@@ -125,7 +138,7 @@ jobs:
           from src.feature_pattern_optimizer import evaluate_patterns
 
           sport = "${{ matrix.sport }}"
-          db = Path("data/db/sports_v45.sqlite")
+          db = Path("data/db/rugby_v45.sqlite" if sport == "rugby" else "data/db/boxing_v45.sqlite" if sport == "boxing" else "data/db/sports_v45.sqlite")
           out = Path(f"results/feature_patterns/{sport}.json")
           if not db.exists():
               out.write_text(json.dumps({
@@ -180,7 +193,7 @@ jobs:
           step = max(20, int(np.ceil((prefix_end - start) / 6)))
           family_coverage = {}
           from src.feature_pattern_optimizer import family_members
-          families = family_members(feature_names)
+          families = family_members(feature_names, sport)
           for fam_name, fam_cols in families.items():
               if fam_cols:
                   idx = [feature_names.index(f) for f in fam_cols if f in feature_names]
