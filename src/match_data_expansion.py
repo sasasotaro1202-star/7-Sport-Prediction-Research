@@ -888,7 +888,9 @@ def run(sport, horizon_days=14, max_events=40, lead_minutes=60):
         "fetch_errors": errors,
         "new_match_stats": after - before,
         "results": results,
-        "status": "DEGRADED" if errors and not results else "OK",
+        # Any fetch error on a selected future event is a real enrichment failure.
+        # A partially successful batch must not be mislabeled as fully successful.
+        "status": "DEGRADED" if errors else "OK",
     }
 
 
@@ -912,6 +914,7 @@ def main():
         encoding="utf-8",
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 1 if report["status"] == "DEGRADED" else 0
 
 
 if __name__ == "__main__":

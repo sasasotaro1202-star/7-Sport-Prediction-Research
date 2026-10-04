@@ -346,7 +346,7 @@ jobs:
             echo "TIMING_SHADOW_STATUS=OK"
           fi
           rc=0
-          for x in "$experience_sync_rc" "$collect_rc" "$predict_rc" "$experience_rc" "$audit_rc" "$db_rc"; do
+          for x in "$experience_sync_rc" "$collect_rc" "$predict_rc" "$match_data_rc" "$experience_rc" "$audit_rc" "$db_rc"; do
             if [ "$x" -ne 0 ] && [ "$rc" -eq 0 ]; then rc="$x"; fi
           done
           exit "$rc"

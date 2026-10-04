@@ -250,6 +250,56 @@ def main() -> int:
     assert rows[0][5] == "https://ufcstats.com/event-details/example"
     con.close()
 
+    # A selected future event with a fetch error must be degraded even when
+    # another selected event was successfully enriched.
+    import src.match_data_expansion as mde
+    original_select_events = mde.select_events
+    original_enrich_one = mde.enrich_one
+    original_connect = mde.connect
+
+    class _FakeCon:
+        def execute(self, query, params=()):
+            if "SELECT COUNT(*) FROM match_stats" in query:
+                return type("_R", (), {"fetchone": lambda self: (0,)})()
+            if "FROM source_snapshot" in query:
+                return type("_R", (), {"fetchone": lambda self: None})()
+            raise AssertionError(f"unexpected query: {query}")
+        def commit(self):
+            return None
+        def close(self):
+            return None
+
+    def fake_connect():
+        return _FakeCon()
+
+    def fake_select_events(con, sport, horizon_days=14, max_events=40):
+        return [
+            {"event_id": "ok-event", "sport": sport, "event_time_utc": future,
+             "event_type": "match", "status": "SCHEDULED",
+             "source_url": "https://example/ok"},
+            {"event_id": "error-event", "sport": sport, "event_time_utc": future,
+             "event_type": "match", "status": "SCHEDULED",
+             "source_url": "https://example/error"},
+        ]
+
+    def fake_enrich_one(con, event, lead_minutes=60):
+        if event["event_id"] == "error-event":
+            return {"status": "FETCH_ERROR", "event_id": event["event_id"]}
+        return {"status": "OK", "event_id": event["event_id"], "written_stats": 1}
+
+    mde.connect = fake_connect
+    mde.select_events = fake_select_events
+    mde.enrich_one = fake_enrich_one
+    try:
+        report = mde.run("ufc", horizon_days=1, max_events=2, lead_minutes=60)
+        assert report["selected_events"] == 2
+        assert report["processed_events"] == 2
+        assert report["fetch_errors"] == 1
+        assert report["status"] == "DEGRADED"
+    finally:
+        mde.connect = original_connect
+        mde.select_events = original_select_events
+        mde.enrich_one = original_enrich_one
     print("MATCH_DATA_EXPANSION_PARSER=PASS")
     return 0
 
