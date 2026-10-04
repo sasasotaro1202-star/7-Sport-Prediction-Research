@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # Coalesce push/PR validation for the same source branch so stale commits
+  # cannot occupy the Actions queue after a newer commit supersedes them.
+  group: future-prior-retrieval-pit-smoke-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   future-prior-smoke:
     runs-on: ubuntu-latest

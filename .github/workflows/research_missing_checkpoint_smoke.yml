@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # This is read-only PR validation. Keep only the newest commit for each
+  # source branch so rapid research pushes do not create duplicate smoke jobs.
+  group: research-missing-checkpoint-smoke-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
