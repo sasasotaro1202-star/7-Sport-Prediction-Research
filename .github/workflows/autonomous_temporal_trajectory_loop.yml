@@ -43,11 +43,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.12"
 
@@ -99,13 +99,30 @@ jobs:
           set -euo pipefail
           mkdir -p trajectory_delta
           if [ -s data/db/sports_v45.sqlite ]; then
-            python -m src.trajectory_snapshot_collector               --sport "$SPORT_NAME"               --db data/db/sports_v45.sqlite               --output-dir trajectory_delta               --sample-minutes 5
+            python -m src.trajectory_snapshot_collector \
+              --sport "$SPORT_NAME" \
+              --db data/db/sports_v45.sqlite \
+              --output-dir trajectory_delta \
+              --sample-minutes 5
           else
-            printf '%s
-' "{"status":"BLOCKED","sport":"$SPORT_NAME","reason":"DATABASE_UNAVAILABLE","promotion_status":"RESEARCH_ONLY_NO_AUTO_PROMOTION"}" > "trajectory_delta/trajectory_collect_$SPORT_NAME.json"
-            : > "trajectory_delta/trajectory_snapshots_$SPORT_NAME.jsonl"
-            printf '%s
-' '{}' > "trajectory_delta/trajectory_outcomes_$SPORT_NAME.json"
+            python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          sport = os.environ["SPORT_NAME"]
+          Path(f"trajectory_delta/trajectory_collect_{sport}.json").write_text(
+              json.dumps({
+                  "status": "BLOCKED",
+                  "sport": sport,
+                  "reason": "DATABASE_UNAVAILABLE",
+                  "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
+              }, ensure_ascii=False, sort_keys=True) + "\\n",
+              encoding="utf-8",
+          )
+          Path(f"trajectory_delta/trajectory_snapshots_{sport}.jsonl").write_text("", encoding="utf-8")
+          Path(f"trajectory_delta/trajectory_outcomes_{sport}.json").write_text("{}\\n", encoding="utf-8")
+          PY
           fi
 
       - name: Preserve collection delta
@@ -124,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 1
 
@@ -135,7 +152,7 @@ jobs:
           path: trajectory_artifacts
           merge-multiple: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.12"
 
