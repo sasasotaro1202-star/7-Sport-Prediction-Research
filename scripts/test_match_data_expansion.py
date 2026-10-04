@@ -261,6 +261,8 @@ def main() -> int:
         def execute(self, query, params=()):
             if "SELECT COUNT(*) FROM match_stats" in query:
                 return type("_R", (), {"fetchone": lambda self: (0,)})()
+            if "FROM source_snapshot" in query:
+                return type("_R", (), {"fetchone": lambda self: None})()
             raise AssertionError(f"unexpected query: {query}")
         def commit(self):
             return None
