@@ -62,3 +62,8 @@ The F1 OpenF1 historical backfill records HTTP status for fetch failures. A comp
 
 ### Autonomous dispatch ordering safety
 The control plane must reconcile and persist its current state before starting any autonomous maintenance/research workflow. After persistence, it captures the resulting main SHA and re-checks the remote main ref immediately before dispatch. Any concurrent main change fails closed; the next scheduled control cycle may retry. Dispatch is never keyed to the pre-persistence invocation SHA.
+
+### Failure-memory-driven autonomous research
+The control plane reads append-only `results/failure_memory.jsonl` each cycle, distinguishes recent recorded failures from missing/invalid evidence, and raises bounded research follow-up when failures occurred within the last 24 hours. Failure details are never inferred from absent fields. Production Failure Recovery remains the owner of failure-specific retry; the control plane only converts observed failures into research priority.
+
+The Actions snapshot also monitors production, PIT History Expansion, Production Failure Recovery, Production Watchdog, Production Invariants, and Lightweight Regression as evidence-only workflows. Monitoring does not grant permission to dispatch or promote them.
