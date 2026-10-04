@@ -499,6 +499,45 @@ def inspect() -> dict[str, Any]:
 def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
     candidates: list[dict[str, Any]] = []
 
+    # Prefer the workflow_run event payload as first-class failure evidence.
+    # This closes the race where a newer run replaces the snapshot's latest row
+    # before the event-triggered control plane starts.
+    event_workflow = os.environ.get("CONTROL_PLANE_EVENT_WORKFLOW", "")
+    event_conclusion = os.environ.get("CONTROL_PLANE_EVENT_CONCLUSION", "")
+    event_head_sha = os.environ.get("CONTROL_PLANE_EVENT_HEAD_SHA", "")
+    event_target = next(
+        (
+            target
+            for target, workflow in MONITORED_WORKFLOWS.items()
+            if workflow == event_workflow
+        ),
+        None,
+    )
+    if (
+        event_target is not None
+        and event_conclusion in {"failure", "timed_out", "startup_failure", "cancelled"}
+        and state["head_sha"] != "UNKNOWN"
+        and event_head_sha == state["head_sha"]
+    ):
+        candidates.append({
+            "action": "RESEARCH_HEALTH",
+            "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
+            "target": f"workflow_event_failure:{event_target}",
+            "impact": 28.0,
+            "evidence_gap": 1.0,
+            "failure_relevance": 1.0,
+            "generalization": 1.0,
+            "information_value": 1.0,
+            "cost": 1.0,
+            "reason": (
+                f"workflow_run reported {event_conclusion} for current-main "
+                f"monitored workflow {event_target}; use the event evidence directly "
+                "before later snapshot rows can mask the failure"
+            ),
+            "auto_dispatch": True,
+            "dispatch_policy": "event_payload_first_failure_triage_on_current_main_sha",
+        })
+
     if state["quality"]["pit_research_blocked"]:
         candidates.append({
             "action": "PIT_COVERAGE_REPAIR",
