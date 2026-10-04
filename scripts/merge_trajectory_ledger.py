@@ -159,7 +159,7 @@ def main() -> int:
     state = {
         "version": 1,
         "engine_version": "trajectory-intelligence-v1",
-        "status": "READY",
+        "status": "UNKNOWN",
         "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
         "sports": {},
     }
@@ -187,6 +187,14 @@ def main() -> int:
     state_path.write_text(state_content, encoding="utf-8")
     changed["_state_changed"] = old_state != state_content
 
+    statuses = [str(v.get("evaluation_status") or "UNKNOWN") for v in state["sports"].values()]
+    if any(x == "EVALUATED" for x in statuses):
+        state["status"] = "READY"
+    elif any(x == "INSUFFICIENT_OOS" for x in statuses):
+        state["status"] = "INSUFFICIENT_OOS"
+    else:
+        state["status"] = "BLOCKED"
+    
     print(json.dumps({
         "changed": changed,
         "state": state,
