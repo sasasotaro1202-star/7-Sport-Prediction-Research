@@ -55,15 +55,12 @@ jobs:
             nine-sport-research-db-v4-basketball-
             pit-history-seed-basketball-
 
-      - name: Initialize or validate database
+      - name: Validate restored basketball PIT database
         run: |
           set -euo pipefail
-          python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
           test -s data/db/sports_v45.sqlite
-          python -m src.cache_health --db data/db/sports_v45.sqlite --sport basketball --repair
-
-      - name: Materialize historical B.LEAGUE corpus
-        run: python -m src.basketball_cdn_backfill --historical
+          python -c "from src.storage.db_v45 import connect; c=connect(); c.close()"
+          python -m src.cache_health --db data/db/sports_v45.sqlite --sport basketball
 
       - name: Run read-only public-availability shadow audit
         run: python scripts/bleague_public_availability_shadow_audit.py
