@@ -182,11 +182,27 @@ def main() -> int:
             }
         }
         cp.ACTIONS_SNAPSHOT.write_text(json.dumps(workflows), encoding="utf-8")
+        # A newer successful snapshot row must not erase a failed workflow_run event.
+        workflows["workflows"]["v4_5_15_production.yml"] = {
+            "latest": {
+                "databaseId": 100,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": recent_iso,
+                "headSha": "new-sha",
+            }
+        }
+        cp.ACTIONS_SNAPSHOT.write_text(json.dumps(workflows), encoding="utf-8")
+        os.environ["CONTROL_PLANE_EVENT_WORKFLOW"] = "v4_5_15_production.yml"
+        os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
+        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
         failure_state = cp.inspect()
         selected_action, failure_dispatch = cp.choose_actions(failure_state)
         assert selected_action["action"] == "PIT_COVERAGE_REPAIR"
         assert failure_dispatch is not None
-        assert failure_dispatch["target"] == "workflow_failure:production"
+        assert failure_dispatch["target"] == "workflow_event_failure:production"
+        assert failure_dispatch["action"] == "RESEARCH_HEALTH"
+        assert failure_dispatch["workflow"] == "autonomous_research_sweep.yml"
         assert failure_dispatch["action"] == "RESEARCH_HEALTH"
         assert failure_dispatch["workflow"] == "autonomous_research_sweep.yml"
 
