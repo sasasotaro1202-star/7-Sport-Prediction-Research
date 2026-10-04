@@ -186,7 +186,27 @@ def outcome_margin_map(c,s):
   pass
  return out
 def statcols(c,s):
- w=POLICY[s];q=','.join('?'*len(w));return [r[0] for r in c.execute(f'SELECT stat_name FROM match_stats WHERE sport=? AND stat_name IN ({q}) GROUP BY stat_name',(s,*w)).fetchall()]
+ w=POLICY[s]
+ q=','.join('?'*len(w))
+ configured=[r[0] for r in c.execute(
+  f'SELECT stat_name FROM match_stats WHERE sport=? AND stat_name IN ({q}) GROUP BY stat_name',
+  (s,*w)
+ ).fetchall()]
+ # Admit additional typed history only when it is explicitly participant/team scoped.
+ # These prefixes cover season/career profiles without opening the feature surface to
+ # arbitrary event-level text or result fields.
+ extra=[r[0] for r in c.execute(
+  """SELECT stat_name FROM match_stats
+      WHERE sport=?
+        AND (stat_name LIKE 'team.season_%'
+          OR stat_name LIKE 'team.standing_%'
+          OR stat_name LIKE 'player.season_%'
+          OR stat_name LIKE 'athlete.season_%'
+          OR stat_name LIKE 'fighter.career_%')
+        AND participant_id IS NOT NULL
+      GROUP BY stat_name""",(s,)
+ ).fetchall()]
+ return sorted(set(configured+extra))
 def _make_stat_history_loader(c,s):
  cache={}
  def load(pid,st):
