@@ -30,6 +30,10 @@ SPORT_PRIORITY = {
     "valorant": ("identity_strength", "performance_history", "form_load", "team_roster_context", "competition_context", "matchday_intelligence", "entity_profile", "data_quality", "interaction"),
     "ufc": ("identity_strength", "performance_history", "entity_profile", "form_load", "competition_context", "matchday_intelligence", "data_quality", "interaction", "team_roster_context"),
     "rizin": ("identity_strength", "performance_history", "entity_profile", "form_load", "competition_context", "matchday_intelligence", "data_quality", "interaction", "team_roster_context"),
+    "tennis": ("identity_strength", "performance_history", "entity_profile", "form_load", "competition_context", "matchday_intelligence", "data_quality", "interaction"),
+    "f1": ("identity_strength", "performance_history", "entity_profile", "form_load", "competition_context", "matchday_intelligence", "data_quality", "interaction"),
+    "rugby": ("identity_strength", "performance_history", "form_load", "team_roster_context", "competition_context", "matchday_intelligence", "entity_profile", "data_quality", "interaction"),
+    "boxing": ("identity_strength", "performance_history", "entity_profile", "form_load", "competition_context", "matchday_intelligence", "data_quality", "interaction"),
 }
 
 
