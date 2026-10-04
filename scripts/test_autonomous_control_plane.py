@@ -158,9 +158,15 @@ def test_action_health_rejects_old_sha() -> None:
     assert health["stale"] is True
 
 
+def test_trajectory_control_plane_registration() -> None:
+    assert cp.ALLOWED_WORKFLOWS["TRAJECTORY_RESEARCH"] == "autonomous_temporal_trajectory_loop.yml"
+    assert cp.MONITORED_WORKFLOWS["trajectory_research"] == "autonomous_temporal_trajectory_loop.yml"
+
+
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
+    test_trajectory_control_plane_registration()
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         bind(root)
