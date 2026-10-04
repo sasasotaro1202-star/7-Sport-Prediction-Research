@@ -1,10 +1,10 @@
 {
-  "version": 1,
+  "version": 2,
   "status": "RESEARCH_EVIDENCE_ONLY",
   "scope": "basketball",
   "source_family": "bleaguer",
   "strict_pit_usable": false,
-  "reason": "Independent publication evidence establishes that the named historical corpus was publicly used by a dated publication, but it does not identify the exact source revision or an exact publication timestamp. Therefore it cannot set source_available_at_utc for strict PIT.",
+  "reason": "The 2021-04-19 independent analysis explicitly states that it used games_summary_202021.csv from rintaromasuda/bleaguer. Path-specific Git history identifies 42c621a5437228a4d5a796f62116bee5cc44dce2 as the last revision touching that file before the publication, and 64cba9d4693646b3365805da04ad9f8779e5233c as the next file-touching revision on 2021-05-11. This yields a conservative date-only public-availability upper bound for the exact 2021-04-13 revision. The bound is evidence only and is not wired into production PIT by this change.",
   "evidence": [
     {
       "source_url": "https://rnsr0371.boy.jp/2021/04/19/simulation_chiba202021/",
@@ -18,7 +18,19 @@
       ],
       "claim_supported": "The published analysis states that its 2020-21 B.LEAGUE dataset was built using games_summary_202021.csv and teams.csv from rintaromasuda/bleaguer.",
       "evidence_level": "SECONDARY_INDEPENDENT_REFERENCE",
-      "pit_status": "UNPROVEN"
+      "pit_status": "UNPROVEN",
+      "revision_evidence": {
+        "exact_revision_sha": "42c621a5437228a4d5a796f62116bee5cc44dce2",
+        "revision_commit_timestamp_utc": "2021-04-13T23:29:05Z",
+        "next_file_touch_sha": "64cba9d4693646b3365805da04ad9f8779e5233c",
+        "next_file_touch_timestamp_utc": "2021-05-11T13:51:31Z",
+        "public_availability_bound": {
+          "precision": "DATE_ONLY",
+          "latest_safe_utc": "2021-04-19T23:59:59Z",
+          "semantics": "conservative_latest_possible_publication_time"
+        },
+        "pit_status": "CANDIDATE_DATE_BOUND_NOT_YET_WIRED"
+      }
     },
     {
       "source_url": "https://rnsr0371.boy.jp/2021/09/17/home_court_advantage_at_bleague/",
@@ -37,9 +49,24 @@
     }
   ],
   "next_required_for_pit": [
-    "pin exact historical content revision",
-    "prove that exact revision was public no later than the independent publication date/time",
-    "link exact event feature rows to the pinned revision",
-    "set source_available_at_utc only after both content and public-time evidence are independently satisfied"
-  ]
+    "retain exact event feature-row matches against revision 42c621a5437228a4d5a796f62116bee5cc44dce2",
+    "use 2021-04-19T23:59:59Z only as a conservative upper bound for cutoffs strictly after that time",
+    "write source_available_at_utc and repoint match_stats only in a separately reviewed PIT upgrade step",
+    "run strict chronological PIT replay, coverage delta, calibration and OOS robustness before any model or production promotion"
+  ],
+  "revision_evidence": {
+    "file": "inst/extdata/games_summary_202021.csv",
+    "revision_sha": "42c621a5437228a4d5a796f62116bee5cc44dce2",
+    "revision_commit_timestamp_utc": "2021-04-13T23:29:05Z",
+    "revision_commit_message": "Update 20210414",
+    "next_file_touch_sha": "64cba9d4693646b3365805da04ad9f8779e5233c",
+    "next_file_touch_timestamp_utc": "2021-05-11T13:51:31Z",
+    "no_intervening_file_touch_between_revision_and_independent_publication": true,
+    "verification_basis": "GitHub path-specific commit history plus dated independent public analysis",
+    "public_availability_bound": {
+      "precision": "DATE_ONLY",
+      "latest_safe_utc": "2021-04-19T23:59:59Z",
+      "semantics": "conservative_latest_possible_publication_time"
+    }
+  }
 }
