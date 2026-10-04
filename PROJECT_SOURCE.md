@@ -1116,6 +1116,12 @@ persist前後またはdispatch直前にmainが変化した場合はFAIL CLOSED�
 このordering safetyはautomation integrityのためのものであり、performance verification、OOS、PIT validation、holdout、production approvalを意味しない。
 
 
+=== CURRENT-MAIN ACTIONS EVIDENCE GATE ===
+
+Actions health evidence is valid only when the latest observed run `headSha` matches the current control-plane `GITHUB_SHA` (the reconciled main SHA used for the cycle). A successful run on an older commit is classified STALE, not HEALTHY, so autonomous dispatch never relies on stale success evidence.
+
+SHA mismatch is separate from workflow failure. The health payload records both `head_sha` and `current_main_sha`, plus an explicit `sha_match` field when both are verifiable.
+
 === FAILURE-MEMORY-AWARE CONTROL PLANE ===
 
 Failure Memoryは単なる保存先ではなく、次researchのevidence inputとして扱う。
