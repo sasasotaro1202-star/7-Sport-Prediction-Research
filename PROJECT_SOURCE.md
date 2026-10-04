@@ -1219,7 +1219,7 @@ Control Plane integration:
 * scripts/trajectory_research_runner.py
 * tests/test_trajectory_intelligence_oos.py
 * config/TEMPORAL_TRAJECTORY_POLICY.json
-* .github/workflows/temporal_trajectory_research.yml
+* .github/workflows/autonomous_temporal_trajectory_loop.yml
 
 TemporalTrajectoryEngineはcomplete historical trajectory retrievalを使い、autoregressiveな自己予測連鎖をresearch baselineとする実装を避ける。過去eventのfuture-state pathを条件付きで再利用することで、horizon間の相関を保持する。
 
