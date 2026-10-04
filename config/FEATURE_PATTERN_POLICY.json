@@ -142,7 +142,9 @@
     ],
     "rankers": [
       "absolute_correlation",
+      "spearman_correlation",
       "mutual_information",
+      "logistic_coefficient",
       "extra_trees_importance"
     ],
     "sparse_sizes": [
