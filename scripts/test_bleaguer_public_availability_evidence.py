@@ -48,6 +48,11 @@ def main() -> None:
     assert parse_utc(rev["revision_commit_timestamp_utc"]) <= parse_utc(bound)
     assert parse_utc(rev["next_file_touch_timestamp_utc"]) > parse_utc(bound)
 
+    source = (ROOT / "src/bleaguer_git_provenance.py").read_text(encoding="utf-8")
+    assert 'def secondary_publication_bound' in source
+    assert 'PROVEN_BY_SECONDARY_DATE_BOUND' in source
+    assert 'github-version-provenance-v4-secondary-public-bound' in source
+
     print("BLEAGUER_PUBLIC_AVAILABILITY_EVIDENCE=PASS")
 
 
