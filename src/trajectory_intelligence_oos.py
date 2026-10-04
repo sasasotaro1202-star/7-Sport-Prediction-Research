@@ -247,7 +247,12 @@ class EmpiricalTrajectoryMemory:
             p10[str(h)] = np.array([np.quantile(mat[:, d], 0.10) for d in range(mat.shape[1])]).tolist()
             p90[str(h)] = np.array([np.quantile(mat[:, d], 0.90) for d in range(mat.shape[1])]).tolist()
             p_out[str(h)] = float(np.average([r.outcome for r in rows], weights=weights))
+        query = np.asarray(features, dtype=float).reshape(1, -1)
+        missing_query = ~np.isfinite(query)
+        clean_query = np.where(np.isfinite(query), query, self.med)
+        q_repr = np.column_stack([(clean_query - self.med) / self.scale, missing_query.astype(float)])
         d = np.linalg.norm(self.X[idx] - np.average(self.X[idx], axis=0, weights=weights), axis=1)
+        nearest = float(np.min(np.linalg.norm(self.X[idx] - q_repr[0], axis=1))) if len(idx) else None
         similarity = float(np.exp(-float(np.median(d)) / 2.0)) if len(d) else 0.0
         support = float(min(1.0, np.sqrt(len(rows) / max(len(self.cases), 1))))
         return {
@@ -261,7 +266,7 @@ class EmpiricalTrajectoryMemory:
             "outcome_probability_by_horizon": p_out,
             "scenario_event_ids": [r.event_id for r in rows],
             "scenario_weights": [float(x) for x in weights],
-            "nearest_distance": float(np.min(np.linalg.norm(self.X[idx] - self.X[idx[0]], axis=1))) if idx else None,
+            "nearest_distance": nearest,
             "predictability_score": float(np.clip(0.6 * similarity + 0.4 * support, 0.0, 1.0)),
         }
 
