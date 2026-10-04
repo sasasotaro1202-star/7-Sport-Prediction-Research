@@ -212,9 +212,15 @@ def evaluate_patterns(
 
 
 def select_features(pattern_report: dict, fallback: Iterable[str]) -> tuple[list[str], str]:
+    fallback = sorted(set(map(str, fallback)))
     if isinstance(pattern_report, dict) and pattern_report.get("status") == "EVALUATED":
-        selected = pattern_report.get("selected_pattern_id")
-        result = (pattern_report.get("results") or {}).get(selected)
-        if isinstance(result, dict):
-            return list((pattern_report.get("candidates") or [{}])[0].get("features", [])) if False else [], str(selected)
-    return sorted(set(map(str, fallback))), "all_features_fallback"
+        selected = str(pattern_report.get("selected_pattern_id") or "")
+        by_id = {
+            str(x.get("pattern_id")): x
+            for x in (pattern_report.get("candidates") or [])
+            if isinstance(x, dict)
+        }
+        chosen = by_id.get(selected)
+        if isinstance(chosen, dict) and chosen.get("features"):
+            return sorted(set(map(str, chosen["features"]))), selected
+    return fallback, "all_features_fallback"
