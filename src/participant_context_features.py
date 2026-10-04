@@ -305,13 +305,19 @@ def event_participant_features(
     try:
         rows = con.execute(
             """
-            SELECT ep.side, ep.seed, ep.lineup_status, ep.effective_at_utc
+            SELECT DISTINCT ep.side, ep.seed, ep.lineup_status, ep.effective_at_utc
               FROM event_participant ep
+              JOIN source_snapshot ss
+                ON ss.source=ep.source
+               AND ss.source_url=ep.source_url
+               AND ss.availability_status='EXACT'
+               AND ss.source_available_at_utc IS NOT NULL
              WHERE ep.event_id=?
                AND ep.side IN ('A','B')
                AND ep.quality_status='EXACT'
+               AND datetime(ss.source_available_at_utc) <= datetime(?)
             """,
-            (event_id,),
+            (event_id, cutoff.isoformat()),
         ).fetchall()
     except sqlite3.DatabaseError:
         return result
