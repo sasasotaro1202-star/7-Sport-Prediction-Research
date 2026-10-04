@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "policy": "pit-safe-feature-pattern-optimization-v1",
+  "principles": [
+    "Never equate more columns with more information. Compare information patterns on chronological pre-holdout OOS.",
+    "Feature availability, identity and PIT are upstream gates. Pattern selection cannot rescue invalid provenance.",
+    "Selection must be event-cluster/time-aware; the same event at multiple cutoffs is not independent evidence.",
+    "Do not silently discard a sport because a preferred family is missing. Missing families are explicit and the candidate falls back to validated broader patterns.",
+    "Profile, roster, performance, form, competition, matchday, source-quality and interaction signals are separate families.",
+    "Sport-specific priority is allowed, but the optimizer must test alternative families and combinations rather than hard-code one universal feature recipe.",
+    "Pattern complexity is penalized when predictive quality is comparable. Simpler patterns win ties.",
+    "Pattern results are research evidence until downstream chronological OOS, robustness and frozen-holdout release gates pass."
+  ],
+  "families": {
+    "identity_strength": "Elo, opponent strength, H2H, historical participation",
+    "form_load": "recent results, streaks, margins, rest, schedule load",
+    "performance_history": "prior match/player/team statistics and multiscale summaries",
+    "entity_profile": "age, height, reach, stance, position, role, player/athlete profile",
+    "team_roster_context": "roster, starters, lineup, role/position, team composition",
+    "competition_context": "competition, season, stage, round, event type, rules",
+    "matchday_intelligence": "availability, injuries, weather, market/news, late official updates",
+    "data_quality": "coverage, freshness, source reliability, PIT/source-state",
+    "interaction": "differences, ratios, relative values, cross-family interactions"
+  },
+  "sport_priority": {
+    "basketball": [
+      "identity_strength",
+      "performance_history",
+      "form_load",
+      "team_roster_context",
+      "competition_context",
+      "matchday_intelligence",
+      "entity_profile",
+      "data_quality",
+      "interaction"
+    ],
+    "volleyball": [
+      "identity_strength",
+      "performance_history",
+      "form_load",
+      "team_roster_context",
+      "competition_context",
+      "matchday_intelligence",
+      "entity_profile",
+      "data_quality",
+      "interaction"
+    ],
+    "valorant": [
+      "identity_strength",
+      "performance_history",
+      "form_load",
+      "team_roster_context",
+      "competition_context",
+      "matchday_intelligence",
+      "entity_profile",
+      "data_quality",
+      "interaction"
+    ],
+    "ufc": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction",
+      "team_roster_context"
+    ],
+    "rizin": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction",
+      "team_roster_context"
+    ],
+    "tennis": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction"
+    ],
+    "f1": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction"
+    ],
+    "rugby": [
+      "identity_strength",
+      "performance_history",
+      "form_load",
+      "team_roster_context",
+      "competition_context",
+      "matchday_intelligence",
+      "entity_profile",
+      "data_quality",
+      "interaction"
+    ],
+    "boxing": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction"
+    ]
+  },
+  "search_budget": {
+    "max_patterns": 14,
+    "minimum_preholdout_folds": 3,
+    "screen_model": "logistic_regularized_pit_safe",
+    "robustness": "recent_weighted_logloss_plus_dispersion",
+    "tie_break": "lower_feature_count",
+    "holdout_touch": false
+  }
+}
