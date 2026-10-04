@@ -7,6 +7,9 @@ on:
       - "scripts/bleague_public_availability_shadow_audit.py"
       - "scripts/test_bleague_public_availability_shadow_audit.py"
       - "scripts/test_bleague_public_availability_shadow_audit_unit.py"
+      - "scripts/test_bleague_public_availability_shadow_audit_schema.py"
+      - "scripts/test_bleague_public_availability_shadow_audit_unit.py"
+      - "scripts/test_bleague_public_availability_shadow_audit_schema.py"
       - "scripts/test_bleaguer_public_availability_evidence.py"
       - "results/research/bleague_public_availability_evidence.json"
       - "src/bleaguer_git_provenance.py"
@@ -74,6 +77,9 @@ jobs:
 
       - name: Run read-only public-availability shadow audit
         run: python scripts/bleague_public_availability_shadow_audit.py
+
+      - name: Run canonical schema regression
+        run: python scripts/test_bleague_public_availability_shadow_audit_schema.py
 
       - name: Run shadow-audit unit regression
         run: python scripts/test_bleague_public_availability_shadow_audit_unit.py
