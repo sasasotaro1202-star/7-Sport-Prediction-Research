@@ -45,8 +45,8 @@ def main() -> None:
 
     # The provenance chain must be chronological and the safe bound may never
     # be earlier than either the exact revision commit or the publication date.
-    assert parse_utc(rev["revision_commit_timestamp_utc"]) <= parse_utc(bound)
-    assert parse_utc(rev["next_file_touch_timestamp_utc"]) > parse_utc(bound)
+    assert parse_utc(rev["revision_commit_timestamp_utc"]) <= parse_utc(bound["latest_safe_utc"])
+    assert parse_utc(rev["next_file_touch_timestamp_utc"]) > parse_utc(bound["latest_safe_utc"])
 
     print("BLEAGUER_PUBLIC_AVAILABILITY_EVIDENCE=PASS")
 
