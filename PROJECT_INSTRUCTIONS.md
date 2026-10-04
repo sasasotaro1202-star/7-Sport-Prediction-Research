@@ -69,3 +69,7 @@ The control plane reads append-only `results/failure_memory.jsonl` each cycle, d
 The control plane is also event-driven for failures of Active-Scope Target v4.5.15 Production, PIT History Expansion, Production Failure Recovery, and its own fast regression workflow. A completed workflow with failure/timed-out/startup_failure/cancelled triggers immediate control-plane triage; the controller dispatches only the bounded RESEARCH_HEALTH lane, and only when the failed run is on the current main SHA and occurred within the last 24 hours. This closes the gap between observed failure and persisted Failure Memory without duplicating recovery ownership or treating stale-SHA guard failures as fresh regressions.
 
 The Actions snapshot also monitors production, PIT History Expansion, Production Failure Recovery, Production Watchdog, Production Invariants, and Lightweight Regression as evidence-only workflows. Monitoring does not grant permission to dispatch or promote them.
+
+
+### First-class workflow failure evidence
+For event-driven failure triage, the `workflow_run` payload is first-class evidence. A newer Actions snapshot row must not mask the triggering failure. The event head SHA must match the reconciled current main SHA; otherwise the event is fail-closed and is not treated as a fresh current-main research regression.
