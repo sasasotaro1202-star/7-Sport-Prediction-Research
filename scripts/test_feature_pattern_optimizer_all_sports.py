@@ -33,6 +33,22 @@ def main() -> int:
     assert classify_feature("A__stat_points__mean") == "performance_history"
     assert classify_feature("A__profile__height") == "entity_profile"
     assert classify_feature("AD__stat_points__mean") == "performance_history"
+    from src.feature_pattern_optimizer import classify_feature_for_sport as ns_classify_for_sport
+
+    sport_cases = {
+        "valorant": {"A__acs__mean": "performance_history", "series_format_bo5": "competition_context"},
+        "basketball": {"A__points__mean": "performance_history", "A__rotation": "team_roster_context"},
+        "volleyball": {"A__attack_points__mean": "performance_history", "A__rotation": "team_roster_context"},
+        "tennis": {"A__surface_hard": "competition_context", "A__aces__mean": "performance_history"},
+        "ufc": {"A__reach_in": "entity_profile", "A__weight_class": "competition_context"},
+        "rizin": {"A__contract_weight": "competition_context", "A__takedown_pct": "performance_history"},
+        "f1": {"A__qualifying_position": "competition_context", "A__lap_time_mean": "performance_history"},
+        "rugby": {"A__tries_mean": "performance_history", "A__starter_count": "team_roster_context"},
+        "boxing": {"A__knockdowns_mean": "performance_history", "A__stance": "entity_profile"},
+    }
+    for sport, cases in sport_cases.items():
+        for name, expected in cases.items():
+            assert ns_classify_for_sport(name, sport) == expected
 
     patterns = broad_pattern_grid("basketball", names, max_patterns=384)
     assert len(patterns) >= 30
