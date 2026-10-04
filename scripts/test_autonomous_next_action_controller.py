@@ -75,6 +75,30 @@ class ControllerContractTests(unittest.TestCase):
         self.assertEqual(d["status"], "HOLD")
         self.assertIsNone(d["action"])
 
+    def test_research_shadow_failure_does_not_hold(self):
+        failures = [
+            {
+                "conclusion": "failure",
+                "failure_class": "RESEARCH_SHADOW_AUDIT_FAILURE",
+                "workflow_name": "B.LEAGUE Public Availability PIT Shadow Audit",
+                "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+            }
+            for _ in range(3)
+        ]
+        d = decide(
+            main_sha="abc",
+            now=datetime.now(timezone.utc),
+            release_gate=None,
+            quality_gate=None,
+            release_fresh=False,
+            quality_fresh=False,
+            failures=failures,
+            workflow_runs={"scope_autofill": [], "autonomous_research_sweep": []},
+            force=False,
+        )
+        self.assertEqual(d["status"], "DISPATCH")
+        self.assertEqual(d["action"], "autonomous_research_sweep")
+
     def test_bounded_dispatch_when_recent_run_exists(self):
         now = datetime.now(timezone.utc).isoformat()
         d = decide(
