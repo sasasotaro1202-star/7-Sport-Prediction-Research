@@ -105,7 +105,7 @@ def main() -> None:
                         stat_name,
                         value,
                         feature_time,
-                        "VERIFIED",
+                        "UNVERIFIABLE",
                         "bleaguer-github",
                         "https://raw.githubusercontent.com/rintaromasuda/bleaguer/master/inst/extdata/games_summary_202021.csv",
                     )
@@ -140,6 +140,7 @@ def main() -> None:
         assert report["matched_events_present_in_db"] == 1
         assert report["exact_feature_vector_events"] == 1
         assert report["exact_feature_stat_rows"] == 24
+        assert report["identity_scope"] == "canonical_schedule_key_event_identity; two-team vector matching is side-agnostic"
 
         # The candidate target lies after the public-availability bound and
         # exactly 10 days after the feature event, so it must have both-team
