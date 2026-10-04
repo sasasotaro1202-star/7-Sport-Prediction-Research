@@ -58,6 +58,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_ufc_official_jsonapi.py
       - name: Canonical VLR match URL parser regression
         run: PYTHONPATH=. python scripts/test_vlr_match_url_parser.py
+      - name: Match-data event row normalization regression
+        run: PYTHONPATH=. python scripts/test_match_data_row_shape.py
       - name: B.LEAGUE official error diagnostics regression
         run: PYTHONPATH=. python scripts/test_basketball_official_error_diagnostics.py
       - name: B.LEAGUE historical error observability regression
