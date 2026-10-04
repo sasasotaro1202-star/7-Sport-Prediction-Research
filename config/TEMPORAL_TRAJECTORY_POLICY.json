@@ -11,7 +11,12 @@
       "rule": "event_time_utc <= prediction_time_utc < event_end_time_utc"
     }
   },
-  "default_horizons_seconds": [900, 1800, 3600, 7200],
+  "default_horizons_seconds": [
+    60,
+    180,
+    300,
+    600
+  ],
   "require_all_horizons": true,
   "canonical_anchor_policy": "earliest",
   "chronological_folds": 6,
@@ -25,7 +30,10 @@
     "feature_vector",
     "observed_state_vector"
   ],
-  "outcome_contract": ["outcome", "outcome_status"],
+  "outcome_contract": [
+    "outcome",
+    "outcome_status"
+  ],
   "prohibited": {
     "future_snapshot_features_as_anchor_features": true,
     "retrieval_time_as_pit_proof": true,
@@ -34,5 +42,38 @@
     "automatic_production_promotion": true,
     "frozen_holdout_tuning": true
   },
-  "acceptance_principle": "Future Generalization first; OOS, robustness, and frozen-holdout evidence are required before any production consideration."
+  "acceptance_principle": "Future Generalization first; OOS, robustness, and frozen-holdout evidence are required before any production consideration.",
+  "horizons_seconds_by_sport": {
+    "valorant": [
+      60,
+      180,
+      300,
+      600
+    ],
+    "basketball": [
+      120,
+      300,
+      600,
+      1200
+    ],
+    "volleyball": [
+      60,
+      180,
+      300,
+      600
+    ],
+    "ufc": [
+      60,
+      120,
+      300,
+      600
+    ],
+    "rizin": [
+      60,
+      120,
+      300,
+      600
+    ]
+  },
+  "horizon_selection_rule": "sport-specific event-duration-aware templates; no universal horizon across sports"
 }
