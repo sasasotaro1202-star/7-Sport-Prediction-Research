@@ -299,6 +299,10 @@ def main():
             "status": "VERSION_EXACT_PUBLICATION_UNPROVEN",
             "checked_at_utc": "2026-10-04T00:00:00+00:00",
             "current_hash": "hash-300",
+            "repository": "rintaromasuda/bleaguer",
+            "branch": "master",
+            "provenance_commit_sha": "abc123",
+            "commit_timestamp_utc": "2021-12-01T00:00:00+00:00",
             "event_provenance": [{
                 "schedule_key": "300",
                 "provenance_commit_sha": "abc123",
