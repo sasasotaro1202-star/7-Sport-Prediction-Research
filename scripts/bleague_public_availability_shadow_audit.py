@@ -147,7 +147,11 @@ def db_feature_vectors(con: sqlite3.Connection, event_id: str) -> dict | None:
     grouped: dict[str, dict[str, float]] = {}
     effective_times: list[str] = []
     for participant_id, stat_name, value_num, effective_at, quality_status, source, source_url in rows:
-        if not participant_id or quality_status != "VERIFIED":
+        # Historical B.LEAGUE backfill intentionally keeps source timing
+        # unproven, so match_stats rows are normally UNVERIFIABLE. The shadow
+        # audit may inspect those rows for exact value agreement, but this never
+        # upgrades their PIT/quality status.
+        if not participant_id or quality_status not in {"VERIFIED", "UNVERIFIABLE"}:
             return None
         if value_num is None or not math.isfinite(float(value_num)):
             return None
@@ -287,6 +291,7 @@ def audit_db(
         "matched_events_missing_from_db": len(unresolved_db_events),
         "matched_events_missing_schedule_keys": unresolved_db_events[:100],
         "candidate_target_events_total": len(target_rows),
+        "identity_scope": "canonical_schedule_key_event_identity; two-team vector matching is side-agnostic",
         "candidate_target_events_cutoff_at_or_after_bound": cutoff_eligible_targets,
         "candidate_targets_with_any_exact_history": any_history_targets,
         "candidate_targets_with_both_team_exact_history": both_team_history_targets,
