@@ -78,6 +78,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_production_safe_continuation.py
       - name: Production final verdict fail-closed regression
         run: PYTHONPATH=. python scripts/test_production_final_verdict_fail_closed.py
+      - name: All-nine-sport feature pattern optimizer regression
+        run: PYTHONPATH=. python scripts/test_feature_pattern_optimizer_all_sports.py
       - name: Continuous scope autofill regression
         run: PYTHONPATH=. python scripts/test_scope_autofill.py
       - name: Staged scope expansion policy regression
@@ -112,6 +114,10 @@ jobs:
         run: PYTHONPATH=. python scripts/test_experience_learning.py
       - name: Experience research bridge regression
         run: PYTHONPATH=. python scripts/test_experience_research_bridge.py
+      - name: Cross-sport feature pattern optimizer regression
+        run: PYTHONPATH=. python scripts/test_feature_pattern_optimizer.py
+      - name: Temporal feature invariance regression
+        run: PYTHONPATH=. python scripts/test_feature_temporal_invariance.py
       - name: Temporal similarity memory router regression
         run: PYTHONPATH=. python scripts/test_temporal_memory_router.py
       - name: Prediction method meta-policy regression

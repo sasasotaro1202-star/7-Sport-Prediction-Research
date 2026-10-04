@@ -146,3 +146,51 @@ The active prediction lanes now persist a bounded match-detail evidence layer fo
 - **VALORANT / VLR:** patch, Bo1/Bo3/Bo5 format, event links and pre-match betting evidence where explicitly present. Player/event statistic pages expose Rating, ACS, K:D, KAST, ADR, KPR, APR, FK/FD and other map/round metrics, but they require separate historical availability proof before feature use.
 
 This layer is research-input infrastructure only. A newly collected field is not automatically enabled as a production feature; it must pass PIT replay, ablation, chronological OOS, robustness and frozen-holdout gates.
+
+
+## Cross-sport feature-pattern policy
+
+The repository now treats player/team/event information as a common research surface across every sport rather than a UFC-specific enhancement.
+
+### Basketball
+Primary research families: team strength/Elo, recent form and schedule load, team season efficiency/record, player/roster/starter data, competition/phase and venue, and matchday changes. The parser already stores B.LEAGUE season records/standings and PPG/FG%/3FG%/FT%/RPG/APG/BPG/SPG when exposed. These are candidate inputs only until historical source availability is proven at the prediction cutoff.
+
+### Volleyball
+Primary research families: team strength, recent results/set profile, attack/serve/receive/block and scoring history, player roster/rotation/starter state, competition/phase/round, rest/load and matchday availability. FIVB/Volleyball World player-stat surfaces are source candidates, but current/public pages do not prove historical PIT by themselves.
+
+### VALORANT
+Primary research families: team and player/map form, Rating/ACS/K:D/KAST/ADR, map pool/patch/series format, roster changes, event stage/round, recent load and matchday information. Public dataset Git provenance may establish exact historical availability only when the content hash and commit chronology match.
+
+### UFC / RIZIN
+Primary research families: fighter strength/form, opponent-adjusted history, fight statistics, physical profile, stance/weight/rules, inactivity and card changes. Profile observations must be canonical-participant linked before becoming participant-level features.
+
+### Tennis / F1 / Rugby / Boxing
+The same pattern-search contract applies when these lanes become PIT-valid. Sport-specific semantics remain mandatory; deferred status is not bypassed merely because candidate feature data exists.
+
+### Exhaustive pattern search contract
+
+The same structured search applies to all nine sports:
+VALORANT, Basketball, Volleyball, Tennis, UFC, RIZIN, F1, Rugby and Boxing.
+
+The current research budget is up to 1,024 structured candidates per sport before downstream OOS.
+Candidate dimensions include family subsets (1–4), leave-one-family-out controls, fine-grained statistic blocks,
+A/B/D representations, signed/absolute/relative/ratio representations, short/medium/long history,
+mean/median/quantile/last/trend/EWMA/dispersion summaries, profile/roster/availability/matchday/quality toggles,
+interaction variants, sparse-vs-rich feature sets, and outcome-aware feature ranking using absolute correlation,
+mutual information, ExtraTrees importance, ranker unions/intersections, and family-balanced selection.
+
+Outcome-aware ranking is performed only inside the early pattern-selection prefix. Later chronological OOS and frozen
+holdout rows are excluded from pattern selection. Pattern winners are research candidates only; source PIT,
+identity, coverage, calibration, robustness, holdout and release gates remain mandatory.
+
+## Feature selection
+The feature-pattern optimizer evaluates multiple family combinations on pre-holdout chronological windows and records:
+- candidate family composition
+- feature count
+- fold logloss
+- recent-weighted logloss
+- dispersion
+- selected pattern
+- holdout_touched=false
+
+No source is considered production-adopted merely because it adds many fields. Source value and feature value are measured separately.

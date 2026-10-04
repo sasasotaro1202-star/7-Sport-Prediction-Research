@@ -14,6 +14,7 @@ from src import case_risk_oos as case_risk
 from src import ultimate_predictive_control_oos as ultimate_control
 from src import ultimate_predictive_control_v13 as ultimate_v13_module
 from src.oos_window_signature import exact_oos_window_signature
+from src import feature_pattern_optimizer
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
@@ -236,6 +237,81 @@ def _rank_valid_oos_candidates(oos):
     )
     return ranked, rejected
 
+def _run_feature_pattern_only(s):
+    """Run the broad feature-pattern screen for any repository sport.
+
+    This is research-only. It deliberately bypasses model/production training
+    gates for deferred sports, but still refuses to invent PIT evidence.
+    """
+    c = sqlite3.connect(DB)
+    try:
+        try:
+            rows, fs = base.build(c, s)
+        except Exception as exc:
+            return {
+                "sport": s,
+                "status": "DEFERRED_PATTERN_RESEARCH_FAILED",
+                "reason": f"feature_pattern_build_exception:{type(exc).__name__}:{exc}",
+                "production_changed": False,
+                "promotion_allowed": False,
+            }
+        if len(rows) < 30:
+            return {
+                "sport": s,
+                "status": "DEFERRED_PATTERN_DATA",
+                "reason": "insufficient_PIT_safe_labeled_rows_for_pattern_screen",
+                "rows": len(rows),
+                "features": len(fs),
+                "production_changed": False,
+                "promotion_allowed": False,
+            }
+        # Require usable binary labels and an explicit frozen-holdout boundary if
+        # one is already registered. This screen never creates or tunes a holdout.
+        labeled = [r for r in rows if r[2] in (0, 1)]
+        if len(labeled) < 30:
+            return {
+                "sport": s,
+                "status": "DEFERRED_PATTERN_DATA",
+                "reason": "insufficient_binary_labeled_rows_for_pattern_screen",
+                "rows": len(rows),
+                "labeled_rows": len(labeled),
+                "features": len(fs),
+                "production_changed": False,
+                "promotion_allowed": False,
+            }
+        X = np.array([[r[3].get(f, np.nan) for f in fs] for r in labeled], dtype=float)
+        y = np.array([r[2] for r in labeled], dtype=int)
+        if len(np.unique(y)) < 2:
+            return {
+                "sport": s,
+                "status": "DEFERRED_PATTERN_DATA",
+                "reason": "single_class_labels_for_pattern_screen",
+                "rows": len(rows),
+                "labeled_rows": len(labeled),
+                "features": len(fs),
+                "production_changed": False,
+                "promotion_allowed": False,
+            }
+        # Freeze nothing here: this is a discovery/screen stage only.
+        pattern_start = max(80, int(len(labeled) * 0.55))
+        pattern_step = max(20, int(np.ceil(max(1, len(labeled) - pattern_start) / 8)))
+        report = feature_pattern_optimizer.evaluate_patterns(
+            X, y, fs, s, pattern_start, pattern_step, max_patterns=128, stage2_top_k=16
+        )
+        return _write_result(s, {
+            "sport": s,
+            "status": "PATTERN_SCREENED" if report.get("status") == "EVALUATED" else "DEFERRED_PATTERN_SCREEN",
+            "pattern_scope": "RESEARCH_ONLY_NO_PRODUCTION",
+            "rows": len(rows),
+            "labeled_rows": len(labeled),
+            "features": len(fs),
+            "feature_pattern_selection": report,
+            "promotion_allowed": False,
+            "production_changed": False,
+        })
+    finally:
+        c.close()
+
 def _write_result(s, payload):
     """Persist every research outcome, including DEFERRED/REJECTED states."""
     RESULTS.mkdir(parents=True,exist_ok=True)
@@ -251,7 +327,7 @@ def _carry_forward_previous(c, sport, previous, current_features):
     if not isinstance(previous, dict) or previous.get("status") != "TRAINED":
         return None
     feature_version=str(previous.get("feature_version") or "")
-    if not (feature_version.startswith("strict-pit-v13-") or feature_version.startswith("strict-pit-v14-") or feature_version.startswith("strict-pit-v15-") or feature_version.startswith("strict-pit-v16-") or feature_version.startswith("strict-pit-v17-") or feature_version.startswith("strict-pit-v18-") or feature_version.startswith("strict-pit-v19-") or feature_version.startswith("strict-pit-v20-")):
+    if not (feature_version.startswith("strict-pit-v13-") or feature_version.startswith("strict-pit-v14-") or feature_version.startswith("strict-pit-v15-") or feature_version.startswith("strict-pit-v16-") or feature_version.startswith("strict-pit-v17-") or feature_version.startswith("strict-pit-v18-") or feature_version.startswith("strict-pit-v19-") or feature_version.startswith("strict-pit-v20-") or feature_version.startswith("strict-pit-v21-") or feature_version.startswith("strict-pit-v22-")):
         return None
     if sport in ("basketball", "volleyball") and previous.get("competition_scope_policy") != "competition_target_only":
         return None
@@ -581,14 +657,15 @@ def _rank_oos_candidates(oos):
     )
 
 def train(s):
-    if s=='f1':
-     return _write_result(s,f1())
+    # All repository sports enter the same feature-pattern research surface.
+    # Deferred sports are screened without production training; if PIT-safe rows
+    # are unavailable the result remains explicitly deferred.
     if s=='boxing':
      return boxing()
+    if s in ALL_SPORTS and s in DEFERRED_SPORTS:
+     return _run_feature_pattern_only(s)
     # Fail-closed guard: deferred sports must never enter generic strict training.
     # Each deferred sport requires its own source/PIT/OOS proof before promotion.
-    if s in DEFERRED_SPORTS:
-     return _write_result(s,{'sport':s,'status':'DEFERRED_PIT','reason':'sport_specific_PIT_gate_not_enabled_for_generic_strict_training','production_changed':False,'promotion_allowed':False})
     if s in ('tennis','rugby'):
      return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'DEFERRED_BY_PROJECT_SCOPE','promotion_policy':'Do not train or publish until sport-specific PIT, chronological OOS and frozen-holdout requirements are enabled'})
     c=sqlite3.connect(DB)
@@ -624,6 +701,31 @@ def train(s):
       return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_observed_feature_values','rows':len(train_rows),'features':0})
      fs=[f for f,k in zip(fs,keep) if k];X=X[:,keep];X_holdout=X_holdout[:,keep]
      sel=len(train_rows);hn=len(holdout_rows)
+     # Cross-sport feature-pattern screen. IMPORTANT: pattern selection is
+     # performed on an earlier prefix of the non-holdout training data only.
+     # The later chronological OOS folds therefore remain unseen by the pattern
+     # selector, preventing pattern-selection/meta-leakage.
+     pattern_selection_end=min(sel-60,max(120,int(sel*0.45)))
+     feature_pattern_report={'status':'SKIPPED','reason':'pattern_selection_prefix_too_small','selection_rows':int(max(pattern_selection_end,0))}
+     if pattern_selection_end >= 180:
+      pattern_train=X[:pattern_selection_end]
+      pattern_y=y[:pattern_selection_end]
+      pattern_start=max(80,int(pattern_selection_end*0.55))
+      pattern_step=max(20,int(np.ceil(max(1,pattern_selection_end-pattern_start)/6)))
+      feature_pattern_report=feature_pattern_optimizer.evaluate_patterns(
+       pattern_train,pattern_y,fs,s,pattern_start,pattern_step,max_patterns=1024,stage2_top_k=32
+      )
+     screen_selected_pattern_id=(feature_pattern_report.get('selected_pattern_id') if isinstance(feature_pattern_report,dict) else None)
+     selected_fs,selected_pattern_id=feature_pattern_optimizer.select_features(
+      feature_pattern_report,fs
+     )
+     if len(selected_fs)>=2 and set(selected_fs)!=set(fs):
+      selected_idx=[fs.index(f) for f in selected_fs if f in fs]
+      fs=selected_fs
+      X=X[:,selected_idx]
+      X_holdout=X_holdout[:,selected_idx]
+     else:
+      selected_pattern_id=feature_pattern_report.get('selected_pattern_id','all_features_fallback') if isinstance(feature_pattern_report,dict) else 'all_features_fallback'
      # Matchday context is built only where the router can consume it: chronological
      # OOS test rows. The frozen holdout remains separate and immutable.
      matchday_holdout_ctx=np.asarray(
@@ -1405,10 +1507,10 @@ def train(s):
       )
       raise RuntimeError(failure_payload['reason']) from exc
      competition_scope_policy='competition_target_only' if s in ('basketball','volleyball') else 'sport_target'
-     ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'temporal_memory_router':temporal_memory_eval,'temporal_memory_router_holdout':temporal_memory_holdout,'temporal_memory_router_accept':temporal_memory_accept,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'cutoff':train_rows[-1][1],'oos_window_signature':oos_window_signature,'frozen_holdout_registry_hash':registry['registry_hash'],'competition_scope_policy':competition_scope_policy,'competition_profile_policy_version':'competition-aware-research-v1','ultimate_intelligence':ultimate_intelligence});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'quality_status':'ACCEPTED_LOCKED_HOLDOUT','models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'frozen_holdout_registry_hash':registry['registry_hash'],'competition_scope_policy':competition_scope_policy,'competition_profile_policy_version':'competition-aware-research-v1','dynamic_router':final_router if router_accept else None,'dynamic_router_names':router_names if router_accept else [],'dynamic_router_models':router_models_artifact if router_accept else {},'dynamic_router_feature_reference':router_feature_reference,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration,'case_risk_status':case_risk_status,'case_risk_model':case_risk_bundle if case_risk_eval.get('accepted_for_research_comparison') else None},path)
-     sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_win_rate':wa_win_rate,'weighted_pair_mean_delta':wa_mean_delta,'weighted_pair_fold_delta_std':wa_fold_std,'weighted_pair_robust_gain':wa_robust_gain,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'frozen_holdout_registry_hash':registry['registry_hash'],'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'frozen_holdout_registry_hash':registry['registry_hash'],'competition_scope_policy':competition_scope_policy,'competition_profile_policy_version':'competition-aware-research-v1','dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','temporal_memory_router':temporal_memory_eval,'temporal_memory_router_holdout':temporal_memory_holdout,'temporal_memory_router_status':'RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY' if temporal_memory_accept else 'RESEARCH_ONLY_NO_AUTO_PROMOTION'}
+     ver=h({'sport':s,'features':fs,'models':best,'oos':oos,'ensemble_selection':scores,'holdout':hold,'router':router_eval,'router_holdout':router_holdout,'router_accept':router_accept,'temporal_memory_router':temporal_memory_eval,'temporal_memory_router_holdout':temporal_memory_holdout,'temporal_memory_router_accept':temporal_memory_accept,'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'cutoff':train_rows[-1][1],'oos_window_signature':oos_window_signature,'frozen_holdout_registry_hash':registry['registry_hash'],'competition_scope_policy':competition_scope_policy,'competition_profile_policy_version':'competition-aware-research-v1','ultimate_intelligence':ultimate_intelligence,'feature_pattern_selection':{'status':feature_pattern_report.get('status') if isinstance(feature_pattern_report,dict) else 'UNAVAILABLE','screen_selected_pattern_id':screen_selected_pattern_id,'applied_pattern_id':selected_pattern_id,'applied_feature_count':len(fs),'report':feature_pattern_report}});MODELS.mkdir(parents=True,exist_ok=True);RESULTS.mkdir(parents=True,exist_ok=True);path=MODELS/f'{s}_current.joblib';joblib.dump({'quality_status':'ACCEPTED_LOCKED_HOLDOUT','models':models,'model_names':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'probability_calibrator':probability_calibrator,'features':fs,'sport':s,'model_version':ver,'training_rows':sel,'frozen_holdout_rows':hn,'frozen_holdout_registry_hash':registry['registry_hash'],'competition_scope_policy':competition_scope_policy,'competition_profile_policy_version':'competition-aware-research-v1','dynamic_router':final_router if router_accept else None,'dynamic_router_names':router_names if router_accept else [],'dynamic_router_models':router_models_artifact if router_accept else {},'dynamic_router_feature_reference':router_feature_reference,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','dynamic_router_eval':router_eval,'dynamic_router_holdout_eval':router_holdout,'probability_calibration':calibration,'case_risk_status':case_risk_status,'case_risk_model':case_risk_bundle if case_risk_eval.get('accepted_for_research_comparison') else None},path)
+     sha=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True).stdout.strip();meta={'sport':s,'market':'winner','model_version':ver,'feature_version':'strict-pit-v22-rich-patterns-nested-pattern-screen','training_cutoff_utc':rows[sel-1][1],'git_commit_sha':sha,'artifact_path':str(path.relative_to(ROOT)),'quality_status':'ACCEPTED_LOCKED_HOLDOUT','selection_models':list(best),'ensemble_weights':candidate_weights,'ensemble_strategy':candidate_label,'selection_oos':oos,'ensemble_selection':scores,'weighted_pair_oos':wa_metric,'weighted_pair_win_rate':wa_win_rate,'weighted_pair_mean_delta':wa_mean_delta,'weighted_pair_fold_delta_std':wa_fold_std,'weighted_pair_robust_gain':wa_robust_gain,'weighted_pair_oos':wa_metric,'holdout_metrics':hold,'frozen_holdout_registry_hash':registry['registry_hash'],'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'frozen_holdout_registry_hash':registry['registry_hash'],'competition_scope_policy':competition_scope_policy,'competition_profile_policy_version':'competition-aware-research-v1','dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':'PRODUCTION_ROUTABLE_AFTER_GATES' if router_accept else 'FALLBACK_FIXED_ENSEMBLE','temporal_memory_router':temporal_memory_eval,'temporal_memory_router_holdout':temporal_memory_holdout,'temporal_memory_router_status':'RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY' if temporal_memory_accept else 'RESEARCH_ONLY_NO_AUTO_PROMOTION'}
      c.execute('INSERT OR REPLACE INTO model_state_snapshot(snapshot_id,sport,market,as_of_utc,model_version,feature_version,training_cutoff_utc,dataset_hash,git_commit_sha,artifact_path,quality_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(h(meta),s,'winner',utc(),ver,meta['feature_version'],rows[sel-1][1],h([(r[0],r[1],r[2]) for r in train_rows]),sha,str(path.relative_to(ROOT)),'ACCEPTED_LOCKED_HOLDOUT',json.dumps(meta,ensure_ascii=False)));c.commit()
-     out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'),'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'case_risk_eval':case_risk_eval,'case_risk_holdout':case_risk_holdout,'case_risk_status':case_risk_status,'temporal_memory_router':temporal_memory_eval,'temporal_memory_router_holdout':temporal_memory_holdout,'temporal_memory_router_status':('RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY' if temporal_memory_accept else 'RESEARCH_ONLY_NO_AUTO_PROMOTION'),'ultimate_intelligence':ultimate_intelligence,'ultimate_v13':ultimate_v13_result};return _write_result(s,out)
+     out={'sport':s,'status':'TRAINED','models':list(best),'model_version':ver,'feature_version':meta['feature_version'],'training_rows':sel,'frozen_holdout_rows':hn,'features':len(fs),'training_cutoff_utc':meta['training_cutoff_utc'],'git_commit_sha':sha,'artifact_path':meta['artifact_path'],'selection_oos':oos,'ensemble_selection':scores,'holdout_metrics':hold,'probability_calibration':{k:v for k,v in calibration.items() if k!='model'},'holdout_frozen':True,'production_fit_excludes_holdout':True,'dynamic_router':router_eval,'dynamic_router_holdout':router_holdout,'dynamic_router_status':('RESEARCH_ONLY_HOLDOUT_PASS_PENDING_PROMOTION' if router_accept else 'FALLBACK_FIXED_ENSEMBLE'),'uncertainty_router':uncertainty_eval,'uncertainty_holdout':uncertainty_holdout,'uncertainty_calibration':uncertainty_calibration_summary,'case_risk_eval':case_risk_eval,'case_risk_holdout':case_risk_holdout,'case_risk_status':case_risk_status,'temporal_memory_router':temporal_memory_eval,'temporal_memory_router_holdout':temporal_memory_holdout,'temporal_memory_router_status':('RESEARCH_ACCEPTED_PENDING_PRODUCTION_POLICY' if temporal_memory_accept else 'RESEARCH_ONLY_NO_AUTO_PROMOTION'),'ultimate_intelligence':ultimate_intelligence,'feature_pattern_selection':{'status':feature_pattern_report.get('status') if isinstance(feature_pattern_report,dict) else 'UNAVAILABLE','screen_selected_pattern_id':screen_selected_pattern_id,'applied_pattern_id':selected_pattern_id,'applied_feature_count':len(fs),'report':feature_pattern_report},'ultimate_v13':ultimate_v13_result};return _write_result(s,out)
     finally:c.close()
 def main():
  import argparse

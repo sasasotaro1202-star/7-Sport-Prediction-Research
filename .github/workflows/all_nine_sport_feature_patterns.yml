@@ -1,0 +1,259 @@
+name: All-Nine-Sport Exhaustive Feature Pattern Research
+
+on:
+  push:
+    paths:
+      - "src/feature_pattern_optimizer.py"
+      - "src/research_cycle_v4.py"
+      - "src/public_history_backfill.py"
+      - "src/valorant_git_provenance.py"
+      - "config/FEATURE_PATTERN_POLICY.json"
+      - "scripts/test_feature_pattern_optimizer_all_sports.py"
+      - ".github/workflows/all_nine_sport_feature_patterns.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "31 */12 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: all-nine-feature-pattern-research-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONPATH: .
+
+jobs:
+  pattern:
+    name: Pattern scan ${{ matrix.sport }}
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        sport:
+          - valorant
+          - basketball
+          - volleyball
+          - tennis
+          - ufc
+          - rizin
+          - f1
+          - rugby
+          - boxing
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+
+      - name: Initialize research directories
+        run: mkdir -p data/db results/feature_patterns
+
+      - name: Restore latest sport-safe database cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: nine-sport-pattern-db-v4-${{ matrix.sport }}-${{ github.sha }}
+          restore-keys: |
+            nine-sport-pattern-db-v4-${{ matrix.sport }}-
+            nine-sport-research-db-v4-${{ matrix.sport }}-
+            nine-sport-target-db-v4-${{ matrix.sport }}-
+
+      - name: Initialize sport-scoped database schema
+        run: |
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          from src.storage.db_v45 import SCHEMA
+          sport = "${{ matrix.sport }}"
+          db_name = "rugby_v45.sqlite" if sport == "rugby" else "boxing_v45.sqlite" if sport == "boxing" else "sports_v45.sqlite"
+          path = Path("data/db") / db_name
+          path.parent.mkdir(parents=True, exist_ok=True)
+          con = sqlite3.connect(path)
+          con.executescript(SCHEMA)
+          con.close()
+          print(f"INITIALIZED_DB={path}")
+          PY
+
+      - name: Collect current sport research evidence
+        shell: bash
+        run: |
+          set -u
+          status=0
+          case "${{ matrix.sport }}" in
+            valorant)
+              python -m src.public_history_backfill --sports valorant || status=$?
+              python -m src.valorant_git_provenance || status=$?
+              ;;
+            basketball)
+              python -m src.basketball_cdn_backfill --official-only || status=$?
+              ;;
+            volleyball)
+              python -m src.volleyball_fivb_vis_backfill || status=$?
+              ;;
+            tennis)
+              python -m src.tennis_public_backfill || status=$?
+              ;;
+            ufc)
+              python -m src.ufc_api_backfill --limit 200 || status=$?
+              ;;
+            rizin)
+              python -m src.public_history_backfill --sports rizin || status=$?
+              ;;
+            f1)
+              python -m src.f1_openf1_backfill --start-year 2023 --end-year "$(date -u +%Y)" --timeout 45 || status=$?
+              ;;
+            rugby)
+              python -m src.rugby_production --max-pages 150 || status=$?
+              ;;
+            boxing)
+              python -m src.boxing_production --ingest-history || status=$?
+              ;;
+          esac
+          echo "COLLECTION_EXIT_STATUS=${status}"
+          printf '%s\n' "${status}" > "results/feature_patterns/${{ matrix.sport }}_collection_exit_status.txt"
+          exit 0
+
+      - name: Build strict PIT-safe feature matrix and scan patterns
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import sqlite3
+          from pathlib import Path
+          import numpy as np
+
+          from src.research_cycle_v4 import build
+          from src.feature_pattern_optimizer import evaluate_patterns
+
+          sport = "${{ matrix.sport }}"
+          db = Path("data/db/rugby_v45.sqlite" if sport == "rugby" else "data/db/boxing_v45.sqlite" if sport == "boxing" else "data/db/sports_v45.sqlite")
+          out = Path(f"results/feature_patterns/{sport}.json")
+          if not db.exists():
+              out.write_text(json.dumps({
+                  "sport": sport,
+                  "status": "DEFERRED",
+                  "reason": "database_missing_after_collection",
+                  "holdout_touched": False,
+              }, ensure_ascii=False, indent=2))
+              raise SystemExit(0)
+
+          con = sqlite3.connect(db)
+          try:
+              rows, feature_names = build(con, sport)
+          finally:
+              con.close()
+
+          family_coverage = {}
+
+          if len(rows) < 180 or len(set(int(r[2]) for r in rows if r[2] is not None)) < 2:
+              out.write_text(json.dumps({
+                  "sport": sport,
+                  "status": "DEFERRED",
+                  "reason": "insufficient_strict_pit_rows_for_pattern_research",
+                  "rows": len(rows),
+                  "features": len(feature_names),
+                  "holdout_touched": False,
+                  "collection_exit_status": int(Path(f"results/feature_patterns/{sport}_collection_exit_status.txt").read_text().strip()),
+              "feature_family_coverage": family_coverage,
+              }, ensure_ascii=False, indent=2))
+              raise SystemExit(0)
+
+          X = np.asarray([[r[3].get(f, np.nan) for f in feature_names] for r in rows], dtype=float)
+          y = np.asarray([r[2] for r in rows], dtype=int)
+
+          # Keep a local immutable score-only segment. The pattern optimizer only
+          # sees the early research prefix; later rows are deliberately untouched.
+          holdout_cut = max(60, int(len(rows) * 0.20))
+          train_end = len(rows) - holdout_cut
+          prefix_end = min(train_end - 30, max(180, int(train_end * 0.45)))
+          if prefix_end < 180 or train_end - prefix_end < 60:
+              out.write_text(json.dumps({
+                  "sport": sport,
+                  "status": "DEFERRED",
+                  "reason": "insufficient_prefix_for_meta_leakage_safe_pattern_scan",
+                  "rows": len(rows),
+                  "features": len(feature_names),
+                  "holdout_touched": False,
+              }, ensure_ascii=False, indent=2))
+              raise SystemExit(0)
+
+          start = max(80, int(prefix_end * 0.55))
+          step = max(20, int(np.ceil((prefix_end - start) / 6)))
+          family_coverage = {}
+          from src.feature_pattern_optimizer import family_members
+          families = family_members(feature_names, sport)
+          for fam_name, fam_cols in families.items():
+              if fam_cols:
+                  idx = [feature_names.index(f) for f in fam_cols if f in feature_names]
+                  arr = X[:, idx] if idx else np.empty((len(X), 0))
+                  observed = int(np.sum(np.any(np.isfinite(arr), axis=1))) if arr.size else 0
+                  family_coverage[fam_name] = {
+                      "feature_count": len(fam_cols),
+                      "row_observed_any": observed,
+                      "row_observed_rate": float(observed / len(X)) if len(X) else 0.0,
+                  }
+              else:
+                  family_coverage[fam_name] = {
+                      "feature_count": 0,
+                      "row_observed_any": 0,
+                      "row_observed_rate": 0.0,
+                  }
+
+          report = evaluate_patterns(
+              X[:prefix_end],
+              y[:prefix_end],
+              feature_names,
+              sport,
+              start,
+              step,
+              min_train=80,
+              max_patterns=1024,
+              stage2_top_k=32,
+          )
+          report.update({
+              "sport": sport,
+              "source_rows": len(rows),
+              "feature_count": len(feature_names),
+              "pattern_selection_prefix_rows": int(prefix_end),
+              "later_preholdout_rows_not_touched": int(train_end - prefix_end),
+              "frozen_holdout_rows_not_touched": int(holdout_cut),
+              "holdout_touched": False,
+              "collection_exit_status": int(Path(f"results/feature_patterns/{sport}_collection_exit_status.txt").read_text().strip()),
+          })
+          out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+          print(json.dumps({
+              "sport": sport,
+              "status": report.get("status"),
+              "candidate_count": report.get("candidate_count"),
+              "stage2_candidate_count": report.get("stage2_candidate_count"),
+              "selected_pattern_id": report.get("selected_pattern_id"),
+          }, ensure_ascii=False))
+          PY
+
+      - name: Validate research artifact and run all-sport pattern regression
+        run: |
+          set -euo pipefail
+          test -s "results/feature_patterns/${{ matrix.sport }}.json"
+          python -m compileall -q src scripts
+          python scripts/test_feature_pattern_optimizer_all_sports.py
+
+      - name: Upload pattern evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: all-nine-sport-feature-patterns-${{ matrix.sport }}-${{ github.run_id }}
+          path: results/feature_patterns/${{ matrix.sport }}.json
+          retention-days: 14

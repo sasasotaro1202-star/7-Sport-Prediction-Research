@@ -54,12 +54,70 @@ def sid(*x):
     return hashlib.sha256("|".join("" if v is None else str(v) for v in x).encode()).hexdigest()[:32]
 
 
+def parse_vlr_match_event_time(raw):
+    """Extract an absolute VLR match start timestamp from the VLR match page."""
+    if not raw:
+        return None
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(raw, "html.parser")
+        node = soup.select_one(".match-header-date .moment-tz-convert[data-utc-ts]")
+        if node:
+            return iso(node.get("data-utc-ts"))
+    except Exception:
+        return None
+    return None
+
+
+def _resolve_valorant_event_times(rows):
+    """Resolve missing event times with bounded, cached VLR match-page reads."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from urllib.parse import urljoin
+    from src.seven_sport_production import HTTP
+
+    max_fetch = max(0, int(__import__("os").getenv("VLR_MATCH_TIME_RECOVERY_MAX", "1500")))
+    urls = []
+    seen = set()
+    for row in rows:
+        raw_url = clean(row.get("match_page"))
+        if not raw_url:
+            continue
+        if iso(row.get("time_completed") or row.get("date") or row.get("completed_at")):
+            continue
+        url = urljoin("https://www.vlr.gg", raw_url)
+        if url in seen:
+            continue
+        seen.add(url)
+        urls.append(url)
+        if len(urls) >= max_fetch:
+            break
+    if not urls:
+        return {}
+    h = HTTP()
+    workers = max(1, min(6, int(__import__("os").getenv("VLR_MATCH_TIME_RECOVERY_WORKERS", "6"))))
+    resolved = {}
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = {ex.submit(h.get, url): url for url in urls}
+        for future in as_completed(futures):
+            url = futures[future]
+            try:
+                raw, _, _ = future.result()
+                event_time = parse_vlr_match_event_time(raw)
+                if event_time:
+                    resolved[url] = event_time
+            except Exception:
+                continue
+    return resolved
+
+
 def backfill_valorant(c):
     import requests
     r = requests.get(VALORANT_RESULTS, headers={"User-Agent": "SevenSportResearchEngine/4.6"}, timeout=45)
     r.raise_for_status()
     raw = r.text
     rows = list(csv.DictReader(io.StringIO(raw)))
+    recovered_times = _resolve_valorant_event_times(rows)
+    from urllib.parse import urljoin
     added = 0
     timed = 0
     outcomes = 0
@@ -68,6 +126,9 @@ def backfill_valorant(c):
         if not a or not b or a == b:
             continue
         et = iso(row.get("time_completed") or row.get("date") or row.get("completed_at"))
+        # Relative VLR result-feed ages are not event timestamps.
+        if et is None and clean(row.get("match_page")):
+            et = recovered_times.get(urljoin("https://www.vlr.gg", clean(row.get("match_page"))))
         tournament, stage = clean(row.get("tournament_name")), clean(row.get("round_info"))
         eid = upsert_event(c, "valorant", f"{a} vs {b}", et, "public-vlr-dataset", VALORANT_RESULTS, "COMPLETED", competition=tournament or None, stage=stage or None, season=str(et)[:4] if et else None)
         p1, p2 = upsert_participant(c, "valorant", a, "team"), upsert_participant(c, "valorant", b, "team")
@@ -84,8 +145,8 @@ def backfill_valorant(c):
             c.execute("""INSERT OR REPLACE INTO event_outcome
                 (event_id,sport,side_a_participant_id,side_b_participant_id,outcome,score_a,score_b,outcome_status,source,source_url,observed_at_utc,quality_status,reason)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""", (eid,"valorant",p1,p2,side,s1,s2,"VERIFIED","public-vlr-dataset",VALORANT_RESULTS,utcnow(),"PIT_REQUIRES_REPLAY","Historical label; excluded from pre-event features until PIT replay passes."))
-            add_stat(c,eid,p1,p1,"valorant","series.score",s1,str(s1),"public-vlr-dataset",VALORANT_RESULTS)
-            add_stat(c,eid,p2,p2,"valorant","series.score",s2,str(s2),"public-vlr-dataset",VALORANT_RESULTS)
+            add_stat(c,eid,p1,p1,"valorant","series.score",s1,str(s1),"public-vlr-dataset",VALORANT_RESULTS,effective_at_utc=et)
+            add_stat(c,eid,p2,p2,"valorant","series.score",s2,str(s2),"public-vlr-dataset",VALORANT_RESULTS,effective_at_utc=et)
             outcomes += 1
         added += 1
     add_snapshot(c,"valorant","public-vlr-dataset",VALORANT_RESULTS,utcnow(),None,hashlib.sha256(raw.encode("utf-8","ignore")).hexdigest(),"UNVERIFIABLE")

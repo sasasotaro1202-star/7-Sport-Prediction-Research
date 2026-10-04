@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import numpy as np
+from pathlib import Path
+
+from src.feature_pattern_optimizer import (
+    SUPPORTED_SPORTS,
+    broad_pattern_grid,
+    classify_feature,
+    evaluate_patterns,
+)
+
+
+def main() -> int:
+    workflow = (Path(".github/workflows/all_nine_sport_feature_patterns.yml").read_text(encoding="utf-8"))
+    assert "rugby_v45.sqlite" in workflow and "boxing_v45.sqlite" in workflow
+    assert "sport == \"rugby\"" in workflow and "sport == \"boxing\"" in workflow
+    family_init = workflow.find("          family_coverage = {}")
+    insufficient_branch = workflow.find("          if len(rows) < 180")
+    assert family_init >= 0 and insufficient_branch >= 0 and family_init < insufficient_branch
+
+    assert set(SUPPORTED_SPORTS) == {
+        "valorant", "basketball", "volleyball", "tennis", "ufc",
+        "rizin", "f1", "rugby", "boxing",
+    }
+
+    names = [
+        "A__elo", "B__elo", "D__elo",
+        "A__recent_winrate_5", "B__recent_winrate_20", "D__recent_winrate_5",
+        "A__stat_points__mean", "B__stat_points__trend", "D__stat_points__mean",
+        "A__profile__age_years", "B__profile__height", "D__profile__height",
+        "A__roster__starter_count", "B__lineup_known",
+        "competition_is_bleague",
+        "A__availability_out", "B__availability_uncertain",
+        "AD__stat_points__mean", "M__stat_points__mean", "R__recent_winrate_5",
+        "D__elo__x__D__recent_winrate_20",
+    ]
+
+    assert classify_feature("A__elo") == "identity_strength"
+    assert classify_feature("A__recent_winrate_5") == "form_load"
+    assert classify_feature("A__stat_points__mean") == "performance_history"
+    assert classify_feature("A__profile__height") == "entity_profile"
+    assert classify_feature("AD__stat_points__mean") == "performance_history"
+    assert classify_feature("D__elo__x__D__recent_winrate_20") == "interaction"
+    from src.feature_pattern_optimizer import classify_feature_for_sport as ns_classify_for_sport
+
+    sport_cases = {
+        "valorant": {"A__acs__mean": "performance_history", "series_format_bo5": "competition_context"},
+        "basketball": {"A__points__mean": "performance_history", "A__rotation": "team_roster_context"},
+        "volleyball": {"A__attack_points__mean": "performance_history", "A__rotation": "team_roster_context"},
+        "tennis": {"A__surface_hard": "competition_context", "A__aces__mean": "performance_history"},
+        "ufc": {"A__reach_in": "entity_profile", "A__weight_class": "competition_context"},
+        "rizin": {"A__contract_weight": "competition_context", "A__takedown_pct": "performance_history"},
+        "f1": {"A__qualifying_position": "competition_context", "A__lap_time_mean": "performance_history"},
+        "rugby": {"A__tries_mean": "performance_history", "A__starter_count": "team_roster_context"},
+        "boxing": {"A__knockdowns_mean": "performance_history", "A__stance": "entity_profile"},
+    }
+    for sport, cases in sport_cases.items():
+        for name, expected in cases.items():
+            assert ns_classify_for_sport(name, sport) == expected
+
+    patterns = broad_pattern_grid("basketball", names, max_patterns=384)
+    assert len(patterns) >= 30
+    assert len(broad_pattern_grid("basketball", names, max_patterns=1024)) >= 30
+    pids = {p["pattern_id"] for p in patterns}
+    assert any("profile" in p.lower() for p in pids)
+    assert any("subset_" in p for p in pids)
+    assert any(p["representation"] == "diff_only" for p in patterns)
+    assert any(p["representation"] == "robust_summary" for p in patterns)
+
+    rng = np.random.default_rng(42)
+    n = 420
+    X = rng.normal(size=(n, len(names)))
+    y = (X[:, 0] + 0.6 * X[:, 3] + 0.35 * X[:, 8] + rng.normal(scale=1.0, size=n) > 0).astype(int)
+
+    report = evaluate_patterns(
+        X[:280],
+        y[:280],
+        names,
+        "volleyball",
+        start=150,
+        step=25,
+        max_patterns=160,
+        stage2_top_k=20,
+    )
+    assert report["status"] == "EVALUATED"
+    assert report["candidate_count"] >= 30
+    assert report["stage1_ranker_candidate_count"] > 0
+    assert report["ranker_fit_rows"] == 150
+    assert report["ranker_fit_excludes_first_test_fold"] is True
+    assert report["confirmation_fold_count"] == 3
+    assert 0.0 <= report["confirmation_non_degraded_fraction"] <= 1.0
+    assert report["stage2_candidate_count"] > 0
+    assert report["stage2_candidate_count"] >= 4
+    assert report["selected_model_kind"] in {"hist_gb", "hist_gb_shallow", "extra_trees", "extra_trees_wide"}
+    assert report["baseline_aligned_to_selected_model"]["status"] == "EVALUATED"
+    assert report["selected_aligned_summary"]["status"] == "EVALUATED"
+    assert report["holdout_touched"] is False
+    assert report["production_adoption"] == "NOT_AUTHORIZED_BY_PATTERN_SCREEN_ALONE"
+
+    # The nine sport names must all be accepted by the search API without
+    # silently routing one sport to another sport's priority.
+    for sport in SUPPORTED_SPORTS:
+        grid = broad_pattern_grid(sport, names, max_patterns=32)
+        assert grid
+
+    print("ALL_NINE_SPORT_FEATURE_PATTERN_SEARCH=PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

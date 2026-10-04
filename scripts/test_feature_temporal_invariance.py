@@ -4,6 +4,7 @@ import math
 import sqlite3
 
 from src import research_cycle_v4 as research
+from src.public_history_backfill import parse_vlr_match_event_time
 
 
 def build_fixture() -> sqlite3.Connection:
@@ -15,7 +16,7 @@ def build_fixture() -> sqlite3.Connection:
           event_time_utc TEXT, status TEXT
         );
         CREATE TABLE event_participant(
-          event_id TEXT, participant_id TEXT, side TEXT
+          event_id TEXT, participant_id TEXT, team_id TEXT, side TEXT
         );
         CREATE TABLE event_outcome(
           event_id TEXT PRIMARY KEY, sport TEXT, side_a_participant_id TEXT,
@@ -27,6 +28,12 @@ def build_fixture() -> sqlite3.Connection:
           snapshot_id TEXT PRIMARY KEY, source TEXT, source_url TEXT,
           source_available_at_utc TEXT, event_time_utc TEXT,
           availability_status TEXT
+        );
+        CREATE TABLE participant_history(
+          history_id TEXT PRIMARY KEY, participant_id TEXT, sport TEXT, event_id TEXT,
+          observed_at_utc TEXT, effective_at_utc TEXT, attribute TEXT,
+          value_text TEXT, value_num REAL, value_json TEXT, source TEXT,
+          source_url TEXT, quality_status TEXT, confidence REAL
         );
         CREATE TABLE match_stats(
           stat_id TEXT PRIMARY KEY, event_id TEXT, participant_id TEXT,
@@ -44,8 +51,8 @@ def build_fixture() -> sqlite3.Connection:
             "INSERT INTO event VALUES(?,?,?,?,?)",
             (eid, "ufc", "UFC", ts, "COMPLETED"),
         )
-        c.execute("INSERT INTO event_participant VALUES(?,?,?)", (eid, fa, "A"))
-        c.execute("INSERT INTO event_participant VALUES(?,?,?)", (eid, fb, "B"))
+        c.execute("INSERT INTO event_participant VALUES(?,?,?,?)", (eid, fa, None, "A"))
+        c.execute("INSERT INTO event_participant VALUES(?,?,?,?)", (eid, fb, None, "B"))
         url = f"https://example.test/{eid}"
         avail = "2024-12-31T00:00:00+00:00"
         c.execute(
@@ -62,6 +69,20 @@ def build_fixture() -> sqlite3.Connection:
                 "INSERT INTO match_stats VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (f"{eid}-{pid}", eid, pid, "ufc", "sig_str", value, ts, avail, "fixture", url),
             )
+    # Add a PIT-safe participant profile observation for fighter a.
+    c.execute(
+        "INSERT INTO participant_history VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("ph1", "a", "ufc", "e1", avail, avail, "profile.height",
+         "70 in", 70.0, None, "fixture", url, "EXACT", 1.0),
+    )
+    # Effective before e2 but observed after the e2 cutoff: must remain unavailable.
+    observed_late = "2025-01-10T13:00:00+00:00"
+    c.execute(
+        "INSERT INTO participant_history VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("ph2", "a", "ufc", "e2", "2025-01-05T00:00:00+00:00",
+         observed_late, "profile.reach", "999 in", 999.0, None,
+         "fixture", url, "EXACT", 1.0),
+    )
     c.commit()
     return c
 
@@ -83,9 +104,20 @@ def assert_same(a: dict[str, float], b: dict[str, float]) -> None:
         assert x == y, f"future mutation changed prior feature: {key}: {x!r} != {y!r}"
 
 
+def test_vlr_match_time_parser() -> None:
+    html = """<div class="match-header-date"><span class="moment-tz-convert" data-utc-ts="1713996000"></span></div>"""
+    assert parse_vlr_match_event_time(html) == "2024-04-24T22:00:00+00:00"
+    # Relative result-feed ages must not be interpreted as event timestamps.
+    assert parse_vlr_match_event_time('<div class="match-header-date">2h 44m ago</div>') is None
+
+
 def main() -> int:
+    test_vlr_match_time_parser()
     c = build_fixture()
     before = event_features(c, "e2")
+    profile_keys = [k for k in before if "profile__height" in k]
+    assert profile_keys, "PIT-safe participant profile feature was not materialized"
+    assert not any("profile__reach" in k for k in before), "observed-late profile leaked across cutoff"
 
     # Mutate only data belonging to the future event e3.
     c.execute("UPDATE event_outcome SET outcome='B', score_a=0.0, score_b=1.0 WHERE event_id='e3'")

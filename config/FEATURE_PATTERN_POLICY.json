@@ -1,0 +1,270 @@
+{
+  "version": 4,
+  "policy": "pit-safe-feature-pattern-optimization-v2",
+  "principles": [
+    "Never equate more columns with more information. Compare information patterns on chronological pre-holdout OOS.",
+    "Feature availability, identity and PIT are upstream gates. Pattern selection cannot rescue invalid provenance.",
+    "Selection must be event-cluster/time-aware; the same event at multiple cutoffs is not independent evidence.",
+    "Do not silently discard a sport because a preferred family is missing. Missing families are explicit and the candidate falls back to validated broader patterns.",
+    "Profile, roster, performance, form, competition, matchday, source-quality and interaction signals are separate families.",
+    "Sport-specific priority is allowed, but the optimizer must test alternative families and combinations rather than hard-code one universal feature recipe.",
+    "Pattern complexity is penalized when predictive quality is comparable. Simpler patterns win ties.",
+    "Pattern results are research evidence until downstream chronological OOS, robustness and frozen-holdout release gates pass."
+  ],
+  "families": {
+    "identity_strength": "Elo, opponent strength, H2H, historical participation",
+    "form_load": "recent results, streaks, margins, rest, schedule load",
+    "performance_history": "prior match/player/team statistics and multiscale summaries",
+    "entity_profile": "age, height, reach, stance, position, role, player/athlete profile",
+    "team_roster_context": "roster, starters, lineup, role/position, team composition",
+    "competition_context": "competition, season, stage, round, event type, rules",
+    "matchday_intelligence": "availability, injuries, weather, market/news, late official updates",
+    "data_quality": "coverage, freshness, source reliability, PIT/source-state",
+    "interaction": "differences, ratios, relative values, cross-family interactions"
+  },
+  "sport_priority": {
+    "basketball": [
+      "identity_strength",
+      "performance_history",
+      "form_load",
+      "team_roster_context",
+      "competition_context",
+      "matchday_intelligence",
+      "entity_profile",
+      "data_quality",
+      "interaction"
+    ],
+    "volleyball": [
+      "identity_strength",
+      "performance_history",
+      "form_load",
+      "team_roster_context",
+      "competition_context",
+      "matchday_intelligence",
+      "entity_profile",
+      "data_quality",
+      "interaction"
+    ],
+    "valorant": [
+      "identity_strength",
+      "performance_history",
+      "form_load",
+      "team_roster_context",
+      "competition_context",
+      "matchday_intelligence",
+      "entity_profile",
+      "data_quality",
+      "interaction"
+    ],
+    "ufc": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction",
+      "team_roster_context"
+    ],
+    "rizin": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction",
+      "team_roster_context"
+    ],
+    "tennis": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction"
+    ],
+    "f1": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction"
+    ],
+    "rugby": [
+      "identity_strength",
+      "performance_history",
+      "form_load",
+      "team_roster_context",
+      "competition_context",
+      "matchday_intelligence",
+      "entity_profile",
+      "data_quality",
+      "interaction"
+    ],
+    "boxing": [
+      "identity_strength",
+      "performance_history",
+      "entity_profile",
+      "form_load",
+      "competition_context",
+      "matchday_intelligence",
+      "data_quality",
+      "interaction"
+    ]
+  },
+  "search_budget": {
+    "min_preholdout_folds": 6,
+    "stage1_max_patterns": 1024,
+    "stage2_top_k": 32,
+    "stage2_models": 4,
+    "bootstrap_samples": 2000,
+    "complexity_penalty": "dispersion + feature_count tie-break + source_dependence penalty when predictive quality is comparable",
+    "acceptance_hint": "pattern screen is never production authorization",
+    "selection_holdout_policy": "pattern selection uses only an early non-holdout prefix; later OOS and frozen holdout are untouched",
+    "all_project_sports": [
+      "valorant",
+      "basketball",
+      "volleyball",
+      "tennis",
+      "ufc",
+      "rizin",
+      "f1",
+      "rugby",
+      "boxing"
+    ],
+    "rankers": [
+      "absolute_correlation",
+      "spearman_correlation",
+      "mutual_information",
+      "logistic_coefficient",
+      "extra_trees_importance"
+    ],
+    "sparse_sizes": [
+      8,
+      16,
+      24,
+      32,
+      48,
+      64,
+      96,
+      128,
+      192,
+      256,
+      "all"
+    ],
+    "pattern_dimensions": [
+      "family_subsets_1_to_4",
+      "leave_one_family_out",
+      "fine_grained_stat_blocks",
+      "A_B_D_orientation",
+      "signed_absolute_relative_ratio_representation",
+      "short_medium_long_history",
+      "summary_mean_median_quantile_last_trend_ewma_dispersion",
+      "profile_roster_availability_toggles",
+      "competition_phase_round_event_context",
+      "matchday_data_quality_toggles",
+      "outcome_ranked_top_k",
+      "ranker_union_intersection",
+      "family_balanced_selection",
+      "interaction_variants",
+      "sparsity_vs_richness",
+      "heterogeneous_family_representation",
+      "multi_prefix_stability"
+    ],
+    "failure_discovery_controls": [
+      "multi_prefix_rank_stability",
+      "ranker_consensus",
+      "leave_one_family_out_negative_controls"
+    ],
+    "nested_confirmation": true,
+    "confirmation_folds": 3,
+    "multiple_comparison_control": "nested inner confirmation plus downstream chronological OOS; no holdout tuning"
+  },
+  "search_space": {
+    "stages": [
+      {
+        "stage": 1,
+        "name": "broad_structured_screen",
+        "pattern_families": 9,
+        "representations": [
+          "all",
+          "diff_only",
+          "side_only",
+          "context_plus_diff",
+          "robust_summary",
+          "short_horizon",
+          "medium_horizon",
+          "long_horizon",
+          "structure_only",
+          "information_quality",
+          "derived_only",
+          "raw_only",
+          "last_only",
+          "trend_only",
+          "dispersion_only",
+          "count_age_only",
+          "profile_roster_context",
+          "performance_form"
+        ],
+        "model_candidates": [
+          "regularized_logistic"
+        ],
+        "default_max_patterns": 1024
+      },
+      {
+        "stage": 2,
+        "name": "diverse_top_pattern_retest",
+        "top_k": 32,
+        "model_candidates": [
+          "hist_gb",
+          "hist_gb_shallow",
+          "extra_trees",
+          "extra_trees_wide"
+        ]
+      },
+      {
+        "stage": 3,
+        "name": "downstream_model_ecology",
+        "rule": "selected pattern is passed to the full sport model ecology and later chronological OOS; no pattern-selection row may be reused as OOS evidence"
+      },
+      {
+        "stage": 2.5,
+        "name": "selection_stability_and_negative_control_check",
+        "description": "compare selected recipes against ranking-family disagreement, leave-one-family-out controls and per-period stability before downstream OOS",
+        "selection_checks": [
+          "ranker_agreement",
+          "multi_prefix_stability",
+          "nested_inner_confirmation",
+          "leave_one_family_out_control",
+          "complexity_and_source_dependence"
+        ],
+        "minimum_confirmation_folds": 3,
+        "confirmation_policy": "later inner folds within the pre-holdout prefix; never the downstream OOS or frozen holdout"
+      }
+    ],
+    "structured_dimensions": [
+      "family subsets",
+      "fine-grained performance blocks",
+      "A/B/D encoding",
+      "short/medium/long history emphasis",
+      "summary statistic variants",
+      "profile inclusion/exclusion",
+      "roster inclusion/exclusion",
+      "matchday information inclusion/exclusion",
+      "quality/coverage inclusion/exclusion",
+      "interaction inclusion/exclusion",
+      "complexity/sparsity"
+    ],
+    "dependency_handling": "all comparisons use identical chronological folds; same-event snapshots are clustered elsewhere and never treated as independent samples",
+    "holdout_firewall": "pattern selection never reads frozen-holdout labels and never tunes against frozen-holdout performance",
+    "search_policy": "maximize structured diversity first, then select on robust chronological performance; never brute-force arbitrary powersets"
+  }
+}
