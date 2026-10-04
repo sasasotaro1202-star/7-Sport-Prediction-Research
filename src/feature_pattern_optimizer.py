@@ -77,7 +77,11 @@ def classify_feature(name: str) -> str:
     # Derived orientation/ratio encodings inherit the semantic family of the
     # underlying feature whenever possible (e.g. AD__points, R__recent_winrate).
     n = re.sub(r"^(?:a|b|d|ad|m|r|q)__", "", n)
-    if "_x_" in n or "interaction" in n:
+    # Cross-family interactions are emitted with either `_x_` or the
+    # canonical `__x__` delimiter. Keep both forms in the interaction family
+    # so family coverage/search diagnostics cannot silently absorb them into a
+    # base semantic family such as strength or form.
+    if "_x_" in n or "__x__" in n or "interaction" in n:
         return "interaction"
     if any(k in n for k in QUALITY_TOKENS):
         return "data_quality"
