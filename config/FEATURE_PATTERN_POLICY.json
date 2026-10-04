@@ -173,7 +173,9 @@
       "ranker_union_intersection",
       "family_balanced_selection",
       "interaction_variants",
-      "sparsity_vs_richness"
+      "sparsity_vs_richness",
+      "heterogeneous_family_representation",
+      "multi_prefix_stability"
     ],
     "failure_discovery_controls": [
       "multi_prefix_rank_stability",
