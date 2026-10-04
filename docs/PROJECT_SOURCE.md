@@ -1187,7 +1187,7 @@ PIT-validな観測が不足する競技はUNKNOWN/UNVERIFIABLEとして止め、
   * short / medium / long history
   * interaction
   * quality-aware vs quality-blind
-  * source-bundle variants
+  * source-combination stratification
   * ranker-selected sparse/rich sets
 
 競技固有のcandidate例:
