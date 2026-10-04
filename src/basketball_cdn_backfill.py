@@ -429,7 +429,14 @@ def collect_historical_bleaguer(c):
                         add_stat(c, eid, pid, pid, SPORT, stat_name, value, str(value),
                                  "bleaguer-github", BLEAGUE_RAW.format(path=summary_path), effective_at_utc=date)
                 total += 1
-            except Exception:
+            except Exception as exc:
+                warnings.append({
+                    "season": suffix,
+                    "schedule_key": key,
+                    "stage": "event_row_materialization",
+                    "error_type": type(exc).__name__,
+                    "error": repr(exc),
+                })
                 continue
         add_snapshot(c, SPORT, "bleaguer-github", BLEAGUE_RAW.format(path=schedule_path),
                      retrieved, None, hashlib.sha256(schedule_raw.encode()).hexdigest(), "UNVERIFIABLE")
@@ -469,6 +476,17 @@ def main():
         )
         if a.historical or not a.official_only:
             report["historical"], report["warnings"] = collect_historical_bleaguer(c)
+            report["historical_warning_count"] = len(report["warnings"])
+            report["historical_status"] = (
+                "ERROR"
+                if report["warnings"] and report["historical"] == 0
+                else "PARTIAL_SOURCE_ERROR"
+                if report["warnings"]
+                else "OK"
+            )
+        else:
+            report["historical_warning_count"] = 0
+            report["historical_status"] = "NOT_REQUESTED"
         c.commit()
     finally:
         c.close()
