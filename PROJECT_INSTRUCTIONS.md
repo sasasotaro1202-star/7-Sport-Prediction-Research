@@ -7,18 +7,33 @@ Optimize Future Generalization, case-level correctness, probabilistic quality, c
 ## Every run
 Re-check the latest GitHub HEAD/default branch, code/config, tests, workflows, Actions, artifacts, registries, production/champion/challenger state, current research/OOS/holdout evidence, failures and backlog. Prefer REUSE → REPAIR → INTEGRATE → TEST → VERIFY. Never rewrite past evidence to improve apparent results. Treat current HEAD as authoritative over prior chat results.
 
-## Cross-sport data rule
-All five active sports must use the same evidence discipline but sport-specific data semantics. Do not build a UFC-only feature process.
-For each sport, actively research and compare:
-identity strength, recent form/load, historical performance statistics, participant/entity profiles, team/roster context, competition/phase context, matchday intelligence, data/source quality and interactions.
-Basketball and Volleyball are first-class active lanes: player/team/roster/season/statistical information must be collected when available and PIT-valid; lack of PIT evidence is recorded as a data limitation, not silently replaced.
-VALORANT must consider team, player/map, roster, patch/map-pool and event-format context. UFC/RIZIN must consider fighter profile, physical attributes, prior fight statistics, weight/rules and opponent-adjusted form. Deferred sports use the same framework when they pass their own source/PIT gates.
+## Cross-sport data and feature-pattern rule
+All nine project sports are covered by one evidence discipline and one feature-pattern research architecture:
+VALORANT, Basketball, Volleyball, Tennis, UFC, RIZIN, F1, Rugby and Boxing.
+Production/research/deferred status controls release eligibility, but never removes a sport from the research design.
 
-## Feature pattern research
-Never assume that more columns are better.
-Generate multiple candidate information patterns, including family ablations, pair/triple family combinations, differential/rate/trend/interaction variants and all-available baselines. Evaluate patterns on identical chronological pre-holdout windows.
-Use recent-period performance, fold dispersion and feature-count complexity as selection signals. A pattern is not adopted because it wins one fold or because it has more data.
-Feature-pattern research is applied to every active sport, not selectively to one sport.
+For every sport, actively test these information families using sport-specific semantics:
+identity/strength, recent form/load, historical performance statistics, participant/entity profile,
+team/roster context, competition/phase/event context, matchday intelligence, data/source quality,
+and derived interactions/representations.
+
+Required pattern dimensions:
+family on/off; leave-one-family-out; family subsets through structured multi-family combinations;
+fine-grained statistic blocks; A/B/D; side-only/difference-only; signed and absolute difference;
+relative/rate representations when semantically valid; short/medium/long history; mean/median/quantiles;
+last/trend/EWMA; profile/roster/matchday/quality toggles; interaction toggles; sparse vs rich patterns.
+
+Search stages:
+1. broad structured screen on an early non-holdout prefix;
+2. multi-model retest of diverse winners;
+3. downstream full model/ensemble/router evaluation on later chronological OOS;
+4. calibration, robustness and frozen-holdout verification.
+
+The pattern selector must never see later OOS rows or frozen-holdout labels. Same-event snapshots remain clustered/dependent.
+Never treat more columns as inherently better. Record negative patterns, source dependence, PIT/coverage,
+stability, complexity and compute cost. Pattern screening alone cannot authorize ADOPTED/PRODUCTION.
+
+Missing, delayed, unresolved or unproven information remains UNKNOWN/UNVERIFIABLE and is never converted into synthetic evidence.
 
 ## PIT / time
 Separate event/market time, prediction cutoff, source availability, publication, retrieval, effective time and revision time. Only use information demonstrably available by cutoff. Unknown/unverifiable availability is fail-closed for production-quality OOS. A pre-event audit must not PASS a prediction generated after its own cutoff. Same-event snapshots at different cutoffs are dependent observations and are evaluated as event clusters.
