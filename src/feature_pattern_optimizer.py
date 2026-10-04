@@ -364,6 +364,41 @@ def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: i
                     "systematic_family_subset_representation",
                 )
 
+    # Heterogeneous family-specific representations: different information
+    # families can prefer different temporal/structural views. This avoids the
+    # restrictive assumption that every selected family must use the same encoding.
+    heterogeneous_reps = (
+        ("all", "all", "all", "all"),
+        ("short_horizon", "medium_horizon", "long_horizon", "robust_summary"),
+        ("robust_summary", "short_horizon", "medium_horizon", "all"),
+        ("diff_only", "short_horizon", "robust_summary", "information_quality"),
+        ("derived_only", "medium_horizon", "short_horizon", "all"),
+        ("raw_only", "robust_summary", "long_horizon", "context_plus_diff"),
+        ("last_only", "trend_only", "dispersion_only", "count_age_only"),
+        ("performance_form", "short_horizon", "performance_form", "profile_roster_context"),
+    )
+    hetero_family_sizes = range(2, min(4, len(available)) + 1)
+    for rsize in hetero_family_sizes:
+        for combo_index, combo in enumerate(combinations(available, rsize)):
+            combo = tuple(combo)
+            for template_index, template in enumerate(heterogeneous_reps):
+                selected_cols = []
+                assignments = []
+                for idx, fam_name in enumerate(combo):
+                    rep = template[idx % len(template)]
+                    fam_cols = fam.get(fam_name, [])
+                    selected_cols.extend(_representative_features(fam_cols, rep))
+                    assignments.append(f"{fam_name}={rep}")
+                if selected_cols:
+                    candidates.append({
+                        "pattern_id": "hetero__" + str(rsize) + "__" + str(combo_index) + "__t" + str(template_index),
+                        "families": list(combo),
+                        "representation": "heterogeneous",
+                        "feature_count": len(set(selected_cols)),
+                        "features": sorted(set(selected_cols)),
+                        "note": "family_specific_representation:" + "|".join(assignments),
+                    })
+
     # Add fine-grained subgroup × family controls.
     subgroup_names = sorted(sub)
     for block in subgroup_names:
