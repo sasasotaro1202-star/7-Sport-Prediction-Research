@@ -1239,13 +1239,13 @@ opponent-adjusted record、inactivity、result-method historyを候補化する�
    data coverage、PIT coverage、OOD、uncertainty、source dependence、compute costを比較する。
 8. 同程度の性能なら、複雑度、feature数、source依存、欠損依存が少なく安定したpatternを優先する。
 9. Stage 2でtree系modelが勝者になった場合、pattern benefitのpaired比較も同じmodel familyのbaselineで計算し、model family mismatchによる誤った改善判定を禁止する。
-9. pattern screenの勝者はADOPTED/PRODUCTIONではない。downstream OOS/WFO、calibration、
+10. pattern screenの勝者はADOPTED/PRODUCTIONではない。downstream OOS/WFO、calibration、
    robustness、frozen holdout、release gateを必ず通過する。
-10. negative resultをResearch Memoryへ保存し、同じ失敗patternを無限に再探索しない。
-11. 基本研究budgetは1競技あたり最大1,024 structured candidates。
-12. outcome-aware sparse selectionでは absolute correlation、mutual information、ExtraTrees importance の複数rankingを比較し、union/intersection/family-balanced/stability candidatesを生成する。
-13. pattern selectionはearly non-holdout prefixだけを使用し、later chronological OOSとfrozen holdoutを完全分離する。
-14. Stage 2では上位多様候補を複数model familyで再評価し、pattern winnerだけでproductionへ変更しない。
+11. negative resultをResearch Memoryへ保存し、同じ失敗patternを無限に再探索しない。
+12. 基本研究budgetは1競技あたり最大1,024 structured candidates。
+13. outcome-aware sparse selectionでは Pearson/Spearman、mutual information、Logistic coefficient magnitude、ExtraTrees importance の5-way rankingを比較し、union/intersection/family-balanced/stability candidatesを生成する。
+14. pattern selectionはearly non-holdout prefixだけを使用し、later chronological OOSとfrozen holdoutを完全分離する。
+15. Stage 2では上位多様候補を4つのmodel variantで再評価し、pattern winnerだけでproductionへ変更しない。
 
 ⸻
 
