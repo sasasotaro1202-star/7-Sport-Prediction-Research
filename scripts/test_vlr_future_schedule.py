@@ -69,9 +69,19 @@ def main() -> int:
         reference_year=2026,
     )
     assert completed_time == "2026-08-10T10:40:00+00:00", completed_time
-    assert _vlr_match_status(soup=BeautifulSoup(completed_html, "lxml"),
-                             event_time=completed_time,
-                             reference_now=now) == "COMPLETED"
+    completed_soup = BeautifulSoup(completed_html, "lxml")
+    assert _vlr_match_status(
+        soup=completed_soup,
+        event_time=completed_time,
+        reference_now=now,
+    ) == "COMPLETED"
+    # Cached retrieval timestamps are strings in the production HTTP cache;
+    # status classification must still accept them safely.
+    assert _vlr_match_status(
+        soup=completed_soup,
+        event_time=completed_time,
+        reference_now=cached_retrieved,
+    ) == "COMPLETED"
 
     # A completed tab/link elsewhere on a page must not turn an upcoming match
     # into COMPLETED. The old implementation scanned the entire HTML and did
