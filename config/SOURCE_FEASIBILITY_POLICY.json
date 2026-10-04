@@ -464,7 +464,10 @@
       "missingness",
       "source_quality"
     ],
-    "max_search_patterns": 14
+    "max_search_patterns": 1024,
+    "pattern_rankers": ["absolute_correlation", "mutual_information", "extra_trees_importance"],
+    "pattern_selection_prefix_only": true,
+    "pattern_search_all_project_sports": ["valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby","boxing"]
   },
   "notes": [
     "Player/team/profile data is a candidate information layer across all active sports; availability and identity are separate from feature usefulness.",
