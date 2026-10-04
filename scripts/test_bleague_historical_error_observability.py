@@ -35,6 +35,7 @@ def _teams_csv() -> str:
 def main() -> int:
     original_get = m.get
     original_upsert_event = m.upsert_event
+    original_add_snapshot = m.add_snapshot
     calls = {"upsert": 0}
 
     def fake_get(url, timeout=45):
@@ -50,11 +51,13 @@ def main() -> int:
 
     m.get = fake_get
     m.upsert_event = failing_upsert_event
+    m.add_snapshot = lambda *_args, **_kwargs: None
     try:
         total, warnings = m.collect_historical_bleaguer(DummyConnection())
     finally:
         m.get = original_get
         m.upsert_event = original_upsert_event
+        m.add_snapshot = original_add_snapshot
 
     assert total == 0
     assert calls["upsert"] == len(m.SEASONS)
