@@ -198,7 +198,9 @@ def action_health(
         and not sha_mismatch
     )
     return {
-        "status": "STALE" if sha_provenance_missing or sha_mismatch else (
+        "run_status": run_status,
+                "status": "STALE" if sha_provenance_missing or sha_mismatch else (
+
             "HEALTHY" if healthy else (
                 "FAILED" if conclusion in {"failure", "timed_out", "startup_failure", "cancelled"} else
                 ("STALE" if age is None or age > max_age_hours else "IN_PROGRESS")
@@ -773,8 +775,20 @@ def state_fingerprint(
     future = state["future_prediction"]
     experience = state["experience"]
     dual = state["dual_learning"]
+    action_fingerprint = {}
+    for name, raw in (state.get("actions") or {}).items():
+        if isinstance(raw, dict):
+            # Fingerprint only stable workflow-run evidence. The current main SHA,
+            # freshness age, derived health status, and SHA-match fields are
+            # invocation-relative metadata and must not self-trigger a commit.
+            action_fingerprint[name] = {
+                key: raw.get(key)
+                for key in ("run_status", "head_sha", "conclusion", "run_id")
+            }
+        else:
+            action_fingerprint[name] = raw
+
     normalized = {
-        "head_sha": state["head_sha"],
         "errors": state["errors"],
         "quality": state["quality"],
         "release": state["release"],
@@ -791,7 +805,7 @@ def state_fingerprint(
         },
         "route_observability": state["route_observability"],
         "timing": state["timing"],
-        "actions": state.get("actions"),
+        "actions": action_fingerprint,
         "failure_memory": state.get("failure_memory"),
         "dual_learning": dual,
         "selected": {
