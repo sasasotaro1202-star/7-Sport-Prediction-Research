@@ -8,7 +8,8 @@
     "Paid/commercial sources are never required for the active free-source audit.",
     "At least one critical event/schedule source must be reachable for each active sport; otherwise the sport is DATA_SOURCE_OUTAGE.",
     "Historical/PIT readiness remains a separate gate.",
-    "Participant/entity context is a first-class data surface. A source being able to expose a profile does not make it prediction-eligible; effective_at and source_available_at must independently satisfy the cutoff."
+    "Participant/entity context is a first-class data surface. A source being able to expose a profile does not make it prediction-eligible; effective_at and source_available_at must independently satisfy the cutoff.",
+    "Participant-context source capability metadata is descriptive only. Capability does not imply historical PIT proof; each attribute still requires source-level cutoff evidence."
   ],
   "active_sports": {
     "basketball": [
@@ -21,7 +22,10 @@
           "future_schedule",
           "event_identity",
           "event_time",
-          "competition_context"
+          "competition_context",
+          "team_roster",
+          "player_identity",
+          "player_context"
         ],
         "required_signals": [
           "シーズン",
@@ -60,7 +64,10 @@
         "capabilities": [
           "competition_context",
           "game_results",
-          "statistics_discovery"
+          "statistics_discovery",
+          "team_roster",
+          "player_identity",
+          "player_stats_discovery"
         ],
         "required_signals": [
           "FIBA"
@@ -107,7 +114,9 @@
           "serve",
           "set",
           "dig",
-          "receive"
+          "receive",
+          "player_identity",
+          "player_profiles"
         ],
         "required_signals": [
           "Statistics",
@@ -128,7 +137,10 @@
         "capabilities": [
           "competition_context",
           "rankings",
-          "match_data_discovery"
+          "match_data_discovery",
+          "team_roster",
+          "player_identity",
+          "player_rankings"
         ],
         "required_signals": [
           "FIVB"
@@ -239,7 +251,9 @@
           "event_schedule",
           "fight_results",
           "fighter_profiles",
-          "career_stats"
+          "career_stats",
+          "fighter_physical_profile",
+          "career_record"
         ],
         "required_signals": [
           "Completed",
@@ -316,7 +330,9 @@
           "fight_card",
           "rules",
           "contract_weight",
-          "result_updates"
+          "result_updates",
+          "fighter_profiles",
+          "fighter_identity"
         ],
         "required_signals": [
           "EVENT",
@@ -339,7 +355,10 @@
           "event_context",
           "match_results",
           "team_identity",
-          "player_stats_discovery"
+          "player_stats_discovery",
+          "player_identity",
+          "player_profiles",
+          "team_roster"
         ],
         "required_signals": [],
         "critical": true,
