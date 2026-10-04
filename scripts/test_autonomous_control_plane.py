@@ -254,11 +254,25 @@ def main() -> int:
         assert event_dispatch["target"] == "workflow_event_failure:production"
         assert event_dispatch["workflow"] == "autonomous_research_sweep.yml"
 
+        # Failure-memory persistence may advance main after the triggering run.
+        # The event remains valid when its SHA is a verified ancestor of current main.
+        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "ancestor-sha"
+        os.environ["CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN"] = "true"
+        ancestor_state = cp.inspect()
+        _, ancestor_dispatch = cp.choose_actions(ancestor_state)
+        assert ancestor_dispatch is not None
+        assert ancestor_dispatch["target"] == "workflow_event_failure:production"
+
         # A stale event SHA is fail-closed and must not create this event signal.
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "stale-sha"
         stale_state = cp.inspect()
         _, stale_dispatch = cp.choose_actions(stale_state)
         assert stale_dispatch is None or stale_dispatch["target"] != "workflow_event_failure:production"
+        os.environ.pop("CONTROL_PLANE_EVENT_WORKFLOW", None)
+        os.environ.pop("CONTROL_PLANE_EVENT_CONCLUSION", None)
+        os.environ.pop("CONTROL_PLANE_EVENT_HEAD_SHA", None)
+        os.environ.pop("CONTROL_PLANE_EVENT_RUN_ID", None)
+        os.environ.pop("CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN", None)
 
     print("AUTONOMOUS_CONTROL_PLANE_V2=PASS")
     return 0
