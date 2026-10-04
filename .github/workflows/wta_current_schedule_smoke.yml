@@ -7,6 +7,11 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "src/seven_sport_production.py"
+      - "scripts/test_wta_public_schedule.py"
+      - "scripts/test_wta_public_schedule_live.py"
+      - ".github/workflows/wta_current_schedule_smoke.yml"
   workflow_dispatch:
 
 permissions:

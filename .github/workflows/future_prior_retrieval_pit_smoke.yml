@@ -7,6 +7,10 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "src/future_predictor.py"
+      - "scripts/test_future_predictor_pit_cutoff.py"
+      - ".github/workflows/future_prior_retrieval_pit_smoke.yml"
   workflow_dispatch:
 
 permissions:
