@@ -133,14 +133,15 @@ def load_evidence() -> dict:
 
 def db_feature_vectors(con: sqlite3.Connection, event_id: str) -> dict | None:
     rows = con.execute(
-        f"""SELECT participant_id, stat_name, value_num, effective_at_utc,
-                    quality_status, source, source_url
-               FROM match_stats
-              WHERE sport='basketball'
-                AND event_id=?
-                AND source='bleaguer-github'
-                AND source_url LIKE '%games_summary_{SEASON}.csv'
-                AND stat_name IN ({','.join('?' for _ in DB_STAT_NAMES)})""",
+        f"""SELECT ms.participant_id, ms.stat_name, ms.value_num, ms.effective_at_utc,
+                    ms.quality_status, ms.source, ms.source_url
+               FROM match_stats AS ms
+               JOIN event AS e ON e.event_id = ms.event_id
+              WHERE e.sport='basketball'
+                AND ms.event_id=?
+                AND ms.source='bleaguer-github'
+                AND ms.source_url LIKE '%games_summary_{SEASON}.csv'
+                AND ms.stat_name IN ({','.join('?' for _ in DB_STAT_NAMES)})""",
         (event_id, *DB_STAT_NAMES),
     ).fetchall()
 
