@@ -344,7 +344,7 @@ outcome_time
 
 9. PREDICTION HORIZON
 
-既存productionはpre-event predictionを中心とし、30分前予測を主要実装基準とする。
+現行productionはpre-event predictionを中心とし、T-60分を主要実装基準とする。これは現在の `config/PREDICTION_TIMING_POLICY.json` と canonical production/pre-event workflow に一致する。
 
 しかし30分を永続的な真理とはみなさない。
 
