@@ -34,6 +34,7 @@ def main() -> int:
     assert classify_feature("A__profile__height") == "entity_profile"
     assert classify_feature("A__stat_sig_str__mean") == "performance_history"
     candidates = candidate_family_sets("basketball", names, max_patterns=12)
+    assert any("entity_profile" in x["families"] for x in candidate_family_sets("ufc", ["A__stance", "B__stance", "D__stance", "A__elo"], max_patterns=12))
     assert len(candidates) >= 4
     assert any("entity_profile" in x["families"] for x in candidates)
 
