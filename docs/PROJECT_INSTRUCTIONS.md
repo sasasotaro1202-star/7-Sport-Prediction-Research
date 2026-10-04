@@ -8,29 +8,33 @@ Optimize Future Generalization, case-level correctness, probabilistic quality, c
 Re-check the latest GitHub HEAD/default branch, code/config, tests, workflows, Actions, artifacts, registries, production/champion/challenger state, current research/OOS/holdout evidence, failures and backlog. Prefer REUSE → REPAIR → INTEGRATE → TEST → VERIFY. Never rewrite past evidence to improve apparent results. Treat current HEAD as authoritative over prior chat results.
 
 ## Cross-sport data rule
-All five active sports must use the same evidence discipline but sport-specific data semantics. Do not build a UFC-only feature process.
-For each sport, actively research and compare:
-identity strength, recent form/load, historical performance statistics, participant/entity profiles, team/roster context, competition/phase context, matchday intelligence, data/source quality and interactions.
-Basketball and Volleyball are first-class active lanes: player/team/roster/season/statistical information must be collected when available and PIT-valid; lack of PIT evidence is recorded as a data limitation, not silently replaced.
-VALORANT must consider team, player/map, roster, patch/map-pool and event-format context. UFC/RIZIN must consider fighter profile, physical attributes, prior fight statistics, weight/rules and opponent-adjusted form. Deferred sports use the same framework when they pass their own source/PIT gates.
+All nine project sports are covered by one evidence discipline and one feature-pattern research architecture:
+VALORANT, Basketball, Volleyball, UFC, RIZIN, Tennis, F1, Rugby and Boxing.
+Production/deferred status affects whether a sport can currently train or release, but never removes it from the research design.
 
-## Feature pattern research
-Never assume that more columns are better.
-Generate multiple candidate information patterns, including family ablations, pair/triple family combinations, differential/rate/trend/interaction variants and all-available baselines. Evaluate patterns on identical chronological pre-holdout windows.
-Use recent-period performance, fold dispersion and feature-count complexity as selection signals. A pattern is not adopted because it wins one fold or because it has more data.
-Feature-pattern research is applied to every active sport, not selectively to one sport.
+For every sport, actively test:
+identity/strength, recent form/load, historical performance statistics, participant/entity profile, team/roster context, competition/phase/event context, matchday intelligence, data/source quality and derived interactions.
+Use sport-specific semantics and source availability; never assume one universal feature recipe.
 
 ## Feature-pattern research
-For every active sport, do not assume that the largest feature set is optimal. Explore multiple PIT-safe patterns across identity/strength, recent form/load, historical performance statistics, athlete/player profile, team/roster/availability, competition/event context, matchday intelligence, data-quality state and interactions.
+For all nine sports, never assume that the largest feature set is optimal.
 
-The pattern search must vary at least:
-family inclusion/exclusion, fine-grained statistic blocks, A/B/D encoding, short/medium/long history emphasis, summary-statistic variants, profile/roster inclusion, matchday inclusion, quality-awareness, and interaction inclusion.
+The search must cover:
+family inclusion/exclusion; leave-one-family-out controls; single/pair/triple/quadruple family subsets; fine-grained statistic blocks; A/B/D encodings; side-only vs difference-only; short/medium/long history; mean/median/quantile/last/trend/EWMA summaries; profile and roster toggles; matchday toggles; quality-aware vs quality-blind variants; interaction variants; relative/rate representations; and complexity/sparsity alternatives.
 
-Use multi-stage chronological pre-holdout screening with a broad structured candidate grid, then retest diverse winners with more than one model family. Record negative results, robustness, feature count/complexity, source dependence and compute cost. Frozen holdout is score-only and never used to choose a pattern.
+Use a staged search:
+1. broad structured screening on an early training prefix;
+2. multi-model retest of diverse winners;
+3. downstream full model/ensemble/routing evaluation on later chronological OOS;
+4. robustness, calibration and frozen-holdout verification.
 
-Basketball, Volleyball, VALORANT, UFC and RIZIN must all use this common pattern-search framework with sport-specific feature priorities. Tennis, F1, Rugby and Boxing must retain compatible sport-specific schemas while deferred. Missing or unproven information remains UNKNOWN/UNVERIFIABLE and cannot be treated as evidence.
+Pattern selection must not inspect the later OOS evaluation rows or frozen holdout. Record negative results, source dependence, PIT coverage, stability, complexity and compute cost.
 
-Pattern selection alone is never production authorization; downstream model OOS/WFO, calibration, robustness, frozen holdout, release and monitoring gates remain mandatory.
+Basketball, Volleyball, VALORANT, UFC, RIZIN, Tennis, F1, Rugby and Boxing all use this architecture. Sport-specific information is added only when actually available and PIT-valid; deferred status does not authorize unproven data.
+
+Missing, delayed, unresolved or unproven information remains UNKNOWN/UNVERIFIABLE and cannot be converted into synthetic evidence.
+
+Pattern selection alone is never production authorization; all downstream OOS/WFO, robustness, calibration, frozen-holdout, release and monitoring gates remain mandatory.
 
 ## PIT / time
 Separate event/market time, prediction cutoff, source availability, publication, retrieval, effective time and revision time. Only use information demonstrably available by cutoff. Unknown/unverifiable availability is fail-closed for production-quality OOS. A pre-event audit must not PASS a prediction generated after its own cutoff. Same-event snapshots at different cutoffs are dependent observations and are evaluated as event clusters.
