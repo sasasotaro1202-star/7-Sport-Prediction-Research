@@ -97,7 +97,7 @@ def fixture(root: Path) -> None:
             "latest": {"databaseId": 3, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T00:10:00Z", "headSha": "new-sha"},
         },
         "production_safety_audit.yml": {
-            "latest": {"databaseId": 4, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T00:00:00Z", "headSha": "new-sha"},
+            "latest": {"databaseId": 4, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T00:00:00Z", "headSha": "old-sha"},
         },
         "nine_sport_lane_audit.yml": {
             "latest": {"databaseId": 5, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T00:00:00Z", "headSha": "new-sha"},
@@ -115,7 +115,48 @@ def fixture(root: Path) -> None:
     cp.ACTIONS_SNAPSHOT.write_text(json.dumps({"workflows": workflows, "errors": {}}), encoding="utf-8")
 
 
+def test_action_health_rejects_missing_sha_provenance() -> None:
+    workflows = {
+        "production_safety_audit.yml": {
+            "latest": {
+                "databaseId": 100,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": "2099-01-01T00:00:00Z",
+            }
+        }
+    }
+    health = cp.action_health(
+        workflows,
+        "production_safety_audit.yml",
+        4.5,
+        current_main_sha="current-sha",
+    )
+    assert health["status"] == "STALE"
+    assert health["stale"] is True
+    assert health["sha_match"] is None
+
+
+def test_action_health_rejects_old_sha() -> None:
+    workflows = {
+        "production_safety_audit.yml": {
+            "latest": {
+                "databaseId": 99,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": "2099-01-01T00:00:00Z",
+                "headSha": "old-sha",
+            }
+        }
+    }
+    health = cp.action_health(workflows, "production_safety_audit.yml", 4.5, current_main_sha="current-sha")
+    assert health["status"] == "STALE"
+    assert health["stale"] is True
+
+
 def main() -> int:
+    test_action_health_rejects_missing_sha_provenance()
+    test_action_health_rejects_old_sha()
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         bind(root)
@@ -127,6 +168,8 @@ def main() -> int:
         assert state["failure_memory"]["records_total"] == 1
         assert state["failure_memory"]["recent_24h"] == 1
         assert state["actions"]["pre_event_prediction"]["status"] == "HEALTHY"
+        assert state["actions"]["production_safety_audit"]["status"] == "STALE"
+        assert state["actions"]["production_safety_audit"]["sha_match"] is False
         selected, dispatch = cp.choose_actions(state)
         assert selected["action"] == "RUNTIME_HEALTH" or selected["action"] == "DEEP_RESEARCH", selected
         assert dispatch is not None

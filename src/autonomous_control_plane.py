@@ -150,6 +150,7 @@ def action_health(
     workflows: dict[str, Any],
     workflow: str,
     max_age_hours: float,
+    current_main_sha: str | None = None,
 ) -> dict[str, Any]:
     raw = workflows.get(workflow)
     if not isinstance(raw, dict):
@@ -177,22 +178,38 @@ def action_health(
         age = max(0.0, (now_utc() - created).total_seconds() / 3600.0)
     conclusion = str(latest.get("conclusion") or "")
     run_status = str(latest.get("status") or "")
+    head_sha = str(latest.get("headSha") or "")
+    sha_provenance_missing = (
+        not current_main_sha
+        or current_main_sha == "UNKNOWN"
+        or not head_sha
+    )
+    sha_mismatch = bool(
+        not sha_provenance_missing
+        and head_sha != current_main_sha
+    )
     healthy = (
         conclusion == "success"
         and run_status == "completed"
         and age is not None
         and age <= max_age_hours
+        and not sha_provenance_missing
+        and not sha_mismatch
     )
     return {
-        "status": "HEALTHY" if healthy else (
-            "FAILED" if conclusion in {"failure", "timed_out", "startup_failure", "cancelled"} else
-            ("STALE" if age is None or age > max_age_hours else "IN_PROGRESS")
+        "status": "STALE" if sha_provenance_missing or sha_mismatch else (
+            "HEALTHY" if healthy else (
+                "FAILED" if conclusion in {"failure", "timed_out", "startup_failure", "cancelled"} else
+                ("STALE" if age is None or age > max_age_hours else "IN_PROGRESS")
+            )
         ),
         "age_hours": age,
         "head_sha": latest.get("headSha"),
+        "current_main_sha": current_main_sha,
+        "sha_match": None if not current_main_sha or current_main_sha == "UNKNOWN" or not head_sha else not sha_mismatch,
         "conclusion": conclusion or None,
         "run_id": latest.get("databaseId"),
-        "stale": not healthy,
+        "stale": (not healthy) or sha_mismatch,
     }
 
 
@@ -300,25 +317,27 @@ def inspect() -> dict[str, Any]:
     repro = payloads["reproducibility_manifest"] or {}
     failure_memory, failure_memory_errors = load_failure_memory()
 
+    head_sha = os.environ.get("GITHUB_SHA") or "UNKNOWN"
+
     for key, value in action_errors.items():
         errors[key] = value
     for key, value in failure_memory_errors.items():
         errors[key] = value
     action_summary = {
-        "source_feasibility": action_health(actions, "source_feasibility_audit.yml", 4.5),
-        "scope_autofill": action_health(actions, "scope_autofill.yml", 7.0),
-        "runtime_health": action_health(actions, "production_runtime_health.yml", 1.5),
-        "safety_audit": action_health(actions, "production_safety_audit.yml", 4.5),
-        "lane_audit": action_health(actions, "nine_sport_lane_audit.yml", 7.5),
-        "research_sweep": action_health(actions, "autonomous_research_sweep.yml", 7.0),
-        "deep_research": action_health(actions, "24h_autonomous_research.yml", 26.0),
-        "pre_event_prediction": action_health(actions, "pre_event_prediction.yml", 0.5),
-        "production": action_health(actions, MONITORED_WORKFLOWS["production"], 1.5),
-        "pit_history": action_health(actions, MONITORED_WORKFLOWS["pit_history"], 12.0),
-        "failure_recovery": action_health(actions, MONITORED_WORKFLOWS["failure_recovery"], 12.0),
-        "watchdog": action_health(actions, MONITORED_WORKFLOWS["watchdog"], 0.5),
-        "invariants": action_health(actions, MONITORED_WORKFLOWS["invariants"], 4.5),
-        "lightweight_regression": action_health(actions, MONITORED_WORKFLOWS["lightweight_regression"], 4.5),
+        "source_feasibility": action_health(actions, "source_feasibility_audit.yml", 4.5, current_main_sha=head_sha),
+        "scope_autofill": action_health(actions, "scope_autofill.yml", 7.0, current_main_sha=head_sha),
+        "runtime_health": action_health(actions, "production_runtime_health.yml", 1.5, current_main_sha=head_sha),
+        "safety_audit": action_health(actions, "production_safety_audit.yml", 4.5, current_main_sha=head_sha),
+        "lane_audit": action_health(actions, "nine_sport_lane_audit.yml", 7.5, current_main_sha=head_sha),
+        "research_sweep": action_health(actions, "autonomous_research_sweep.yml", 7.0, current_main_sha=head_sha),
+        "deep_research": action_health(actions, "24h_autonomous_research.yml", 26.0, current_main_sha=head_sha),
+        "pre_event_prediction": action_health(actions, "pre_event_prediction.yml", 0.5, current_main_sha=head_sha),
+        "production": action_health(actions, MONITORED_WORKFLOWS["production"], 1.5, current_main_sha=head_sha),
+        "pit_history": action_health(actions, MONITORED_WORKFLOWS["pit_history"], 12.0, current_main_sha=head_sha),
+        "failure_recovery": action_health(actions, MONITORED_WORKFLOWS["failure_recovery"], 12.0, current_main_sha=head_sha),
+        "watchdog": action_health(actions, MONITORED_WORKFLOWS["watchdog"], 0.5, current_main_sha=head_sha),
+        "invariants": action_health(actions, MONITORED_WORKFLOWS["invariants"], 4.5, current_main_sha=head_sha),
+        "lightweight_regression": action_health(actions, MONITORED_WORKFLOWS["lightweight_regression"], 4.5, current_main_sha=head_sha),
     }
 
     coverage = release.get("coverage")
@@ -390,7 +409,6 @@ def inspect() -> dict[str, Any]:
             if isinstance(x, dict)
         }
 
-    head_sha = os.environ.get("GITHUB_SHA") or "UNKNOWN"
     manifest_sha = str(repro.get("source_git_commit_sha") or "")
     repro_match = bool(head_sha != "UNKNOWN" and manifest_sha and head_sha == manifest_sha)
 
