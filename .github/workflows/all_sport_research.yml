@@ -8,6 +8,8 @@ on:
       - "config/PROJECT_SCOPE_POLICY.json"
       - "scripts/test_scope_boundary.py"
       - "src/ultimate_predictive_control_v13.py"
+      - "src/feature_pattern_optimizer.py"
+      - "config/FEATURE_PATTERN_POLICY.json"
       - "src/research_cycle_strict.py"
       - "scripts/test_ultimate_predictive_control_v13.py"
       - "scripts/test_ultimate_v13_oos_bridge.py"
