@@ -219,6 +219,40 @@ def pinned_raw_url(path: str, commit_sha: str) -> str:
     return f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{commit_sha}/{path}"
 
 
+def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | None:
+    """Return only explicitly registered conservative public-availability bounds."""
+    evidence_path = ROOT / "results" / "research" / "bleague_public_availability_evidence.json"
+    try:
+        payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+    for item in payload.get("evidence") or []:
+        revision = item.get("revision_evidence") or {}
+        if str(revision.get("exact_revision_sha") or "") != str(commit_sha):
+            continue
+        bound_info = revision.get("public_availability_bound") or {}
+        if str(bound_info.get("precision") or "") != "DATE_ONLY":
+            continue
+        bound_ts = iso(str(bound_info.get("latest_safe_utc") or ""))
+        commit_ts = iso(str(revision.get("revision_commit_timestamp_utc") or ""))
+        next_touch = iso(str(revision.get("next_file_touch_timestamp_utc") or ""))
+        if not bound_ts or not commit_ts or bound_ts < commit_ts:
+            continue
+        if next_touch and bound_ts >= next_touch:
+            continue
+        if str(revision.get("no_intervening_file_touch_between_revision_and_independent_publication")).lower() != "true":
+            continue
+        return {
+            "source_url": str(item.get("source_url") or ""),
+            "published_on": str(item.get("published_on") or ""),
+            "public_availability_bound_utc": bound_ts,
+            "evidence_level": str(item.get("evidence_level") or "SECONDARY_INDEPENDENT_REFERENCE"),
+            "claim_supported": str(item.get("claim_supported") or ""),
+            "revision_sha": str(commit_sha),
+        }
+    return None
+
+
 def stable_bleaguer_event_id(schedule_key: str) -> str:
     return hashlib.sha256(
         f"basketball|bleaguer|{schedule_key}".encode("utf-8")
