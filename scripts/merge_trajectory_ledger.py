@@ -122,9 +122,10 @@ def main() -> int:
     changed = {}
     reports = {}
     for sport in sports:
-        live_delta = artifact_root / sport / f"trajectory_snapshots_{sport}.jsonl"
-        live_outcome = artifact_root / sport / f"trajectory_outcomes_{sport}.json"
-        live_report = artifact_root / sport / f"trajectory_collect_{sport}.json"
+        artifact_dir = artifact_root / f"trajectory-delta-{sport}"
+        live_delta = artifact_dir / f"trajectory_snapshots_{sport}.jsonl"
+        live_outcome = artifact_dir / f"trajectory_outcomes_{sport}.json"
+        live_report = artifact_dir / f"trajectory_collect_{sport}.json"
 
         ledger = ROOT / "results/research" / f"trajectory_snapshots_{sport}.jsonl"
         outcomes = ROOT / "results/research" / f"trajectory_outcomes_{sport}.json"
