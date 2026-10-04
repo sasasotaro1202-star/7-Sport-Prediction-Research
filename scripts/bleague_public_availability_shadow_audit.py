@@ -214,18 +214,13 @@ def audit_db(
             team_id: normalized_vector(values, SUMMARY_NUMERIC_FIELDS)
             for team_id, values in exact_rows[schedule_key].items()
         }
-        if db_info and set(raw_team_vectors) == set(db_info["participant_ids"]):
-            db_by_team = dict(zip(db_info["participant_ids"], db_info["vectors"]))
-            teamwise_match = all(
-                raw_team_vectors[team_id] == db_by_team[team_id]
-                for team_id in raw_team_vectors
-            )
-        else:
-            teamwise_match = False
+        raw_vectors = list(raw_team_vectors.values())
+        teamwise_match = bool(db_info) and vectors_match(raw_vectors, db_info["vectors"])
         if teamwise_match:
             exact_feature_vector_events += 1
             exact_feature_stat_rows += len(raw_vectors) * len(DB_STAT_NAMES)
             feature_events[event_id] = {
+                "event_id": event_id,
                 "schedule_key": schedule_key,
                 "event_time_utc": event[0],
                 "competition_id": event[1],
