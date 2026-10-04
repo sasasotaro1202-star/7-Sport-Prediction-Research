@@ -619,6 +619,8 @@ strict candidate examples:
 
 ただしhistorical availability and cutoff must be proven.
 
+新しいparticipant-context standardでは、UFCStats fighter profileをprospectiveに取得し、height / weight / reach / DOB / stance / record / career-rate statisticsをparticipant_historyへ保存する。予測cutoff以前にprofile自体のsource availabilityが証明された観測だけを特徴量候補にする。後付けのhistorical profile推定は禁止する。
+
 現行監査値の一例:
 
 train: 7,293
