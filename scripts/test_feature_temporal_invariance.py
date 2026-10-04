@@ -74,6 +74,14 @@ def build_fixture() -> sqlite3.Connection:
         ("ph1", "a", "ufc", "e1", avail, avail, "profile.height",
          "70 in", 70.0, None, "fixture", url, "EXACT", 1.0),
     )
+    # Effective before e2 but observed after the e2 cutoff: must remain unavailable.
+    observed_late = "2025-01-10T13:00:00+00:00"
+    c.execute(
+        "INSERT INTO participant_history VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("ph2", "a", "ufc", "e2", "2025-01-05T00:00:00+00:00",
+         observed_late, "profile.reach", "999 in", 999.0, None,
+         "fixture", url, "EXACT", 1.0),
+    )
     c.commit()
     return c
 
@@ -100,6 +108,7 @@ def main() -> int:
     before = event_features(c, "e2")
     profile_keys = [k for k in before if "profile__height" in k]
     assert profile_keys, "PIT-safe participant profile feature was not materialized"
+    assert not any("profile__reach" in k for k in before), "observed-late profile leaked across cutoff"
 
     # Mutate only data belonging to the future event e3.
     c.execute("UPDATE event_outcome SET outcome='B', score_a=0.0, score_b=1.0 WHERE event_id='e3'")
