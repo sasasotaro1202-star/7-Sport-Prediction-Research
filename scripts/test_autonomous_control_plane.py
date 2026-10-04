@@ -233,13 +233,14 @@ def main() -> int:
         # The triggering workflow_run failure remains actionable even when the
         # latest snapshot has already moved to a newer successful run.
         (root / "results/failure_memory.jsonl").unlink()
+        event_recent_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         workflows = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
         workflows["workflows"]["v4_5_15_production.yml"] = {
             "latest": {
                 "databaseId": 99,
                 "status": "completed",
                 "conclusion": "success",
-                "createdAt": recent_iso,
+                "createdAt": event_recent_iso,
                 "headSha": "new-sha",
             }
         }
