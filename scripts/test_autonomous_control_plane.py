@@ -97,7 +97,7 @@ def fixture(root: Path) -> None:
             "latest": {"databaseId": 3, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T00:10:00Z", "headSha": "new-sha"},
         },
         "production_safety_audit.yml": {
-            "latest": {"databaseId": 4, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T00:00:00Z", "headSha": "new-sha"},
+            "latest": {"databaseId": 4, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T00:00:00Z", "headSha": "old-sha"},
         },
         "nine_sport_lane_audit.yml": {
             "latest": {"databaseId": 5, "status": "completed", "conclusion": "success", "createdAt": "2026-10-04T00:00:00Z", "headSha": "new-sha"},
@@ -145,6 +145,8 @@ def main() -> int:
         assert state["failure_memory"]["records_total"] == 1
         assert state["failure_memory"]["recent_24h"] == 1
         assert state["actions"]["pre_event_prediction"]["status"] == "HEALTHY"
+        assert state["actions"]["production_safety_audit"]["status"] == "STALE"
+        assert state["actions"]["production_safety_audit"]["sha_match"] is False
         selected, dispatch = cp.choose_actions(state)
         assert selected["action"] == "RUNTIME_HEALTH" or selected["action"] == "DEEP_RESEARCH", selected
         assert dispatch is not None
