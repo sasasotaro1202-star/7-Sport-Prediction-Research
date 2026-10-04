@@ -65,11 +65,28 @@ jobs:
       - name: Compute report timestamps and next action
         env:
           FORCE: ${{ inputs.force }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          release_time="$(git log -1 --format=%ct -- results/release_gate.json 2>/dev/null || true)"
-          quality_time="$(git log -1 --format=%ct -- results/quality_gate.json 2>/dev/null || true)"
+
+          # The checkout is intentionally shallow. Read the latest commit touching
+          # each gate report from GitHub so freshness cannot silently become
+          # "unknown" merely because the report was not changed in the latest commit.
+          report_commit_epoch() {
+            local path="$1"
+            local iso=""
+            iso="$(gh api --method GET \
+              "repos/${GITHUB_REPOSITORY}/commits" \
+              -f "path=${path}" -f "per_page=1" \
+              --jq '.[0].commit.committer.date // empty')"
+            if [ -n "${iso}" ]; then
+              date -u -d "${iso}" +%s
+            fi
+          }
+
+          release_time="$(report_commit_epoch "results/release_gate.json" || true)"
+          quality_time="$(report_commit_epoch "results/quality_gate.json" || true)"
 
           args=(
             --main-sha "${GITHUB_SHA}"
