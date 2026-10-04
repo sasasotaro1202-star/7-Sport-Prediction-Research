@@ -155,6 +155,11 @@ def main():
                 "pinned_source_url": pinned_url,
             }],
         }]
+        proof[0]["public_availability_bound_utc"] = "2021-12-02T23:59:59+00:00"
+        proof[0]["publication_status"] = "PROVEN_BY_SECONDARY_DATE_BOUND"
+        proof[0]["publication_evidence"] = {"source_url": "https://example.invalid/evidence"}
+        proof[0]["repository"] = "rintaromasuda/bleaguer"
+        proof[0]["branch"] = "master"
         result = apply(db, proof)
         assert result["event_version_provenance"] == 1
         con = sqlite3.connect(db)
@@ -164,9 +169,9 @@ def main():
         ).fetchone()
         repointed = con.execute("SELECT source_url FROM match_stats WHERE stat_id='stat-1'").fetchone()
         con.close()
-        assert snap[0:4] == (pinned_url, None, None, "VERSION_EXACT_PUBLICATION_UNPROVEN")
-        assert '"publication_status": "UNPROVEN"' in snap[4]
-        assert repointed == (current_url,)
+        assert snap[0:4] == (pinned_url, "2021-12-02T23:59:59+00:00", None, "EXACT")
+        assert '"publication_status": "PROVEN_BY_SECONDARY_DATE_BOUND"' in snap[4]
+        assert repointed == (pinned_url,)
 
     print("BLEAGUER_EVENT_PROVENANCE=PASS")
 
