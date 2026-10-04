@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import os
 import sys
@@ -188,10 +189,27 @@ def main() -> int:
         assert dispatch["automatic_promotion"] is False
 
         first = cp.write_state(state, selected, dispatch)
-        second = cp.write_state(state, selected, dispatch)
+        same_evidence_new_sha = copy.deepcopy(state)
+        same_evidence_new_sha["head_sha"] = "next-sha"
+        original_runtime_age = same_evidence_new_sha["actions"]["runtime_health"]["age_hours"]
+        same_evidence_new_sha["actions"]["runtime_health"]["age_hours"] = (
+            original_runtime_age + 0.1 if original_runtime_age is not None else 0.1
+        )
+        # These fields are derived from the control-plane invocation SHA and
+        # current wall-clock time, not from a new workflow run.
+        same_evidence_new_sha["actions"]["runtime_health"]["current_main_sha"] = "next-sha"
+        same_evidence_new_sha["actions"]["runtime_health"]["sha_match"] = False
+        same_evidence_new_sha["actions"]["runtime_health"]["stale"] = True
+        same_evidence_new_sha["actions"]["runtime_health"]["status"] = "STALE"
+        selected_next, dispatch_next = cp.choose_actions(same_evidence_new_sha)
+        second = cp.write_state(same_evidence_new_sha, selected_next, dispatch_next)
+
         assert first["queue_added"] is True
         assert second["queue_added"] is False
-        assert cp.ACTION_LOG_OUT.read_text(encoding="utf-8").count("\n") == 2
+        assert first["state_fingerprint"] == second["state_fingerprint"]
+        assert first["write_needed"] is True
+        assert second["write_needed"] is False
+        assert cp.ACTION_LOG_OUT.read_text(encoding="utf-8").count("\n") == 1
 
         control = json.loads(cp.CONTROL_OUT.read_text(encoding="utf-8"))
         assert control["automatic_promotion"] is False
@@ -207,20 +225,22 @@ def main() -> int:
 
         # Recent observed failures must become an autonomous research signal.
         selected_failure, dispatch_failure = cp.choose_actions(state)
-        assert selected_failure["target"] == "recent_failures"
+        assert selected_failure["action"] == "PIT_COVERAGE_REPAIR"
+        assert selected_failure["target"] == "active_scope"
         assert dispatch_failure is not None
         assert dispatch_failure["workflow"] == "autonomous_research_sweep.yml"
 
         # The triggering workflow_run failure remains actionable even when the
         # latest snapshot has already moved to a newer successful run.
         (root / "results/failure_memory.jsonl").unlink()
+        event_recent_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         workflows = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
         workflows["workflows"]["v4_5_15_production.yml"] = {
             "latest": {
                 "databaseId": 99,
                 "status": "completed",
                 "conclusion": "success",
-                "createdAt": recent_iso,
+                "createdAt": event_recent_iso,
                 "headSha": "new-sha",
             }
         }

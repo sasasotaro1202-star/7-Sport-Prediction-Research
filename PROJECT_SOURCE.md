@@ -1153,3 +1153,20 @@ failure / timed_out / startup_failure / cancelled:
 → Production Failure Recoveryのretry ownershipは変更しない。
 
 event head SHAがcurrent mainと一致しない場合はFAIL CLOSEDとし、fresh current-main regressionとして扱わない。success eventはfailure triageを起動しない。automatic model promotion、PIT bypass、frozen holdout tuningは引き続き禁止。
+
+
+=== CONTROL-PLANE NO-CHURN PERSISTENCE ===
+
+制御Planeのstate fingerprintは「観測されたworkflow runの実体」と「選択されたdecision」を表し、invocation/current-main SHA、wall-clock由来のage_hours、そこから導出されるstale/status/sha_match/current_main_shaはfingerprintから除外する。
+
+stable evidence:
+* run_status
+* workflow run head_sha
+* conclusion
+* run_id
+* release / quality / future / experience / route / timing / failure-memory
+* selected decision
+
+同一evidenceでcontrol plane自身がmainを1 commit進めた場合でも、次cycleにself-commitを連鎖させない。action logもstable fingerprintの変化時だけappendする。
+
+ただし、current-main SHAの検証、persist直前のremote main再確認、dispatch直前のremote main再確認は引き続き必須。no-churnは安全gateを弱めるものではない。
