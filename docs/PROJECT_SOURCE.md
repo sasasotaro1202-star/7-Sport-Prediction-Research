@@ -2045,3 +2045,205 @@ Future Generalization
 「より複雑なモデル」ではなく、
 「将来未知のイベントで、いつ、何を、どの情報から、どのモデルで、どの程度確信して予測し、必要なら追加情報を取り、危険ならfallback/abstainし、失敗したら原因を特定して次の研究へ変換できるsystem」
 を最終的なPrediction Intelligenceと定義する。
+
+
+⸻
+
+77. CROSS-SPORT FEATURE INTELLIGENCE AND PATTERN SEARCH
+
+「データ量が多いほど全列を入れる」が本プロジェクトの方針ではない。
+各active sportについて、利用可能な情報を意味的familyに分離し、単体値・A/B差分・相対値・トレンド・ローリング統計・鮮度・欠損状態・相互作用を候補として扱う。
+
+必須family:
+
+* identity_strength: Elo、opponent strength、H2H、historical participation
+* form_load: recent result、streak、margin、rest、schedule load
+* performance_history: prior team/player/athlete/fighter/map/match statistics
+* entity_profile: age、height/reach、stance、position、role、class等
+* team_roster_context: roster、starter、lineup、role、team composition
+* competition_context: competition、season、phase、stage、round、event type、rules
+* matchday_intelligence: availability、injury、weather、travel、late official information、market/news where legally and PIT-safely observed
+* data_quality: source reliability、freshness、coverage、PIT/data state
+* interaction: differences、ratios、relative values、cross-family interactions
+
+競技別の優先順位は設けてよいが、固定レシピにしてはならない。
+
+Basketball:
+* team strength/Elo
+* recent form and schedule load
+* team season metrics
+* player/roster/starter information
+* venue/competition/phase
+* available matchday information
+* stat differentials and rate/efficiency interactions
+
+Volleyball:
+* team strength/Elo
+* recent results and set performance
+* scoring/attack/serve/receive/block history
+* player roster/rotation/starter information when PIT-valid
+* competition/phase/round
+* rest/schedule load
+* matchday availability and lineup changes
+* rate/differential/trend interactions
+
+VALORANT:
+* team rating/form
+* map-specific and series-specific history
+* player/map statistics
+* roster changes
+* patch/map pool/Bo format
+* event stage/round
+* recent travel/rest and matchday status
+* source disagreement and data coverage
+
+UFC / RIZIN:
+* fighter strength/history
+* opponent-adjusted form
+* prior fight statistics
+* physical/profile attributes
+* stance/weight class/rules
+* inactivity/rest
+* opponent/competition context
+* official lineup/card changes and late information
+
+Tennis:
+* player strength and surface-specific history
+* serve/return performance
+* tournament/round/surface
+* recent load/rest
+* player availability
+* match conditions
+
+F1:
+* driver/team strength
+* circuit-specific history
+* qualifying/race/sprint event type
+* car/team state
+* current roster
+* weather/track conditions only when PIT-proven
+
+Rugby:
+* team strength/form
+* scoring/concession and territory/set-piece style where available
+* roster/selection
+* competition/phase
+* rest/travel
+* weather/venue
+
+Boxing:
+* fighter strength/form
+* age/physical profile
+* weight class
+* opponent strength
+* inactivity
+* result-method history
+* bout/event context
+
+78. FEATURE PATTERN SELECTION GATE
+
+大量の候補を直接productionへ入れない。
+FEATURE_PATTERN_POLICY と feature-pattern optimizerにより、pre-holdout training rowsだけで複数のfamily組合せをchronological walk-forward比較する。
+
+候補は少なくとも、
+
+* core
+* core + performance
+* core + form
+* core + profile
+* core + roster
+* core + competition
+* core + matchday
+* core + data quality
+* core + interaction
+* 複数family combinations
+* all available families
+
+を含め、sport-specific priorityに基づき探索順序を変える。
+
+評価は、
+
+LogLoss
++ recent-period weighting
++ fold dispersion penalty
++ complexity tie-break
+
+を基本とする。
+
+同等性能なら特徴数の少ないpatternを優先する。
+単一fold、random split、frozen holdout tuningによる選択は禁止する。
+
+79. FEATURE FAMILY ABLATION
+
+新情報を追加した場合は「追加後に少し良くなった」だけで採用しない。
+
+minimum comparison:
+
+BASE
+BASE + family A
+BASE + family B
+BASE + family A + family B
+BASE + profile/roster
+BASE + matchday
+BASE + interaction
+selected composite
+all available
+
+利用できないfamilyを0で埋めて有効に見せてはならない。
+family unavailable、PIT-unproven、identity-unresolvedを別状態で記録する。
+
+80. PARTICIPANT / TEAM HISTORY FEATURE CONTRACT
+
+participant_history と team_history に保存された属性は、
+
+effective_at <= prediction_cutoff
+AND exact source availability <= prediction_cutoff
+AND entity identity resolved
+AND event_timeより前
+
+を満たす場合だけpredictive featureとして利用できる。
+
+UFC等のprofileについては、age、height、weight、reach、stance、career summary等を候補化する。
+Basketball/Volleyball/VALORANT等ではplayer/roster/team season informationを同じ契約で扱う。
+
+profile/roster dataが存在すること自体は採用を意味しない。
+historical PIT proofのないprofileはOOS trainingから除外し、future/current prospective observationではcutoff時点のevidenceとして扱う。
+
+81. SPORT-WIDE DATA PATTERN OBJECTIVE
+
+全active sportsで、「情報の多さ」ではなく「future generalizationに効く情報パターン」を探索する。
+
+優先するのは、
+
+data value
+× PIT validity
+× identity quality
+× coverage
+× robustness
+× incremental OOS value
+÷ complexity
+
+である。
+
+UFCだけ、Basketballだけ、Volleyballだけに閉じる実装は不十分であり、feature-pattern researchは5 active lanesすべてに適用する。
+将来のdeferred sportsも同じ契約を満たした時点で自動的にこの探索枠へ入れる。
+
+82. PROMOTION FIREWALL FOR NEW FEATURES
+
+新しいfeature family/patternは、
+
+DISCOVERED
+→ DATA_FEASIBLE
+→ PIT_VALIDATED
+→ PATTERN_SCREENED
+→ CHRONOLOGICAL_OOS
+→ ROBUSTNESS
+→ FROZEN_HOLDOUT
+→ SHADOW
+→ LIMITED_PRODUCTION
+→ STABLE_PRODUCTION
+
+の順に昇格する。
+
+IMPLEMENTED、EXECUTED、VERIFIEDだけではfeature adoptionを意味しない。
+performance evidenceがなければRESEARCH_ONLY/HOLDを維持する。
