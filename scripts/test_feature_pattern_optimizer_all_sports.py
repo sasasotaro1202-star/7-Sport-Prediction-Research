@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from pathlib import Path
 
 from src.feature_pattern_optimizer import (
     SUPPORTED_SPORTS,
@@ -11,6 +12,13 @@ from src.feature_pattern_optimizer import (
 
 
 def main() -> int:
+    workflow = (Path(".github/workflows/all_nine_sport_feature_patterns.yml").read_text(encoding="utf-8"))
+    assert "rugby_v45.sqlite" in workflow and "boxing_v45.sqlite" in workflow
+    assert "sport == \"rugby\"" in workflow and "sport == \"boxing\"" in workflow
+    family_init = workflow.find("          family_coverage = {}")
+    insufficient_branch = workflow.find("          if len(rows) < 180")
+    assert family_init >= 0 and insufficient_branch >= 0 and family_init < insufficient_branch
+
     assert set(SUPPORTED_SPORTS) == {
         "valorant", "basketball", "volleyball", "tennis", "ufc",
         "rizin", "f1", "rugby", "boxing",
