@@ -305,5 +305,5 @@ def select_feature_pattern(X, y, names, sport, min_rows=None):
         "max_depth":max_depth,
         "min_family_coverage":min_family_coverage,
         "family_map":{k:len(v) for k,v in fams.items()},
-        "policy_version":"participant-context-pattern-selection-v1",
+        "policy_version":"participant-context-pattern-selection-v2",
     }
