@@ -319,6 +319,43 @@ def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | 
 
     return None
 
+def canonical_bleaguer_event_id(schedule_row: dict[str, Any], schedule_path: str) -> str | None:
+    """Reproduce basketball_cdn_backfill.upsert_event identity from one schedule revision."""
+    key = str(schedule_row.get("ScheduleKey") or "").strip()
+    home_id = str(schedule_row.get("HomeTeamId") or "").strip()
+    away_id = str(schedule_row.get("AwayTeamId") or "").strip()
+    event_time = iso(str(schedule_row.get("Date") or ""))
+    if not key or not home_id or not away_id or not event_time:
+        return None
+    name = f"B.LEAGUE {home_id} vs {away_id}"
+    source = "bleaguer-github"
+    url = f"{RAW_BASE}/{schedule_path}"
+    payload = "|".join(("basketball", source, name, event_time, url))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+
+
+def schedule_event_identity_map(data: bytes, schedule_path: str) -> dict[str, str]:
+    """Map ScheduleKey to canonical event ID; conflicting keys fail closed."""
+    groups: dict[str, str] = {}
+    ambiguous: set[str] = set()
+    try:
+        text = data.decode("utf-8-sig", errors="strict")
+        for row in csv.DictReader(io.StringIO(text)):
+            key = str(row.get("ScheduleKey") or "").strip()
+            if not key:
+                continue
+            event_id = canonical_bleaguer_event_id(row, schedule_path)
+            if not event_id:
+                continue
+            prior = groups.get(key)
+            if prior is not None and prior != event_id:
+                ambiguous.add(key)
+                continue
+            groups[key] = event_id
+    except (UnicodeDecodeError, csv.Error, ValueError):
+        return {}
+    return {key: event_id for key, event_id in groups.items() if key not in ambiguous}
+
 def stable_bleaguer_event_id(schedule_key: str) -> str:
     return hashlib.sha256(
         f"basketball|bleaguer|{schedule_key}".encode("utf-8")
@@ -372,6 +409,7 @@ def prove_path(path: str) -> dict[str, Any]:
     )
     matches: list[tuple[str, str]] = []
     provisional_event_provenance: dict[str, dict[str, Any]] = {}
+    schedule_identity_cache: dict[tuple[str, str], dict[str, str]] = {}
     for c in ordered_commits:
         sha = c.get("sha")
         commit_date = _commit_date(c)
@@ -398,6 +436,24 @@ def prove_path(path: str) -> dict[str, Any]:
                     "pinned_source_url": pinned_raw_url(path, sha),
                 }
                 if bound:
+                    # Identity is derived from the same immutable schedule revision
+                    # used to prove the feature rows; ScheduleKey-only IDs are not canonical.
+                    schedule_path = path.replace("games_summary_", "games_")
+                    cache_key = (sha, schedule_path)
+                    if cache_key not in schedule_identity_cache:
+                        try:
+                            schedule_bytes = get_bytes(s, pinned_raw_url(schedule_path, sha))
+                        except Exception:
+                            schedule_identity_cache[cache_key] = {}
+                        else:
+                            schedule_identity_cache[cache_key] = schedule_event_identity_map(
+                                schedule_bytes,
+                                schedule_path,
+                            )
+                    canonical_event_id = schedule_identity_cache[cache_key].get(schedule_key)
+                    if not canonical_event_id:
+                        continue
+                    candidate["canonical_event_id"] = canonical_event_id
                     event_provenance[schedule_key] = candidate
                     remaining_events.remove(schedule_key)
                     provisional_event_provenance.pop(schedule_key, None)
@@ -522,7 +578,10 @@ def apply(db: Path, proofs: list[dict[str, Any]]) -> dict[str, Any]:
             # A non-NULL event_time would hide these prior stats from later
             # target events because the source join is event-time scoped.
             for ep in p.get("event_provenance", []):
-                event_id = stable_bleaguer_event_id(ep["schedule_key"])
+                event_id = str(ep.get("canonical_event_id") or "").strip()
+                if not event_id:
+                    # Legacy ScheduleKey-only IDs are not canonical and must fail closed.
+                    continue
                 event_row = con.execute(
                     "SELECT event_time_utc FROM event WHERE event_id=? AND sport='basketball'",
                     (event_id,),

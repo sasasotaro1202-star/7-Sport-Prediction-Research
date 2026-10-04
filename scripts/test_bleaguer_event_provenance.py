@@ -12,7 +12,9 @@ import src.bleaguer_git_provenance as provenance
 
 from src.bleaguer_git_provenance import (
     apply,
+    canonical_bleaguer_event_id,
     find_first_summary_provenance,
+    schedule_event_identity_map,
     secondary_publication_bound,
     stable_bleaguer_event_id,
     summary_row_fingerprint,
@@ -67,6 +69,33 @@ def main():
     current = csv_bytes(current_rows)
     targets = summary_targets_from_bytes(current)
     assert set(targets) == {"100", "101"}
+
+    schedule_csv = (
+        "ScheduleKey,HomeTeamId,AwayTeamId,Date,Season\n"
+        "100,A,B,2020-01-01,2020\n"
+        "101,A,C,2020-01-02,2020\n"
+    ).encode("utf-8")
+    schedule_map = schedule_event_identity_map(schedule_csv, "games_202021.csv")
+    assert set(schedule_map) == {"100", "101"}
+    assert schedule_map["100"] == canonical_bleaguer_event_id(
+        {
+            "ScheduleKey": "100",
+            "HomeTeamId": "A",
+            "AwayTeamId": "B",
+            "Date": "2020-01-01",
+        },
+        "games_202021.csv",
+    )
+    assert schedule_map["100"] != stable_bleaguer_event_id("100")
+
+    ambiguous_schedule = (
+        "ScheduleKey,HomeTeamId,AwayTeamId,Date,Season\n"
+        "200,A,B,2020-01-01,2020\n"
+        "200,A,C,2020-01-01,2020\n"
+    ).encode("utf-8")
+    assert "200" not in schedule_event_identity_map(
+        ambiguous_schedule, "games_202021.csv"
+    )
 
     bound = secondary_publication_bound(
         "inst/extdata/games_summary_202021.csv",
@@ -273,7 +302,16 @@ def main():
             );
             """
         )
-        eid = stable_bleaguer_event_id("300")
+        eid = canonical_bleaguer_event_id(
+            {
+                "ScheduleKey": "300",
+                "HomeTeamId": "A",
+                "AwayTeamId": "B",
+                "Date": "2022-01-01",
+            },
+            "games_202122.csv",
+        )
+        assert eid is not None
         current_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/master/inst/extdata/games_summary_202122.csv"
         pinned_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/abc123/inst/extdata/games_summary_202122.csv"
         con.execute("INSERT INTO event VALUES(?,?,?)", (eid, "basketball", "2022-01-01T00:00:00+00:00"))
@@ -305,6 +343,7 @@ def main():
             "commit_timestamp_utc": "2021-12-01T00:00:00+00:00",
             "event_provenance": [{
                 "schedule_key": "300",
+                "canonical_event_id": eid,
                 "provenance_commit_sha": "abc123",
                 "commit_timestamp_utc": "2021-12-01T00:00:00+00:00",
                 "publication_status": "UNPROVEN",
@@ -364,7 +403,16 @@ def main():
             );
             """
         )
-        eid = stable_bleaguer_event_id("301")
+        eid = canonical_bleaguer_event_id(
+            {
+                "ScheduleKey": "301",
+                "HomeTeamId": "A",
+                "AwayTeamId": "B",
+                "Date": "2022-01-02",
+            },
+            "games_202122.csv",
+        )
+        assert eid is not None
         current_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/master/inst/extdata/games_summary_202122.csv"
         pinned_url = "https://raw.githubusercontent.com/rintaromasuda/bleaguer/abc123/inst/extdata/games_summary_202122.csv"
         con.execute("INSERT INTO event VALUES(?,?,?)", (eid, "basketball", "2022-01-02T00:00:00+00:00"))
@@ -378,6 +426,7 @@ def main():
             "branch": "master",
             "event_provenance": [{
                 "schedule_key": "301",
+                "canonical_event_id": eid,
                 "provenance_commit_sha": "abc123",
                 "commit_timestamp_utc": "2021-12-01T00:00:00+00:00",
                 "publication_status": "UNPROVEN",
