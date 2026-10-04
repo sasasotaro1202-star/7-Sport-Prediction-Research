@@ -220,21 +220,47 @@ def pinned_raw_url(path: str, commit_sha: str) -> str:
 
 
 def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | None:
-    """Return only explicitly registered conservative public-availability bounds."""
+    """Return only explicitly registered conservative public-availability bounds.
+
+    The registry stores the canonical revision proof at the top level while
+    evidence entries carry the independent publication record. Older research
+    artifacts may also embed revision_evidence inside an evidence entry. Accept
+    either representation only when the exact file+revision binding and all
+    chronology guards pass.
+    """
     evidence_path = ROOT / "results" / "research" / "bleague_public_availability_evidence.json"
     try:
         payload = json.loads(evidence_path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return None
-    for item in payload.get("evidence") or []:
-        revision = item.get("revision_evidence") or {}
-        if str(revision.get("file") or "") != str(path):
+
+    target_path = str(path)
+    target_sha = str(commit_sha)
+    top_revision = payload.get("revision_evidence") or {}
+    evidence_items = payload.get("evidence") or []
+
+    candidates = []
+    for item in evidence_items:
+        nested = item.get("revision_evidence") or {}
+        if nested.get("file") == target_path and nested.get("exact_revision_sha") == target_sha:
+            candidates.append((item, nested))
             continue
-        if str(revision.get("exact_revision_sha") or "") != str(commit_sha):
-            continue
+
+        # Canonical registry form: the exact revision metadata is top-level,
+        # while the dated independent evidence entry identifies the source
+        # publication and explicitly references the same file.
+        if (
+            top_revision.get("file") == target_path
+            and top_revision.get("revision_sha") == target_sha
+            and target_path in [str(x) for x in (item.get("referenced_files") or [])]
+        ):
+            candidates.append((item, top_revision))
+
+    for item, revision in candidates:
         bound_info = revision.get("public_availability_bound") or {}
         if str(bound_info.get("precision") or "") != "DATE_ONLY":
             continue
+
         bound_ts = iso(str(bound_info.get("latest_safe_utc") or ""))
         commit_ts = iso(str(revision.get("revision_commit_timestamp_utc") or ""))
         next_touch = iso(str(revision.get("next_file_touch_timestamp_utc") or ""))
@@ -242,18 +268,29 @@ def secondary_publication_bound(path: str, commit_sha: str) -> dict[str, Any] | 
             continue
         if next_touch and bound_ts >= next_touch:
             continue
-        if str(revision.get("no_intervening_file_touch_between_revision_and_independent_publication")).lower() != "true":
+        if str(
+            revision.get(
+                "no_intervening_file_touch_between_revision_and_independent_publication"
+            )
+        ).lower() != "true":
             continue
+
+        published_on = str(item.get("published_on") or "")
+        if published_on and not bound_ts.startswith(published_on):
+            continue
+
         return {
             "source_url": str(item.get("source_url") or ""),
-            "published_on": str(item.get("published_on") or ""),
+            "published_on": published_on,
             "public_availability_bound_utc": bound_ts,
-            "evidence_level": str(item.get("evidence_level") or "SECONDARY_INDEPENDENT_REFERENCE"),
+            "evidence_level": str(
+                item.get("evidence_level") or "SECONDARY_INDEPENDENT_REFERENCE"
+            ),
             "claim_supported": str(item.get("claim_supported") or ""),
-            "revision_sha": str(commit_sha),
+            "revision_sha": target_sha,
         }
-    return None
 
+    return None
 
 def stable_bleaguer_event_id(schedule_key: str) -> str:
     return hashlib.sha256(
