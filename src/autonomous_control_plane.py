@@ -29,6 +29,7 @@ MONITORED_WORKFLOWS = {
     "watchdog": "production_watchdog.yml",
     "invariants": "production_invariants.yml",
     "lightweight_regression": "lightweight_regression.yml",
+    "control_plane_regression": "autonomous_control_plane_regression.yml",
 }
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "research"
@@ -319,6 +320,7 @@ def inspect() -> dict[str, Any]:
         "watchdog": action_health(actions, MONITORED_WORKFLOWS["watchdog"], 0.5),
         "invariants": action_health(actions, MONITORED_WORKFLOWS["invariants"], 4.5),
         "lightweight_regression": action_health(actions, MONITORED_WORKFLOWS["lightweight_regression"], 4.5),
+        "control_plane_regression": action_health(actions, MONITORED_WORKFLOWS["control_plane_regression"], 4.5),
     }
 
     coverage = release.get("coverage")
@@ -589,7 +591,12 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
     # persisted the append-only memory record yet. Only failures observed on
     # the current main SHA are eligible, so stale-SHA guard failures do not
     # become false research regressions.
-    for monitored_target in ("production", "pit_history", "failure_recovery"):
+    for monitored_target in (
+        "production",
+        "pit_history",
+        "failure_recovery",
+        "control_plane_regression",
+    ):
         health = actions.get(monitored_target) or {}
         age = health.get("age_hours")
         if (
