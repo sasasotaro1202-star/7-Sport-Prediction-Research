@@ -2,10 +2,10 @@ from __future__ import annotations
 
 """Chronological feature-family search.
 
-The selector deliberately searches patterns, not arbitrary feature subsets. It
-keeps the combinatorial problem bounded, uses only an early training prefix for
-selection, and reserves the later pre-holdout OOS region for an untouched main
-evaluation.
+The selector searches meaningful feature-family patterns rather than arbitrary
+subsets. It uses a bounded score-guided beam over chronological inner-OOS blocks,
+requires minimum coverage for optional families, and reserves the later
+pre-holdout OOS region for an untouched main evaluation.
 """
 
 import json
@@ -135,38 +135,26 @@ def _score_pattern(X,y,feature_idx,starts,ends):
     }
 
 
-def _candidate_patterns(fams: Dict[str,List[str]]) -> List[Tuple[str,...]]:
+def _candidate_patterns(fams: Dict[str,List[str]], beam_width: int = 3, max_depth: int = 3):
+    """Generate bounded family-pattern candidates; score-guided pruning happens in select_feature_pattern."""
     available=set(fams)
     core=[f for f in ("rating","form","workload","opponent") if f in available]
     if not core:
         core=[min(available)] if available else []
-    patterns=[tuple(core)]
     extras=[f for f in (
         "h2h","stats","participant_profile","competition","event_context","interaction","core_other"
     ) if f in available]
-    for f in extras:
-        patterns.append(tuple(dict.fromkeys(core+[f])))
-    frontier=list(patterns)
-    beam=list(patterns[:1])
-    seen=set(patterns)
-    for _depth in range(2,4):
-        scored_frontier=[]
-        for p in beam:
-            for f in extras:
-                if f in p:
-                    continue
-                q=tuple(dict.fromkeys(p+(f,)))
-                if q in seen:
-                    continue
-                seen.add(q)
-                scored_frontier.append(q)
-        frontier.extend(scored_frontier)
-        beam=scored_frontier[:3]
-    # Always include all available families as a final stress candidate.
+    initial=[]
+    if core:
+        initial.append(tuple(core))
+        for f in extras:
+            initial.append(tuple(dict.fromkeys(core+[f])))
+    else:
+        initial=[(f,) for f in extras[:max(1,beam_width)]]
     all_f=tuple(sorted(available))
-    if all_f not in seen:
-        frontier.append(all_f)
-    return list(dict.fromkeys(frontier))
+    if all_f and all_f not in initial:
+        initial.append(all_f)
+    return initial, extras
 
 
 def select_feature_pattern(X, y, names, sport, min_rows=None):
@@ -178,28 +166,126 @@ def select_feature_pattern(X, y, names, sport, min_rows=None):
     n=len(y)
     if X.ndim!=2 or X.shape[0]!=n or X.shape[1]!=len(names):
         return {"status":"BLOCKED","reason":"feature_matrix_schema_mismatch"}
-    search_end=min(n-1,max(min_rows, int(n*float(policy.get("inner_fraction_end",.50)))))
+    inner_fraction=float(policy.get("inner_fraction_end",.50))
+    search_end=int(n*inner_fraction)
     if search_end < min_rows:
-        return {"status":"FALLBACK_ALL_FEATURES","reason":"insufficient_inner_rows","selected_feature_names":names,"search_data_max_index":max(-1,search_end),"main_oos_reserved_from_index":search_end+1}
+        return {
+            "status":"FALLBACK_ALL_FEATURES",
+            "reason":"insufficient_inner_rows",
+            "selected_feature_names":names,
+            "selected_feature_count":len(names),
+            "search_data_max_index":max(-1,search_end-1),
+            "main_oos_reserved_from_index":search_end,
+            "holdout_access":False,
+            "main_oos_access":False,
+        }
     y_search=y[:search_end]
     if len(np.unique(y_search))<2:
-        return {"status":"FALLBACK_ALL_FEATURES","reason":"inner_search_single_class","selected_feature_names":names,"search_data_max_index":search_end-1,"main_oos_reserved_from_index":search_end}
+        return {
+            "status":"FALLBACK_ALL_FEATURES",
+            "reason":"inner_search_single_class",
+            "selected_feature_names":names,
+            "selected_feature_count":len(names),
+            "search_data_max_index":search_end-1,
+            "main_oos_reserved_from_index":search_end,
+            "holdout_access":False,
+            "main_oos_access":False,
+        }
     fams=_families(names)
-    patterns=_candidate_patterns(fams)
-    # Three non-overlapping validation blocks entirely inside the first half.
-    start0=max(60,int(search_end*.40))
-    edges=np.linspace(start0,search_end,4,dtype=int)
-    starts=[int(edges[i]) for i in range(3)]
-    ends=[int(edges[i+1]) for i in range(3)]
-    scored=[]
-    for pattern in patterns:
+    beam_width=max(1,int(policy.get("beam_width",3)))
+    max_depth=max(1,int(policy.get("max_depth",3)))
+    min_family_coverage=float(policy.get("min_family_coverage",0.10))
+    initial,extras=_candidate_patterns(fams,beam_width,max_depth)
+    search_matrix=X[:search_end]
+    starts_edges=np.linspace(max(60,int(search_end*.40)),search_end,4,dtype=int)
+    starts=[int(starts_edges[i]) for i in range(3)]
+    ends=[int(starts_edges[i+1]) for i in range(3)]
+
+    def score(pattern):
         idx=[i for i,name in enumerate(names) if feature_family(name) in pattern]
-        score=_score_pattern(X,y,idx,starts,ends)
-        if score is None:
+        if not idx:
+            return None
+        family_coverage={}
+        for fam in pattern:
+            fidx=[i for i,name in enumerate(names) if feature_family(name)==fam]
+            if not fidx:
+                continue
+            family_coverage[fam]=float(np.isfinite(search_matrix[:,fidx]).any(axis=1).mean())
+        optional=[f for f in pattern if f in extras]
+        sparse=[f for f in optional if family_coverage.get(f,0.0) < min_family_coverage]
+        if sparse:
+            return None
+        result=_score_pattern(X,y,idx,starts,ends)
+        if result is None:
+            return None
+        return {
+            **result,
+            "pattern":list(pattern),
+            "feature_count":len(idx),
+            "feature_names":[names[i] for i in idx],
+            "family_coverage":family_coverage,
+        }
+
+    scored_by_key={}
+    beam=[]
+    for pattern in initial:
+        key=tuple(pattern)
+        if key in scored_by_key:
             continue
-        scored.append({**score,"pattern":list(pattern),"feature_count":len(idx),"feature_names":[names[i] for i in idx]})
+        z=score(pattern)
+        if z is not None:
+            scored_by_key[key]=z
+    ranked_initial=sorted(
+        scored_by_key.values(),
+        key=lambda z:(z["objective"],z["mean_logloss"],z["mean_brier"],z["feature_count"],json.dumps(z["pattern"],sort_keys=True))
+    )
+    beam=[tuple(z["pattern"]) for z in ranked_initial[:beam_width]]
+
+    for depth in range(2,max_depth+1):
+        candidates=[]
+        seen=set(scored_by_key)
+        for p in beam:
+            for f in extras:
+                if f in p:
+                    continue
+                q=tuple(dict.fromkeys(p+(f,)))
+                if q in seen:
+                    continue
+                seen.add(q)
+                candidates.append(q)
+        scored_new=[]
+        for pattern in candidates:
+            z=score(pattern)
+            if z is not None:
+                scored_by_key[tuple(pattern)]=z
+                scored_new.append(z)
+        ranked_depth=sorted(
+            scored_new,
+            key=lambda z:(z["objective"],z["mean_logloss"],z["mean_brier"],z["feature_count"],json.dumps(z["pattern"],sort_keys=True))
+        )
+        beam=[tuple(z["pattern"]) for z in ranked_depth[:beam_width]]
+        if not beam:
+            break
+
+    all_f=tuple(sorted(fams))
+    if all_f not in scored_by_key and set(all_f).issubset(set(fams)):
+        z=score(all_f)
+        if z is not None:
+            scored_by_key[all_f]=z
+
+    scored=list(scored_by_key.values())
     if not scored:
-        return {"status":"FALLBACK_ALL_FEATURES","reason":"no_valid_inner_oos_pattern","selected_feature_names":names,"search_data_max_index":search_end-1,"main_oos_reserved_from_index":search_end}
+        return {
+            "status":"FALLBACK_ALL_FEATURES",
+            "reason":"no_valid_inner_oos_pattern",
+            "selected_feature_names":names,
+            "selected_feature_count":len(names),
+            "search_data_max_index":search_end-1,
+            "main_oos_reserved_from_index":search_end,
+            "holdout_access":False,
+            "main_oos_access":False,
+            "family_map":{k:len(v) for k,v in fams.items()},
+        }
     scored.sort(key=lambda z:(z["objective"],z["mean_logloss"],z["mean_brier"],z["feature_count"],json.dumps(z["pattern"],sort_keys=True)))
     best=scored[0]
     return {
@@ -210,11 +296,14 @@ def select_feature_pattern(X, y, names, sport, min_rows=None):
         "selected_feature_count":best["feature_count"],
         "selected_objective":best["objective"],
         "candidate_patterns":scored,
-        "search_strategy":"chronological_inner_oos_beam",
+        "search_strategy":"chronological_inner_oos_score_guided_beam",
         "search_data_max_index":search_end-1,
         "main_oos_reserved_from_index":search_end,
         "holdout_access":False,
         "main_oos_access":False,
+        "beam_width":beam_width,
+        "max_depth":max_depth,
+        "min_family_coverage":min_family_coverage,
         "family_map":{k:len(v) for k,v in fams.items()},
         "policy_version":"participant-context-pattern-selection-v1",
     }
