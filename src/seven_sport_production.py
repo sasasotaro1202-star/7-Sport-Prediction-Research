@@ -463,6 +463,27 @@ def collect_f1(c,h,years):
         c.commit()
 
 
+VLR_TZ_OFFSETS = {
+    "UTC": 0, "GMT": 0,
+    "BST": 1, "CET": 1, "CEST": 2, "EET": 2, "EEST": 3,
+    "WET": 0, "WEST": 1,
+    "PST": -8, "PDT": -7, "MST": -7, "MDT": -6,
+    "CST": -6, "CDT": -5, "EST": -5, "EDT": -4,
+    "JST": 9, "KST": 9,
+    "AWST": 8, "ACST": 9.5, "ACDT": 10.5,
+    "AEST": 10, "AEDT": 11,
+}
+
+VLR_MONTHS = {
+    name.lower(): index
+    for index, name in enumerate(
+        ("January", "February", "March", "April", "May", "June",
+         "July", "August", "September", "October", "November", "December"),
+        start=1,
+    )
+}
+
+
 def _vlr_match_urls(html, page_url='https://www.vlr.gg/matches'):
     """Extract canonical VLR match-page URLs without accepting unrelated hosts."""
     base_host = 'vlr.gg'
@@ -486,48 +507,264 @@ def _vlr_match_urls(html, page_url='https://www.vlr.gg/matches'):
     return list(dict.fromkeys(urls))
 
 
-def collect_vlr(c,h,pages):
-    scope='vlr-pages'; cur,done=state(c,'valorant',scope); start=max(1,int(cur or 1))
-    for p in range(start,pages+1):
-        url='https://www.vlr.gg/matches/'+(f'?page={p}' if p>1 else '')
-        try: html,retrieved,_=h.get(url)
-        except Exception: save_state(c,'valorant',scope,str(p),False); continue
-        links=_vlr_match_urls(html, url)
-        if not links: save_state(c,'valorant',scope,str(p),True); break
-        details=fetch_many(h,links)
-        for u,res in details.items():
-            if not res: continue
-            x,det_retrieved,_=res; s=BeautifulSoup(x,'lxml'); title=clean(s.title.get_text() if s.title else u)
-            et=None
-            for sel in ('.match-header-date-item','.match-header-link-date','.match-header-date'):
-                node=s.select_one(sel)
-                if node:
-                    txt=clean(node.get_text(' ')); m=re.search(r'(\d{1,2}):(\d{2})',txt)
-                    if m: break
-            for ld in parse_jsonld(x):
-                if ld.get('startDate'): et=iso(ld.get('startDate')); break
-            status='COMPLETED' if 'completed' in x.lower() else 'SCHEDULED'; eid=upsert_event(c,'valorant',title,et,'vlr.gg',u,status)
-            names=[clean(z.get_text(' ')) for z in s.select('.match-header-link-name') if clean(z.get_text(' '))][:2]
-            for i,n in enumerate(names):
-                pid=upsert_participant(c,'valorant',n,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'vlr.gg',u)
-            ph=hashlib.sha256(x.encode()).hexdigest()
-            pub=explicit_publication_time(x)
-            exact_pub=pit_exact_publication_time(pub,et)
+def _vlr_year_hint(soup, page_url, reference_year=None):
+    """Infer the season year from explicit URL/title/event metadata only."""
+    title = clean(soup.title.get_text(' ', strip=True) if soup.title else '')
+    event_texts = []
+    for a in soup.select('a[href]'):
+        parsed = urlparse(urljoin(page_url, str(a.get('href') or '').strip()))
+        if re.fullmatch(r'/event/\d+/[^/?#\s]+/?', parsed.path):
+            text_value = clean(a.get_text(' ', strip=True))
+            if text_value:
+                event_texts.append(text_value)
+    haystack = ' | '.join((page_url, title, *event_texts))
+    years = [int(x) for x in re.findall(r'\b(20\d{2})\b', haystack)]
+    if years:
+        return years[-1]
+    return int(reference_year or datetime.now(timezone.utc).year)
+
+
+def _vlr_event_competition_id(soup, page_url):
+    """Return a stable explicit VLR event identity when the event link exists."""
+    for a in soup.select('a[href]'):
+        href = str(a.get('href') or '').strip()
+        if not href:
+            continue
+        u = urljoin(page_url, href)
+        path = urlparse(u).path
+        m = re.fullmatch(r'/event/(\d+)/[^/?#]+/?', path)
+        if not m:
+            continue
+        name = clean(a.get_text(' ', strip=True))
+        if not name:
+            continue
+        return f'vlr:event:{m.group(1)}'
+    return None
+
+
+def _vlr_event_time(html, page_url, reference_year=None):
+    """Parse the event start from PIT-safe, explicit page metadata.
+
+    Priority is JSON-LD startDate, then an explicit numeric start timestamp
+    attached to the match-date element, then the rendered date/time/timezone.
+    A rendered time is accepted only when a concrete year hint and timezone
+    abbreviation are available; retrieval time is never used as event time.
+    """
+    for ld in parse_jsonld(html):
+        start_date = ld.get('startDate')
+        parsed = iso(start_date)
+        if parsed:
+            return parsed
+
+    soup = BeautifulSoup(html, 'lxml')
+    date_nodes = soup.select(
+        '.match-header-date-item, .match-header-link-date, .match-header-date'
+    )
+    for node in date_nodes:
+        for key, value in node.attrs.items():
+            key = str(key).lower()
+            raw = str(value or '').strip()
+            if not raw or not re.search(r'(timestamp|start|datetime|date|time)', key):
+                continue
+            if re.fullmatch(r'\d{10,13}(?:\.\d+)?', raw):
+                try:
+                    stamp = float(raw)
+                    if stamp > 1e12:
+                        stamp /= 1000.0
+                    parsed = datetime.fromtimestamp(stamp, tz=timezone.utc)
+                    return parsed.isoformat()
+                except (OverflowError, OSError, ValueError):
+                    pass
+
+    texts = [clean(node.get_text(' ', strip=True)) for node in date_nodes]
+    texts = [x for x in texts if x]
+    if not texts:
+        header = soup.select_one('.match-header')
+        if header:
+            texts.append(clean(header.get_text(' ', strip=True)))
+    if not texts:
+        return None
+
+    raw = ' | '.join(texts)
+    date_match = re.search(
+        r'\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?'
+        r'\s*,?\s*(January|February|March|April|May|June|July|August|'
+        r'September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?\b',
+        raw,
+        re.I,
+    )
+    time_match = re.search(
+        r'\b(\d{1,2}):(\d{2})\s*(AM|PM)\s*([A-Z]{2,5})\b',
+        raw,
+        re.I,
+    )
+    if not date_match or not time_match:
+        return None
+
+    month = VLR_MONTHS[date_match.group(1).lower()]
+    day = int(date_match.group(2))
+    hour = int(time_match.group(1))
+    minute = int(time_match.group(2))
+    ampm = time_match.group(3).upper()
+    zone_name = time_match.group(4).upper()
+    offset_hours = VLR_TZ_OFFSETS.get(zone_name)
+    if offset_hours is None:
+        return None
+    if ampm == 'AM':
+        hour = 0 if hour == 12 else hour
+    else:
+        hour = 12 if hour == 12 else hour + 12
+    year = _vlr_year_hint(soup, page_url, reference_year)
+    try:
+        offset = timedelta(hours=float(offset_hours))
+        parsed = datetime(
+            year, month, day, hour, minute, tzinfo=timezone(offset)
+        ).astimezone(timezone.utc)
+        return parsed.isoformat()
+    except ValueError:
+        return None
+
+
+def _vlr_match_status(soup, event_time, reference_now):
+    """Classify VLR match state without scanning unrelated page text."""
+    if event_time:
+        try:
+            event_dt = datetime.fromisoformat(
+                str(event_time).replace('Z', '+00:00')
+            )
+            if event_dt.tzinfo is None:
+                event_dt = event_dt.replace(tzinfo=timezone.utc)
+            if event_dt > reference_now:
+                return 'SCHEDULED'
+        except ValueError:
+            pass
+
+    for selector in (
+        '.match-header-vs-note',
+        '.match-header-vs-note-item',
+        '.match-header-vs-note-item.mod-final',
+    ):
+        for node in soup.select(selector):
+            value = clean(node.get_text(' ', strip=True)).lower()
+            if value in {'final', 'completed', 'finished'}:
+                return 'COMPLETED'
+            if value in {'cancelled', 'canceled', 'void'}:
+                return 'CANCELLED'
+            if value in {'postponed', 'tbd'}:
+                return 'SCHEDULED'
+
+    header = soup.select_one('.match-header')
+    header_text = clean(header.get_text(' ', strip=True)) if header else ''
+    if re.search(r'\bfinal\b|\bcompleted\b|\bfinished\b', header_text, re.I):
+        # Guard against competition labels such as "Upper Final": require a
+        # concrete match score before classifying the event as completed.
+        score = re.search(r'\b\d+\s*[:\-]\s*\d+\b', header_text)
+        if score and 'tbd' not in header_text.lower():
+            return 'COMPLETED'
+    if re.search(r'\bupcoming\b', header_text, re.I):
+        return 'SCHEDULED'
+    return 'UNKNOWN'
+
+
+def _vlr_page_plan(start, pages):
+    """Refresh page 1 every run while preserving historical pagination state."""
+    start = max(1, int(start or 1))
+    pages = max(1, int(pages or 1))
+    plan = list(range(start, pages + 1))
+    if start != 1:
+        plan.insert(0, 1)
+    return plan
+
+
+def collect_vlr(c, h, pages):
+    scope = 'vlr-pages'
+    cur, done = state(c, 'valorant', scope)
+    start = max(1, int(cur or 1))
+    plan = _vlr_page_plan(start, pages)
+    for p in plan:
+        url = 'https://www.vlr.gg/matches/' + (f'?page={p}' if p > 1 else '')
+        try:
+            html, retrieved, _ = h.get(url)
+        except Exception:
+            # A current-page refresh must not destroy the saved historical cursor.
+            if not (p == 1 and start != 1):
+                save_state(c, 'valorant', scope, str(p), False)
+            continue
+
+        links = _vlr_match_urls(html, url)
+        if not links:
+            if p == 1 and start != 1:
+                # Current page temporarily empty: keep the historical cursor.
+                continue
+            save_state(c, 'valorant', scope, str(p), True)
+            break
+
+        details = fetch_many(h, links)
+        for u, res in details.items():
+            if not res:
+                continue
+            x, det_retrieved, _ = res
+            soup = BeautifulSoup(x, 'lxml')
+            title = clean(soup.title.get_text() if soup.title else u)
+            event_time = _vlr_event_time(
+                x, u,
+                reference_year=det_retrieved.year if det_retrieved else None,
+            )
+            status = _vlr_match_status(soup, event_time, det_retrieved or utcnow())
+            competition_id = _vlr_event_competition_id(soup, u)
+            season = _vlr_year_hint(
+                soup, u,
+                reference_year=det_retrieved.year if det_retrieved else None,
+            )
+            eid = upsert_event(
+                c,
+                'valorant',
+                title,
+                event_time,
+                'vlr.gg',
+                u,
+                status,
+                competition=competition_id,
+                season=str(season),
+            )
+            names = [
+                clean(z.get_text(' '))
+                for z in soup.select('.match-header-link-name')
+                if clean(z.get_text(' '))
+            ][:2]
+            for i, n in enumerate(names):
+                pid = upsert_participant(c, 'valorant', n, 'team')
+                upsert_ep(
+                    c, eid, pid, pid, 'A' if i == 0 else 'B',
+                    None, 'vlr.gg', u
+                )
+            ph = hashlib.sha256(x.encode()).hexdigest()
+            pub = explicit_publication_time(x)
+            exact_pub = pit_exact_publication_time(pub, event_time)
             if exact_pub:
                 add_snapshot(
-                    c,'valorant','vlr.gg',u,det_retrieved,et,ph,'EXACT',
+                    c, 'valorant', 'vlr.gg', u, det_retrieved,
+                    event_time, ph, 'EXACT',
                     source_available_at_utc=exact_pub,
                     provenance={
-                        'sport':'valorant',
-                        'parser':PARSER,
-                        'evidence':'explicit_publication_time',
-                        'publication_time_utc':exact_pub,
-                        'pit_rule':'publication_at_or_before_event_minus_60m'
-                    }
+                        'sport': 'valorant',
+                        'parser': PARSER,
+                        'evidence': 'explicit_publication_time',
+                        'publication_time_utc': exact_pub,
+                        'pit_rule': 'publication_at_or_before_event_minus_60m',
+                    },
                 )
             else:
-                add_snapshot(c,'valorant','vlr.gg',u,det_retrieved,et,ph,'UNVERIFIABLE')
-        save_state(c,'valorant',scope,str(p+1),p>=pages); c.commit()
+                add_snapshot(
+                    c, 'valorant', 'vlr.gg', u, det_retrieved,
+                    event_time, ph, 'UNVERIFIABLE'
+                )
+
+        # Preserve the historical cursor when p=1 is only a current-schedule
+        # refresh. Otherwise keep the original pagination semantics intact.
+        if not (p == 1 and start != 1):
+            save_state(c, 'valorant', scope, str(p + 1), p >= pages)
+        c.commit()
 
 
 def collect_generic(c,h,sport,seeds,max_pages):
