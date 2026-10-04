@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 
 from src.seven_sport_production import (
     _vlr_event_competition_id,
+    _vlr_reference_datetime,
     _vlr_event_time,
     _vlr_match_status,
     _vlr_page_plan,
@@ -30,6 +31,8 @@ def main() -> int:
     </html>
     """
     now = datetime(2026, 8, 10, 18, 0, tzinfo=timezone.utc)
+    cached_retrieved = "2026-08-10T18:00:00+00:00"
+    assert _vlr_reference_datetime(cached_retrieved).year == 2026
 
     event_time = _vlr_event_time(
         future_html,
@@ -40,6 +43,9 @@ def main() -> int:
 
     soup = BeautifulSoup(future_html, "lxml")
     assert _vlr_match_status(soup, event_time, now) == "SCHEDULED"
+    assert _vlr_match_status(
+        soup, event_time, "2026-08-10T18:00:00+00:00"
+    ) == "SCHEDULED"
     assert _vlr_event_competition_id(soup, "https://www.vlr.gg/724631/example") == "vlr:event:2286"
 
     completed_html = """

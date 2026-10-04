@@ -483,6 +483,22 @@ VLR_MONTHS = {
     )
 }
 
+def _vlr_reference_datetime(value):
+    """Normalize a retrieved/reference timestamp to an aware UTC datetime."""
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        parsed = iso(value)
+        if not parsed:
+            return None
+        try:
+            dt = datetime.fromisoformat(parsed)
+        except ValueError:
+            return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
 
 def _vlr_match_urls(html, page_url='https://www.vlr.gg/matches'):
     """Extract canonical VLR match-page URLs without accepting unrelated hosts."""
@@ -627,6 +643,7 @@ def _vlr_event_time(html, page_url, reference_year=None):
 
 def _vlr_match_status(soup, event_time, reference_now):
     """Classify VLR match state without scanning unrelated page text."""
+    reference_now = _vlr_reference_datetime(reference_now) or datetime.now(timezone.utc)
     if event_time:
         try:
             event_dt = datetime.fromisoformat(
@@ -706,15 +723,18 @@ def collect_vlr(c, h, pages):
             x, det_retrieved, _ = res
             soup = BeautifulSoup(x, 'lxml')
             title = clean(soup.title.get_text() if soup.title else u)
+            retrieved_dt = _vlr_reference_datetime(det_retrieved)
             event_time = _vlr_event_time(
                 x, u,
-                reference_year=det_retrieved.year if det_retrieved else None,
+                reference_year=retrieved_dt.year if retrieved_dt else None,
             )
-            status = _vlr_match_status(soup, event_time, det_retrieved or utcnow())
+            status = _vlr_match_status(
+                soup, event_time, retrieved_dt or datetime.now(timezone.utc)
+            )
             competition_id = _vlr_event_competition_id(soup, u)
             season = _vlr_year_hint(
                 soup, u,
-                reference_year=det_retrieved.year if det_retrieved else None,
+                reference_year=retrieved_dt.year if retrieved_dt else None,
             )
             eid = upsert_event(
                 c,
