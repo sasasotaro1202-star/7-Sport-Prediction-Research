@@ -33,6 +33,7 @@ def main() -> int:
     assert classify_feature("A__stat_points__mean") == "performance_history"
     assert classify_feature("A__profile__height") == "entity_profile"
     assert classify_feature("AD__stat_points__mean") == "performance_history"
+    assert classify_feature("D__elo__x__D__recent_winrate_20") == "interaction"
     from src.feature_pattern_optimizer import classify_feature_for_sport as ns_classify_for_sport
 
     sport_cases = {
