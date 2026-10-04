@@ -67,6 +67,9 @@ jobs:
       - name: Run read-only public-availability shadow audit
         run: python scripts/bleague_public_availability_shadow_audit.py
 
+      - name: Run shadow-audit unit regression
+        run: python scripts/test_bleague_public_availability_shadow_audit_unit.py
+
       - name: Validate shadow-audit report
         run: python scripts/test_bleague_public_availability_shadow_audit.py
 
