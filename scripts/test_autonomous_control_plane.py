@@ -165,6 +165,27 @@ def main() -> int:
         assert dispatch_failure is not None
         assert dispatch_failure["workflow"] == "autonomous_research_sweep.yml"
 
+        # A current-main monitored workflow failure must become a research signal
+        # even before Production Failure Recovery has persisted Failure Memory.
+        (root / "results/failure_memory.jsonl").unlink()
+        workflows = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
+        workflows["workflows"]["v4_5_15_production.yml"] = {
+            "latest": {
+                "databaseId": 99,
+                "status": "completed",
+                "conclusion": "failure",
+                "createdAt": "2026-10-04T09:30:00Z",
+                "headSha": "new-sha",
+            }
+        }
+        cp.ACTIONS_SNAPSHOT.write_text(json.dumps(workflows), encoding="utf-8")
+        failure_state = cp.inspect()
+        selected_action, failure_dispatch = cp.choose_actions(failure_state)
+        assert selected_action["target"] == "workflow_failure:production"
+        assert failure_dispatch is not None
+        assert failure_dispatch["action"] == "RESEARCH_HEALTH"
+        assert failure_dispatch["workflow"] == "autonomous_research_sweep.yml"
+
     print("AUTONOMOUS_CONTROL_PLANE_V2=PASS")
     return 0
 
