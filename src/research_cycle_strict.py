@@ -711,7 +711,7 @@ def train(s):
       pattern_start=max(80,int(pattern_selection_end*0.55))
       pattern_step=max(20,int(np.ceil(max(1,pattern_selection_end-pattern_start)/6)))
       feature_pattern_report=feature_pattern_optimizer.evaluate_patterns(
-       pattern_train,pattern_y,fs,s,pattern_start,pattern_step,max_patterns=384,stage2_top_k=24
+       pattern_train,pattern_y,fs,s,pattern_start,pattern_step,max_patterns=1024,stage2_top_k=32
       )
      screen_selected_pattern_id=(feature_pattern_report.get('selected_pattern_id') if isinstance(feature_pattern_report,dict) else None)
      selected_fs,selected_pattern_id=feature_pattern_optimizer.select_features(
