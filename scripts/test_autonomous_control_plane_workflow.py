@@ -43,7 +43,8 @@ def main() -> int:
     assert "compare/$event_head...$remote_sha" in reconcile_block
     assert 'echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=$ancestor"' in reconcile_block
 
-    persist_block = text[persist:dispatch]    dispatch_block = text[dispatch:final]
+    persist_block = text[persist:dispatch]
+    dispatch_block = text[dispatch:final]
 
     assert "id: persist" in persist_block
     assert 'echo "persist_ok=true" >> "$GITHUB_OUTPUT"' in persist_block
