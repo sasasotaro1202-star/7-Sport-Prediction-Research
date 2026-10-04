@@ -69,11 +69,20 @@ jobs:
           if overlap:
               raise SystemExit(f"sports are both TARGET and DEFERRED: {overlap}")
 
-          encoded = json.dumps(active, separators=(",", ":"), ensure_ascii=False)
+          # Production scope and research scope are intentionally different:
+          # every sport in the canonical 9-sport registry must enter pattern
+          # research, while deferred sports remain barred from production.
+          research_sports = sorted(set(active) | deferred)
+          expected = {"basketball","volleyball","ufc","rizin","valorant","tennis","f1","rugby","boxing"}
+          if set(research_sports) != expected:
+              raise SystemExit(f"9-sport research scope mismatch: {research_sports}")
+
+          encoded = json.dumps(research_sports, separators=(",", ":"), ensure_ascii=False)
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"sports={encoded}\n")
 
-          print(f"ACTIVE_SPORTS={','.join(active)}")
+          print(f"PRODUCTION_ACTIVE_SPORTS={','.join(active)}")
+          print(f"RESEARCH_SPORTS={','.join(research_sports)}")
           print(f"DEFERRED_SPORTS={','.join(sorted(deferred))}")
           PY
 
