@@ -1199,3 +1199,73 @@ stable evidence:
 同一evidenceでcontrol plane自身がmainを1 commit進めた場合でも、次cycleにself-commitを連鎖させない。action logもstable fingerprintの変化時だけappendする。
 
 ただし、current-main SHAの検証、persist直前のremote main再確認、dispatch直前のremote main再確認は引き続き必須。no-churnは安全gateを弱めるものではない。
+
+=== TEMPORAL TRAJECTORY INTELLIGENCE — RESEARCH ONLY ===
+
+目的:
+最終勝敗だけを予測するのではなく、prediction cutoff時点の状態から、その後の状態軌跡・複数horizon・複数未来scenarioを予測し、最終outcome predictionへ接続する。
+
+実装:
+* src/trajectory_intelligence_oos.py
+* scripts/trajectory_research_runner.py
+* tests/test_trajectory_intelligence_oos.py
+* config/TEMPORAL_TRAJECTORY_POLICY.json
+* .github/workflows/temporal_trajectory_research.yml
+
+TemporalTrajectoryEngineはcomplete historical trajectory retrievalを使い、autoregressiveな自己予測連鎖をresearch baselineとする実装を避ける。過去eventのfuture-state pathを条件付きで再利用することで、horizon間の相関を保持する。
+
+Snapshot contract:
+* event_id
+* event_time_utc
+* prediction_time_utc
+* source_available_at_utc
+* feature_vector = prediction cutoff時点で利用可能な入力のみ
+* observed_state_vector = 未来trajectoryの教師labelとしてのみ使用
+* in_event modeではevent_end_time_utcを必須とする
+
+PIT gate:
+* source_available_at_utc <= prediction_time_utc
+* pre_event modeではprediction_time_utc < event_time_utc
+* in_event modeではevent_time_utc <= prediction_time_utc < event_end_time_utc
+* missing/invalid/unknown PITはINVALID/FAIL CLOSED
+* retrieval timeだけではPIT proofとしない
+
+Trajectory case:
+* 複数snapshotは同一event clusterとして保持する。
+* 評価時はcanonical anchorを1event 1caseへ正規化する。
+* future snapshot featureはanchor featureへ流用しない。
+* future stateはlabelとしてのみ使用する。
+
+Forecast output:
+* horizon別expected state
+* state P10/P90
+* horizon別outcome probability
+* scenario event IDs / weights
+* nearest distance
+* geometry/support由来のpredictability score
+
+Evaluation:
+* chronological event-cluster OOS
+* random splitは禁止
+* 同一event snapshotを独立sampleとして数えない
+* state trajectory誤差をhorizon別MAEで評価
+* outcomeはLogLoss/Brier/Accuracyで評価
+* fold別改善と全体改善を分離して保存
+* frozen holdoutはselector/trajectory tuningに使用しない
+
+Production policy:
+* 本層はRESEARCH_ONLY。
+* production model / champion / frozen holdout / release gateを直接変更しない。
+* automatic promotionはfalse。
+* PIT trajectory dataが存在しない場合はBLOCKEDとし、精度を捏造しない。
+* OOS、robustness、frozen holdout、production safetyを通過するまでproduction inferenceへ接続しない。
+
+Coverage priority:
+まずactive five sportsについて、competition/season/eventごとの複数cutoff snapshotをPIT付きで蓄積する。data coverageが不足する場合はmodel complexityを増やすのではなく、trajectory snapshot coverage debtを研究queueへ送る。
+
+時間軸候補:
+* T-24h / T-6h / T-90m / T-60m / T-45m / T-30m / T-20m / T-15m / T-5m
+* event-triggered update
+* in-event state snapshots（event_end_time_utcが証明できる場合のみ）
+
+この層の成功条件は「時間ごとの予測を大量生成した」ではない。未知eventでのFuture Generalization、Case-Level Correctness、Calibration、Predictability Awareness、Uncertainty、Robustness、PIT Integrityが改善したことをchronological OOSとfrozen holdoutで証明することを要求する。
