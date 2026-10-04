@@ -321,6 +321,11 @@ def _make_entity_history_loader(c,s):
    if obs_dt is None or obs_dt>cutoff:continue
    if not exact_available(source,url,cutoff):continue
    attr_n=re.sub(r'[^a-z0-9_]+','_',str(attr or '').lower()).strip('_')
+   # Attributes such as ``profile.height`` already live under the generated
+   # profile namespace; strip only that source namespace to avoid redundant
+   # keys like ``A__profile__profile_height``.
+   if attr_n.startswith('profile_'):
+    attr_n=attr_n[len('profile_'):]
    if not attr_n:continue
    # Prefer the latest effective observation; source revision lineage is still
    # preserved in the underlying history table.
