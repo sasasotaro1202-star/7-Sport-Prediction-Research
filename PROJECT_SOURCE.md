@@ -1202,6 +1202,15 @@ stable evidence:
 
 === TEMPORAL TRAJECTORY INTELLIGENCE — RESEARCH ONLY ===
 
+AUTOMATION:
+`.github/workflows/autonomous_temporal_trajectory_loop.yml` runs on a recurring schedule and after successful canonical production/pre-event runs. Five active sports are collected in parallel from restored GitHub Actions database caches. A single merge writer reconciles against the newest main, deduplicates snapshot/outcome ledgers, reruns chronological OOS, and commits only when persistent evidence changes.
+
+The loop uses sport-specific horizons rather than a universal forecast horizon: VALORANT 60/180/300/600s, Basketball 120/300/600/1200s, Volleyball 60/180/300/600s, UFC 60/120/300/600s, RIZIN 60/120/300/600s. This is a research policy, not a production release decision.
+
+Control Plane integration:
+`TRAJECTORY_RESEARCH` is a bounded recovery action. Missing/stale/failed trajectory evidence can be re-dispatched by the autonomous control plane. Failure events remain fail-closed and never grant model promotion or frozen-holdout access.
+
+
 目的:
 最終勝敗だけを予測するのではなく、prediction cutoff時点の状態から、その後の状態軌跡・複数horizon・複数未来scenarioを予測し、最終outcome predictionへ接続する。
 
