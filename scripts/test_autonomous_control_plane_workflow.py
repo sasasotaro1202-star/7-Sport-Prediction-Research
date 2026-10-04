@@ -34,6 +34,15 @@ def main() -> int:
     assert 'test "$remote_sha" = "$main_sha"' in dispatch_block
     assert 'gh workflow run "$DISPATCH_WORKFLOW" --ref main' in dispatch_block
 
+    assert "workflow_run:" in text
+    assert "Active-Scope Target v4.5.15 Production" in text
+    assert "PIT History Expansion" in text
+    assert "Production Failure Recovery" in text
+    assert "github.event.workflow_run.conclusion == 'failure'" in text
+    assert "CONTROL_PLANE_EVENT_WORKFLOW" in text
+    assert "CONTROL_PLANE_EVENT_CONCLUSION" in text
+    assert "CONTROL_PLANE_EVENT_HEAD_SHA" in text
+
     assert '--arg sha "$main_sha"' in dispatch_block
     assert '--arg sha "${{ github.sha }}"' not in dispatch_block
 
