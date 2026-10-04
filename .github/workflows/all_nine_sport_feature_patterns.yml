@@ -142,6 +142,8 @@ jobs:
           finally:
               con.close()
 
+          family_coverage = {}
+
           if len(rows) < 180 or len(set(int(r[2]) for r in rows if r[2] is not None)) < 2:
               out.write_text(json.dumps({
                   "sport": sport,
