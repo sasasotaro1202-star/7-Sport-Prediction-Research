@@ -14,6 +14,7 @@ from src import case_risk_oos as case_risk
 from src import ultimate_predictive_control_oos as ultimate_control
 from src import ultimate_predictive_control_v13 as ultimate_v13_module
 from src.oos_window_signature import exact_oos_window_signature
+from src import feature_pattern_optimizer
 ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
 SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
 DEFERRED_SPORTS=('tennis','f1','rugby','boxing')
@@ -624,6 +625,25 @@ def train(s):
       return _write_result(s,{'sport':s,'status':'DEFERRED','reason':'no_observed_feature_values','rows':len(train_rows),'features':0})
      fs=[f for f,k in zip(fs,keep) if k];X=X[:,keep];X_holdout=X_holdout[:,keep]
      sel=len(train_rows);hn=len(holdout_rows)
+     # Cross-sport feature-pattern screen. It searches multiple information
+     # families/combinations on training rows only. The frozen holdout is never
+     # inspected by this selector and the chosen pattern remains subject to all
+     # downstream chronological OOS, robustness, calibration and holdout gates.
+     pattern_start=max(80,int(sel*0.55))
+     pattern_step=max(20,int(np.ceil(max(1,sel-pattern_start)/6)))
+     feature_pattern_report=feature_pattern_optimizer.evaluate_patterns(
+      X,y,fs,s,pattern_start,pattern_step,max_patterns=14
+     )
+     selected_fs,selected_pattern_id=feature_pattern_optimizer.select_features(
+      feature_pattern_report,fs
+     )
+     if len(selected_fs)>=2 and set(selected_fs)!=set(fs):
+      selected_idx=[fs.index(f) for f in selected_fs if f in fs]
+      fs=selected_fs
+      X=X[:,selected_idx]
+      X_holdout=X_holdout[:,selected_idx]
+     else:
+      selected_pattern_id=feature_pattern_report.get('selected_pattern_id','all_features_fallback') if isinstance(feature_pattern_report,dict) else 'all_features_fallback'
      # Matchday context is built only where the router can consume it: chronological
      # OOS test rows. The frozen holdout remains separate and immutable.
      matchday_holdout_ctx=np.asarray(
