@@ -67,3 +67,6 @@ The control plane must reconcile and persist its current state before starting a
 The control plane reads append-only `results/failure_memory.jsonl` each cycle, distinguishes recent recorded failures from missing/invalid evidence, and raises bounded research follow-up when failures occurred within the last 24 hours. Failure details are never inferred from absent fields. Production Failure Recovery remains the owner of failure-specific retry; the control plane only converts observed failures into research priority.
 
 The Actions snapshot also monitors production, PIT History Expansion, Production Failure Recovery, Production Watchdog, Production Invariants, and Lightweight Regression as evidence-only workflows. Monitoring does not grant permission to dispatch or promote them.
+
+### Control-plane no-churn persistence
+The control-plane state fingerprint represents observed evidence and the selected decision, not the invocation `GITHUB_SHA`. Queue fingerprints are derived from that stable state fingerprint plus the action/target/reason. The append-only action log records a decision only when the state fingerprint changes (or the log is absent). Therefore a control-plane cycle with materially unchanged evidence does not create a self-generated main commit merely because the repository SHA advanced.
