@@ -46,6 +46,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_timing_router.py
       - name: Timing route canonical schema regression
         run: PYTHONPATH=. python scripts/test_timing_route_schema.py
+      - name: Canonical Project Source timing alignment regression
+        run: PYTHONPATH=. python scripts/test_project_source_timing_alignment.py
       - name: Production route observability regression
         run: PYTHONPATH=. python scripts/test_prediction_route_observability.py
       - name: Production runtime health regression
