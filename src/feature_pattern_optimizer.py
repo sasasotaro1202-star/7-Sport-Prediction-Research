@@ -22,6 +22,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
+SUPPORTED_SPORTS = (
+    "valorant", "basketball", "volleyball", "tennis", "ufc",
+    "rizin", "f1", "rugby", "boxing",
+)
+
 FAMILY_ORDER = (
     "identity_strength",
     "form_load",
@@ -68,6 +73,9 @@ def normalize(name: str) -> str:
 
 def classify_feature(name: str) -> str:
     n = str(name or "").lower()
+    # Derived orientation/ratio encodings inherit the semantic family of the
+    # underlying feature whenever possible (e.g. AD__points, R__recent_winrate).
+    n = re.sub(r"^(?:a|b|d|ad|m|r|q)__", "", n)
     if "_x_" in n or "interaction" in n:
         return "interaction"
     if any(k in n for k in QUALITY_TOKENS):
@@ -205,7 +213,7 @@ def candidate_family_sets(sport: str, feature_names: Iterable[str], max_patterns
     return out
 
 
-def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: int = 128) -> list[dict]:
+def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: int = 384) -> list[dict]:
     """Generate a broad but structured pattern search space.
 
     The grid spans family subsets, fine-grained blocks, A/B/D representations,
@@ -326,8 +334,83 @@ def broad_pattern_grid(sport: str, feature_names: Iterable[str], max_patterns: i
     add("high_trust_diff", high_trust, "diff_only")
     add("high_trust_robust", high_trust, "robust_summary")
 
-    # Cap deterministically after a wide search; keep diverse pattern classes first.
-    return candidates[: max(1, int(max_patterns))]
+    # Add systematic family-subset × representation patterns. This is still
+    # structured search, not arbitrary feature powersets.
+    max_r = min(4, len(available))
+    for rsize in range(1, max_r + 1):
+        for combo in combinations(available, rsize):
+            for rep in ("all", "diff_only", "robust_summary", "short_horizon", "medium_horizon", "long_horizon"):
+                add(
+                    "subset_" + str(rsize) + "__" + "__".join(combo) + "__" + rep,
+                    combo,
+                    rep,
+                    "systematic_family_subset_representation",
+                )
+
+    # Add fine-grained subgroup × family controls.
+    subgroup_names = sorted(sub)
+    for block in subgroup_names:
+        block_features = sub.get(block, [])
+        if not block_features:
+            continue
+        fam_name = classify_feature(block_features[0])
+        cols = _representative_features(block_features, "all")
+        if cols:
+            candidates.append({
+                "pattern_id": "single_subgroup__" + block,
+                "families": [fam_name],
+                "representation": "all",
+                "feature_count": len(cols),
+                "features": cols,
+                "note": "single_fine_grained_information_block",
+            })
+        for rep in ("robust_summary", "short_horizon", "medium_horizon", "long_horizon", "diff_only"):
+            cols = _representative_features(block_features, rep)
+            if cols:
+                candidates.append({
+                    "pattern_id": "single_subgroup__" + block + "__" + rep,
+                    "families": [fam_name],
+                    "representation": rep,
+                    "feature_count": len(cols),
+                    "features": cols,
+                    "note": "single_fine_grained_information_block_representation",
+                })
+
+    # Deterministic diversity cap: retain distinct search classes before filling
+    # the remaining budget. This prevents early global patterns from crowding out
+    # later profile, roster and performance-stat tests.
+    budget = max(1, int(max_patterns))
+    selected = []
+    seen_keys = set()
+    bucket_rules = (
+        ("global", lambda p: str(p.get("pattern_id","")).startswith("global__")),
+        ("systematic", lambda p: p.get("note") == "systematic_family_subset_representation"),
+        ("fine", lambda p: str(p.get("note","")).startswith("fine_grained")),
+        ("performance", lambda p: p.get("note") == "performance_stat_summary_variant"),
+        ("toggle", lambda p: p.get("note") == "toggle_family"),
+        ("loo", lambda p: p.get("note") == "leave_one_family_out"),
+        ("structured", lambda p: p.get("note") == "structured_family_subset"),
+    )
+    for _, matcher in bucket_rules:
+        for cand in candidates:
+            if not matcher(cand):
+                continue
+            key = tuple(cand.get("features") or [])
+            if not key or key in seen_keys:
+                continue
+            seen_keys.add(key)
+            selected.append(cand)
+            if len(selected) >= budget:
+                return selected
+    for cand in candidates:
+        key = tuple(cand.get("features") or [])
+        if not key or key in seen_keys:
+            continue
+        seen_keys.add(key)
+        selected.append(cand)
+        if len(selected) >= budget:
+            break
+    return selected
 
 
 def _metric(y: np.ndarray, p: np.ndarray) -> dict:
@@ -440,8 +523,8 @@ def evaluate_patterns(
     start: int,
     step: int,
     min_train: int = 80,
-    max_patterns: int = 128,
-    stage2_top_k: int = 12,
+    max_patterns: int = 384,
+    stage2_top_k: int = 24,
 ) -> dict:
     """Multi-stage chronological pattern search.
 
@@ -489,7 +572,7 @@ def evaluate_patterns(
         stage1[k]["recent_weighted_brier"],
         stage1[k]["feature_count"],
     ))
-    top1 = ranked1[: max(4, int(stage2_top_k))]
+    top1 = ranked1[: max(8, int(stage2_top_k))]
     stage2 = {}
     for pid in top1:
         cand = stage1[pid]
@@ -615,6 +698,7 @@ def select_features(pattern_report: dict, fallback: Iterable[str]) -> tuple[list
 
 
 __all__ = [
+    "SUPPORTED_SPORTS",
     "FAMILY_ORDER",
     "SPORT_PRIORITY",
     "classify_feature",
