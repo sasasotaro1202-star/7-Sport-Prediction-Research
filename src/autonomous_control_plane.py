@@ -179,10 +179,13 @@ def action_health(
     conclusion = str(latest.get("conclusion") or "")
     run_status = str(latest.get("status") or "")
     head_sha = str(latest.get("headSha") or "")
+    sha_provenance_missing = (
+        not current_main_sha
+        or current_main_sha == "UNKNOWN"
+        or not head_sha
+    )
     sha_mismatch = bool(
-        current_main_sha
-        and current_main_sha != "UNKNOWN"
-        and head_sha
+        not sha_provenance_missing
         and head_sha != current_main_sha
     )
     healthy = (
@@ -190,10 +193,11 @@ def action_health(
         and run_status == "completed"
         and age is not None
         and age <= max_age_hours
+        and not sha_provenance_missing
         and not sha_mismatch
     )
     return {
-        "status": "STALE" if sha_mismatch else (
+        "status": "STALE" if sha_provenance_missing or sha_mismatch else (
             "HEALTHY" if healthy else (
                 "FAILED" if conclusion in {"failure", "timed_out", "startup_failure", "cancelled"} else
                 ("STALE" if age is None or age > max_age_hours else "IN_PROGRESS")
