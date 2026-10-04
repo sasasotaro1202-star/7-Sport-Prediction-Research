@@ -3,14 +3,17 @@
   "status": "EVALUATED",
   "production_route_enabled": false,
   "policy": {
-    "version": 1,
+    "version": 2,
     "policy": "competition-aware-research-v1",
     "hierarchy": [
       "sport",
       "phase_type",
       "competition",
       "season",
-      "gender_when_explicit"
+      "gender_when_explicit",
+      "stage",
+      "round",
+      "event_type"
     ],
     "no_implicit_pooling": true,
     "production_route_enabled": false,
@@ -110,6 +113,62 @@
     "rules": {
       "dynamic_profiles_are_research_only": true,
       "dynamic_profile_requires_nonempty_explicit_competition_id": true
+    },
+    "hierarchical_routing": {
+      "enabled": true,
+      "mode": "research_then_production",
+      "strategy": "most_specific_accepted_else_broader_accepted_else_sport_incumbent",
+      "no_implicit_pooling": true,
+      "no_context_inference": true,
+      "contexts_must_be_explicit_event_fields": true
+    },
+    "segment_policy": {
+      "basketball": {
+        "levels": [
+          "season",
+          "stage",
+          "round",
+          "event_type"
+        ],
+        "minimum_explicit_context": 1,
+        "max_depth": 4
+      },
+      "volleyball": {
+        "levels": [
+          "season",
+          "stage",
+          "round",
+          "event_type"
+        ],
+        "minimum_explicit_context": 1,
+        "max_depth": 4
+      },
+      "ufc": {
+        "levels": [
+          "season",
+          "event_type"
+        ],
+        "minimum_explicit_context": 1,
+        "max_depth": 2
+      },
+      "rizin": {
+        "levels": [
+          "season",
+          "event_type"
+        ],
+        "minimum_explicit_context": 1,
+        "max_depth": 2
+      },
+      "valorant": {
+        "levels": [
+          "season",
+          "stage",
+          "round",
+          "event_type"
+        ],
+        "minimum_explicit_context": 1,
+        "max_depth": 4
+      }
     }
   },
   "sports": {
