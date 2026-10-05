@@ -33,8 +33,18 @@ jobs:
         run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
       - name: Matchday intelligence regression
         run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
-      - name: Generative world-model research contract
+      - name: Generative world-model kernel regression
         run: PYTHONPATH=. python scripts/test_scenario_world_model.py
+      - name: Generative world-model research regression
+        run: PYTHONPATH=. python scripts/test_generative_world_model_research.py
+      - name: Run PIT-safe generative world-model research
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python -m src.generative_world_model_research \
+            --worlds 512 \
+            --k 20 \
+            --simulation-cases-per-fold 20 \
+            --output results/research/generative_world_model_research.json
       - name: Production invariant contract
         run: PYTHONPATH=. python src/production_invariants.py
       - name: Prediction experience regression
@@ -47,6 +57,15 @@ jobs:
         run: PYTHONPATH=. python -m src.experience_research_bridge
       - name: Experience research bridge regression
         run: PYTHONPATH=. python scripts/test_experience_research_bridge.py
+      - name: Publish generative world-model research evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: generative-world-model-research-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: results/research/generative_world_model_research.json
+
       - name: Persist autonomous experience memory
         env:
           GH_TOKEN: ${{ github.token }}
