@@ -66,6 +66,19 @@ def main():
     require('seven canonical sports' not in workflow.lower(),'canonical workflow contains stale seven-sport wording')
     require('seven canonical sports' not in readme.lower(),'README contains stale seven-sport wording')
     require('7-sport' not in readme.lower(),'README contains stale 7-sport wording')
+    keepalive_wf=(ROOT/'.github/workflows/repository_activity_keepalive.yml').read_text(encoding='utf-8')
+    require('cron: "17 3 1,15 * *"' in keepalive_wf
+            and 'workflow_dispatch:' in keepalive_wf
+            and 'permissions:\n  contents: write' in keepalive_wf
+            and 'ops/automation/heartbeat.json' in keepalive_wf
+            and 'max_attempts=3' in keepalive_wf
+            and 'git push origin HEAD:main' in keepalive_wf
+            and 'git push --force' not in keepalive_wf
+            and 'git push -f' not in keepalive_wf,
+            'repository activity keepalive is missing its bounded safe scheduled commit contract')
+    lightweight_wf=(ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8')
+    require("ops/automation/heartbeat.json" in lightweight_wf and "paths-ignore:" in lightweight_wf,
+            'lightweight regression must ignore the automation-only heartbeat commit')
     require('active prediction scope' in readme.lower() and '- VALORANT' in readme and '- Basketball' in readme and '- Volleyball' in readme and '- UFC' in readme and '- RIZIN' in readme,
             'README does not explicitly declare the five-sport active prediction scope')
     scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
