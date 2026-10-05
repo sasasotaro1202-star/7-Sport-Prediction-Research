@@ -162,6 +162,11 @@ def main() -> None:
     assert "results/experience/settlements/**" in workflow
     assert "python -m src.prediction_experience --merge-artifacts pre_event_experience_artifacts" in workflow
     assert "STALE_MAIN_BEFORE_EXPERIENCE_PUSH" in workflow
+    assert "for attempt in 1 2 3; do" in workflow
+    assert 'artifact_count="$(printf' in workflow
+    assert "*/predictions/*.jsonl" in workflow
+    assert "*/settlements/*.jsonl" in workflow
+    assert "git reset --hard origin/main" in workflow
     assert 'git push origin HEAD:main' in workflow
     assert "steps.dbguard.outputs.rc == '0'" in workflow
     assert "Backfill a missed 9-hour PIT boundary once per boundary window" in watchdog
