@@ -387,15 +387,19 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import json
           import sqlite3
           from pathlib import Path
 
           db = Path("data/db/sports_v45.sqlite")
-          save = False
-          reason = "DATABASE_UNAVAILABLE"
+          report_path = Path("results/research/trajectory_cache_gate.json")
+          report_path.parent.mkdir(parents=True, exist_ok=True)
+
           eligible = 0
           stats = 0
           exact_sources = 0
+          save = False
+          reason = "DATABASE_UNAVAILABLE"
 
           if db.is_file() and db.stat().st_size > 0:
               con = sqlite3.connect(db)
@@ -440,13 +444,24 @@ jobs:
                   f"exact_sources={exact_sources}"
               )
 
-          with open("\${GITHUB_OUTPUT}", "a", encoding="utf-8") as fh:
-              fh.write(f"save={'true' if save else 'false'}\\n")
+          report = {
+              "status": "ALLOWED" if save else "SKIPPED",
+              "eligible_events": eligible,
+              "match_stats": stats,
+              "exact_sources": exact_sources,
+              "cache_key_prefix": "trajectory-ready-db-v1-",
+              "reason": reason,
+              "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
+          }
+          report_path.write_text(
+              json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
 
-          if save:
-              print(f"TRAJECTORY_CACHE_ALLOWED {reason}")
-          else:
-              print(f"TRAJECTORY_CACHE_SKIPPED {reason}")
+          with open("${GITHUB_OUTPUT}", "a", encoding="utf-8") as fh:
+              fh.write(f"save={'true' if save else 'false'}\n")
+
+          print(json.dumps(report, ensure_ascii=False))
           PY
 
       - name: Save trajectory-ready post-outcome PIT database
@@ -456,7 +471,6 @@ jobs:
         with:
           path: data/db
           key: trajectory-ready-db-v1-${{ github.run_id }}
-
       - name: Parallel experience and historical learning
         id: dual_learning
         continue-on-error: true
