@@ -88,7 +88,7 @@ def main() -> int:
 def test_control_plane_watchdog_contract() -> None:
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane_watchdog.yml"
     text = workflow.read_text(encoding="utf-8")
-    assert 'cron: "2,32 * * * *"' in text
+    assert 'cron: "*/10 * * * *"' in text
     assert "workflow_dispatch:" in text
     assert "actions: write" in text
     assert "CONTROL_STATE_MISSING_OR_INVALID" in text
@@ -100,12 +100,19 @@ def test_control_plane_watchdog_contract() -> None:
     assert "results/automation_state/" in text
     assert "CONTROL_STATE_OLDER_THAN_3H30M" in text
     assert "active_any" in text
+    assert "active_current_in_progress" in text
+    assert "outdated_in_progress_ids" in text
     assert "ACTIVE_CONTROL_RUN" in text
+    assert "CANCEL_OUTDATED_IN_PROGRESS_CONTROL_RUN" in text
     assert "RECENT_CONTROL_RUN" in text
+    assert "CURRENT_MAIN_CONTROL_RUN_AFTER_RECOVERY" in text
+    assert "active_current_after" in text
     assert "STALE_QUEUED_CONTROL_RUN" in text
     assert "queued_stale" in text
     assert "CONTROL_RUN_QUEUE_TIMEOUT" in text
     assert "gh run cancel" in text
+    assert 'if [ "$active_current_in_progress" -ne 0 ]; then' in text
+    assert 'if [ "$active_in_progress" -ne 0 ]; then' not in text
     assert "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH" in text
     assert 'gh workflow run autonomous_control_plane.yml --ref main --repo "$repo"' in text
 
