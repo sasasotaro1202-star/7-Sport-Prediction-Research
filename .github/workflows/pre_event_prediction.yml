@@ -400,7 +400,9 @@ jobs:
 
           artifact_files="$(find pre_event_experience_artifacts -type f \
             \( -path '*/results/experience/predictions/*.jsonl' -o \
-               -path '*/results/experience/settlements/*.jsonl' \) | sort || true)"
+               -path '*/results/experience/settlements/*.jsonl' -o \
+               -path '*/predictions/*.jsonl' -o \
+               -path '*/settlements/*.jsonl' \) | sort || true)"
           artifact_count="$(printf '%s\n' "$artifact_files" | sed '/^$/d' | wc -l | tr -d ' ')"
           echo "EXPERIENCE_ARTIFACT_FILE_COUNT=$artifact_count"
           if [ "$artifact_count" -eq 0 ]; then
