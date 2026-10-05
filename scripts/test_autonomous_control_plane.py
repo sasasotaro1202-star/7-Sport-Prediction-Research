@@ -158,6 +158,37 @@ def test_action_health_rejects_old_sha() -> None:
     assert health["stale"] is True
 
 
+def test_action_health_sees_active_older_sha_run() -> None:
+    workflows = {
+        "autonomous_research_sweep.yml": {
+            "latest": {
+                "databaseId": 100,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": "2099-01-01T00:00:00Z",
+                "headSha": "current-sha",
+            },
+            "recent": [
+                {
+                    "databaseId": 101,
+                    "status": "in_progress",
+                    "conclusion": None,
+                    "createdAt": "2099-01-01T00:01:00Z",
+                    "headSha": "old-sha",
+                }
+            ],
+        }
+    }
+    health = cp.action_health(
+        workflows,
+        "autonomous_research_sweep.yml",
+        4.5,
+        current_main_sha="current-sha",
+    )
+    assert health["active_run_any"] is True
+    assert health["sha_match"] is True
+
+
 def test_trajectory_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["TRAJECTORY_RESEARCH"] == "autonomous_temporal_trajectory_loop.yml"
     assert cp.MONITORED_WORKFLOWS["trajectory_research"] == "autonomous_temporal_trajectory_loop.yml"
@@ -190,6 +221,33 @@ def test_persist_detects_missing_state_artifacts() -> None:
 def test_pre_event_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"] == "pre_event_prediction.yml"
     assert cp.MONITORED_WORKFLOWS["pre_event"] == "pre_event_prediction.yml"
+
+def test_control_plane_workflow_run_triggers_cover_allowlisted_autonomous_workflows() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
+    text = workflow.read_text(encoding="utf-8")
+    expected_workflow_names = (
+        "Active Source Feasibility Audit",
+        "Continuous Scope Autofill and Discovery",
+        "Production Runtime Health Audit",
+        "Production Safety Audit",
+        "Nine-Sport Lane Audit",
+        "Autonomous Research Sweep",
+        "24H Autonomous Research Marathon",
+        "Autonomous Temporal Trajectory Loop",
+    )
+    for workflow_name in (
+        "source_feasibility_audit.yml",
+        "scope_autofill.yml",
+        "production_runtime_health.yml",
+        "production_safety_audit.yml",
+        "nine_sport_lane_audit.yml",
+        "autonomous_research_sweep.yml",
+        "24h_autonomous_research.yml",
+        "autonomous_temporal_trajectory_loop.yml",
+    ):
+        assert workflow_name in text
+    for workflow_name in expected_workflow_names:
+        assert workflow_name in text
 
 
 def main() -> int:
@@ -293,24 +351,46 @@ def main() -> int:
                 "headSha": "new-sha",
             }
         }
+        workflows["workflows"]["autonomous_research_sweep.yml"]["recent"] = [{
+            "databaseId": 777,
+            "status": "in_progress",
+            "conclusion": None,
+            "createdAt": event_recent_iso,
+            "headSha": "old-sha",
+        }]
         cp.ACTIONS_SNAPSHOT.write_text(json.dumps(workflows), encoding="utf-8")
+        active_state = cp.inspect()
+        assert active_state["actions"]["research_sweep"]["active_run_any"] is True
+        _, active_dispatch = cp.choose_actions(active_state)
+        assert active_dispatch is None or active_dispatch["workflow"] != "autonomous_research_sweep.yml"
+
+        # Remove the independent PIT blocker so the next assertions exercise the
+        # workflow_run event-triage path itself.
+        (root / "results/quality_gate.json").write_text(
+            json.dumps({
+                "status": "PASS",
+                "pending": [],
+                "checks": [{"check": "pit_leakage", "exact_pass": 1}],
+            }),
+            encoding="utf-8",
+        )
         os.environ["CONTROL_PLANE_EVENT_WORKFLOW"] = "v4_5_15_production.yml"
         os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
         event_state = cp.inspect()
-        _, event_dispatch = cp.choose_actions(event_state)
-        assert event_dispatch is not None
-        assert event_dispatch["target"] == "workflow_event_failure:production"
-        assert event_dispatch["workflow"] == "autonomous_research_sweep.yml"
+        event_selected, event_dispatch = cp.choose_actions(event_state)
+        assert event_selected["target"] == "workflow_event_failure:production"
+        assert event_dispatch is None or event_dispatch["workflow"] != "autonomous_research_sweep.yml"
 
         # Failure-memory persistence may advance main after the triggering run.
-        # The event remains valid when its SHA is a verified ancestor of current main.
+        # The event remains valid when its SHA is a verified ancestor of current main,
+        # but the active research workflow still prevents a duplicate dispatch.
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "ancestor-sha"
         os.environ["CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN"] = "true"
         ancestor_state = cp.inspect()
-        _, ancestor_dispatch = cp.choose_actions(ancestor_state)
-        assert ancestor_dispatch is not None
-        assert ancestor_dispatch["target"] == "workflow_event_failure:production"
+        ancestor_selected, ancestor_dispatch = cp.choose_actions(ancestor_state)
+        assert ancestor_selected["target"] == "workflow_event_failure:production"
+        assert ancestor_dispatch is None or ancestor_dispatch["workflow"] != "autonomous_research_sweep.yml"
 
         # A stale event SHA is fail-closed and must not create this event signal.
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "stale-sha"

@@ -52,5 +52,10 @@ assert "verified_outcomes > 0" in prod
 assert "replayable_rows > 0" in prod
 assert "clean_pit_features > 0" in prod
 assert "  push:" not in traj
+retry_block = pos(traj, "Merge, evaluate, and persist with bounded main-lease retries")
+assert "max_attempts=3" in traj[retry_block:retry_block+5000]
+assert "TRAJECTORY_PERSIST_RETRY" in traj[retry_block:retry_block+5000]
+assert "STALE_MAIN_BEFORE_TRAJECTORY_PUSH_RETRIES_EXHAUSTED" in traj[retry_block:retry_block+5000]
+assert 'git push origin HEAD:main' in traj[retry_block:retry_block+5000]
 
 print("TRAJECTORY_CACHE_CONTRACT=PASS")

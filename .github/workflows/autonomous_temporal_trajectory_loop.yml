@@ -241,56 +241,97 @@ jobs:
       - name: Install lightweight trajectory runtime
         run: python -m pip install --disable-pip-version-check --no-input "numpy>=1.26,<3"
 
-      - name: Reconcile against newest main
+      - name: Merge, evaluate, and persist with bounded main-lease retries
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          git fetch origin main --depth=1
-          latest_main="$(git rev-parse origin/main)"
-          git reset --hard "$latest_main"
-          echo "TRAJECTORY_MERGE_BASE_SHA=$latest_main" >> "$GITHUB_ENV"
-
-      - name: Merge deltas and rerun chronological OOS
-        env:
           PYTHONPATH: .
         run: |
           set -euo pipefail
-          python scripts/merge_trajectory_ledger.py             --artifact-root trajectory_artifacts             --sports valorant,basketball,volleyball,ufc,rizin
 
-      - name: Verify persistence inputs before push
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          git diff --check
-          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "$remote_sha" = "$TRAJECTORY_MERGE_BASE_SHA" || {
-            echo "STALE_MAIN_BEFORE_TRAJECTORY_PUSH expected=$TRAJECTORY_MERGE_BASE_SHA actual=$remote_sha" >&2
-            exit 1
-          }
+          # Concurrent research/production writers can advance main between
+          # reconciliation and push. Rebuild deterministically from the newest
+          # main and retry a bounded number of times instead of losing an
+          # otherwise valid trajectory delta.
+          max_attempts=3
+          pushed=false
 
-      - name: Persist trajectory ledger and research evidence
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          changed="$(git status --porcelain -- results/research/trajectory_snapshots_valorant.jsonl results/research/trajectory_snapshots_basketball.jsonl results/research/trajectory_snapshots_volleyball.jsonl results/research/trajectory_snapshots_ufc.jsonl results/research/trajectory_snapshots_rizin.jsonl results/research/trajectory_outcomes_valorant.json results/research/trajectory_outcomes_basketball.json results/research/trajectory_outcomes_volleyball.json results/research/trajectory_outcomes_ufc.json results/research/trajectory_outcomes_rizin.json results/research/trajectory_intelligence_valorant.json results/research/trajectory_intelligence_basketball.json results/research/trajectory_intelligence_volleyball.json results/research/trajectory_intelligence_ufc.json results/research/trajectory_intelligence_rizin.json results/research/trajectory_system_state.json)"
-          if [ -z "$changed" ]; then
-            echo "TRAJECTORY_PERSIST=NO_CHANGE"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add results/research/trajectory_*.jsonl results/research/trajectory_outcomes_*.json results/research/trajectory_intelligence_*.json results/research/trajectory_system_state.json
-          git commit -m "ops: persist autonomous temporal trajectory research"
-          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "$remote_sha" = "$TRAJECTORY_MERGE_BASE_SHA" || {
-            echo "STALE_MAIN_BEFORE_TRAJECTORY_PUSH expected=$TRAJECTORY_MERGE_BASE_SHA actual=$remote_sha" >&2
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "TRAJECTORY_PERSIST_ATTEMPT=$attempt/$max_attempts"
+
+            git fetch origin main --depth=1
+            latest_main="$(git rev-parse origin/main)"
+            git reset --hard "$latest_main"
+            echo "TRAJECTORY_MERGE_BASE_SHA=$latest_main"
+
+            python scripts/merge_trajectory_ledger.py \
+              --artifact-root trajectory_artifacts \
+              --sports valorant,basketball,volleyball,ufc,rizin
+
+            git diff --check
+            changed="$(git status --porcelain -- \
+              results/research/trajectory_snapshots_valorant.jsonl \
+              results/research/trajectory_snapshots_basketball.jsonl \
+              results/research/trajectory_snapshots_volleyball.jsonl \
+              results/research/trajectory_snapshots_ufc.jsonl \
+              results/research/trajectory_snapshots_rizin.jsonl \
+              results/research/trajectory_outcomes_valorant.json \
+              results/research/trajectory_outcomes_basketball.json \
+              results/research/trajectory_outcomes_volleyball.json \
+              results/research/trajectory_outcomes_ufc.json \
+              results/research/trajectory_outcomes_rizin.json \
+              results/research/trajectory_intelligence_valorant.json \
+              results/research/trajectory_intelligence_basketball.json \
+              results/research/trajectory_intelligence_volleyball.json \
+              results/research/trajectory_intelligence_ufc.json \
+              results/research/trajectory_intelligence_rizin.json \
+              results/research/trajectory_system_state.json)"
+
+            if [ -z "$changed" ]; then
+              echo "TRAJECTORY_PERSIST=NO_CHANGE"
+              pushed=true
+              break
+            fi
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add \
+              results/research/trajectory_*.jsonl \
+              results/research/trajectory_outcomes_*.json \
+              results/research/trajectory_intelligence_*.json \
+              results/research/trajectory_system_state.json
+            git commit -m "ops: persist autonomous temporal trajectory research"
+
+            remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+            if [ "$remote_sha" != "$latest_main" ]; then
+              echo "TRAJECTORY_PERSIST_RETRY stale_before_push expected=$latest_main actual=$remote_sha"
+              git reset --hard "$remote_sha"
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                sleep $((attempt * 2))
+                continue
+              fi
+              echo "STALE_MAIN_BEFORE_TRAJECTORY_PUSH_RETRIES_EXHAUSTED" >&2
+              exit 1
+            fi
+
+            if git push origin HEAD:main; then
+              echo "TRAJECTORY_PERSIST=PUSHED main_sha=$(git rev-parse HEAD)"
+              pushed=true
+              break
+            fi
+
+            # A fast concurrent write can still win between the remote check
+            # and the push. Reset and recompute from the winning main.
+            echo "TRAJECTORY_PERSIST_RETRY push_race=true"
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              git fetch origin main --depth=1
+              sleep $((attempt * 2))
+              continue
+            fi
+            echo "TRAJECTORY_PUSH_RETRIES_EXHAUSTED" >&2
             exit 1
-          }
-          git push origin HEAD:main
-          echo "TRAJECTORY_PERSIST=PUSHED main_sha=$(git rev-parse HEAD)"
+          done
+
+          test "$pushed" = true
 
       - name: Publish trajectory system state
         if: always()
