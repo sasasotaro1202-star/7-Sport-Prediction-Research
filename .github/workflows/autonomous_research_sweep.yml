@@ -50,12 +50,30 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+
+          stage_dir="$(mktemp -d)"
+          cleanup() { rm -rf "$stage_dir"; }
+          trap cleanup EXIT
+
+          # Preserve generated research artifacts before reconciling to the newest main.
+          for path in             results/research/experience_learning.json             results/research/experience_research_candidates.json; do
+            if [ -f "$path" ]; then
+              mkdir -p "$stage_dir/$(dirname "$path")"
+              cp "$path" "$stage_dir/$path"
+            fi
+          done
+
           git fetch origin main --depth=1
-          remote_sha="$(git rev-parse origin/main)"
-          if [ "$remote_sha" != "$GITHUB_SHA" ]; then
-            echo "STALE_MAIN_BEFORE_RESEARCH_MEMORY_PUSH expected=$GITHUB_SHA actual=$remote_sha"
-            exit 1
-          fi
+          git reset --hard origin/main
+          merge_base="$(git rev-parse HEAD)"
+          echo "RESEARCH_MEMORY_MERGE_BASE_SHA=$merge_base"
+
+          for path in             results/research/experience_learning.json             results/research/experience_research_candidates.json; do
+            if [ -f "$stage_dir/$path" ]; then
+              mkdir -p "$(dirname "$path")"
+              cp "$stage_dir/$path" "$path"
+            fi
+          done
 
           changed="$(git status --porcelain -- results/research/experience_learning.json results/research/experience_research_candidates.json)"
           if [ -z "$changed" ]; then
@@ -73,15 +91,11 @@ jobs:
           fi
 
           git commit -m "ops: persist autonomous experience memory"
-          remote_sha="$(git rev-parse origin/main)"
           latest_remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          if [ "$latest_remote_sha" != "$GITHUB_SHA" ]; then
-            echo "STALE_MAIN_BEFORE_RESEARCH_MEMORY_PUSH expected=$GITHUB_SHA actual=$latest_remote_sha"
+          if [ "$latest_remote_sha" != "$merge_base" ]; then
+            echo "STALE_MAIN_BEFORE_RESEARCH_MEMORY_PUSH expected=$merge_base actual=$latest_remote_sha"
             exit 1
           fi
-          test "$remote_sha" = "$GITHUB_SHA" || {
-            echo "LOCAL_REMOTE_MAIN_MISMATCH expected=$GITHUB_SHA actual=$remote_sha"
-            exit 1
-          }
+
           git push origin HEAD:main
           echo "EXPERIENCE_MEMORY_PERSIST=PUSHED commit=$(git rev-parse HEAD)"
