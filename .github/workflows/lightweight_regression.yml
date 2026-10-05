@@ -98,6 +98,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_boxing_ingest.py
       - name: Uncertainty-aware router research-only regression
         run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
+      - name: Probabilistic state core research contract
+        run: PYTHONPATH=. python scripts/test_probabilistic_state_core.py
       - name: Matchday intelligence research-only regression
         run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
       - name: Research checkpoint cache persistence
