@@ -398,6 +398,9 @@ jobs:
           eligible = 0
           stats = 0
           exact_sources = 0
+          verified_outcomes = 0
+          replayable_rows = 0
+          clean_pit_features = 0
           save = False
           reason = "DATABASE_UNAVAILABLE"
 
@@ -434,12 +437,47 @@ jobs:
                         AND s.event_time_utc IS NOT NULL
                       """
                   ).fetchone()[0])
+                  verified_outcomes = int(con.execute(
+                      """
+                      SELECT COUNT(*)
+                      FROM event_outcome o
+                      WHERE o.sport IN ('valorant','basketball','volleyball','ufc','rizin')
+                        AND UPPER(COALESCE(o.outcome_status,''))='VERIFIED'
+                        AND UPPER(COALESCE(o.outcome,'')) IN ('A','B')
+                      """
+                  ).fetchone()[0])
+                  replayable_rows = int(con.execute(
+                      """
+                      SELECT COUNT(*)
+                      FROM pit_replay p
+                      JOIN event e ON e.event_id=p.event_id
+                      WHERE e.sport IN ('valorant','basketball','volleyball','ufc','rizin')
+                        AND UPPER(COALESCE(p.replay_status,''))='REPLAYABLE'
+                      """
+                  ).fetchone()[0])
+                  clean_pit_features = int(con.execute(
+                      """
+                      SELECT COUNT(*)
+                      FROM pit_feature_snapshot p
+                      JOIN event e ON e.event_id=p.event_id
+                      WHERE e.sport IN ('valorant','basketball','volleyball','ufc','rizin')
+                        AND UPPER(COALESCE(p.leakage_status,''))='CLEAN'
+                      """
+                  ).fetchone()[0])
               finally:
                   con.close()
-              save = eligible > 0 and stats > 0 and exact_sources > 0
+              save = (
+                  eligible > 0
+                  and stats > 0
+                  and exact_sources > 0
+                  and verified_outcomes > 0
+                  and replayable_rows > 0
+                  and clean_pit_features > 0
+              )
               reason = (
                   f"completed_events={eligible};match_stats={stats};"
-                  f"exact_sources={exact_sources};verified_outcomes_not_required=true"
+                  f"exact_sources={exact_sources};verified_outcomes={verified_outcomes};"
+                  f"replayable_rows={replayable_rows};clean_pit_features={clean_pit_features}"
               )
 
           report = {
@@ -447,6 +485,9 @@ jobs:
               "eligible_events": eligible,
               "match_stats": stats,
               "exact_sources": exact_sources,
+              "verified_outcomes": verified_outcomes,
+              "replayable_rows": replayable_rows,
+              "clean_pit_features": clean_pit_features,
               "cache_key_prefix": "trajectory-ready-db-v1-",
               "reason": reason,
               "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
