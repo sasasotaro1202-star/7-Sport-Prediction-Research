@@ -163,6 +163,11 @@ def test_trajectory_control_plane_registration() -> None:
     assert cp.MONITORED_WORKFLOWS["trajectory_research"] == "autonomous_temporal_trajectory_loop.yml"
 
 
+def test_research_sweep_control_plane_registration() -> None:
+    assert cp.ALLOWED_WORKFLOWS["RESEARCH_HEALTH"] == "autonomous_research_sweep.yml"
+    assert cp.MONITORED_WORKFLOWS["research_sweep"] == "autonomous_research_sweep.yml"
+
+
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
