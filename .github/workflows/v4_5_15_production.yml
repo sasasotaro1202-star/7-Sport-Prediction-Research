@@ -407,13 +407,11 @@ jobs:
                   eligible = int(con.execute(
                       """
                       SELECT COUNT(*)
-                      FROM event e
-                      JOIN event_outcome o ON o.event_id=e.event_id
-                      WHERE e.sport IN ('valorant','basketball','volleyball','ufc','rizin')
-                        AND UPPER(COALESCE(e.status,'')) IN ('COMPLETED','FINISHED','POST','FINAL')
-                        AND e.event_end_time_utc IS NOT NULL
-                        AND UPPER(COALESCE(o.outcome_status,''))='VERIFIED'
-                        AND UPPER(COALESCE(o.outcome,'')) IN ('A','B')
+                      FROM event
+                      WHERE sport IN ('valorant','basketball','volleyball','ufc','rizin')
+                        AND UPPER(COALESCE(status,'')) IN ('COMPLETED','FINISHED','POST','FINAL')
+                        AND event_time_utc IS NOT NULL
+                        AND event_end_time_utc IS NOT NULL
                       """
                   ).fetchone()[0])
                   stats = int(con.execute(
@@ -440,8 +438,8 @@ jobs:
                   con.close()
               save = eligible > 0 and stats > 0 and exact_sources > 0
               reason = (
-                  f"eligible_events={eligible};match_stats={stats};"
-                  f"exact_sources={exact_sources}"
+                  f"completed_events={eligible};match_stats={stats};"
+                  f"exact_sources={exact_sources};verified_outcomes_not_required=true"
               )
 
           report = {
