@@ -21,11 +21,11 @@ permissions:
   contents: read
 
 concurrency:
-  # Watchdog checks are idempotent and must not accumulate stale queued runs.
-  # The newest invocation owns recovery; production failure-specific recovery
-  # remains separately owned by production_failure_recovery.yml.
+  # Never cancel a watchdog while it is actively inspecting/recovering heavy
+  # runs. The workflow has its own deterministic newest-run guard; queued
+  # duplicates are coalesced by GitHub concurrency semantics.
   group: production-run-watchdog
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   watchdog:
