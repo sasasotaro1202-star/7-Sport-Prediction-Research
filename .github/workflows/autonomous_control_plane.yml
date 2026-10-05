@@ -47,13 +47,13 @@ env:
 
 jobs:
   control:
-    # Only runnable control-plane jobs participate in this concurrency group.
-    # workflow_run success events are filtered by `if` before this job-level gate,
-    # so they cannot cancel a live failure-triage job. New failure evidence coalesces
-    # older queued/in-progress triage and the control plane re-checks current main.
+    # Critical control-plane state is single-writer. Never cancel an active
+    # reconciliation because a later workflow_run event arrived; queue the later
+    # invocation so persistence and dispatch remain serialized. The job itself
+    # still fail-closes on stale/diverged main and on every safety gate.
     concurrency:
       group: autonomous-control-plane-main
-      cancel-in-progress: true
+      cancel-in-progress: false
     name: Reconcile / Decide / Dispatch / Persist
     if: >-
       github.event_name != 'workflow_run' ||
