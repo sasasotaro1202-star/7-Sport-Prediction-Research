@@ -21,12 +21,11 @@ permissions:
   contents: read
 
 concurrency:
-  # Never cancel a watchdog because a validator completion or scheduler tick
-  # arrived at the same time. A deterministic newest-run guard below makes only
-  # the newest active watchdog authoritative, while every invocation can finish
-  # cleanly without cancellation churn.
+  # Watchdog checks are idempotent and must not accumulate stale queued runs.
+  # The newest invocation owns recovery; production failure-specific recovery
+  # remains separately owned by production_failure_recovery.yml.
   group: production-run-watchdog
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   watchdog:

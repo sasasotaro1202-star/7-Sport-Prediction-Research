@@ -16,8 +16,10 @@ permissions:
   contents: read
 
 concurrency:
+  # Deferred research is read-only/replaceable. Keep only the newest queued or
+  # running sweep so an Actions outage cannot create a stale backlog.
   group: nine-sport-deferred-research
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: '1'
