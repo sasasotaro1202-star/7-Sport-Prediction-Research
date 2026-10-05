@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -68,6 +70,68 @@ class StageEvidencePolicyTests(unittest.TestCase):
         )
         self.assertEqual(fresh["classification"], "TRAINED_FRESH")
         self.assertEqual(stale["classification"], "CRITICAL_STALE_TRAINED")
+
+
+class FinalReconciliationBehaviorTests(unittest.TestCase):
+    def _write(self, root: Path, stage: int, sport: str, status: str = "PASS") -> None:
+        payload = {
+            "stage": stage,
+            "sport": sport,
+            "status": status,
+            "github_sha": "sha",
+            "iterations": 1,
+            "command_count": 2,
+            "critical_failures": [] if status != "FAILED" else ["stage_failure"],
+            "degraded_tasks": [] if status == "PASS" else ["evidence_degraded"],
+        }
+        path = root / f"stage_{stage}_final.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_all_five_pass_reconciles_to_pass(self):
+        from scripts import reconcile_24h_research as reconcile
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for stage, sport in reconcile.EXPECTED_STAGES.items():
+                self._write(root, stage, sport)
+            with patch.object(reconcile, "current_remote_sha", return_value="sha"), patch.dict(
+                __import__("os").environ, {"GITHUB_SHA": "sha"}, clear=False
+            ):
+                out = reconcile.reconcile(root)
+        self.assertEqual(out["status"], "PASS")
+        self.assertEqual(out["failed_stages"], [])
+        self.assertEqual(out["degraded_stages"], [])
+
+    def test_one_degraded_stage_is_explicitly_degraded(self):
+        from scripts import reconcile_24h_research as reconcile
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for stage, sport in reconcile.EXPECTED_STAGES.items():
+                self._write(root, stage, sport, "DEGRADED" if stage == 2 else "PASS")
+            with patch.object(reconcile, "current_remote_sha", return_value="sha"), patch.dict(
+                __import__("os").environ, {"GITHUB_SHA": "sha"}, clear=False
+            ):
+                out = reconcile.reconcile(root)
+        self.assertEqual(out["status"], "DEGRADED")
+        self.assertEqual(out["degraded_stages"], [2])
+
+    def test_missing_stage_is_failed_closed(self):
+        from scripts import reconcile_24h_research as reconcile
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for stage, sport in reconcile.EXPECTED_STAGES.items():
+                if stage != 5:
+                    self._write(root, stage, sport)
+            with patch.object(reconcile, "current_remote_sha", return_value="sha"), patch.dict(
+                __import__("os").environ, {"GITHUB_SHA": "sha"}, clear=False
+            ):
+                out = reconcile.reconcile(root)
+        self.assertEqual(out["status"], "FAILED")
+        self.assertEqual(out["missing_stages"], [5])
+
+
 
 
 class WorkflowFinalReconciliationContractTests(unittest.TestCase):
