@@ -26,10 +26,10 @@ env:
 
 jobs:
   control:
-    # Critical control-plane state is single-writer. Never cancel an active
-    # reconciliation because a later workflow_run event arrived; queue the later
-    # invocation so persistence and dispatch remain serialized. The job itself
-    # still fail-closes on stale/diverged main and on every safety gate.
+    # Critical control-plane state is single-writer. Push/schedule/manual
+    # invocations are serialized so persistence and dispatch remain ordered.
+    # Failure Recovery and dedicated watchdogs own immediate failure recovery;
+    # the control plane consumes their durable Failure Memory on its next cycle.
     concurrency:
       group: autonomous-control-plane-main
       cancel-in-progress: false
