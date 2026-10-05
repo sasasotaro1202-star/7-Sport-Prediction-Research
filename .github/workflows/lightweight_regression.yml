@@ -58,6 +58,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_autonomous_control_plane_workflow.py
       - name: Repository activity keepalive contract regression
         run: PYTHONPATH=. python scripts/test_repository_activity_keepalive.py
+      - name: Repository-wide workflow event-storm guard
+        run: PYTHONPATH=. python scripts/test_workflow_event_storm_guard.py
       - name: 24H research degraded-evidence continuity regression
         run: PYTHONPATH=. python scripts/test_24h_research_stage_main.py
       - name: Trajectory cache boundary regression
