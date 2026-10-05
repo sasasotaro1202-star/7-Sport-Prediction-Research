@@ -53,6 +53,7 @@ jobs:
           python scripts/test_trajectory_cache_contract.py
 
       - name: Restore latest active-scope database
+        id: trajectory_cache_restore
         uses: actions/cache/restore@v4
         with:
           path: data/db
@@ -66,6 +67,7 @@ jobs:
       - name: Verify trajectory-ready evidence availability
         env:
           SPORT_NAME: ${{ matrix.sport }}
+          CACHE_MATCHED_KEY: ${{ steps.trajectory_cache_restore.outputs.cache-matched-key }}
         run: |
           set -euo pipefail
           if [ ! -s data/db/sports_v45.sqlite ]; then
@@ -113,18 +115,19 @@ jobs:
                   """,
                   (sport,),
               ).fetchone()[0])
+              verified_outcomes = int(con.execute(
+                  """
+                  SELECT COUNT(*)
+                  FROM event_outcome
+                  WHERE sport=? AND UPPER(COALESCE(outcome_status,''))='VERIFIED'
+                    AND UPPER(COALESCE(outcome,'')) IN ('A','B')
+                  """,
+                  (sport,),
+              ).fetchone()[0])
           finally:
               con.close()
 
-          verified_outcomes = int(con.execute(
-              """
-              SELECT COUNT(*)
-              FROM event_outcome
-              WHERE sport=? AND UPPER(COALESCE(outcome_status,''))='VERIFIED'
-                AND UPPER(COALESCE(outcome,'')) IN ('A','B')
-              """,
-              (sport,),
-          ).fetchone()[0])
+          print(f"TRAJECTORY_CACHE_MATCHED_KEY={os.environ.get('CACHE_MATCHED_KEY') or 'NONE'}")
 
           if eligible_events > 0 and match_stats > 0 and exact_sources > 0:
               print(
