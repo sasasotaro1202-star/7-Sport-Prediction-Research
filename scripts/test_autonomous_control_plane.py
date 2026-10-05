@@ -286,3 +286,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# Regression fixture: the stale-event case must clear ancestor provenance before inspection.
