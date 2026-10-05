@@ -51,8 +51,15 @@ jobs:
             fi
           fi
 
-          runs="$(gh run list --workflow "$workflow" --branch main --limit 50 --json databaseId,status,conclusion,createdAt,headSha,event)"
+          runs="$(gh run list --workflow "$workflow" --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,headSha,event)"
           active_any="$(printf '%s' "$runs" | jq '[.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")] | length')"
+          active_in_progress="$(printf '%s' "$runs" | jq '[.[] | select(.status=="in_progress")] | length')"
+          now_ts="$(date -u +%s)"
+          stale_queued_ids="$(printf '%s' "$runs" | jq -r --argjson now "$now_ts" ' .[] | select(.status=="queued" or .status=="pending") | ((.updatedAt // .createdAt) | fromdateiso8601) as $ts | select(($now - $ts) >= 900) | .databaseId ' | paste -sd ',' -)"
+          stale_queued_count=0
+          if [ -n "$stale_queued_ids" ]; then
+            stale_queued_count="$(printf '%s' "$stale_queued_ids" | tr ',' '\n' | awk 'NF {n++} END {print n+0}')"
+          fi
           latest_created="$(printf '%s' "$runs" | jq -r '[.[] | .createdAt] | sort | last // ""')"
           stale_reason="NONE"
           recover=false
@@ -95,9 +102,14 @@ jobs:
             fi
           fi
 
-          if [ "$active_any" -ne 0 ]; then
+          if [ "$stale_queued_count" -gt 0 ] && [ "$active_in_progress" -eq 0 ]; then
+            recover=true
+            stale_reason="STALE_QUEUED_CONTROL_RUN|CONTROL_RUN_QUEUE_TIMEOUT"
+          fi
+
+          if [ "$active_in_progress" -ne 0 ]; then
             recover=false
-            stale_reason="$stale_reason|ACTIVE_CONTROL_RUN"
+            stale_reason="$stale_reason|ACTIVE_IN_PROGRESS_CONTROL_RUN"
           fi
 
           if [ -n "$latest_created" ]; then
@@ -114,6 +126,9 @@ jobs:
 
           echo "recover=$recover" >> "$GITHUB_OUTPUT"
           echo "reason=$stale_reason" >> "$GITHUB_OUTPUT"
+          echo "stale_queued_ids=$stale_queued_ids" >> "$GITHUB_OUTPUT"
+          echo "queued_stale=$stale_queued_count" >> "$GITHUB_OUTPUT"
+          echo "CONTROL_RUN_QUEUE_TIMEOUT count=$stale_queued_count ids=${stale_queued_ids:-NONE}"
           echo "WATCHDOG_RECOVER=$recover reason=$stale_reason provenance=$state_provenance active_any=$active_any state_sha=${state_sha:-MISSING} current_main=$CURRENT_MAIN_SHA"
 
       - name: Dispatch current-main control plane
@@ -124,6 +139,28 @@ jobs:
         run: |
           set -euo pipefail
           repo="${{ github.repository }}"
+          current_sha="${{ steps.main.outputs.sha }}"
+          remote_sha="$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "$current_sha" || {
+            echo "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH expected=$current_sha actual=$remote_sha" >&2
+            exit 1
+          }
+          stale_queued_ids="${{ steps.inspect.outputs.stale_queued_ids }}"
+          if [ -n "$stale_queued_ids" ]; then
+            IFS=',' read -r -a stale_ids <<< "$stale_queued_ids"
+            for stale_id in "${stale_ids[@]}"; do
+              [ -n "$stale_id" ] || continue
+              echo "CANCEL_STALE_QUEUED_CONTROL_RUN run_id=$stale_id"
+              gh run cancel "$stale_id" --repo "$repo" || true
+            done
+          fi
+
+          refreshed="$(gh run list --workflow autonomous_control_plane.yml --branch main --limit 50 --json databaseId,status)"
+          active_in_progress_after="$(printf '%s' "$refreshed" | jq '[.[] | select(.status=="in_progress")] | length')"
+          test "$active_in_progress_after" -eq 0 || {
+            echo "ACTIVE_CONTROL_RUN_AFTER_QUEUE_RECOVERY count=$active_in_progress_after" >&2
+            exit 1
+          }
           current_sha="${{ steps.main.outputs.sha }}"
           remote_sha="$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')"
           test "$remote_sha" = "$current_sha" || {
