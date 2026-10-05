@@ -1297,3 +1297,45 @@ Coverage priority:
 * in-event state snapshots（event_end_time_utcが証明できる場合のみ）
 
 この層の成功条件は「時間ごとの予測を大量生成した」ではない。未知eventでのFuture Generalization、Case-Level Correctness、Calibration、Predictability Awareness、Uncertainty、Robustness、PIT Integrityが改善したことをchronological OOSとfrozen holdoutで証明することを要求する。
+
+
+61. END-TO-END SPORT PREDICTION MODELING BLUEPRINT
+
+本Projectは、単純なwinner classifierを最上位概念とせず、prediction cutoff時点の観測情報から潜在状態を推定し、その状態・相手・可用性・戦術から将来の試合状態と結果分布を生成する構造を研究上位設計として採用する。
+
+中核概念:
+
+P(Y|X) = ∫ P(Y|Z,X) P(Z|X) dZ
+
+X = cutoff時点でPIT証明された情報、Z = 観測できない現在のteam/player/game state、Y = 将来event outcome。
+
+推奨する研究分解:
+Data → Identity/PIT → State Estimation → Player State → Availability/Lineup → Matchup/Interaction → Sport-specific Event Generator → Joint/Scenario Simulation → Calibration → Uncertainty/Predictability → Selective Decision → Outcome → Experience → Failure Analysis → Research.
+
+Stateは単一Strengthではなくsport-specific vectorとして扱う。例えば攻撃/守備、先発/打撃/救援、half-court/transition/shooting、serve/return等に分解し、long-term priorとrecent evidenceをsample-size-aware shrinkageで統合する。
+
+PlayerStateは概念上 BaseSkill + Form + Health + Role + Fit とし、怪我・疲労・復帰・加齢効果を必要に応じてcomponent別に扱う。欠場を一律固定ペナルティにしない。
+
+Availability/Lineupは確率変数として扱い、複数lineup scenarioをsimulationへ伝播させる。Lineupが不確実なのに単一固定lineupを仮定しない。
+
+MatchupはStrength_Aの絶対値ではなくStrength_A(B)のような相手依存の関数を優先し、ability × opponent weakness/strength、role compatibility、lineup chemistry等の相互作用を候補とする。
+
+試合モデルはsport-specific state transition/generative processとして設計する。footballのscore/tactical state、baseballのinning/base-out state、basketballのpossession state、tennisのpoint→game→set state等を例とし、必要ならMarkov/semi-Markov/point-process/hazard等を比較する。Markov性は仮定ではなく検証対象とする。
+
+期待値だけではなくvariance・tail・joint distributionを扱う。依存する出力をP(X)P(Y)へ機械的に分解せず、joint behaviorを必要に応じて階層モデル・latent factor・multivariate distribution・copula-like構造等で研究する。
+
+Monte Carloはlineup、latent state、context、game-state transitionをまとめてsamplingし、勝率だけでなくscore distribution、first-event probability、tail scenario等を導出する。simulationは同じevent内の依存関係を維持する。
+
+Uncertaintyは少なくともdata uncertainty、model uncertainty、intrinsic sport randomnessへ分け、confidenceとは別にpredictability、model disagreement、OOD、source reliability、regime transition、upset risk、forecast ageを記録する。
+
+Prediction Stabilityは入力perturbation/snapshot間のprobability変化として評価し、Adversarial/Monotonicity/Counterfactual testingを診断用途で行う。予測上のcounterfactual差分をcausal effectとして報告しない。
+
+追加情報の取得自体もdecision problemとし、VOI / information gain、latency、source reliability、cost、event proximity、disagreement、stale riskから PREDICT_NOW / ACQUIRE_MORE / WAIT / RECOMPUTE / FALLBACK / ABSTAIN を選択する。
+
+Live predictionではpre-event forecastをpriorとして扱い、P(theta|Data_1:t)を実観測stateに応じて逐次更新する。初期少sampleのlive noiseでpriorを過度に上書きしない。
+
+EvaluationではLogLoss/Brier/Accuracy/ECEだけでなく、calibration、sharpness、selective risk、event-cluster dependency、latest period、regime、OOD、upset-heavy cases、data-quality strataまで分解する。Conceptual blueprintのどのcomponentも、PIT/OOS/robustness/frozen holdoutを通過しない限りproduction adoptionを意味しない。
+
+実装順序は、PIT/identity/event contract → baseline → latent strength → availability/lineup → matchup → event simulation → calibration → uncertainty/predictability → sensitivity/counterfactual/VOI → live update → advanced neural/graph/vision を原則とする。complexityは測定されたFuture Generalization improvementによって正当化する。
+
+詳細な再現可能設計は docs/PREDICTION_MODELING_BLUEPRINT.md をcanonical research-design referenceとして使用する。これは既存のproduction gate、PIT hard gate、scope registry、champion/challenger、frozen holdout firewall、automatic promotion禁止を置き換えない。
