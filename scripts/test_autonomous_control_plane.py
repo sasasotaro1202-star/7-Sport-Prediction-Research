@@ -276,6 +276,51 @@ def test_control_plane_dispatch_verifies_run_creation() -> None:
     assert "fromdateiso8601" in block
 
 
+def test_research_queue_identity_excludes_volatile_fields() -> None:
+    a = {
+        "action": "PIT_COVERAGE_REPAIR",
+        "workflow": "pit_history_expansion.yml",
+        "target": "active_scope",
+        "reason": "reason-a",
+        "dispatch_policy": "policy-a",
+        "priority": 100,
+        "head_sha": "sha-a",
+    }
+    b = dict(a, reason="reason-b", dispatch_policy="policy-b", priority=1, head_sha="sha-b")
+    assert cp.queue_identity(a) == cp.queue_identity(b)
+
+
+def test_research_queue_compaction_keeps_latest_logical_task() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        bind(root)
+        root.joinpath("results/research").mkdir(parents=True)
+        rows = []
+        for sha in ("old-sha", "new-sha"):
+            rows.append({
+                "action": "PIT_COVERAGE_REPAIR",
+                "workflow": "pit_history_expansion.yml",
+                "target": "active_scope",
+                "reason": "same logical task",
+                "dispatch_policy": "respect_fixed_pit_boundary_or_existing_watchdog",
+                "head_sha": sha,
+            })
+        cp.QUEUE_OUT.write_text(
+            "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+            encoding="utf-8",
+        )
+        before, after = cp.compact_research_queue()
+        assert (before, after) == (2, 1)
+        compacted = [
+            json.loads(line)
+            for line in cp.QUEUE_OUT.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        assert len(compacted) == 1
+        assert compacted[0]["head_sha"] == "new-sha"
+        assert compacted[0]["queue_key"] == cp.queue_identity(compacted[0])
+
+
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
@@ -284,6 +329,8 @@ def main() -> int:
     test_pre_event_control_plane_registration()
     test_control_plane_concurrency_is_job_scoped_and_coalescing()
     test_control_plane_dispatch_verifies_run_creation()
+    test_research_queue_identity_excludes_volatile_fields()
+    test_research_queue_compaction_keeps_latest_logical_task()
     test_persist_detects_missing_state_artifacts()
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
