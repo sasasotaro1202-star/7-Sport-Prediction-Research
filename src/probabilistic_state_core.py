@@ -290,3 +290,126 @@ def normalize_scenarios(scenarios: Iterable[ScenarioMixture]) -> list[ScenarioMi
         )
         for x in items
     ]
+
+
+def cluster_effective_sample_size(
+    cluster_sizes: Sequence[float],
+    intracluster_correlation: float = 0.0,
+) -> dict[str, float]:
+    """Approximate information loss from within-event dependence."""
+    sizes = _as_float_array(cluster_sizes, name="cluster_sizes")
+    if np.any(sizes <= 0.0):
+        raise ValueError("cluster_sizes must be > 0")
+    rho = float(intracluster_correlation)
+    if not np.isfinite(rho) or not 0.0 <= rho < 1.0:
+        raise ValueError("intracluster_correlation must be in [0,1)")
+    nominal = float(np.sum(sizes))
+    mean_cluster = float(np.mean(sizes))
+    design_effect = 1.0 + (mean_cluster - 1.0) * rho
+    effective = nominal / max(design_effect, 1.0)
+    return {
+        "nominal_sample_size": nominal,
+        "cluster_count": float(len(sizes)),
+        "mean_cluster_size": mean_cluster,
+        "intracluster_correlation": rho,
+        "design_effect": design_effect,
+        "effective_sample_size": effective,
+        "information_retention_fraction": effective / max(nominal, EPS),
+        "status": "RESEARCH_ONLY",
+    }
+
+
+def binary_decision_expected_utility(
+    probability_side_a: float,
+    *,
+    utility_a_correct: float = 1.0,
+    utility_b_correct: float = 1.0,
+    utility_a_wrong: float = -1.0,
+    utility_b_wrong: float = -1.0,
+    abstain_utility: float = 0.0,
+) -> dict[str, float | str]:
+    """Compute expected utility for A, B, and abstention."""
+    p = float(probability_side_a)
+    if not np.isfinite(p) or not 0.0 <= p <= 1.0:
+        raise ValueError("probability_side_a must be in [0,1]")
+    values = {
+        "A": p * float(utility_a_correct) + (1.0 - p) * float(utility_a_wrong),
+        "B": (1.0 - p) * float(utility_b_correct) + p * float(utility_b_wrong),
+        "ABSTAIN": float(abstain_utility),
+    }
+    action = max(values, key=values.get)
+    return {
+        "expected_utility_a": float(values["A"]),
+        "expected_utility_b": float(values["B"]),
+        "expected_utility_abstain": float(values["ABSTAIN"]),
+        "best_action": action,
+        "best_expected_utility": float(values[action]),
+        "status": "RESEARCH_ONLY",
+    }
+
+
+def information_action_value(
+    baseline_probability: float,
+    posterior_probabilities: Sequence[Sequence[float]],
+    scenario_weights: Sequence[float],
+    *,
+    utility_a_correct: float = 1.0,
+    utility_b_correct: float = 1.0,
+    utility_a_wrong: float = -1.0,
+    utility_b_wrong: float = -1.0,
+    abstain_utility: float = 0.0,
+    acquisition_cost: float = 0.0,
+) -> dict[str, float | str]:
+    """Estimate decision value of acquiring additional information.
+
+    Posterior scenarios are possible information outcomes. The value compares
+    the best current action against the expected best action after information,
+    then subtracts acquisition cost.
+    """
+    p0 = float(baseline_probability)
+    if not np.isfinite(p0) or not 0.0 <= p0 <= 1.0:
+        raise ValueError("baseline_probability must be in [0,1]")
+    cost = float(acquisition_cost)
+    if not np.isfinite(cost) or cost < 0.0:
+        raise ValueError("acquisition_cost must be finite and >= 0")
+    prior = binary_decision_expected_utility(
+        p0,
+        utility_a_correct=utility_a_correct,
+        utility_b_correct=utility_b_correct,
+        utility_a_wrong=utility_a_wrong,
+        utility_b_wrong=utility_b_wrong,
+        abstain_utility=abstain_utility,
+    )
+    posterior = np.asarray(posterior_probabilities, dtype=float)
+    weights = _as_float_array(scenario_weights, name="scenario_weights")
+    if posterior.ndim != 2 or posterior.shape[1] != 2 or len(posterior) != len(weights):
+        raise ValueError("posterior_probabilities must be [n,2] and align with weights")
+    if not np.isfinite(posterior).all():
+        raise ValueError("posterior_probabilities must be finite")
+    if np.any((posterior < 0.0) | (posterior > 1.0)):
+        raise ValueError("posterior probabilities must be in [0,1]")
+    if np.any(weights < 0.0) or np.sum(weights) <= 0.0:
+        raise ValueError("scenario weights must be non-negative with positive sum")
+    weights = weights / np.sum(weights)
+    best_values = []
+    for row in posterior:
+        row_eval = binary_decision_expected_utility(
+            float(row[0]),
+            utility_a_correct=utility_a_correct,
+            utility_b_correct=utility_b_correct,
+            utility_a_wrong=utility_a_wrong,
+            utility_b_wrong=utility_b_wrong,
+            abstain_utility=abstain_utility,
+        )
+        best_values.append(row_eval["best_expected_utility"])
+    expected_after = float(np.sum(weights * np.asarray(best_values)))
+    net_value = expected_after - prior["best_expected_utility"] - cost
+    return {
+        "current_best_action": str(prior["best_action"]),
+        "current_best_expected_utility": float(prior["best_expected_utility"]),
+        "expected_best_utility_after_information": expected_after,
+        "acquisition_cost": cost,
+        "net_information_value": net_value,
+        "recommended_action": "ACQUIRE_MORE" if net_value > 0.0 else "PREDICT_NOW",
+        "status": "RESEARCH_ONLY",
+    }
