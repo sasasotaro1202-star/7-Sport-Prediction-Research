@@ -25,6 +25,7 @@ ALLOWED_WORKFLOWS = {
 
 MONITORED_WORKFLOWS = {
     "production": "v4_5_15_production.yml",
+    "pre_event": "pre_event_prediction.yml",
     "pit_history": "pit_history_expansion.yml",
     "failure_recovery": "production_failure_recovery.yml",
     "research_sweep": "autonomous_research_sweep.yml",
