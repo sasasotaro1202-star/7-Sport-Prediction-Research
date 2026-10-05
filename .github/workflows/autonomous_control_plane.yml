@@ -9,6 +9,7 @@ on:
       - Active-Scope Target v4.5.15 Production
       - PIT History Expansion
       - Production Failure Recovery
+      - Autonomous Research Sweep
       - Autonomous Control Plane Regression
       - Autonomous Temporal Trajectory Loop
     types:
