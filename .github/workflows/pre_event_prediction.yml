@@ -370,6 +370,18 @@ jobs:
         with:
           fetch-depth: 1
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Download per-sport Experience archives
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: pre-event-*
+          path: pre_event_experience_artifacts
+          merge-multiple: false
+
       - name: Merge and persist Experience with bounded stale-main retry
         env:
           GH_TOKEN: ${{ github.token }}
@@ -379,14 +391,15 @@ jobs:
           mkdir -p pre_event_experience_artifacts
 
           artifact_files="$(find pre_event_experience_artifacts -type f \
-            \\( -path '*/results/experience/predictions/*.jsonl' -o \
+            \( -path '*/results/experience/predictions/*.jsonl' -o \
                -path '*/results/experience/settlements/*.jsonl' -o \
                -path '*/predictions/*.jsonl' -o \
-               -path '*/settlements/*.jsonl' \\) | sort || true)"
+               -path '*/settlements/*.jsonl' \) | sort || true)"
           artifact_count="$(printf '%s\n' "$artifact_files" | sed '/^$/d' | wc -l | tr -d ' ')"
           echo "EXPERIENCE_ARTIFACT_FILE_COUNT=$artifact_count"
+
           if [ "$artifact_count" -eq 0 ]; then
-            echo "EXPERIENCE_PERSISTENCE=NO_INPUT_ARTIFACTS" >&2
+            echo "EXPERIENCE_PERSISTENCE=NO_INPUT_ARTIFACTS"
             if [ "$PRE_EVENT_RESULT" != "success" ]; then
               exit 1
             fi
@@ -400,6 +413,7 @@ jobs:
             merge_base="$(git rev-parse HEAD)"
 
             python -m src.prediction_experience --merge-artifacts pre_event_experience_artifacts
+
             python - <<'PY'
           from pathlib import Path
 
@@ -414,7 +428,9 @@ jobs:
           print("EXPERIENCE_PERSISTENCE_OUTPUTS=VALID")
           PY
 
-            git add results/experience results/research/experience_learning.json results/research/experience_research_candidates.json
+            git add results/experience \
+              results/research/experience_learning.json \
+              results/research/experience_research_candidates.json
             git diff --cached --check
 
             if git diff --cached --quiet; then
@@ -439,56 +455,6 @@ jobs:
             echo "EXPERIENCE_PERSIST=PUSHED main_sha=$(git rev-parse HEAD)"
             break
           done
-
-          if [ "$PRE_EVENT_RESULT" != "success" ]; then
-            echo "PRE_EVENT_MATRIX_RESULT=$PRE_EVENT_RESULT; Experience artifacts were persisted, but the upstream prediction matrix was not fully green." >&2
-            exit 1
-          fi
-
-          python -m src.prediction_experience --merge-artifacts pre_event_experience_artifacts
-          python - <<'PY'
-          from pathlib import Path
-
-          required = [
-              Path("results/experience"),
-              Path("results/research/experience_learning.json"),
-              Path("results/research/experience_research_candidates.json"),
-          ]
-          missing = [str(p) for p in required if not p.exists()]
-          if missing:
-              raise SystemExit("EXPERIENCE_PERSISTENCE_MISSING_OUTPUT:" + ",".join(missing))
-          print("EXPERIENCE_PERSISTENCE_OUTPUTS=VALID")
-          PY
-
-      - name: Persist Experience to current main
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PRE_EVENT_RESULT: ${{ needs.pre_event.result }}
-        run: |
-          set -euo pipefail
-          current_remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "$current_remote_sha" = "$EXPERIENCE_MERGE_BASE_SHA" || {
-            echo "STALE_MAIN_BEFORE_EXPERIENCE_PUSH expected=$EXPERIENCE_MERGE_BASE_SHA actual=$current_remote_sha" >&2
-            exit 1
-          }
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add results/experience results/research/experience_learning.json results/research/experience_research_candidates.json
-          git diff --cached --check
-
-          if git diff --cached --quiet; then
-            echo "EXPERIENCE_PERSIST=NO_CHANGE"
-          else
-            git commit -m "ops: persist autonomous prediction experience"
-            latest_remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-            test "$latest_remote_sha" = "$EXPERIENCE_MERGE_BASE_SHA" || {
-              echo "STALE_MAIN_BEFORE_EXPERIENCE_PUSH expected=$EXPERIENCE_MERGE_BASE_SHA actual=$latest_remote_sha" >&2
-              exit 1
-            }
-            git push origin HEAD:main
-            echo "EXPERIENCE_PERSIST=PUSHED main_sha=$(git rev-parse HEAD)"
-          fi
 
           if [ "$PRE_EVENT_RESULT" != "success" ]; then
             echo "PRE_EVENT_MATRIX_RESULT=$PRE_EVENT_RESULT; Experience artifacts were persisted, but the upstream prediction matrix was not fully green." >&2
