@@ -194,6 +194,16 @@ def test_pre_event_control_plane_registration() -> None:
 def test_control_plane_workflow_run_triggers_cover_allowlisted_autonomous_workflows() -> None:
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
     text = workflow.read_text(encoding="utf-8")
+    expected_workflow_names = (
+        "Active Source Feasibility Audit",
+        "Continuous Scope Autofill and Discovery",
+        "Production Runtime Health Audit",
+        "Production Safety Audit",
+        "Nine-Sport Lane Audit",
+        "Autonomous Research Sweep",
+        "24H Autonomous Research Marathon",
+        "Autonomous Temporal Trajectory Loop",
+    )
     for workflow_name in (
         "source_feasibility_audit.yml",
         "scope_autofill.yml",
@@ -204,6 +214,8 @@ def test_control_plane_workflow_run_triggers_cover_allowlisted_autonomous_workfl
         "24h_autonomous_research.yml",
         "autonomous_temporal_trajectory_loop.yml",
     ):
+        assert workflow_name in text
+    for workflow_name in expected_workflow_names:
         assert workflow_name in text
 
 
