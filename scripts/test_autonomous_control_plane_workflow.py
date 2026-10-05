@@ -63,7 +63,7 @@ def main() -> int:
     assert 'echo "persist_ok=true" >> "$GITHUB_OUTPUT"' in persist_block
     assert 'echo "main_sha=' in persist_block
     assert 'remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main"' in persist_block
-    assert 'timeout 10s' in text
+    assert '["timeout", "10s", *cmd]' in text
     assert "COMMAND_TIMEOUT" in text
 
     assert "steps.control.outcome == 'success'" in dispatch_block
