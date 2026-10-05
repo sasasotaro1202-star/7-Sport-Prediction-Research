@@ -158,6 +158,37 @@ def test_action_health_rejects_old_sha() -> None:
     assert health["stale"] is True
 
 
+def test_action_health_sees_active_older_sha_run() -> None:
+    workflows = {
+        "autonomous_research_sweep.yml": {
+            "latest": {
+                "databaseId": 100,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": "2099-01-01T00:00:00Z",
+                "headSha": "current-sha",
+            },
+            "recent": [
+                {
+                    "databaseId": 101,
+                    "status": "in_progress",
+                    "conclusion": None,
+                    "createdAt": "2099-01-01T00:01:00Z",
+                    "headSha": "old-sha",
+                }
+            ],
+        }
+    }
+    health = cp.action_health(
+        workflows,
+        "autonomous_research_sweep.yml",
+        4.5,
+        current_main_sha="current-sha",
+    )
+    assert health["active_run_any"] is True
+    assert health["sha_match"] is True
+
+
 def test_trajectory_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["TRAJECTORY_RESEARCH"] == "autonomous_temporal_trajectory_loop.yml"
     assert cp.MONITORED_WORKFLOWS["trajectory_research"] == "autonomous_temporal_trajectory_loop.yml"
@@ -284,6 +315,19 @@ def main() -> int:
         (root / "results/failure_memory.jsonl").unlink()
         event_recent_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         workflows = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
+        # An active run from an older main SHA must still be treated as occupied
+        # for dispatch safety; the current-SHA latest row alone is insufficient.
+        workflows["workflows"]["autonomous_research_sweep.yml"]["recent"] = [{
+            "databaseId": 777,
+            "status": "in_progress",
+            "conclusion": None,
+            "createdAt": event_recent_iso,
+            "headSha": "old-sha",
+        }]
+        active_state = cp.inspect()
+        _, active_dispatch = cp.choose_actions(active_state)
+        assert active_dispatch is None or active_dispatch["workflow"] != "autonomous_research_sweep.yml"
+
         workflows["workflows"]["v4_5_15_production.yml"] = {
             "latest": {
                 "databaseId": 99,
