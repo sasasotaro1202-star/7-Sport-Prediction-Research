@@ -127,16 +127,14 @@ def queue_identity(selected: dict[str, Any]) -> str:
         "action": str(selected.get("action") or ""),
         "workflow": str(selected.get("workflow") or ""),
         "target": str(selected.get("target") or ""),
-        "reason": str(selected.get("reason") or ""),
-        "dispatch_policy": str(selected.get("dispatch_policy") or ""),
     }
     return fingerprint(json.dumps(normalized, sort_keys=True, ensure_ascii=False))
 
 
-def latest_queue_identity() -> str | None:
+def load_queue_rows() -> list[dict[str, Any]]:
     if not QUEUE_OUT.exists():
-        return None
-    latest: str | None = None
+        return []
+    rows: list[dict[str, Any]] = []
     for line in QUEUE_OUT.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
@@ -144,13 +142,58 @@ def latest_queue_identity() -> str | None:
             row = json.loads(line)
         except json.JSONDecodeError as exc:
             raise RuntimeError("RESEARCH_QUEUE_INVALID_JSONL") from exc
-        if not isinstance(row, dict):
-            continue
+        if isinstance(row, dict):
+            rows.append(row)
+    return rows
+
+
+def compact_research_queue() -> tuple[int, int]:
+    """Compact the operational research queue to one latest row per logical task.
+
+    The queue is a current-work set, not immutable historical evidence. Historical
+    decisions remain in the append-only action log and durable failure memory.
+    Legacy rows are normalized by adding queue_key without changing their task
+    identity. No volatile timestamp/head information participates in the key.
+    """
+    rows = load_queue_rows()
+    if not rows:
+        return 0, 0
+
+    latest_by_key: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for row in rows:
+        key = str(row.get("queue_key") or queue_identity(row))
+        normalized = dict(row)
+        normalized["queue_key"] = key
+        if key not in latest_by_key:
+            order.append(key)
+        latest_by_key[key] = normalized
+
+    compacted = [latest_by_key[key] for key in order]
+    changed = len(compacted) != len(rows) or any(
+        "queue_key" not in row for row in rows
+    ) or any(
+        json.dumps(before, sort_keys=True, ensure_ascii=False)
+        != json.dumps(after, sort_keys=True, ensure_ascii=False)
+        for before, after in zip(rows, compacted)
+    )
+    if changed:
+        QUEUE_OUT.parent.mkdir(parents=True, exist_ok=True)
+        QUEUE_OUT.write_text(
+            "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in compacted),
+            encoding="utf-8",
+        )
+    return len(rows), len(compacted)
+
+
+def latest_queue_identity() -> str | None:
+    rows = load_queue_rows()
+    latest: str | None = None
+    for row in rows:
         key = row.get("queue_key")
         if key:
             latest = str(key)
             continue
-        # Backward compatibility for legacy entries that predate queue_key.
         if row.get("action") and row.get("workflow") and row.get("target"):
             latest = queue_identity(row)
     return latest
@@ -900,7 +943,6 @@ def state_fingerprint(
                 "workflow",
                 "conclusion",
                 "head_sha",
-                "run_id",
                 "target",
                 "relation_to_current_main",
             )
@@ -931,6 +973,7 @@ def write_state(
     RESULTS.mkdir(parents=True, exist_ok=True)
     fp = state_fingerprint(state, selected, dispatch)
     previous, _ = load_json(CONTROL_OUT)
+    compact_research_queue()
     previous_fp = previous.get("state_fingerprint") if previous else None
 
     selected = dict(selected)
@@ -1011,6 +1054,9 @@ def write_state(
                 "action_log_appends_only_on_decision_change": True,
                 "research_queue_deduplicates_by_logical_task": True,
                 "research_queue_identity_excludes_volatile_sha_time_priority": True,
+                "research_queue_identity_is_action_workflow_target_only": True,
+                "research_queue_compacts_legacy_duplicates": True,
+                "event_evidence_run_id_excluded_from_fingerprint": True,
                 "state_fingerprint_excludes_workflow_run_id": True,
             },
         }
