@@ -1137,6 +1137,13 @@ recent failureが存在する場合、観測済みfailureをroot-cause research�
 
 Failure Recoveryのownershipは変更しない。Production Failure Recoveryはworkflow_runとしてretry/fresh-current-main recoveryを担当し、control planeはその結果を研究priorityへ反映するだけとする。
 
+=== PUSH-TRIGGERED CURRENT-MAIN RECONCILIATION ===
+
+When `autonomous_control_plane.yml` is invoked by a `push` to `main`, the triggering commit is accepted for reconciliation only when it is the current remote `main` SHA or a verified ancestor of the current remote `main` SHA. The workflow resolves and checks out the latest remote `main` before inspection, and compares the push SHA against the resolved main. A diverged or unverifiable push is fail-closed. Scheduled and manual invocations retain strict exact-SHA matching.
+
+Deterministic control-plane persistence is gated on successful current-main resolution. A failed or stale resolution therefore cannot run persistence against an unset current-main SHA and create a secondary error that obscures the primary provenance failure.
+
+
 === EVENT-TRIGGERED CURRENT-MAIN RECONCILIATION ===
 
 workflow_run failure event受信時も、まずremote main SHAを解決し、そのcurrent mainをcheckoutしてからcontrol planeを評価する。
