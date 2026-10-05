@@ -27,6 +27,7 @@ MONITORED_WORKFLOWS = {
     "production": "v4_5_15_production.yml",
     "pit_history": "pit_history_expansion.yml",
     "failure_recovery": "production_failure_recovery.yml",
+    "research_sweep": "autonomous_research_sweep.yml",
     "watchdog": "production_watchdog.yml",
     "invariants": "production_invariants.yml",
     "lightweight_regression": "lightweight_regression.yml",
