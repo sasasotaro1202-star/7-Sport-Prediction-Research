@@ -263,11 +263,10 @@ def _artifact_jsonl_files(artifact_root: Path, leaf: str) -> list[Path]:
     root = Path(artifact_root)
     if not root.exists():
         return []
-    return sorted(
-        p
-        for p in root.rglob("*.jsonl")
-        if p.parent.name == leaf and p.parent.parent.name == "experience"
-    )
+    # actions/upload-artifact may flatten the common `results/experience`
+    # prefix on download. Match by the semantic archive directory name rather
+    # than assuming either the original or flattened layout.
+    return sorted(p for p in root.rglob("*.jsonl") if p.parent.name == leaf)
 
 
 def _merge_append_only_jsonl(
