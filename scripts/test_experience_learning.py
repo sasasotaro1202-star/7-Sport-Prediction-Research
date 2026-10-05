@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
+import tempfile
 
 from src.experience_learning import build_memory, persist_memory, shadow_signal_from_memory
 
@@ -141,7 +143,8 @@ if __name__ == "__main__":
     test_memory_is_pit_gated_by_knowledge_time()
     test_invalid_settlement_time_fails_closed()
     test_future_settlement_fails_closed()
-    # Idempotence test is intended for pytest; keep the direct script runner deterministic.
+    with tempfile.TemporaryDirectory() as td:
+        test_persist_memory_is_idempotent_when_knowledge_is_unchanged(Path(td))
     test_exact_duplicate_settlement_is_deduplicated()
     test_conflicting_duplicate_settlement_fails_closed()
     test_missing_prediction_id_fails_closed()
