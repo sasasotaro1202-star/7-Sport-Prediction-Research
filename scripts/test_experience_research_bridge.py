@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.experience_research_bridge import build
+from src.experience_research_bridge import build, persist_candidates
 
 
 def _memory(recommendation="EXPERIENCE_REVIEW"):
@@ -43,6 +43,17 @@ def test_healthy_row_creates_no_candidate():
     out = build(_memory("PASS"), "2026-10-01T11:00:00+00:00")
     assert out["candidate_count"] == 0
 
+
+
+def test_persist_candidates_is_idempotent_when_set_is_unchanged(tmp_path):
+    first = build(_memory(), "2026-10-01T11:00:00+00:00")
+    second = build(_memory(), "2026-10-01T12:00:00+00:00")
+    out = tmp_path / "experience_research_candidates.json"
+    saved_first, changed_first = persist_candidates(first, out)
+    saved_second, changed_second = persist_candidates(second, out)
+    assert changed_first is True
+    assert changed_second is False
+    assert saved_first == saved_second
 
 def test_future_knowledge_time_fails_closed():
     try:
