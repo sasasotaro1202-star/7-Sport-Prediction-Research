@@ -227,9 +227,16 @@ jobs:
             fi
           done
 
-          # git diff does not report untracked files. Missing state artifacts
-          # therefore must force the initial durable write instead of being
-          # misclassified as NO_CHANGE.
+          # git diff does not report untracked files. A state file created earlier
+          # in this run can therefore exist without being durable on main. Treat
+          # every untracked state artifact as a required first-time persistence.
+          for state_path in "${state_paths[@]}"; do
+            if ! git ls-files --error-unmatch -- "$state_path" >/dev/null 2>&1; then
+              needs_persist=true
+              echo "CONTROL_PLANE_STATE_NOT_TRACKED path=$state_path"
+            fi
+          done
+
           if [ "$needs_persist" = false ] && git diff --quiet -- "${state_paths[@]}"; then
             remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
             test "$remote_sha" = "$CONTROL_PLANE_CURRENT_MAIN_SHA" || {
