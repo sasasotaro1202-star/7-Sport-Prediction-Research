@@ -20,6 +20,12 @@ def main() -> int:
     assert persist < dispatch < final, "dispatch must occur only after persistence"
 
     assert "workflow_run:" in text
+    assert "push:" in text
+    assert "branches: [main]" in text
+    assert "paths-ignore:" in text
+    assert "results/research/**" in text
+    assert "results/automation_state/**" in text
+    assert "results/failure_memory.jsonl" in text
     assert "Active-Scope Target v4.5.15 Production" in text
     assert "PIT History Expansion" in text
     assert "Production Failure Recovery" in text
@@ -71,6 +77,21 @@ def main() -> int:
 
     print("AUTONOMOUS_CONTROL_PLANE_DISPATCH_ORDER=PASS")
     return 0
+
+def test_control_plane_watchdog_contract() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane_watchdog.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert 'cron: "2,32 * * * *"' in text
+    assert "workflow_dispatch:" in text
+    assert "actions: write" in text
+    assert "CONTROL_STATE_MISSING_OR_INVALID" in text
+    assert "CONTROL_STATE_SHA_STALE" in text
+    assert "CONTROL_STATE_OLDER_THAN_3H30M" in text
+    assert "active_any" in text
+    assert "ACTIVE_CONTROL_RUN" in text
+    assert "RECENT_CONTROL_RUN" in text
+    assert "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH" in text
+    assert 'gh workflow run autonomous_control_plane.yml --ref main --repo "$repo"' in text
 
 
 if __name__ == "__main__":

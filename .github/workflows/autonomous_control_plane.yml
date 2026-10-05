@@ -3,6 +3,14 @@ name: Autonomous Research Control Plane
 on:
   schedule:
     - cron: '7 */3 * * *'
+  push:
+    branches: [main]
+    # Immediate reconciliation after code/config changes. Durable control-plane
+    # state commits live under ignored paths, so this does not self-trigger.
+    paths-ignore:
+      - "results/research/**"
+      - "results/automation_state/**"
+      - "results/failure_memory.jsonl"
   workflow_dispatch:
   push:
     branches:
