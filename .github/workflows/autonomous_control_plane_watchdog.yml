@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/autonomous_control_plane_watchdog.yml"
+      - ".github/workflows/autonomous_control_plane.yml"
 
 permissions:
   contents: read
@@ -58,8 +64,7 @@ jobs:
           outdated_in_progress_ids="$(printf '%s' "$runs" | jq -r --arg sha "$CURRENT_MAIN_SHA" '.[] | select(.headSha!=$sha and .status=="in_progress") | .databaseId' | paste -sd ',' -)"
           outdated_in_progress_count=0
           if [ -n "$outdated_in_progress_ids" ]; then
-            outdated_in_progress_count="$(printf '%s' "$outdated_in_progress_ids" | tr ',' '
-' | awk 'NF {n++} END {print n+0}')"
+            outdated_in_progress_count="$(printf '%s' "$outdated_in_progress_ids" | awk -F',' '{print NF}')"
           fi
           now_ts="$(date -u +%s)"
           stale_queued_ids="$(printf '%s' "$runs" | jq -r --argjson now "$now_ts" ' .[] | select(.status=="queued" or .status=="pending") | ((.updatedAt // .createdAt) | fromdateiso8601) as $ts | select(($now - $ts) >= 900) | .databaseId ' | paste -sd ',' -)"
