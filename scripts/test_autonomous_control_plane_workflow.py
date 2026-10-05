@@ -20,6 +20,8 @@ def main() -> int:
     assert persist < dispatch < final, "dispatch must occur only after persistence"
 
     assert "workflow_run:" not in text, "control plane must not create a run for every completed workflow"
+    assert "\n  workflow_run:" not in text
+    assert "event.workflow_run." not in text, "control plane must not depend on completed-workflow event payloads"
     assert "push:" in text
     assert text.count("  push:") == 1
     assert "'src/**'" in text
