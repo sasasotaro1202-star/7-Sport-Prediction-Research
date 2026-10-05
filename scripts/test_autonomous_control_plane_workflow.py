@@ -87,6 +87,11 @@ def test_control_plane_watchdog_contract() -> None:
     assert "actions: write" in text
     assert "CONTROL_STATE_MISSING_OR_INVALID" in text
     assert "CONTROL_STATE_SHA_STALE" in text
+    assert "DURABLE_ONLY_AHEAD" in text
+    assert "MEANINGFUL_CHANGE_OR_DIVERGED" in text
+    assert "compare/$state_sha...$CURRENT_MAIN_SHA" in text
+    assert "results/research/" in text
+    assert "results/automation_state/" in text
     assert "CONTROL_STATE_OLDER_THAN_3H30M" in text
     assert "active_any" in text
     assert "ACTIVE_CONTROL_RUN" in text
