@@ -13,12 +13,12 @@ on:
       - Autonomous Research Sweep
       - Autonomous Control Plane Regression
       - Autonomous Temporal Trajectory Loop
-      - Source Feasibility Audit
-      - Scope Autofill
-      - Production Runtime Health
+      - Active Source Feasibility Audit
+      - Continuous Scope Autofill and Discovery
+      - Production Runtime Health Audit
       - Production Safety Audit
       - Nine-Sport Lane Audit
-      - 24h Autonomous Research
+      - 24H Autonomous Research Marathon
     types:
       - completed
 
