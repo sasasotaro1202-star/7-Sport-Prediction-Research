@@ -33,12 +33,15 @@ jobs:
           # Full history is required for safe recovery of the last accepted
           # frozen-holdout model when the current run has a transient PIT outage.
           fetch-depth: 0
-      - name: Verify main-advance compatibility before mutable work
+      - name: Verify workflow SHA is current main before any mutable work
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
-          PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"
+          if ! PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"; then
+            echo "STALE_PRODUCTION_WORKFLOW_SHA base=$GITHUB_SHA current_main=$main_sha" >&2
+            exit 1
+          fi
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
@@ -234,12 +237,28 @@ jobs:
           # Full history is required for safe recovery of the last accepted
           # frozen-holdout model when the current run has a transient PIT outage.
           fetch-depth: 0
-      - name: Verify main-advance compatibility before any merge mutation
+      - name: Verify merge run SHA is current main before mutable work
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
-          PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"
+          if ! PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"; then
+            echo "STALE_MERGE_RUN_SHA base=$GITHUB_SHA current_main=$main_sha" >&2
+            exit 1
+          fi
+
+      # Independent merge-entry guard. This is deliberately separate from the
+      # generic main-advance policy so stale/diverged merge jobs fail closed with
+      # an explicit, machine-searchable status before any partition mutation.
+      - name: Verify merge workflow SHA is current main before any mutable work
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          main_sha=$(git rev-parse origin/main)
+          if ! PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"; then
+            echo "STALE_MERGE_WORKFLOW_SHA base=$GITHUB_SHA current_main=$main_sha" >&2
+            exit 1
+          fi
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
@@ -617,6 +636,8 @@ jobs:
       - name: Persist safe outputs
         id: persist_outputs
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
@@ -694,8 +715,18 @@ jobs:
             exit 1
           fi
           ensure_main_compatible
+          ensure_main_unchanged() {
+            local remote_sha expected_parent
+            remote_sha=$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')
+            expected_parent=$(git rev-parse HEAD^)
+            if [ "$remote_sha" != "$expected_parent" ]; then
+              echo "STALE_PUBLISH_RUN expected_base=$expected_parent actual_main=$remote_sha" >&2
+              return 1
+            fi
+          }
           for attempt in 1 2 3; do
             ensure_main_compatible
+            ensure_main_unchanged
             if git push origin HEAD:main; then exit 0; fi
             if [ "$attempt" -eq 3 ]; then exit 1; fi
             git fetch origin main
