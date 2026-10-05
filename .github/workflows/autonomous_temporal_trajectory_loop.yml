@@ -189,6 +189,8 @@ jobs:
           }
 
       - name: Persist trajectory ledger and research evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           changed="$(git status --porcelain -- results/research/trajectory_snapshots_valorant.jsonl results/research/trajectory_snapshots_basketball.jsonl results/research/trajectory_snapshots_volleyball.jsonl results/research/trajectory_snapshots_ufc.jsonl results/research/trajectory_snapshots_rizin.jsonl results/research/trajectory_outcomes_valorant.json results/research/trajectory_outcomes_basketball.json results/research/trajectory_outcomes_volleyball.json results/research/trajectory_outcomes_ufc.json results/research/trajectory_outcomes_rizin.json results/research/trajectory_intelligence_valorant.json results/research/trajectory_intelligence_basketball.json results/research/trajectory_intelligence_volleyball.json results/research/trajectory_intelligence_ufc.json results/research/trajectory_intelligence_rizin.json results/research/trajectory_system_state.json)"
