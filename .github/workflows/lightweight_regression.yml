@@ -100,6 +100,10 @@ jobs:
         run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
       - name: Probabilistic state core research contract
         run: PYTHONPATH=. python scripts/test_probabilistic_state_core.py
+      - name: Generative world-model research bridge regression
+        run: PYTHONPATH=. python scripts/test_generative_world_model_research.py
+      - name: Generative world-model kernel regression
+        run: PYTHONPATH=. python scripts/test_scenario_world_model.py
       - name: Matchday intelligence research-only regression
         run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
       - name: Research checkpoint cache persistence
