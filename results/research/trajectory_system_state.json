@@ -7,7 +7,7 @@
     "valorant": {
       "snapshot_count": 0,
       "outcome_count": 0,
-      "collector_status": "BLOCKED",
+      "collector_status": "UNKNOWN",
       "evaluation_status": "BLOCKED",
       "oos_event_rows": null,
       "state_mae_by_horizon": null,
@@ -18,7 +18,7 @@
     "basketball": {
       "snapshot_count": 0,
       "outcome_count": 0,
-      "collector_status": "BLOCKED",
+      "collector_status": "UNKNOWN",
       "evaluation_status": "BLOCKED",
       "oos_event_rows": null,
       "state_mae_by_horizon": null,
@@ -29,7 +29,7 @@
     "volleyball": {
       "snapshot_count": 0,
       "outcome_count": 0,
-      "collector_status": "BLOCKED",
+      "collector_status": "UNKNOWN",
       "evaluation_status": "BLOCKED",
       "oos_event_rows": null,
       "state_mae_by_horizon": null,
@@ -40,7 +40,7 @@
     "ufc": {
       "snapshot_count": 0,
       "outcome_count": 0,
-      "collector_status": "BLOCKED",
+      "collector_status": "UNKNOWN",
       "evaluation_status": "BLOCKED",
       "oos_event_rows": null,
       "state_mae_by_horizon": null,
@@ -51,7 +51,7 @@
     "rizin": {
       "snapshot_count": 0,
       "outcome_count": 0,
-      "collector_status": "BLOCKED",
+      "collector_status": "UNKNOWN",
       "evaluation_status": "BLOCKED",
       "oos_event_rows": null,
       "state_mae_by_horizon": null,
