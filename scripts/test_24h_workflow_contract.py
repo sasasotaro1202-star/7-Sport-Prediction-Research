@@ -47,10 +47,15 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn('name: "Download all 24H stage evidence"', text)
         self.assertIn("python scripts/reconcile_24h_research.py", text)
 
-    def test_watchdog_waits_when_no_verified_current_cycle_exists(self):
+    def test_watchdog_recovers_a_missed_daily_cycle(self):
         text = (ROOT / ".github" / "workflows" / "24h_autonomous_research_watchdog.yml").read_text(
             encoding="utf-8"
         )
+        self.assertIn("daily_boundary_epoch", text)
+        self.assertIn("daily_boundary_grace_minutes", text)
+        self.assertRegex(text, r'  push:\n    branches:\n      - main\n')
+        self.assertIn("current_boundary_runs", text)
+        self.assertIn('reason": "missed_daily_boundary"', text)
         self.assertIn('reason": "await_scheduled_cycle_for_current_main"', text)
         self.assertNotIn('reason": "no_verified_run_for_current_main"', text)
 

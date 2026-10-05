@@ -3,6 +3,8 @@ name: 24H Autonomous Research Watchdog
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/24h_autonomous_research.yml"
       - ".github/workflows/24h_autonomous_research_watchdog.yml"
@@ -99,6 +101,38 @@ jobs:
           ]
           completed.sort(key=lambda r: dt(r.get("updatedAt") or r.get("createdAt")), reverse=True)
 
+          # The marathon is scheduled once per UTC day at 15:17. The watchdog
+          # must recover the case where GitHub never created that scheduled run.
+          # Before today's boundary there is nothing to recover; after a small
+          # grace window, absence of any current-main attempt in this boundary is
+          # a real missed-cycle condition.
+          daily_boundary_hour_utc = 15
+          daily_boundary_minute_utc = 17
+          daily_boundary_grace_minutes = 30
+          today_boundary = now.replace(
+              hour=daily_boundary_hour_utc,
+              minute=daily_boundary_minute_utc,
+              second=0,
+              microsecond=0,
+          )
+          daily_boundary_started = now >= today_boundary
+          daily_boundary = today_boundary if daily_boundary_started else today_boundary
+          daily_boundary_epoch = int(daily_boundary.timestamp())
+          daily_boundary_age_minutes = (
+              (now - daily_boundary).total_seconds() / 60
+              if daily_boundary_started
+              else -1
+          )
+          next_daily_boundary_epoch = daily_boundary_epoch + 24 * 60 * 60
+          current_boundary_runs = [
+              r for r in candidates
+              if r.get("headSha") == main_sha
+              and daily_boundary_started
+              and daily_boundary_epoch
+              <= int(dt(r.get("createdAt") or r.get("updatedAt")).timestamp())
+              < next_daily_boundary_epoch
+          ]
+
           recent_failures = [
               r for r in completed
               if (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() <= 6 * 3600
@@ -137,6 +171,19 @@ jobs:
                   "action": "WAIT",
                   "reason": "current_main_run_active",
                   "main_sha": main_sha,
+              }
+          elif (
+              daily_boundary_started
+              and daily_boundary_age_minutes >= daily_boundary_grace_minutes
+              and not current_boundary_runs
+          ):
+              decision = {
+                  "action": "DISPATCH",
+                  "reason": "missed_daily_boundary",
+                  "main_sha": main_sha,
+                  "daily_boundary_epoch": daily_boundary_epoch,
+                  "daily_boundary_grace_minutes": daily_boundary_grace_minutes,
+                  "current_boundary_runs": len(current_boundary_runs),
               }
           elif not completed:
               # Initial 24H cycles are handled by the marathon's daily schedule/manual trigger.
