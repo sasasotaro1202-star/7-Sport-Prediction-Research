@@ -68,10 +68,12 @@ jobs:
           path: data/db
           key: trajectory-seed-${{ matrix.sport }}-${{ github.run_id }}
           restore-keys: |
+            trajectory-ready-db-v1-
+            active-scope-target-db-v4-${{ matrix.sport }}-pit-
             active-scope-target-db-v4-${{ matrix.sport }}-
             pre-event-target-db-v1-${{ matrix.sport }}-
 
-      - name: Verify database availability
+      - name: Verify trajectory-ready evidence availability
         env:
           SPORT_NAME: ${{ matrix.sport }}
         run: |
@@ -82,12 +84,78 @@ jobs:
             python - <<'PY'
           import os
           import sqlite3
-          con=sqlite3.connect('data/db/sports_v45.sqlite')
+
+          sport = os.environ["SPORT_NAME"]
+          con = sqlite3.connect("data/db/sports_v45.sqlite")
           try:
-              n=con.execute("SELECT COUNT(*) FROM event WHERE sport=?",(os.environ["SPORT_NAME"],)).fetchone()[0]
+              events = int(con.execute(
+                  "SELECT COUNT(*) FROM event WHERE sport=?", (sport,)
+              ).fetchone()[0])
+              eligible_events = int(con.execute(
+                  """
+                  SELECT COUNT(*)
+                  FROM event e
+                  JOIN event_outcome o ON o.event_id=e.event_id
+                  WHERE e.sport=?
+                    AND UPPER(COALESCE(e.status,'')) IN ('COMPLETED','FINISHED','POST','FINAL')
+                    AND e.event_end_time_utc IS NOT NULL
+                    AND UPPER(COALESCE(o.outcome_status,''))='VERIFIED'
+                    AND UPPER(COALESCE(o.outcome,'')) IN ('A','B')
+                  """,
+                  (sport,),
+              ).fetchone()[0])
+              match_stats = int(con.execute(
+                  """
+                  SELECT COUNT(*)
+                  FROM match_stats
+                  WHERE sport=? AND value_num IS NOT NULL AND observed_at_utc IS NOT NULL
+                  """,
+                  (sport,),
+              ).fetchone()[0])
+              exact_sources = int(con.execute(
+                  """
+                  SELECT COUNT(*)
+                  FROM source_snapshot
+                  WHERE sport=?
+                    AND UPPER(COALESCE(availability_status,''))='EXACT'
+                    AND source_available_at_utc IS NOT NULL
+                    AND event_time_utc IS NOT NULL
+                  """,
+                  (sport,),
+              ).fetchone()[0])
           finally:
               con.close()
-          print(f"TRAJECTORY_DB_STATUS=READY sport={os.environ['SPORT_NAME']} events={n}")
+
+          if eligible_events > 0 and match_stats > 0 and exact_sources > 0:
+              print(
+                  f"TRAJECTORY_DB_STATUS=READY sport={sport} events={events} "
+                  f"eligible_events={eligible_events} match_stats={match_stats} "
+                  f"exact_sources={exact_sources}"
+              )
+          elif eligible_events == 0:
+              print(
+                  f"TRAJECTORY_DB_STATUS=BLOCKED_NO_VERIFIED_OUTCOMES sport={sport} "
+                  f"events={events} eligible_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources}"
+              )
+          elif match_stats == 0:
+              print(
+                  f"TRAJECTORY_DB_STATUS=BLOCKED_NO_MATCH_STATS sport={sport} "
+                  f"events={events} eligible_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources}"
+              )
+          elif exact_sources == 0:
+              print(
+                  f"TRAJECTORY_DB_STATUS=BLOCKED_NO_EXACT_PIT_SOURCES sport={sport} "
+                  f"events={events} eligible_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources}"
+              )
+          else:
+              print(
+                  f"TRAJECTORY_DB_STATUS=BLOCKED_INCOMPLETE_EVIDENCE sport={sport} "
+                  f"events={events} eligible_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources}"
+              )
           PY
           fi
 
