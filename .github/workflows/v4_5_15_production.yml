@@ -468,7 +468,7 @@ jobs:
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: trajectory-ready-db-v1-${{ github.run_id }}
+          key: trajectory-ready-db-v1-${{ matrix.sport }}-${{ github.run_id }}
       - name: Parallel experience and historical learning
         id: dual_learning
         continue-on-error: true
