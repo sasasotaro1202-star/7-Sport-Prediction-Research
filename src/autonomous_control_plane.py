@@ -559,6 +559,7 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
     # validated the event against current main or a verified ancestor.
     event_evidence = state.get("event_evidence") or {}
     if event_evidence.get("eligible"):
+        event_target = str(event_evidence.get("target") or "UNKNOWN")
         candidates.append({
             "action": "RESEARCH_HEALTH",
             "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
