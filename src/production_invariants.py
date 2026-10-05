@@ -96,6 +96,17 @@ def main():
         'test_autonomous_control_plane.py' in lightweight_wf,
         'autonomous control-plane queue deduplication regression must remain in the lightweight validation path',
     )
+    event_storm_guard=(ROOT/'scripts/test_workflow_event_storm_guard.py').read_text(encoding='utf-8')
+    require(
+        'WORKFLOW_EVENT_STORM_GUARD=PASS' in event_storm_guard
+        and 'concurrency:' in event_storm_guard
+        and 'push trigger is not scoped' in event_storm_guard,
+        'repository-wide Workflow event-storm guard is missing bounded concurrency/push scoping checks',
+    )
+    require(
+        'test_workflow_event_storm_guard.py' in lightweight_wf,
+        'workflow event-storm guard is not wired into Lightweight Regression',
+    )
     require('active prediction scope' in readme.lower() and '- VALORANT' in readme and '- Basketball' in readme and '- Volleyball' in readme and '- UFC' in readme and '- RIZIN' in readme,
             'README does not explicitly declare the five-sport active prediction scope')
     scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
