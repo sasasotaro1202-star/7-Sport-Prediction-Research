@@ -347,7 +347,11 @@ def _merge_append_only_jsonl(
     }
 
 
-def merge_experience_artifacts(artifact_root: Path) -> dict[str, Any]:
+def merge_experience_artifacts(
+    artifact_root: Path,
+    memory_output_path: Path | None = None,
+    candidate_output_path: Path | None = None,
+) -> dict[str, Any]:
     root = Path(artifact_root)
     prediction_files = _artifact_jsonl_files(root, "predictions")
     settlement_files = _artifact_jsonl_files(root, "settlements")
@@ -379,15 +383,18 @@ def merge_experience_artifacts(artifact_root: Path) -> dict[str, Any]:
     index_changed = old_index != index_content
 
     settled_rows = load_settled_rows(SETTLEMENTS_DIR)
-    memory, memory_changed = persist_memory(settled_rows)
-    from src.experience_research_bridge import build, persist_candidates
-    candidates = json.loads(
-        (ROOT / "results" / "research" / "experience_learning.json").read_text(
-            encoding="utf-8"
-        )
+    memory_path = memory_output_path or (ROOT / "results" / "research" / "experience_learning.json")
+    candidate_path = candidate_output_path or (ROOT / "results" / "research" / "experience_research_candidates.json")
+    memory, memory_changed = persist_memory(
+        settled_rows,
+        output_path=memory_path,
     )
-    candidate_artifact = build(candidates)
-    _, candidates_changed = persist_candidates(candidate_artifact)
+    from src.experience_research_bridge import build, persist_candidates
+    candidate_artifact = build(memory)
+    _, candidates_changed = persist_candidates(
+        candidate_artifact,
+        output_path=candidate_path,
+    )
 
     return {
         "prediction_merge": prediction_merge,
