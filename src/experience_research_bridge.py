@@ -140,25 +140,60 @@ def build_from_file(memory_path: Path = MEMORY_PATH) -> dict[str, Any]:
     return build(memory)
 
 
-def main() -> int:
-    artifact = build_from_file()
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(
+def _stable_view(value: Any) -> Any:
+    """Ignore generation timestamps when comparing the same candidate set."""
+    if isinstance(value, dict):
+        return {
+            str(k): _stable_view(v)
+            for k, v in value.items()
+            if str(k) not in {"generated_at_utc"}
+        }
+    if isinstance(value, list):
+        return [_stable_view(v) for v in value]
+    return value
+
+
+def persist_candidates(
+    artifact: dict[str, Any],
+    output_path: Path = OUT,
+) -> tuple[dict[str, Any], bool]:
+    """Persist prospective candidates only when the substantive set changes."""
+    path = Path(output_path)
+    previous: dict[str, Any] | None = None
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            previous = loaded
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        previous = None
+
+    if previous is not None and _stable_view(previous) == _stable_view(artifact):
+        return previous, False
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
         json.dumps(artifact, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
         encoding="utf-8",
     )
+    return artifact, True
+
+
+def main() -> int:
+    artifact = build_from_file()
+    persisted, changed = persist_candidates(artifact)
     print(
         json.dumps(
             {
-                "status": "READY" if artifact.get("pit_status") == "PASS" else "BLOCKED",
-                "candidate_count": artifact.get("candidate_count", 0),
-                "mode": artifact.get("mode"),
+                "status": "READY" if persisted.get("pit_status") == "PASS" else "BLOCKED",
+                "changed": changed,
+                "candidate_count": persisted.get("candidate_count", 0),
+                "mode": persisted.get("mode"),
             },
             ensure_ascii=False,
             indent=2,
         )
     )
-    return 0 if artifact.get("pit_status") == "PASS" else 1
+    return 0 if persisted.get("pit_status") == "PASS" else 1
 
 
 if __name__ == "__main__":
