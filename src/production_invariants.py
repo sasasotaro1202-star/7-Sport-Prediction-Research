@@ -86,7 +86,10 @@ def main():
         and '"reason"' in control_plane_src
         and '"dispatch_policy"' in control_plane_src
         and 'queue_key' in control_plane_src
-        and 'research_queue_deduplicates_by_logical_task' in control_plane_src,
+        and 'research_queue_deduplicates_by_logical_task' in control_plane_src
+        and 'def compact_research_queue' in control_plane_src
+        and 'research_queue_compacts_legacy_duplicates' in control_plane_src
+        and 'event_evidence_run_id_excluded_from_fingerprint' in control_plane_src,
         'autonomous research queue must deduplicate repeated unresolved tasks by logical identity',
     )
     require(
