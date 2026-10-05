@@ -79,6 +79,21 @@ def main():
     lightweight_wf=(ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8')
     require("ops/automation/heartbeat.json" in lightweight_wf and "paths-ignore:" in lightweight_wf,
             'lightweight regression must ignore the automation-only heartbeat commit')
+    control_plane_src=(ROOT/'src/autonomous_control_plane.py').read_text(encoding='utf-8')
+    require(
+        'def queue_identity' in control_plane_src
+        and 'def latest_queue_identity' in control_plane_src
+        and '"reason"' in control_plane_src
+        and '"dispatch_policy"' in control_plane_src
+        and 'queue_key' in control_plane_src
+        and 'research_queue_deduplicates_by_logical_task' in control_plane_src,
+        'autonomous research queue must deduplicate repeated unresolved tasks by logical identity',
+    )
+    require(
+        'logical research queue deduplication' not in lightweight_wf
+        or 'test_autonomous_control_plane.py' in lightweight_wf,
+        'autonomous control-plane regression must remain in the lightweight validation path',
+    )
     require('active prediction scope' in readme.lower() and '- VALORANT' in readme and '- Basketball' in readme and '- Volleyball' in readme and '- UFC' in readme and '- RIZIN' in readme,
             'README does not explicitly declare the five-sport active prediction scope')
     scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
