@@ -307,18 +307,23 @@ jobs:
             exit 1
           }
 
-          state="$(gh run list --workflow "$DISPATCH_WORKFLOW" --limit 50 \
+          state="$(gh run list --workflow "$DISPATCH_WORKFLOW" --limit 100 \
             --json databaseId,status,createdAt,headSha,event,conclusion)"
-          active="$(printf '%s' "$state" | jq --arg sha "$main_sha" \
+          # Defense-in-depth: the final dispatch gate checks every recent run,
+          # regardless of SHA, so an older-main run that is still active cannot
+          # be duplicated by a new autonomous dispatch.
+          active_any="$(printf '%s' "$state" | jq \
+            '[.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")] | length')"
+          active_current="$(printf '%s' "$state" | jq --arg sha "$main_sha" \
             '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
 
           latest="$(printf '%s' "$state" | jq -r --arg sha "$main_sha" \
             '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')"
 
           dispatch=false
-          reason="active=$active latest=$latest cooldown=${cooldown}s action=$DISPATCH_ACTION"
+          reason="active_any=$active_any active_current=$active_current latest=$latest cooldown=${cooldown}s action=$DISPATCH_ACTION"
 
-          if [ "$active" -eq 0 ]; then
+          if [ "$active_any" -eq 0 ]; then
             if [ -z "$latest" ]; then
               dispatch=true
             else
