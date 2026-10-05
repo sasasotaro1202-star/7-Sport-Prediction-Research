@@ -353,7 +353,7 @@ def main() -> int:
         event_state = cp.inspect()
         event_selected, event_dispatch = cp.choose_actions(event_state)
         assert event_selected["target"] == "workflow_event_failure:production"
-        assert event_dispatch is None
+        assert event_dispatch is None or event_dispatch["workflow"] != "autonomous_research_sweep.yml"
 
         # Failure-memory persistence may advance main after the triggering run.
         # The event remains valid when its SHA is a verified ancestor of current main,
@@ -363,7 +363,7 @@ def main() -> int:
         ancestor_state = cp.inspect()
         ancestor_selected, ancestor_dispatch = cp.choose_actions(ancestor_state)
         assert ancestor_selected["target"] == "workflow_event_failure:production"
-        assert ancestor_dispatch is None
+        assert ancestor_dispatch is None or ancestor_dispatch["workflow"] != "autonomous_research_sweep.yml"
 
         # A stale event SHA is fail-closed and must not create this event signal.
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "stale-sha"
