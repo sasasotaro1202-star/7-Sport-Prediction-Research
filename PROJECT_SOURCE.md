@@ -1339,3 +1339,50 @@ EvaluationではLogLoss/Brier/Accuracy/ECEだけでなく、calibration、sharpn
 実装順序は、PIT/identity/event contract → baseline → latent strength → availability/lineup → matchup → event simulation → calibration → uncertainty/predictability → sensitivity/counterfactual/VOI → live update → advanced neural/graph/vision を原則とする。complexityは測定されたFuture Generalization improvementによって正当化する。
 
 詳細な再現可能設計は docs/PREDICTION_MODELING_BLUEPRINT.md をcanonical research-design referenceとして使用する。これは既存のproduction gate、PIT hard gate、scope registry、champion/challenger、frozen holdout firewall、automatic promotion禁止を置き換えない。
+
+62. PROBABILISTIC STATE CORE
+
+src/probabilistic_state_core.py は、全スポーツへ直接production接続するものではなく、sport-specific generative researchの共通数学層として扱う。
+
+提供するprimitive:
+* effective sample-size-aware shrinkage
+* component-wise latent state blending
+* matchup interaction diagnostics
+* scenario-mixture probability propagation
+* law-of-total-variance decomposition
+* local probability sensitivity
+* expected information gain
+* immutable normalized scenario representation
+
+この層の目的は、Current Strengthを単一勝敗率へ短絡させず、observed evidence → latent state → matchup → uncertain scenarios → outcome distributionという研究構造を共通化すること。
+
+重要な境界:
+* 本moduleのresearch-only出力はproduction model promotion evidenceではない。
+* sport-specific callerはcanonical event identity/PIT validation後にのみ使用する。
+* 単純blendは最終モデル形ではなくbaseline/diagnosticとして扱う。
+* state-space, Bayesian, particle, neural, graph等の高度モデルはlocal OOS/robustnessで比較する。
+* repeated snapshotsは情報量を水増しするためevent-cluster単位で評価する。
+* uncertaintyはwithin-event randomnessとbetween-state/model uncertaintyを分離する。
+* VOIは情報量の診断であり、source query actionそのものはreliability/latency/cost/utilityを含むdecision layerで別途決定する。
+
+63. ADVANCED STATISTICAL VALIDATION
+
+latent state candidateではfilteringとretrospective smoothingを区別する。prediction-time stateにはfuture observationを入れず、smoothingはhistorical diagnosticに限定する。
+
+candidate比較では nominal rowsだけでなく unique events, event-cluster count, effective sample size, fold variance, confidence interval, effect size, replication statusを保存する。
+
+大量candidateを並列評価するautonomous researchではmultiple-comparison riskを明示し、単一foldの改善や閾値到達だけを採用根拠にしない。
+
+rare-event/upset/OOD/regime-transition/high-confidence failureのtail slicesを標準評価へ追加し、平均LogLossだけで見逃される破綻を監視する。
+
+prediction utilityとforecast qualityを分離する。proper scoring rule上の改善がdecision utility改善を意味するとは限らないため、selective risk、abstention、regret等を必要な研究で追加評価する。
+
+64. MODEL COMPLEXITY ORDER
+
+実装優先順位は、PIT/identity/event contract → baseline → latent state → availability/lineup → matchup → event generator → calibration → uncertainty/predictability → sensitivity/counterfactual/VOI → live sequential update → advanced neural/graph/vision とする。
+
+complexityは実装量ではなく、local chronological OOS、robustness、frozen holdout、operational reliabilityを伴うFuture Generalization改善によって正当化する。
+
+65. STATUS BOUNDARY
+
+現時点でprobabilistic_state_coreはIMPLEMENTED/RESEARCH_ONLYであり、production model, champion, challenger promotion stateを変更しない。CI testがPASSしてもPERFORMANCE_VERIFIEDやPRODUCTIONを意味しない。
