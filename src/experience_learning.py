@@ -366,13 +366,56 @@ def shadow_signal(
     )
 
 
+def _stable_view(value: Any) -> Any:
+    """Remove generation timestamps before comparing otherwise identical memory."""
+    if isinstance(value, dict):
+        return {
+            str(k): _stable_view(v)
+            for k, v in value.items()
+            if str(k) not in {"generated_at_utc", "knowledge_available_at_utc"}
+        }
+    if isinstance(value, list):
+        return [_stable_view(v) for v in value]
+    return value
+
+
+def _same_knowledge(previous: dict[str, Any], current: dict[str, Any]) -> bool:
+    return _stable_view(previous) == _stable_view(current)
+
+
+def persist_memory(
+    rows: list[dict[str, Any]],
+    output_path: Path = OUT,
+    generated_at_utc: str | None = None,
+) -> tuple[dict[str, Any], bool]:
+    """Recompute and persist only when the substantive experience memory changes."""
+    current = build_memory(rows, generated_at_utc=generated_at_utc)
+    path = Path(output_path)
+    previous: dict[str, Any] | None = None
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            previous = loaded
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        previous = None
+
+    if previous is not None and _same_knowledge(previous, current):
+        return previous, False
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(current, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    return current, True
+
+
 def main() -> int:
     rows = load_settled_rows()
-    artifact = build_memory(rows)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(artifact, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    artifact, changed = persist_memory(rows)
     print(json.dumps({
         "status": "READY",
+        "changed": changed,
         "mode": artifact["mode"],
         "settlement_rows": artifact["source"]["settlement_rows"],
         "groups": artifact["source"]["groups"],
