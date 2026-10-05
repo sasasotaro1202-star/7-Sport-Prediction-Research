@@ -315,19 +315,6 @@ def main() -> int:
         (root / "results/failure_memory.jsonl").unlink()
         event_recent_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         workflows = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
-        # An active run from an older main SHA must still be treated as occupied
-        # for dispatch safety; the current-SHA latest row alone is insufficient.
-        workflows["workflows"]["autonomous_research_sweep.yml"]["recent"] = [{
-            "databaseId": 777,
-            "status": "in_progress",
-            "conclusion": None,
-            "createdAt": event_recent_iso,
-            "headSha": "old-sha",
-        }]
-        active_state = cp.inspect()
-        _, active_dispatch = cp.choose_actions(active_state)
-        assert active_dispatch is None or active_dispatch["workflow"] != "autonomous_research_sweep.yml"
-
         workflows["workflows"]["v4_5_15_production.yml"] = {
             "latest": {
                 "databaseId": 99,
@@ -337,7 +324,18 @@ def main() -> int:
                 "headSha": "new-sha",
             }
         }
+        workflows["workflows"]["autonomous_research_sweep.yml"]["recent"] = [{
+            "databaseId": 777,
+            "status": "in_progress",
+            "conclusion": None,
+            "createdAt": event_recent_iso,
+            "headSha": "old-sha",
+        }]
         cp.ACTIONS_SNAPSHOT.write_text(json.dumps(workflows), encoding="utf-8")
+        active_state = cp.inspect()
+        assert active_state["actions"]["research_sweep"]["active_run_any"] is True
+        _, active_dispatch = cp.choose_actions(active_state)
+        assert active_dispatch is None or active_dispatch["workflow"] != "autonomous_research_sweep.yml"
         os.environ["CONTROL_PLANE_EVENT_WORKFLOW"] = "v4_5_15_production.yml"
         os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
