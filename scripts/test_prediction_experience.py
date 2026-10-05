@@ -436,5 +436,115 @@ class PredictionExperienceTests(unittest.TestCase):
                 pe.SETTLEMENTS_DIR = old_dir
 
 
+    def test_merge_experience_artifacts_single_writer_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            old_pred = pe.PREDICTIONS_DIR
+            old_sett = pe.SETTLEMENTS_DIR
+            old_idx = pe.PREDICTION_INDEX
+            try:
+                pe.PREDICTIONS_DIR = root / "durable_predictions"
+                pe.SETTLEMENTS_DIR = root / "durable_settlements"
+                pe.PREDICTION_INDEX = root / "durable_index.txt"
+
+                artifact = root / "artifacts" / "sport-a" / "results" / "experience"
+                (artifact / "predictions").mkdir(parents=True)
+                (artifact / "settlements").mkdir(parents=True)
+
+                prediction = {
+                    "prediction_id": "merge-p1",
+                    "sport": "ufc",
+                    "event_id": "event-merge",
+                    "generated_at_utc": "2026-10-05T09:00:00+00:00",
+                    "prediction_cutoff_at_utc": "2026-10-05T08:00:00+00:00",
+                }
+                settlement = {
+                    "prediction_id": "merge-p1",
+                    "sport": "ufc",
+                    "event_id": "event-merge",
+                    "settlement_status": "SCORED",
+                    "prediction_cutoff_at_utc": "2026-10-05T08:00:00+00:00",
+                    "settled_at_utc": "2026-10-05T10:00:00+00:00",
+                    "correct": True,
+                    "max_probability": 0.70,
+                    "logloss": 0.30,
+                    "brier": 0.09,
+                }
+                (artifact / "predictions" / "2026-10-05.jsonl").write_text(
+                    json.dumps(prediction) + "\n",
+                    encoding="utf-8",
+                )
+                (artifact / "settlements" / "2026-10-05.jsonl").write_text(
+                    json.dumps(settlement) + "\n",
+                    encoding="utf-8",
+                )
+
+                mem = root / "experience_learning.json"
+                candidates = root / "experience_research_candidates.json"
+                first = pe.merge_experience_artifacts(
+                    root / "artifacts",
+                    memory_output_path=mem,
+                    candidate_output_path=candidates,
+                )
+                second = pe.merge_experience_artifacts(
+                    root / "artifacts",
+                    memory_output_path=mem,
+                    candidate_output_path=candidates,
+                )
+
+                self.assertEqual(first["prediction_merge"]["added"], 1)
+                self.assertEqual(first["settlement_merge"]["added"], 1)
+                self.assertEqual(second["prediction_merge"]["added"], 0)
+                self.assertEqual(second["settlement_merge"]["added"], 0)
+                self.assertEqual(len(pe._load_jsonl_dir(pe.PREDICTIONS_DIR)), 1)
+                self.assertEqual(len(pe._load_jsonl_dir(pe.SETTLEMENTS_DIR)), 1)
+                self.assertTrue(mem.is_file())
+                self.assertTrue(candidates.is_file())
+            finally:
+                pe.PREDICTIONS_DIR = old_pred
+                pe.SETTLEMENTS_DIR = old_sett
+                pe.PREDICTION_INDEX = old_idx
+
+    def test_merge_experience_artifacts_conflicting_prediction_fails_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            old_pred = pe.PREDICTIONS_DIR
+            old_sett = pe.SETTLEMENTS_DIR
+            old_idx = pe.PREDICTION_INDEX
+            try:
+                pe.PREDICTIONS_DIR = root / "durable_predictions"
+                pe.SETTLEMENTS_DIR = root / "durable_settlements"
+                pe.PREDICTION_INDEX = root / "durable_index.txt"
+
+                durable = pe.PREDICTIONS_DIR
+                durable.mkdir(parents=True)
+                (durable / "2026-10-05.jsonl").write_text(
+                    json.dumps({
+                        "prediction_id": "conflict-p1",
+                        "generated_at_utc": "2026-10-05T09:00:00+00:00",
+                        "event_id": "original",
+                    }) + "\n",
+                    encoding="utf-8",
+                )
+
+                incoming = root / "artifacts" / "results" / "experience" / "predictions"
+                incoming.mkdir(parents=True)
+                (incoming / "2026-10-05.jsonl").write_text(
+                    json.dumps({
+                        "prediction_id": "conflict-p1",
+                        "generated_at_utc": "2026-10-05T09:00:00+00:00",
+                        "event_id": "different",
+                    }) + "\n",
+                    encoding="utf-8",
+                )
+
+                with self.assertRaisesRegex(RuntimeError, "EXPERIENCE_ARTIFACT_CONFLICT:prediction_id:conflict-p1"):
+                    pe.merge_experience_artifacts(root / "artifacts")
+            finally:
+                pe.PREDICTIONS_DIR = old_pred
+                pe.SETTLEMENTS_DIR = old_sett
+                pe.PREDICTION_INDEX = old_idx
+
+
 if __name__ == "__main__":
     unittest.main()
