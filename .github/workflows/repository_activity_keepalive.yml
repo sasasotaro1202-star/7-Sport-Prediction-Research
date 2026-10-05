@@ -42,28 +42,6 @@ jobs:
 
             mkdir -p ops/automation
             generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            python - <<'PY'
-            import json
-            import os
-            from pathlib import Path
-
-            Path("ops/automation/heartbeat.json").write_text(
-                json.dumps(
-                    {
-                        "generated_at_utc": os.environ["KEEPALIVE_GENERATED_AT"],
-                        "base_main_sha": os.environ["KEEPALIVE_BASE_SHA"],
-                        "purpose": "repository_activity_keepalive",
-                        "automation_only": True,
-                        "production_data_untouched": True,
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                    sort_keys=True,
-                )
-                + "\n",
-                encoding="utf-8",
-            )
-            PY
             export KEEPALIVE_GENERATED_AT="$generated_at"
             export KEEPALIVE_BASE_SHA="$latest_main"
             python - <<'PY'
