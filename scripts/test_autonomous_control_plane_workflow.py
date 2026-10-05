@@ -102,6 +102,10 @@ def test_control_plane_watchdog_contract() -> None:
     assert "active_any" in text
     assert "ACTIVE_CONTROL_RUN" in text
     assert "RECENT_CONTROL_RUN" in text
+    assert "STALE_QUEUED_CONTROL_RUN" in text
+    assert "queued_stale" in text
+    assert "CONTROL_RUN_QUEUE_TIMEOUT" in text
+    assert "gh run cancel" in text
     assert "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH" in text
     assert 'gh workflow run autonomous_control_plane.yml --ref main --repo "$repo"' in text
 
