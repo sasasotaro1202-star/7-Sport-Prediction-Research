@@ -56,7 +56,7 @@ def seed(con: sqlite3.Connection, good: bool = True) -> None:
     con.execute(
         "INSERT INTO source_snapshot VALUES (?,?,?,?,?,?,?)",
         ("ss1", "basketball", "test", source_url, start.isoformat(),
-         (start - timedelta(minutes=5)).isoformat() if good else (start + timedelta(minutes=20)).isoformat(),
+         (start - timedelta(minutes=5)).isoformat() if good else (end + timedelta(minutes=1)).isoformat(),
          "EXACT"),
     )
     stats = []
