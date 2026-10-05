@@ -9,6 +9,8 @@ from pathlib import Path
 from src.main_advance_policy import classify_main_advance
 
 
+POLICY = Path("src/main_advance_policy.py")
+
 WORKFLOWS = (
     Path(".github/workflows/v4_5_15_production.yml"),
     Path(".github/workflows/24h_autonomous_research.yml"),
@@ -85,10 +87,12 @@ def test_diverged_main_is_rejected_fail_closed() -> None:
 
 
 def test_workflows_use_compatibility_policy_not_unconditional_sha_guard() -> None:
-    combined = "\\n".join(path.read_text(encoding="utf-8") for path in WORKFLOWS)
-    assert "main-advance compatibility" in combined
-    assert "merge-base --is-ancestor" in combined
-    assert "git diff --name-only" in combined
+    workflow_text = "\\n".join(path.read_text(encoding="utf-8") for path in WORKFLOWS)
+    policy_text = POLICY.read_text(encoding="utf-8")
+    assert "src.main_advance_policy" in workflow_text
+    assert "merge-base --is-ancestor" in policy_text
+    assert "git diff --name-only" in policy_text
+    assert "results/research/autonomous_control_plane.json" in policy_text
     assert 'test "${remote_sha}" = "${GITHUB_SHA}" || {' not in combined
 
 
