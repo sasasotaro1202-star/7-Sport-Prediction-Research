@@ -1,0 +1,126 @@
+name: Repository Activity Keepalive
+
+on:
+  # Public-repository scheduled workflows can be auto-disabled after 60 days
+  # without repository activity. A tiny twice-monthly commit keeps the repository
+  # active without touching production/model artifacts.
+  schedule:
+    - cron: "17 3 1,15 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # The marker is replaceable; keep only the newest invocation.
+  group: repository-activity-keepalive
+  cancel-in-progress: true
+
+jobs:
+  keepalive:
+    name: Refresh repository activity marker
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+
+      - name: Refresh keepalive marker
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          max_attempts=3
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "KEEPALIVE_ATTEMPT=$attempt/$max_attempts"
+
+            git fetch origin main --depth=2
+            latest_main="$(git rev-parse origin/main)"
+            git reset --hard "$latest_main"
+
+            mkdir -p ops/automation
+            generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            python - <<'PY'
+            import json
+            import os
+            from pathlib import Path
+
+            Path("ops/automation/heartbeat.json").write_text(
+                json.dumps(
+                    {
+                        "generated_at_utc": os.environ["KEEPALIVE_GENERATED_AT"],
+                        "base_main_sha": os.environ["KEEPALIVE_BASE_SHA"],
+                        "purpose": "repository_activity_keepalive",
+                        "automation_only": True,
+                        "production_data_untouched": True,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            PY
+            export KEEPALIVE_GENERATED_AT="$generated_at"
+            export KEEPALIVE_BASE_SHA="$latest_main"
+            python - <<'PY'
+            import json
+            import os
+            from pathlib import Path
+
+            Path("ops/automation/heartbeat.json").write_text(
+                json.dumps(
+                    {
+                        "generated_at_utc": os.environ["KEEPALIVE_GENERATED_AT"],
+                        "base_main_sha": os.environ["KEEPALIVE_BASE_SHA"],
+                        "purpose": "repository_activity_keepalive",
+                        "automation_only": True,
+                        "production_data_untouched": True,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            PY
+
+            git add ops/automation/heartbeat.json
+            git diff --cached --check
+            git diff --cached --quiet && {
+              echo "KEEPALIVE_NO_CHANGE"
+              exit 0
+            }
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "ops: refresh repository activity keepalive"
+
+            remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+            if [ "$remote_sha" != "$latest_main" ]; then
+              echo "KEEPALIVE_RETRY stale_before_push expected=$latest_main actual=$remote_sha"
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                sleep $((attempt * 2))
+                continue
+              fi
+              echo "KEEPALIVE_STALE_MAIN_RETRIES_EXHAUSTED" >&2
+              exit 1
+            fi
+
+            if git push origin HEAD:main; then
+              echo "KEEPALIVE_PUSHED main_sha=$(git rev-parse HEAD)"
+              exit 0
+            fi
+
+            echo "KEEPALIVE_RETRY push_race=true"
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep $((attempt * 2))
+              continue
+            fi
+            echo "KEEPALIVE_PUSH_RETRIES_EXHAUSTED" >&2
+            exit 1
+          done
