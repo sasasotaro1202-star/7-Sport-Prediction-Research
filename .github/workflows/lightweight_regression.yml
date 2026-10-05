@@ -56,6 +56,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_prediction_route_observability.py
       - name: Autonomous control-plane dispatch-order regression
         run: PYTHONPATH=. python scripts/test_autonomous_control_plane_workflow.py
+      - name: Repository activity keepalive contract regression
+        run: PYTHONPATH=. python scripts/test_repository_activity_keepalive.py
       - name: 24H research degraded-evidence continuity regression
         run: PYTHONPATH=. python scripts/test_24h_research_stage_main.py
       - name: Trajectory cache boundary regression
