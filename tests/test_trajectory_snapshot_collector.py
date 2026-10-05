@@ -41,7 +41,7 @@ def schema(con: sqlite3.Connection) -> None:
     )
 
 
-def seed(con: sqlite3.Connection, good: bool = True) -> None:
+def seed(con: sqlite3.Connection, good: bool = True, include_outcome: bool = True) -> None:
     start = BASE
     end = BASE + timedelta(minutes=40)
     con.execute(
@@ -73,10 +73,11 @@ def seed(con: sqlite3.Connection, good: bool = True) -> None:
     con.executemany(
         "INSERT INTO match_stats VALUES (?,?,?,?,?,?,?,?,?,?,?)", stats
     )
-    con.execute(
-        "INSERT INTO event_outcome VALUES (?,?,?,?,?,?,?)",
-        ("e1", "basketball", "A", "VERIFIED", "test", source_url, end.isoformat()),
-    )
+    if include_outcome:
+        con.execute(
+            "INSERT INTO event_outcome VALUES (?,?,?,?,?,?,?)",
+            ("e1", "basketball", "A", "VERIFIED", "test", source_url, end.isoformat()),
+        )
     con.commit()
 
 
@@ -98,8 +99,20 @@ def test_good_pit_produces_snapshots() -> None:
         )
 
 
-def test_bad_pit_is_fail_closed_for_snapshots() -> None:
+def test_snapshots_do_not_require_verified_outcome() -> None:
     with tempfile.TemporaryDirectory() as td:
+        db = Path(td) / "sports.sqlite"
+        con = sqlite3.connect(db)
+        schema(con)
+        seed(con, good=True, include_outcome=False)
+        con.close()
+        out = collector.collect("basketball", db)
+        assert out["status"] == "READY"
+        assert out["snapshot_count"] > 0
+        assert out["outcome_count"] == 0
+        assert out["oos_requires_verified_outcome"] is True
+
+def test_bad_pit_is_fail_closed_for_snapshots() -> None:    with tempfile.TemporaryDirectory() as td:
         db = Path(td) / "sports.sqlite"
         con = sqlite3.connect(db)
         schema(con)
@@ -112,5 +125,6 @@ def test_bad_pit_is_fail_closed_for_snapshots() -> None:
 
 if __name__ == "__main__":
     test_good_pit_produces_snapshots()
+    test_snapshots_do_not_require_verified_outcome()
     test_bad_pit_is_fail_closed_for_snapshots()
     print("TRAJECTORY_SNAPSHOT_COLLECTOR_TEST=PASS")
