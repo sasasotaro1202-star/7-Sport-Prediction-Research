@@ -6,7 +6,10 @@ import numpy as np
 
 from src.probabilistic_state_core import (
     ScenarioMixture,
+    binary_decision_expected_utility,
+    cluster_effective_sample_size,
     effective_shrinkage_weight,
+    information_action_value,
     expected_information_gain,
     latent_state_from_components,
     matchup_interaction,
@@ -80,6 +83,34 @@ class ProbabilisticStateCoreTests(unittest.TestCase):
         self.assertAlmostEqual(normalized[0].weight, 2 / 3)
         self.assertAlmostEqual(normalized[1].weight, 1 / 3)
         self.assertEqual([x.weight for x in original], [2.0, 1.0])
+
+    def test_cluster_effective_sample_size_reflects_dependence(self):
+        out = cluster_effective_sample_size([2, 2, 2], intracluster_correlation=0.5)
+        self.assertAlmostEqual(out["nominal_sample_size"], 6.0)
+        self.assertAlmostEqual(out["design_effect"], 1.5)
+        self.assertAlmostEqual(out["effective_sample_size"], 4.0)
+
+    def test_decision_utility_can_prefer_abstention(self):
+        out = binary_decision_expected_utility(
+            0.50,
+            utility_a_correct=1.0,
+            utility_b_correct=1.0,
+            utility_a_wrong=-2.0,
+            utility_b_wrong=-2.0,
+            abstain_utility=0.0,
+        )
+        self.assertEqual(out["best_action"], "ABSTAIN")
+
+    def test_information_value_accounts_for_query_cost(self):
+        out = information_action_value(
+            0.50,
+            [[0.90, 0.10], [0.10, 0.90]],
+            [0.5, 0.5],
+            acquisition_cost=0.05,
+        )
+        self.assertGreater(out["net_information_value"], 0.0)
+        self.assertEqual(out["recommended_action"], "ACQUIRE_MORE")
+
 
     def test_invalid_probability_or_weight_fails_closed(self):
         with self.assertRaises(ValueError):
