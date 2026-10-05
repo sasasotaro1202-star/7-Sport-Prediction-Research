@@ -1,0 +1,21 @@
+{
+  "status": "BLOCKED",
+  "engine_version": "trajectory-intelligence-v1",
+  "mode": "in_event",
+  "input_rows": 0,
+  "valid_rows": 0,
+  "invalid_rows": 0,
+  "events": 0,
+  "pit_errors": [],
+  "horizons_seconds": [
+    120,
+    300,
+    600,
+    1200
+  ],
+  "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
+  "trajectory_cases": 0,
+  "events_with_cases": 0,
+  "skipped_cases": 0,
+  "reason": "NO_COMPLETE_PIT_TRAJECTORY_CASES"
+}

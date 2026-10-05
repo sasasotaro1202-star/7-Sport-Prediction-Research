@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "engine_version": "trajectory-intelligence-v1",
+  "status": "BLOCKED",
+  "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
+  "sports": {
+    "valorant": {
+      "snapshot_count": 0,
+      "outcome_count": 0,
+      "collector_status": "BLOCKED",
+      "evaluation_status": "BLOCKED",
+      "oos_event_rows": null,
+      "state_mae_by_horizon": null,
+      "logloss_improvement_vs_prior": null,
+      "fold_logloss_improvement_vs_prior": null,
+      "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION"
+    },
+    "basketball": {
+      "snapshot_count": 0,
+      "outcome_count": 0,
+      "collector_status": "BLOCKED",
+      "evaluation_status": "BLOCKED",
+      "oos_event_rows": null,
+      "state_mae_by_horizon": null,
+      "logloss_improvement_vs_prior": null,
+      "fold_logloss_improvement_vs_prior": null,
+      "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION"
+    },
+    "volleyball": {
+      "snapshot_count": 0,
+      "outcome_count": 0,
+      "collector_status": "BLOCKED",
+      "evaluation_status": "BLOCKED",
+      "oos_event_rows": null,
+      "state_mae_by_horizon": null,
+      "logloss_improvement_vs_prior": null,
+      "fold_logloss_improvement_vs_prior": null,
+      "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION"
+    },
+    "ufc": {
+      "snapshot_count": 0,
+      "outcome_count": 0,
+      "collector_status": "BLOCKED",
+      "evaluation_status": "BLOCKED",
+      "oos_event_rows": null,
+      "state_mae_by_horizon": null,
+      "logloss_improvement_vs_prior": null,
+      "fold_logloss_improvement_vs_prior": null,
+      "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION"
+    },
+    "rizin": {
+      "snapshot_count": 0,
+      "outcome_count": 0,
+      "collector_status": "BLOCKED",
+      "evaluation_status": "BLOCKED",
+      "oos_event_rows": null,
+      "state_mae_by_horizon": null,
+      "logloss_improvement_vs_prior": null,
+      "fold_logloss_improvement_vs_prior": null,
+      "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION"
+    }
+  }
+}
