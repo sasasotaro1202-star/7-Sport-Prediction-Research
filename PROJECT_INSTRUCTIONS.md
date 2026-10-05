@@ -82,5 +82,8 @@ The Actions snapshot also monitors production, PIT History Expansion, Production
 The autonomous control plane also listens to completed failures of production, PIT History Expansion, Production Failure Recovery, and its own fast regression workflow. It accepts only failure/timed_out/startup_failure/cancelled outcomes, requires the triggering run head SHA to match current main, and dispatches only bounded RESEARCH_HEALTH. The workflow_run payload is first-class evidence so newer snapshot rows cannot mask the triggering failure.
 
 
+### Autonomous research-memory continuity
+The autonomous research sweep persists `results/research/experience_learning.json` and `results/research/experience_research_candidates.json` to `main` only when their substantive knowledge state changes; generation-time churn alone must not create commits. The sweep uses a current-main SHA recheck before push and its failures are routed into event-triggered Control Plane triage, so a failed research cycle does not have to wait for the next three-hour schedule.
+
 ### Control-plane no-churn persistence
 The autonomous control-plane fingerprint represents stable observed workflow evidence and the selected decision. It excludes invocation/current-main SHA metadata, volatile `age_hours`, and other derived freshness fields. The action log appends only when the stable state fingerprint changes or the log is absent. This prevents the control plane from creating self-generated main commits when no material evidence changed. Current-main SHA verification and dispatch-time SHA rechecks remain mandatory safety gates.
