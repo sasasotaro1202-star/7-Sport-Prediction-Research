@@ -17,6 +17,70 @@ REFERENCE_ONLY_SPORTS = sorted(HARD_EXCLUDED)
 MIN_CYCLE_INTERVAL_MINUTES = 5
 RUNNER_VERSION = "24h-research-marathon-main-v5"
 
+EXPLICIT_NONTRAINED_STATUSES = {
+    "DEFERRED",
+    "DEFERRED_PIT",
+    "DEFERRED_RETRAIN_CARRY_FORWARD",
+    "DEFERRED_FROZEN_HOLDOUT",
+    "DEFERRED_MATCHDAY_CONTEXT",
+    "REJECTED_FROZEN_HOLDOUT",
+    "REJECTED_HOLDOUT_CALIBRATION",
+    "REJECTED_CHALLENGER",
+    "INSUFFICIENT_OOS",
+}
+
+
+def classify_primary_evidence(sport: str, obj: dict, expected_sha: str) -> dict:
+    if not isinstance(obj, dict):
+        return {"classification": "CRITICAL", "critical": True, "reason": "evidence_root_not_object"}
+    if obj.get("sport") != sport:
+        return {
+            "classification": "CRITICAL",
+            "critical": True,
+            "reason": f"sport_mismatch:{obj.get('sport')!r}!={sport!r}",
+        }
+    status = str(obj.get("status") or "")
+    if status == "TRAINED":
+        if obj.get("git_commit_sha") != expected_sha:
+            return {
+                "classification": "CRITICAL_STALE_TRAINED",
+                "critical": True,
+                "reason": f"trained_sha_mismatch:{obj.get('git_commit_sha')!r}!={expected_sha!r}",
+            }
+        return {"classification": "TRAINED_FRESH", "critical": False, "reason": "fresh_trained_evidence"}
+    if status in EXPLICIT_NONTRAINED_STATUSES:
+        return {
+            "classification": "DEGRADED_EXPLICIT_STATUS",
+            "critical": False,
+            "reason": f"explicit_research_status:{status}",
+            "research_status": status,
+        }
+    return {
+        "classification": "CRITICAL",
+        "critical": True,
+        "reason": f"unrecognized_research_status:{status or 'MISSING'}",
+    }
+
+
+def classify_primary_evidence_from_path(sport: str, path: Path, expected_sha: str) -> dict:
+    if not path.is_file() or path.stat().st_size <= 0:
+        return {
+            "classification": "DEGRADED_MISSING_OR_INVALID",
+            "critical": False,
+            "reason": "primary_evidence_missing",
+        }
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "classification": "DEGRADED_MISSING_OR_INVALID",
+            "critical": False,
+            "reason": f"primary_evidence_invalid_json:{type(exc).__name__}",
+        }
+    return classify_primary_evidence(sport, obj, expected_sha)
+
+
+
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -167,14 +231,41 @@ def main() -> int:
         if row["status"] != "PASS":
             degraded.append(row["label"])
         else:
-            evidence_row = run(
-                f"verify_evidence_{sport}",
-                ["python", "scripts/verify_24h_research_evidence.py", "--sport", sport],
-                180,
+            evidence_path = RESULTS.parent / "research" / f"{sport}.json"
+            evidence_class = classify_primary_evidence_from_path(
+                sport,
+                evidence_path,
+                os.environ.get("GITHUB_SHA", ""),
             )
-            commands.append(evidence_row)
-            if evidence_row["status"] != "PASS":
-                critical.append(evidence_row["label"])
+            if evidence_class["classification"] == "TRAINED_FRESH":
+                evidence_row = run(
+                    f"verify_evidence_{sport}",
+                    ["python", "scripts/verify_24h_research_evidence.py", "--sport", sport],
+                    180,
+                )
+                commands.append(evidence_row)
+                if evidence_row["status"] != "PASS":
+                    critical.append(evidence_row["label"])
+            elif evidence_class["critical"]:
+                critical.append(f"primary_evidence_{sport}")
+                commands.append({
+                    "label": f"primary_evidence_{sport}",
+                    "argv": ["internal", "classify_primary_evidence"],
+                    "status": "FAILED",
+                    "returncode": 1,
+                    "elapsed_sec": 0.0,
+                    "error": evidence_class["reason"],
+                })
+            else:
+                degraded.append(f"primary_evidence_{sport}:{evidence_class['classification']}:{evidence_class.get('reason')}")
+                commands.append({
+                    "label": f"primary_evidence_{sport}",
+                    "argv": ["internal", "classify_primary_evidence"],
+                    "status": "DEGRADED",
+                    "returncode": 0,
+                    "elapsed_sec": 0.0,
+                    "error": evidence_class["reason"],
+                })
 
         checkpoint = {
             "version": RUNNER_VERSION,

@@ -43,7 +43,9 @@ class WorkflowContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn('name: "Final / 24H evidence reconciliation"', text)
-        self.assertIn('rglob("stage_*_final.json")', text)
+        self.assertIn('actions/download-artifact@v7', text)
+        self.assertIn('name: "Download all 24H stage evidence"', text)
+        self.assertIn("python scripts/reconcile_24h_research.py", text)
 
     def test_watchdog_waits_when_no_verified_current_cycle_exists(self):
         text = (ROOT / ".github" / "workflows" / "24h_autonomous_research_watchdog.yml").read_text(
