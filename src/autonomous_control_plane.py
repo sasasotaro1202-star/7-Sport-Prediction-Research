@@ -867,11 +867,11 @@ def state_fingerprint(
     for name, raw in (state.get("actions") or {}).items():
         if isinstance(raw, dict):
             # Fingerprint only stable workflow-run evidence. The current main SHA,
-            # freshness age, derived health status, and SHA-match fields are
-            # invocation-relative metadata and must not self-trigger a commit.
+            # freshness age, derived health status, SHA-match fields, and run ID
+            # are invocation/attempt metadata and must not self-trigger a commit.
             action_fingerprint[name] = {
                 key: raw.get(key)
-                for key in ("run_status", "head_sha", "conclusion", "run_id")
+                for key in ("run_status", "head_sha", "conclusion")
             }
         else:
             action_fingerprint[name] = raw
@@ -1011,6 +1011,7 @@ def write_state(
                 "action_log_appends_only_on_decision_change": True,
                 "research_queue_deduplicates_by_logical_task": True,
                 "research_queue_identity_excludes_volatile_sha_time_priority": True,
+                "state_fingerprint_excludes_workflow_run_id": True,
             },
         }
         CONTROL_OUT.write_text(json.dumps(control, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
