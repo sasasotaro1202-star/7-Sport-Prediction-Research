@@ -168,6 +168,11 @@ def test_research_sweep_control_plane_registration() -> None:
     assert cp.MONITORED_WORKFLOWS["research_sweep"] == "autonomous_research_sweep.yml"
 
 
+def test_pre_event_control_plane_registration() -> None:
+    assert cp.ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"] == "pre_event_prediction.yml"
+    assert cp.MONITORED_WORKFLOWS["pre_event"] == "pre_event_prediction.yml"
+
+
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
