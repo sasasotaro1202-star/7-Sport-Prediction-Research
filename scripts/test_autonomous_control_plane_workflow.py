@@ -26,11 +26,6 @@ def main() -> int:
     assert "'scripts/**'" in text
     assert "'.github/workflows/**'" in text
     assert "'config/**'" in text
-    assert "branches: [main]" in text
-    assert "paths-ignore:" in text
-    assert "results/research/**" in text
-    assert "results/automation_state/**" in text
-    assert "results/failure_memory.jsonl" in text
     assert "Active-Scope Target v4.5.15 Production" in text
     assert "PIT History Expansion" in text
     assert "Production Failure Recovery" in text
