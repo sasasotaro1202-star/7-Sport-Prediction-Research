@@ -36,6 +36,16 @@ assert verify < pos(traj, "Collect PIT-valid in-event trajectory snapshots")
 assert "BLOCKED_NO_VERIFIED_OUTCOMES" in traj
 assert "BLOCKED_NO_EXACT_PIT_SOURCES" in traj
 assert "eligible_events" in traj
+assert "TRAJECTORY_CACHE_MATCHED_KEY" in traj
+verified_query = pos(traj, "FROM event_outcome")
+closed = pos(traj, "          finally:\n              con.close()")
+assert verified_query < closed
+assert "verified_outcomes" in prod
+assert "replayable_rows" in prod
+assert "clean_pit_features" in prod
+assert "verified_outcomes > 0" in prod
+assert "replayable_rows > 0" in prod
+assert "clean_pit_features > 0" in prod
 assert "  push:" not in traj
 
 print("TRAJECTORY_CACHE_CONTRACT=PASS")
