@@ -23,7 +23,7 @@ traj_gate = pos(prod, "- name: Gate trajectory-ready post-outcome PIT cache")
 traj_save = pos(prod, "- name: Save trajectory-ready post-outcome PIT database")
 assert pit < traj_gate < traj_save
 assert "steps.trajectory_cache_gate.outputs.save == 'true'" in prod
-assert "trajectory-ready-db-v1-${{ matrix.sport }}-${{ github.run_id }}" in prod
+assert "trajectory-ready-db-v1-merged-${{ github.run_id }}" in prod
 assert "results/research/trajectory_cache_gate.json" in prod
 
 restore = pos(traj, "restore-keys: |")
