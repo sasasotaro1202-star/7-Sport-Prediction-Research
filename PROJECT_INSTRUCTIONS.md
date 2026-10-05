@@ -126,3 +126,11 @@ PIT、release gate、frozen holdout、model promotionの安全条件は変更し
 24H marathonはSHAごとのconcurrency groupを使わず、1 marathon only の固定groupで直列化する。durable state commitによるSHA更新でduplicate marathonを生成してはならない。
 
 24H watchdogはmain SHA不一致を即outdated扱いせず、同じmain-advance policyでDURABLE_ONLYを継続対象、非durable/divergedのみrecovery対象とする。
+
+### CONTROL-PLANE EVENT-STORM BOUNDARY — 2026-10-06
+
+autonomous_control_plane.ymlは3時間schedule・manual dispatch・mainの意味のあるpushだけで起動する。完了workflowごとのworkflow_runイベントを受ける設計は禁止する。
+
+即時failure recoveryはProduction Failure Recovery、Production Watchdog、24H Watchdogなど各ownerへ委譲する。Control Planeは次cycleでFailure Memoryを取り込み、RESEARCH_HEALTHへ変換する。
+
+この分離により、control-plane自身が大量のSKIP/CANCEL runを生成してRunner queueを圧迫するself-induced event stormを防ぐ。

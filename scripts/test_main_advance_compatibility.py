@@ -93,7 +93,7 @@ def test_workflows_use_compatibility_policy_not_unconditional_sha_guard() -> Non
     assert "merge-base --is-ancestor" in policy_text
     assert "git diff --name-only" in policy_text
     assert "results/research/autonomous_control_plane.json" in policy_text
-    assert 'test "${remote_sha}" = "${GITHUB_SHA}" || {' not in combined
+    assert 'test "${remote_sha}" = "${GITHUB_SHA}" || {' not in workflow_text
 
 
 if __name__ == "__main__":

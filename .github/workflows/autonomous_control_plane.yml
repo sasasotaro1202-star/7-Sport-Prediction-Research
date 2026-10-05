@@ -14,23 +14,6 @@ on:
       - 'config/**'
       - 'PROJECT_INSTRUCTIONS.md'
       - 'PROJECT_SOURCE.md'
-  workflow_run:
-    workflows:
-      - Active-Scope Target v4.5.15 Production
-      - Pre-Event Adaptive Timing Prediction
-      - PIT History Expansion
-      - Production Failure Recovery
-      - Autonomous Research Sweep
-      - Autonomous Control Plane Regression
-      - Autonomous Temporal Trajectory Loop
-      - Active Source Feasibility Audit
-      - Continuous Scope Autofill and Discovery
-      - Production Runtime Health Audit
-      - Production Safety Audit
-      - Nine-Sport Lane Audit
-      - 24H Autonomous Research Marathon
-    types:
-      - completed
 
 permissions:
   contents: write
@@ -43,20 +26,15 @@ env:
 
 jobs:
   control:
-    # Critical control-plane state is single-writer. Never cancel an active
-    # reconciliation because a later workflow_run event arrived; queue the later
-    # invocation so persistence and dispatch remain serialized. The job itself
-    # still fail-closes on stale/diverged main and on every safety gate.
+    # Critical control-plane state is single-writer. Push/schedule/manual
+    # invocations are serialized so persistence and dispatch remain ordered.
+    # Failure Recovery and dedicated watchdogs own immediate failure recovery;
+    # the control plane consumes their durable Failure Memory on its next cycle.
     concurrency:
       group: autonomous-control-plane-main
       cancel-in-progress: false
     name: Reconcile / Decide / Dispatch / Persist
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'failure' ||
-      github.event.workflow_run.conclusion == 'timed_out' ||
-      github.event.workflow_run.conclusion == 'startup_failure' ||
-      github.event.workflow_run.conclusion == 'cancelled'
+    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -75,77 +53,30 @@ jobs:
         run: |
           set -euo pipefail
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            git fetch origin main --depth=1
-            git checkout --detach "$remote_sha"
-
-            event_head="${{ github.event.workflow_run.head_sha || '' }}"
-            ancestor=false
-            relation="UNVERIFIED_OR_DIVERGED"
-            if [ -n "$event_head" ]; then
-              if [ "$event_head" = "$remote_sha" ]; then
-                ancestor=true
-                relation="SAME_CURRENT_MAIN"
-              else
-                compare_status="$(gh api "repos/${{ github.repository }}/compare/$event_head...$remote_sha" --jq '.status')"
-                if [ "$compare_status" = "ahead" ]; then
-                  ancestor=true
-                  relation="ANCESTOR_OF_CURRENT_MAIN"
-                fi
-              fi
-            fi
-            echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=$ancestor" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_RELATION=$relation" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_WORKFLOW=${{ github.event.workflow_run.name || '' }}" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_CONCLUSION=${{ github.event.workflow_run.conclusion || '' }}" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_HEAD_SHA=${{ github.event.workflow_run.head_sha || '' }}" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_RUN_ID=${{ github.event.workflow_run.id || '' }}" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_MAIN_RECONCILIATION relation=$relation current_main=$remote_sha event_head=$event_head"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            git fetch origin main --depth=1
-            git checkout --detach "$remote_sha"
-
+          if [ "${{ github.event_name }}" = "push" ]; then
             event_head="${{ github.sha }}"
-            ancestor=false
-            relation="UNVERIFIED_OR_DIVERGED"
-            if [ "$event_head" = "$remote_sha" ]; then
-              ancestor=true
-              relation="SAME_CURRENT_MAIN"
-            else
+            if [ "$event_head" != "$remote_sha" ]; then
               compare_status="$(gh api "repos/${{ github.repository }}/compare/$event_head...$remote_sha" --jq '.status')"
-              if [ "$compare_status" = "ahead" ]; then
-                ancestor=true
-                relation="ANCESTOR_OF_CURRENT_MAIN"
-              fi
+              test "$compare_status" = "ahead" || {
+                echo "STALE_OR_DIVERGED_PUSH event_head=$event_head current_main=$remote_sha relation=$compare_status" >&2
+                exit 1
+              }
             fi
-            test "$ancestor" = true || {
-              echo "STALE_OR_DIVERGED_PUSH event_head=$event_head current_main=$remote_sha relation=$relation" >&2
-              exit 1
-            }
-            echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=$ancestor" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_RELATION=$relation" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_WORKFLOW=" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_CONCLUSION=" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_HEAD_SHA=$event_head" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_RUN_ID=" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_MAIN_RECONCILIATION relation=$relation current_main=$remote_sha event_head=$event_head"
-          elif [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            test "$remote_sha" = "${{ github.sha }}" || {
-              echo "STALE_MAIN_RUN expected=$remote_sha actual=${{ github.sha }}"
-              exit 1
-            }
-            git fetch origin main --depth=1
-            git checkout --detach "$remote_sha"
-            echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=false" >> "$GITHUB_ENV"
-            echo "CONTROL_PLANE_EVENT_RELATION=SAME_CURRENT_MAIN" >> "$GITHUB_ENV"
           else
-            echo "UNSUPPORTED_CONTROL_PLANE_EVENT=${{ github.event_name }}" >&2
-            exit 1
+            test "$remote_sha" = "${{ github.sha }}" || {
+              echo "STALE_MAIN_RUN expected=$remote_sha actual=${{ github.sha }}" >&2
+              exit 1
+            }
           fi
-
+          git fetch origin main --depth=1
+          git checkout --detach "$remote_sha"
+          echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "CONTROL_PLANE_EVENT_RELATION=PUSH_RECONCILED" >> "$GITHUB_ENV"
+          else
+            echo "CONTROL_PLANE_EVENT_RELATION=EXACT_CURRENT_MAIN" >> "$GITHUB_ENV"
+          fi
+          echo "CONTROL_PLANE_MAIN_RECONCILIATION current_main=$remote_sha event=${{ github.event_name }}"
       - name: Run control-plane regression
         run: python scripts/test_autonomous_control_plane.py
 
@@ -214,10 +145,6 @@ jobs:
 
       - name: Inspect current GitHub evidence
         id: control
-        env:
-          CONTROL_PLANE_EVENT_WORKFLOW: ${{ github.event.workflow_run.name || '' }}
-          CONTROL_PLANE_EVENT_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
-          CONTROL_PLANE_EVENT_HEAD_SHA: ${{ github.event.workflow_run.head_sha || '' }}
         run: |
           set -euo pipefail
           main_sha="${CONTROL_PLANE_CURRENT_MAIN_SHA:-${{ github.sha }}}"

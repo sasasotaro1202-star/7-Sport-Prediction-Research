@@ -1438,3 +1438,14 @@ results/research/**全体をdurableとみなしてはならない。
 * semantic code/config advanceではfail/recoveryする
 
 目的はcontrol-plane state commit → main SHA change → long-run cancellation → recovery dispatch → 再度state commit、という自己生成loopを断つこと。
+
+=== CONTROL-PLANE EVENT-STORM BOUNDARY — 2026-10-06 ===
+
+autonomous_control_plane.ymlの起動源は、3時間schedule、manual dispatch、mainの意味のあるpushに限定する。
+多数のworkflow completed eventをworkflow_runで受信して即SKIPする構造は採用しない。
+
+Failure Recovery / Production Watchdog / 24H Watchdogが即時復旧を担当し、Control Planeは次の定期cycleでFailure Memoryを読み、観測済みfailureをRESEARCH_HEALTHへ変換する。
+
+これにより、control-planeのdurable state commitやfailure-memory commitが大量の二次workflow_runを生成し、Runner queueを自己圧迫するevent stormを防止する。
+
+Continuous automationの要件は、イベント数を増やすことではなく、監視→復旧→研究の各ownerが重複せず、定期cycleで必ず収束することとする。

@@ -19,22 +19,20 @@ def main() -> int:
 
     assert persist < dispatch < final, "dispatch must occur only after persistence"
 
-    assert "workflow_run:" in text
+    assert "workflow_run:" not in text, "control plane must not create a run for every completed workflow"
+    assert "\n  workflow_run:" not in text
+    assert "event.workflow_run." not in text, "control plane must not depend on completed-workflow event payloads"
     assert "push:" in text
     assert text.count("  push:") == 1
     assert "'src/**'" in text
     assert "'scripts/**'" in text
     assert "'.github/workflows/**'" in text
     assert "'config/**'" in text
-    assert "Active-Scope Target v4.5.15 Production" in text
-    assert "PIT History Expansion" in text
-    assert "Production Failure Recovery" in text
-    assert "Autonomous Control Plane Regression" in text
-    assert "github.event.workflow_run.conclusion == 'failure'" in text
-    assert "CONTROL_PLANE_EVENT_WORKFLOW" in text
-    assert "CONTROL_PLANE_EVENT_CONCLUSION" in text
-    assert "CONTROL_PLANE_EVENT_HEAD_SHA" in text
-    assert "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN" in text
+    assert "github.event.workflow_run.conclusion" not in text
+    assert "CONTROL_PLANE_EVENT_WORKFLOW" not in text
+    assert "CONTROL_PLANE_EVENT_CONCLUSION" not in text
+    assert "CONTROL_PLANE_EVENT_HEAD_SHA" not in text
+    assert "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN" not in text
 
     reconcile_markers = (
         "      - name: Resolve current main and verify execution SHA",
@@ -48,15 +46,11 @@ def main() -> int:
     assert reconcile < regression, "current-main resolution must precede control-plane execution"
     reconcile_block = text[reconcile:regression]
     assert "github.event_name" in reconcile_block
-    assert "workflow_run" in reconcile_block
     assert "git fetch origin main --depth=1" in reconcile_block
     assert 'git checkout --detach "$remote_sha"' in reconcile_block
-    assert "compare/$event_head...$remote_sha" in reconcile_block
-    assert 'echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=$ancestor"' in reconcile_block
-    assert 'if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then' in reconcile_block
-    assert 'elif [ "${{ github.event_name }}" = "push" ]; then' in reconcile_block
-    assert 'compare/$event_head...$remote_sha' in reconcile_block
-    assert 'relation="ANCESTOR_OF_CURRENT_MAIN"' in reconcile_block
+    assert 'if [ "${{ github.event_name }}" = "push" ]; then' in reconcile_block
+    assert 'else' in reconcile_block
+    assert 'test "$remote_sha" = "${{ github.sha }}"' in reconcile_block
 
     persist_block = text[persist:dispatch]
     dispatch_block = text[dispatch:final]
