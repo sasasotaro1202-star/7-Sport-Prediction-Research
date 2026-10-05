@@ -100,3 +100,29 @@ The autonomous control-plane fingerprint represents stable observed workflow evi
 
 
 Autonomous control-plane watchdog: `.github/workflows/autonomous_control_plane_watchdog.yml` runs every 10 minutes and on relevant `main` workflow changes. It checks durable control-state provenance/age and distinguishes current-main runs from outdated queued/in-progress runs. Outdated control-plane runs may be cancelled so they cannot block current-main recovery; a current-main active run is never cancelled by this watchdog. Recovery re-checks the remote `main` SHA before dispatch and cannot bypass PIT, frozen holdout, or production-promotion gates.
+### LONG-RUN MAIN-ADVANCE COMPATIBILITY — 2026-10-06
+
+長時間実行のproduction/research jobは、run開始後にmainが進んだだけでは直ちに無効化しない。
+
+src/main_advance_policy.pyをcanonical policyとして使用し、
+
+* run SHAがcurrent mainと一致 → EXACT_CURRENT_MAIN
+* run SHAがcurrent mainのverified ancestorで、変更が以下のdurable-only pathsだけ → DURABLE_ONLY
+* code/config/source/model/workflow等の非durable変更、divergence、差分を検証できない → FAIL CLOSED
+
+durable-only paths:
+
+* results/research/autonomous_control_plane.json
+* results/research/automation_health.json
+* results/research/research_queue.jsonl
+* results/research/autonomous_action_log.jsonl
+* results/automation_state/
+* results/failure_memory.jsonl
+
+目的は、自律control-plane/failure-memoryの状態commitが長時間のproduction/researchを毎回中断するfeedback loopを防ぐこと。
+
+PIT、release gate、frozen holdout、model promotionの安全条件は変更しない。
+
+24H marathonはSHAごとのconcurrency groupを使わず、1 marathon only の固定groupで直列化する。durable state commitによるSHA更新でduplicate marathonを生成してはならない。
+
+24H watchdogはmain SHA不一致を即outdated扱いせず、同じmain-advance policyでDURABLE_ONLYを継続対象、非durable/divergedのみrecovery対象とする。

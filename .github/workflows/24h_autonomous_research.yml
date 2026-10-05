@@ -13,8 +13,11 @@ permissions:
   actions: read
 
 concurrency:
-  group: 24h-autonomous-research-main-${{ github.sha }}
-  cancel-in-progress: true
+  # One marathon at a time. Durable control-plane state commits do not create a
+  # new concurrency group, so a long research cycle cannot be duplicated merely
+  # because autonomous memory advanced main.
+  group: 24h-autonomous-research-main
+  cancel-in-progress: false
 
 env:
   PYTHONUNBUFFERED: "1"
@@ -29,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Fail closed if run is not latest main
         env:
           GH_TOKEN: ${{ github.token }}
@@ -37,10 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "${remote_sha}" = "${GITHUB_SHA}" || {
-            echo "STALE_MAIN_RUN expected=${remote_sha} actual=${GITHUB_SHA}"
-            exit 1
-          }
+          PYTHONPATH=. python -m src.main_advance_policy --base-sha "${GITHUB_SHA}" --current-sha "${remote_sha}"
           echo "LATEST_MAIN_SHA=${GITHUB_SHA}"
       - uses: actions/setup-python@v7
         with:
@@ -100,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Fail closed if run is not latest main
         env:
           GH_TOKEN: ${{ github.token }}
@@ -108,10 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "${remote_sha}" = "${GITHUB_SHA}" || {
-            echo "STALE_MAIN_RUN expected=${remote_sha} actual=${GITHUB_SHA}"
-            exit 1
-          }
+          PYTHONPATH=. python -m src.main_advance_policy --base-sha "${GITHUB_SHA}" --current-sha "${remote_sha}"
           echo "LATEST_MAIN_SHA=${GITHUB_SHA}"
       - uses: actions/setup-python@v7
         with:
@@ -161,7 +158,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Fail closed if run is not latest main
         env:
           GH_TOKEN: ${{ github.token }}
@@ -169,10 +166,7 @@ jobs:
         run: |
           set -euo pipefail
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "${remote_sha}" = "${GITHUB_SHA}" || {
-            echo "STALE_MAIN_RUN expected=${remote_sha} actual=${GITHUB_SHA}"
-            exit 1
-          }
+          PYTHONPATH=. python -m src.main_advance_policy --base-sha "${GITHUB_SHA}" --current-sha "${remote_sha}"
           echo "LATEST_MAIN_SHA=${GITHUB_SHA}"
       - uses: actions/setup-python@v7
         with:
@@ -222,7 +216,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Fail closed if run is not latest main
         env:
           GH_TOKEN: ${{ github.token }}
@@ -230,10 +224,7 @@ jobs:
         run: |
           set -euo pipefail
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "${remote_sha}" = "${GITHUB_SHA}" || {
-            echo "STALE_MAIN_RUN expected=${remote_sha} actual=${GITHUB_SHA}"
-            exit 1
-          }
+          PYTHONPATH=. python -m src.main_advance_policy --base-sha "${GITHUB_SHA}" --current-sha "${remote_sha}"
           echo "LATEST_MAIN_SHA=${GITHUB_SHA}"
       - uses: actions/setup-python@v7
         with:
@@ -283,7 +274,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Fail closed if run is not latest main
         env:
           GH_TOKEN: ${{ github.token }}
@@ -291,10 +282,7 @@ jobs:
         run: |
           set -euo pipefail
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          test "${remote_sha}" = "${GITHUB_SHA}" || {
-            echo "STALE_MAIN_RUN expected=${remote_sha} actual=${GITHUB_SHA}"
-            exit 1
-          }
+          PYTHONPATH=. python -m src.main_advance_policy --base-sha "${GITHUB_SHA}" --current-sha "${remote_sha}"
           echo "LATEST_MAIN_SHA=${GITHUB_SHA}"
       - uses: actions/setup-python@v7
         with:
@@ -346,7 +334,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: "Download all 24H stage evidence"
         if: always()
         uses: actions/download-artifact@v7
