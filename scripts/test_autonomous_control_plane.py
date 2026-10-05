@@ -177,6 +177,8 @@ def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
     test_trajectory_control_plane_registration()
+    test_research_sweep_control_plane_registration()
+    test_pre_event_control_plane_registration()
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         bind(root)
@@ -245,6 +247,16 @@ def main() -> int:
         assert selected_failure["target"] == "active_scope"
         assert dispatch_failure is not None
         assert dispatch_failure["workflow"] == "autonomous_research_sweep.yml"
+
+        # Core pre-event prediction failures must also become immediate research signals.
+        os.environ["CONTROL_PLANE_EVENT_WORKFLOW"] = "pre_event_prediction.yml"
+        os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
+        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
+        pre_event_state = cp.inspect()
+        _, pre_event_dispatch = cp.choose_actions(pre_event_state)
+        assert pre_event_dispatch is not None
+        assert pre_event_dispatch["target"] == "workflow_event_failure:pre_event"
+        assert pre_event_dispatch["workflow"] == "autonomous_research_sweep.yml"
 
         # The triggering workflow_run failure remains actionable even when the
         # latest snapshot has already moved to a newer successful run.
