@@ -257,6 +257,159 @@ def archive_forward_prediction_db(
         })
     return archive_predictions([{"sport": sport, "predictions": preds}], generated_at_utc)
 
+
+
+def _artifact_jsonl_files(artifact_root: Path, leaf: str) -> list[Path]:
+    root = Path(artifact_root)
+    if not root.exists():
+        return []
+    return sorted(
+        p
+        for p in root.rglob("*.jsonl")
+        if p.parent.name == leaf and p.parent.parent.name == "experience"
+    )
+
+
+def _validate_artifact_rows(files: list[Path], expected_leaf: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for path in files:
+        for row in _load_jsonl_dir(path.parent):
+            if not isinstance(row, dict):
+                raise RuntimeError(f"EXPERIENCE_ARTIFACT_INVALID_ROW:{path}")
+            rows.append(row)
+    return rows
+
+
+def _merge_append_only_jsonl(
+    target_dir: Path,
+    incoming_files: list[Path],
+    key: str,
+    date_field: str,
+) -> dict[str, int | bool]:
+    target = Path(target_dir)
+    target.mkdir(parents=True, exist_ok=True)
+    existing_rows = _load_jsonl_dir(target)
+    by_id: dict[str, dict[str, Any]] = {}
+    for row in existing_rows:
+        value = str(row.get(key) or "")
+        if not value:
+            raise RuntimeError(f"EXPERIENCE_ARCHIVE_EXISTING_MISSING_{key.upper()}")
+        previous = by_id.get(value)
+        if previous is not None and previous != row:
+            raise RuntimeError(f"EXPERIENCE_ARCHIVE_EXISTING_CONFLICT:{key}:{value}")
+        by_id[value] = row
+
+    incoming_ids: set[str] = set()
+    incoming_days: set[str] = set()
+    added = 0
+    for path in incoming_files:
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            if not raw.strip():
+                continue
+            try:
+                row = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(f"EXPERIENCE_ARTIFACT_INVALID_JSONL:{path}") from exc
+            if not isinstance(row, dict):
+                raise RuntimeError(f"EXPERIENCE_ARTIFACT_INVALID_ROW:{path}")
+            value = str(row.get(key) or "")
+            if not value:
+                raise RuntimeError(f"EXPERIENCE_ARTIFACT_MISSING_{key.upper()}:{path}")
+            day_raw = str(row.get(date_field) or "")[:10]
+            try:
+                datetime.fromisoformat(day_raw).date()
+            except ValueError as exc:
+                raise RuntimeError(f"EXPERIENCE_ARTIFACT_INVALID_DATE:{date_field}:{value}") from exc
+            incoming_days.add(day_raw)
+            incoming_ids.add(value)
+            previous = by_id.get(value)
+            if previous is None:
+                by_id[value] = row
+                added += 1
+            elif previous != row:
+                raise RuntimeError(f"EXPERIENCE_ARTIFACT_CONFLICT:{key}:{value}")
+
+    changed = False
+    for day in sorted(incoming_days):
+        rows = [
+            row for row in by_id.values()
+            if str(row.get(date_field) or "")[:10] == day
+        ]
+        rows.sort(
+            key=lambda row: (
+                str(row.get(date_field) or ""),
+                str(row.get("event_id") or ""),
+                str(row.get("prediction_cutoff_at_utc") or ""),
+                str(row.get(key) or ""),
+            )
+        )
+        content = "".join(_json(row) + "\n" for row in rows)
+        path = target / f"{day}.jsonl"
+        old = path.read_text(encoding="utf-8") if path.exists() else ""
+        if old != content:
+            path.write_text(content, encoding="utf-8")
+            changed = True
+
+    return {
+        "changed": changed,
+        "added": added,
+        "incoming_ids": len(incoming_ids),
+    }
+
+
+def merge_experience_artifacts(artifact_root: Path) -> dict[str, Any]:
+    root = Path(artifact_root)
+    prediction_files = _artifact_jsonl_files(root, "predictions")
+    settlement_files = _artifact_jsonl_files(root, "settlements")
+
+    prediction_merge = _merge_append_only_jsonl(
+        PREDICTIONS_DIR,
+        prediction_files,
+        "prediction_id",
+        "generated_at_utc",
+    )
+    settlement_merge = _merge_append_only_jsonl(
+        SETTLEMENTS_DIR,
+        settlement_files,
+        "prediction_id",
+        "settled_at_utc",
+    )
+
+    all_prediction_ids = sorted(
+        str(row.get("prediction_id") or "")
+        for row in _load_jsonl_dir(PREDICTIONS_DIR)
+        if row.get("prediction_id")
+    )
+    if len(all_prediction_ids) != len(set(all_prediction_ids)):
+        raise RuntimeError("EXPERIENCE_ARCHIVE_DUPLICATE_PREDICTION_ID")
+    index_content = "".join(pid + "\n" for pid in all_prediction_ids)
+    old_index = PREDICTION_INDEX.read_text(encoding="utf-8") if PREDICTION_INDEX.exists() else ""
+    PREDICTION_INDEX.parent.mkdir(parents=True, exist_ok=True)
+    PREDICTION_INDEX.write_text(index_content, encoding="utf-8")
+    index_changed = old_index != index_content
+
+    settled_rows = load_settled_rows(SETTLEMENTS_DIR)
+    memory, memory_changed = persist_memory(settled_rows)
+    candidates = json.loads(
+        (ROOT / "results" / "research" / "experience_learning.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    candidate_artifact = build(candidates)
+    _, candidates_changed = persist_candidates(candidate_artifact)
+
+    return {
+        "prediction_merge": prediction_merge,
+        "settlement_merge": settlement_merge,
+        "prediction_index_changed": index_changed,
+        "memory_changed": memory_changed,
+        "candidates_changed": candidates_changed,
+        "prediction_count": len(_load_jsonl_dir(PREDICTIONS_DIR)),
+        "settlement_count": len(settled_rows),
+        "memory_groups": int(memory.get("source", {}).get("groups") or 0),
+    }
+
+
 def _db_for_sport(sport: str) -> Path:
     return DB_PATHS.get(sport, ROOT / "data/db/sports_v45.sqlite")
 
@@ -861,7 +1014,16 @@ def main() -> None:
         choices=sorted(DB_PATHS),
         help="Rebuild the append-only experience prediction archive from the persistent forward_prediction DB for one sport before scoring.",
     )
+    parser.add_argument(
+        "--merge-artifacts",
+        help="Merge per-sport GitHub Actions experience artifacts into the durable single-writer archive.",
+    )
     args = parser.parse_args()
+
+    if args.merge_artifacts:
+        result = merge_experience_artifacts(Path(args.merge_artifacts))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
 
     archive_result = None
     if args.archive_db_sport:
