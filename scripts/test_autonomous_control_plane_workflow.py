@@ -63,6 +63,8 @@ def main() -> int:
     assert 'echo "persist_ok=true" >> "$GITHUB_OUTPUT"' in persist_block
     assert 'echo "main_sha=' in persist_block
     assert 'remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main"' in persist_block
+    assert 'timeout 10s' in text
+    assert "COMMAND_TIMEOUT" in text
 
     assert "steps.control.outcome == 'success'" in dispatch_block
     assert "steps.persist.outputs.persist_ok == 'true'" in dispatch_block
@@ -70,6 +72,10 @@ def main() -> int:
     assert "STALE_MAIN_BEFORE_DISPATCH" in dispatch_block
     assert 'test "$remote_sha" = "$main_sha"' in dispatch_block
     assert 'gh workflow run "$DISPATCH_WORKFLOW" --ref main' in dispatch_block
+    assert 'dispatch_started_at="$(date -u +%s)"' in dispatch_block
+    assert "AUTO_DISPATCH_VERIFIED" in dispatch_block
+    assert "AUTO_DISPATCH_UNVERIFIED" in dispatch_block
+    assert 'timeout 12s gh run list --workflow "$DISPATCH_WORKFLOW"' in dispatch_block
 
     assert '--arg sha "$main_sha"' in dispatch_block
     assert '--arg sha "${{ github.sha }}"' not in dispatch_block
