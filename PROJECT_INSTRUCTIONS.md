@@ -17,6 +17,7 @@ Use chronological walk-forward OOS/WFO. Random splits are prohibited for tempora
 Missing ≠ zero. Preserve explicit unavailable/unknown/delayed/not-yet-public/source-failed/malformed/not-applicable states. Preserve source lineage, snapshots, schema, revision behavior and identity history.
 
 ## Models / routing
+Use `docs/PREDICTION_MODELING_BLUEPRINT.md` as the research-design reference for latent state estimation, player/lineup uncertainty, matchup interactions, sport-specific event generation, scenario simulation, dependence, calibration, uncertainty, sensitivity, counterfactuals and value-of-information. These are design candidates, not production evidence; every implementation remains subject to local PIT/OOS/robustness/frozen-holdout gates.
 Maintain simple baselines. Add challengers only for demonstrated incremental OOS value plus robustness. Specialist routing requires sufficient sample/folds/class coverage where relevant, calibration evidence and recent stability; otherwise fallback to broader validated scope.
 
 ## Calibration / uncertainty
