@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+import tempfile
 from src.experience_research_bridge import build, persist_candidates
 
 
@@ -89,6 +91,8 @@ def test_row_missing_source_settlement_time_fails_closed():
 if __name__ == "__main__":
     test_review_row_creates_prospective_candidate()
     test_healthy_row_creates_no_candidate()
+    with tempfile.TemporaryDirectory() as td:
+        test_persist_candidates_is_idempotent_when_set_is_unchanged(Path(td))
     test_future_knowledge_time_fails_closed()
     test_inconsistent_source_settlement_time_fails_closed()
     test_row_missing_source_settlement_time_fails_closed()
