@@ -509,7 +509,10 @@ jobs:
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
-          key: trajectory-ready-db-v1-${{ matrix.sport }}-${{ github.run_id }}
+          # This job is the single post-merge job (no matrix context).
+          # Store the complete merged five-sport DB under a run-scoped key;
+          # trajectory collectors restore it through the generic prefix.
+          key: trajectory-ready-db-v1-merged-${{ github.run_id }}
       - name: Parallel experience and historical learning
         id: dual_learning
         continue-on-error: true
