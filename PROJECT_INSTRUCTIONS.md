@@ -73,6 +73,10 @@ The autonomous control plane treats a successful Actions run as usable health ev
 ### Failure-memory-driven autonomous research
 The control plane reads append-only `results/failure_memory.jsonl` each cycle, distinguishes recent recorded failures from missing/invalid evidence, and raises bounded research follow-up when failures occurred within the last 24 hours. Failure details are never inferred from absent fields. Production Failure Recovery remains the owner of failure-specific retry; the control plane only converts observed failures into research priority.
 
+### Push-triggered current-main reconciliation
+
+When the control plane is triggered by a push to `main`, the event commit is valid for reconciliation when it is the current remote `main` SHA or a verified ancestor of the current remote `main` SHA. The workflow resolves and checks out the latest remote `main` before inspection. A diverged/unverifiable push SHA remains fail-closed. Scheduled and manual control-plane runs retain exact current-main SHA matching. Deterministic state persistence is enabled only after the current-main resolution step succeeds, preventing a stale/invalid invocation from producing a secondary persistence error.
+
 ### Event-triggered current-main reconciliation
 When invoked by a monitored workflow failure event, the control plane first resolves the actual remote `main` SHA. It checks out that current main before inspection, records the triggering workflow/head SHA, and verifies whether the event SHA is the current commit or an ancestor of current main. Only failure/timed_out/startup_failure/cancelled events with verified current-main or ancestor provenance become RESEARCH_HEALTH signals. Unrelated/diverged event SHA is fail-closed. Scheduled/manual invocations still require the executing SHA to equal current main.
 
