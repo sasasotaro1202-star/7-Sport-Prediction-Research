@@ -249,6 +249,18 @@ def test_control_plane_workflow_run_triggers_cover_allowlisted_autonomous_workfl
     for workflow_name in expected_workflow_names:
         assert workflow_name in text
 
+def test_control_plane_dispatch_has_live_all_sha_guard() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
+    text = workflow.read_text(encoding="utf-8")
+    start = text.index("      - name: Dispatch at most one allowlisted autonomous workflow")
+    end = text.index("      - name: Final control-plane status", start)
+    block = text[start:end]
+    assert 'gh run list --workflow "$DISPATCH_WORKFLOW" --limit 100' in block
+    assert "active_any=" in block
+    assert '[.[] | select(.status=="queued" or .status=="in_progress"' in block
+    assert 'if [ "$active_any" -eq 0 ]; then' in block
+
+
 
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
