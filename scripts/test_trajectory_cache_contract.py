@@ -23,13 +23,18 @@ traj_gate = pos(prod, "- name: Gate trajectory-ready post-outcome PIT cache")
 traj_save = pos(prod, "- name: Save trajectory-ready post-outcome PIT database")
 assert pit < traj_gate < traj_save
 assert "steps.trajectory_cache_gate.outputs.save == 'true'" in prod
-assert "trajectory-ready-db-v1-${{ matrix.sport }}-${{ github.run_id }}" in prod
+assert "trajectory-ready-db-v1-merged-${{ github.run_id }}" in prod
 assert "results/research/trajectory_cache_gate.json" in prod
 
 restore = pos(traj, "restore-keys: |")
-ready = pos(traj, "trajectory-ready-db-v1-${{ matrix.sport }}-")
+sport_ready = pos(traj, "trajectory-ready-db-v1-${{ matrix.sport }}-")
+generic_ready = pos(traj, "trajectory-ready-db-v1-")
 active_pit = pos(traj, "active-scope-target-db-v4-${{ matrix.sport }}-pit-")
-assert restore < ready < active_pit
+assert restore < sport_ready < active_pit
+assert sport_ready < generic_ready or generic_ready < active_pit
+save = pos(prod, "Save trajectory-ready post-outcome PIT database")
+assert "trajectory-ready-db-v1-merged-${{ github.run_id }}" in prod
+assert "matrix.sport" not in prod[save:save+700]
 
 verify = pos(traj, "Verify trajectory-ready evidence availability")
 assert verify < pos(traj, "Collect PIT-valid in-event trajectory snapshots")

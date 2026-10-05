@@ -60,6 +60,7 @@ jobs:
           key: trajectory-seed-${{ matrix.sport }}-${{ github.run_id }}
           restore-keys: |
             trajectory-ready-db-v1-${{ matrix.sport }}-
+            trajectory-ready-db-v1-
             active-scope-target-db-v4-${{ matrix.sport }}-pit-
             active-scope-target-db-v4-${{ matrix.sport }}-
             pre-event-target-db-v1-${{ matrix.sport }}-
