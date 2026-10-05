@@ -1,18 +1,6 @@
 name: Autonomous Temporal Trajectory Loop
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src/trajectory_intelligence_oos.py"
-      - "src/trajectory_snapshot_collector.py"
-      - "scripts/trajectory_research_runner.py"
-      - "scripts/merge_trajectory_ledger.py"
-      - "tests/test_trajectory_intelligence_oos.py"
-      - "tests/test_trajectory_snapshot_collector.py"
-      - "scripts/test_trajectory_cache_contract.py"
-      - "config/TEMPORAL_TRAJECTORY_POLICY.json"
-      - ".github/workflows/autonomous_temporal_trajectory_loop.yml"
   schedule:
     - cron: "*/15 * * * *"
   workflow_run:
