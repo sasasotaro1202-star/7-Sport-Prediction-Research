@@ -1399,13 +1399,14 @@ complexityは実装量ではなく、local chronological OOS、robustness、froz
 
 77. AUTONOMOUS CONTROL-PLANE WATCHDOG
 
-The control plane is not allowed to depend solely on a scheduled invocation. A dedicated GitHub Actions watchdog runs twice per hour and checks:
+The control plane is not allowed to depend solely on a scheduled invocation. A dedicated GitHub Actions watchdog runs every 10 minutes and on relevant `main` workflow changes. It checks:
 
 - current remote main SHA
 - durable control-plane state presence and provenance
 - control-plane state age
-- active control-plane runs
+- current-main versus outdated active control-plane runs
+- stale queued/pending control-plane runs
 
-If durable state is missing, provenance-stale, timestamp-invalid, or older than the recovery threshold, and no recent/active control-plane run can explain the state, the watchdog dispatches the control plane against the current main SHA.
+Recovery semantics are differentiated by provenance. A current-main control-plane run is allowed to continue. Outdated queued or in-progress control-plane runs may be cancelled because they cannot provide current-main evidence. Stale queued/pending runs are also cancellable when they exceed the queue timeout. After cancelling outdated blockers, the watchdog re-checks whether a current-main run is already active; if one exists, it does not dispatch a duplicate. Otherwise it re-checks the remote `main` SHA immediately before dispatching the current-main control plane.
 
-The watchdog is recovery-only. It does not modify production models, bypass PIT, tune frozen holdout, or promote candidates. It re-checks the remote main immediately before dispatch and fails closed on SHA drift.
+The watchdog is recovery-only. It does not modify production models, bypass PIT, tune frozen holdout, or promote candidates. Current-main SHA drift or unverifiable provenance fails closed.
