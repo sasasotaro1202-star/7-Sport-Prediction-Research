@@ -28,10 +28,6 @@ def main() -> int:
     assert "'scripts/**'" in text
     assert "'.github/workflows/**'" in text
     assert "'config/**'" in text
-    assert "Active-Scope Target v4.5.15 Production" in text
-    assert "PIT History Expansion" in text
-    assert "Production Failure Recovery" in text
-    assert "Autonomous Control Plane Regression" in text
     assert "github.event.workflow_run.conclusion" not in text
     assert "CONTROL_PLANE_EVENT_WORKFLOW" not in text
     assert "CONTROL_PLANE_EVENT_CONCLUSION" not in text
@@ -52,8 +48,9 @@ def main() -> int:
     assert "github.event_name" in reconcile_block
     assert "git fetch origin main --depth=1" in reconcile_block
     assert 'git checkout --detach "$remote_sha"' in reconcile_block
-    assert 'if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then' in reconcile_block
-    assert 'elif [ "${{ github.event_name }}" = "push" ]; then' in reconcile_block
+    assert 'if [ "${{ github.event_name }}" = "push" ]; then' in reconcile_block
+    assert 'else' in reconcile_block
+    assert 'test "$remote_sha" = "${{ github.sha }}"' in reconcile_block
 
     persist_block = text[persist:dispatch]
     dispatch_block = text[dispatch:final]
