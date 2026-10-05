@@ -82,6 +82,9 @@ The Actions snapshot also monitors production, PIT History Expansion, Production
 The autonomous control plane also listens to completed failures of production, PIT History Expansion, Production Failure Recovery, and its own fast regression workflow. It accepts only failure/timed_out/startup_failure/cancelled outcomes, requires the triggering run head SHA to match current main, and dispatches only bounded RESEARCH_HEALTH. The workflow_run payload is first-class evidence so newer snapshot rows cannot mask the triggering failure.
 
 
+### Autonomous Experience persistence
+The 15-minute pre-event matrix now exports per-sport prediction/settlement archives to a dedicated single-writer job. That writer deterministically merges the current-run artifacts into `results/experience/**`, rebuilds research memory, and retries against the newest `main` up to three times when concurrent automation advances the branch. Conflicting prediction IDs fail closed. This persistence is evidence/memory only and cannot promote a model or bypass PIT/OOS/holdout gates.
+
 ### Autonomous research-memory continuity
 The autonomous research sweep persists `results/research/experience_learning.json` and `results/research/experience_research_candidates.json` to `main` only when their substantive knowledge state changes; generation-time churn alone must not create commits. The sweep uses a current-main SHA recheck before push and its failures are routed into event-triggered Control Plane triage, so a failed research cycle does not have to wait for the next three-hour schedule.
 
