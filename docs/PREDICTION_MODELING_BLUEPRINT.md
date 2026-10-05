@@ -703,3 +703,212 @@ This blueprint never overrides the project’s hard gates.
 - Automatic model promotion remains forbidden unless separately authorized by the canonical production gate.
 - Sport-specific semantics remain isolated.
 
+
+---
+
+## 29. Statistical State-Space Upgrade
+
+The next research level is to treat current strength as a latent dynamic state rather than a static rating.
+
+Z_t = F(Z_{t-1}, U_t, eta_t)
+
+X_t = H(Z_t, C_t, epsilon_t)
+
+where Z_t is latent state, X_t observed performance, C_t context, U_t known state drivers, and eta_t/epsilon_t process and measurement noise.
+
+Research candidates:
+
+- Bayesian dynamic linear/state-space models.
+- Kalman or extended filters where assumptions fit.
+- Particle filters for nonlinear/non-Gaussian state.
+- Bayesian Bradley-Terry/Elo-style latent strength.
+- Hierarchical partial pooling across teams, players and competitions.
+
+Use filtering for prediction-time state and never use future observations in the filtered state. Smoothing may be used only for retrospective analysis because it can legitimately consume future observations relative to the state time.
+
+---
+
+## 30. Uncertainty by Law of Total Variance
+
+For a binary outcome under latent or scenario uncertainty:
+
+Var(Y|X) = E[Var(Y|Z,X)|X] + Var(E[Y|Z,X]|X)
+
+This gives two useful components:
+
+1. within-state/intrinsic event randomness;
+2. between-state/model/scenario uncertainty.
+
+The first should not be mistaken for a data-quality problem. The second is an information/model-state problem that may sometimes be reducible.
+
+The research-only probabilistic_state_core module exposes this decomposition through mixture_mean_variance.
+
+---
+
+## 31. State Identifiability
+
+A high-performing latent-state model must also be identifiable enough for downstream decisions.
+
+Track whether multiple latent states can explain the same observed history with materially different future predictions.
+
+Diagnostic quantities may include:
+
+- posterior state variance;
+- effective sample size;
+- state persistence;
+- sensitivity of future forecasts to latent-state perturbation;
+- disagreement between alternative state estimators.
+
+If state estimates are weakly identified, downstream confidence should not be increased merely because the optimizer converged.
+
+---
+
+## 32. Observation Model vs Ability Model
+
+Separate:
+
+- ability,
+- opportunity,
+- usage/role,
+- opponent-induced difficulty,
+- observation noise.
+
+A player producing fewer events may be worse, less utilized, or simply facing a different tactical role.
+
+Do not train a universal player-quality signal from raw box-score volume without accounting for exposure and opportunity.
+
+Candidate normalization layers include:
+
+- per-minute/per-possession/per-opportunity rates;
+- role-conditioned rates;
+- opponent-adjusted rates;
+- context-adjusted rates;
+- exposure-aware uncertainty intervals.
+
+---
+
+## 33. Effective Sample Size and Event Dependence
+
+Nominal row count is not equivalent to information count.
+
+Repeated events, correlated lineups, same-opponent series, duplicated source observations, and multiple snapshots reduce effective sample size.
+
+For any hierarchical route or experiment, report:
+
+- nominal rows;
+- unique events;
+- unique participants;
+- unique competitions;
+- event-cluster count;
+- effective sample size where estimable.
+
+Do not let repeated snapshots manufacture apparent statistical certainty.
+
+---
+
+## 34. Proper Scoring and Decision Utility
+
+Model comparison should begin with proper scoring rules, but production decisions may require an explicit utility layer.
+
+ForecastQuality != DecisionUtility
+
+A model can improve LogLoss while failing to improve the decision that matters.
+
+Research may therefore report LogLoss, Brier, calibration, selective risk, abstention rate, expected decision utility, worst-case utility, and regret under uncertainty.
+
+Any utility function must be explicit, versioned and validated separately from forecast calibration.
+
+---
+
+## 35. Sequential Prequential Evaluation
+
+For adaptive systems, the correct unit is not only train/test.
+
+Train_1:t -> Predict_t+1 -> Observe -> Update -> Predict_t+2
+
+Every adaptive state, calibrator, router and failure predictor must prove that the information used at time t+1 was available by that prediction cutoff.
+
+This coexists with chronological WFO/OOS and does not replace the frozen-holdout firewall.
+
+---
+
+## 36. Statistical Multiple-Comparison Control
+
+Large autonomous research portfolios can create false discoveries even when every individual experiment is apparently reasonable.
+
+When many candidates are evaluated, preserve:
+
+- experiment family identifier;
+- hypothesis identifier;
+- number of concurrent comparisons;
+- predeclared primary metric;
+- correction/selection policy;
+- confidence interval;
+- effect size;
+- replication status.
+
+Relative-improvement thresholds must not be interpreted without uncertainty and multiple-comparison context.
+
+---
+
+## 37. Clustered Confidence Intervals
+
+For repeated snapshots or correlated events, confidence intervals should respect dependence.
+
+Preferred bootstrap units are usually event cluster -> competition/time block -> sport-specific hierarchy rather than independent snapshot rows.
+
+A candidate that looks strong under row-wise bootstrap but disappears under event-cluster bootstrap is not robust evidence.
+
+---
+
+## 38. Rare-Event and Tail Evaluation
+
+Average metrics can hide the cases that matter most.
+
+Maintain dedicated evaluation slices for high-confidence failures, heavy upset events, extreme probability forecasts, sparse-data cases, OOD events, regime transitions, uncertain lineup states and source outages.
+
+Track tail calibration and worst-case error, not only mean error.
+
+---
+
+## 39. Source Reliability as a Modelled State
+
+A source should not be represented only as available/unavailable.
+
+R_source = f(completeness, freshness, conflict, revision, historical reliability)
+
+Source reliability can influence feature trust and uncertainty without silently changing missing values.
+
+Source reliability itself must be learned using only pre-cutoff evidence available at the relevant time.
+
+---
+
+## 40. Identity Uncertainty
+
+Identity resolution should be separated from prediction uncertainty.
+
+P(Identity=j | Evidence)
+
+may be represented during research, but production routing should fail closed until canonical identity is established according to the project identity policy.
+
+Do not silently assign a fuzzy match because it makes the model runnable.
+
+---
+
+## 41. Research Core Contract
+
+The research-only probabilistic_state_core module provides reusable primitives for:
+
+- effective shrinkage;
+- component-wise latent-state blending;
+- matchup interaction diagnostics;
+- scenario probability mixtures;
+- total-variance decomposition;
+- local probability sensitivity;
+- expected information gain;
+- normalized event scenarios.
+
+It is intentionally not connected directly to production routing.
+
+A sport-specific implementation may consume it only after producing a canonical event schema and satisfying the existing PIT contract.
+
