@@ -191,6 +191,21 @@ def test_pre_event_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"] == "pre_event_prediction.yml"
     assert cp.MONITORED_WORKFLOWS["pre_event"] == "pre_event_prediction.yml"
 
+def test_control_plane_workflow_run_triggers_cover_allowlisted_autonomous_workflows() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
+    text = workflow.read_text(encoding="utf-8")
+    for workflow_name in (
+        "source_feasibility_audit.yml",
+        "scope_autofill.yml",
+        "production_runtime_health.yml",
+        "production_safety_audit.yml",
+        "nine_sport_lane_audit.yml",
+        "autonomous_research_sweep.yml",
+        "24h_autonomous_research.yml",
+        "autonomous_temporal_trajectory_loop.yml",
+    ):
+        assert workflow_name in text
+
 
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
