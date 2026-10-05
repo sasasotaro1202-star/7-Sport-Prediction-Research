@@ -1212,6 +1212,13 @@ Cache boundary:
 
 The loop uses sport-specific horizons rather than a universal forecast horizon: VALORANT 60/180/300/600s, Basketball 120/300/600/1200s, Volleyball 60/180/300/600s, UFC 60/120/300/600s, RIZIN 60/120/300/600s. This is a research policy, not a production release decision.
 
+Experience single-writer continuity:
+* `.github/workflows/pre_event_prediction.yml` uploads each sport lane's prediction/settlement archive as an artifact, then a dedicated `persist_experience` job becomes the only writer for `results/experience/**` and the derived research-memory artifacts.
+* The writer restores the newest `main`, merges all current-run sport artifacts deterministically, rejects conflicting IDs/malformed records, and retries up to three times when `main` advances concurrently. It never treats a stale push as success.
+* GitHub Artifact path flattening is handled explicitly, so both `results/experience/predictions/**` and flattened `predictions/**` layouts are accepted.
+* The durable archive is append-only by `prediction_id`; same IDs with different content are fail-closed. This prevents per-sport matrix jobs from racing on shared state and allows Experience memory to accumulate every successful prediction cycle rather than waiting for the six-hour research sweep.
+* No Experience persistence changes production models or bypasses PIT/OOS/holdout/promotion gates.
+
 Autonomous research-memory continuity:
 * `src/experience_learning.py` recomputes settlement-derived memory every research sweep but preserves the prior artifact when the substantive knowledge state is unchanged, so wall-clock generation timestamps do not create false progress or commit churn.
 * `src/experience_research_bridge.py` applies the same idempotent persistence rule to prospective research candidates.
