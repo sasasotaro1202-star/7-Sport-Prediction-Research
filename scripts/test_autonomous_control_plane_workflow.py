@@ -21,6 +21,11 @@ def main() -> int:
 
     assert "workflow_run:" in text
     assert "push:" in text
+    assert text.count("  push:") == 1
+    assert "'src/**'" in text
+    assert "'scripts/**'" in text
+    assert "'.github/workflows/**'" in text
+    assert "'config/**'" in text
     assert "branches: [main]" in text
     assert "paths-ignore:" in text
     assert "results/research/**" in text
@@ -75,6 +80,7 @@ def main() -> int:
     assert '--arg sha "$main_sha"' in dispatch_block
     assert '--arg sha "${{ github.sha }}"' not in dispatch_block
 
+    test_control_plane_watchdog_contract()
     print("AUTONOMOUS_CONTROL_PLANE_DISPATCH_ORDER=PASS")
     return 0
 
