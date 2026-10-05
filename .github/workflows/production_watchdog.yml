@@ -21,11 +21,11 @@ permissions:
   contents: read
 
 concurrency:
-  # The watchdog is itself polled every five minutes. Never cancel an invocation:
-  # each invocation may need to inspect/cancel stale heavy runs, while stale
-  # watchdog invocations are made harmless by their deterministic latest-run guard.
+  # Watchdog checks are idempotent and must not accumulate stale queued runs.
+  # The newest invocation owns recovery; production failure-specific recovery
+  # remains separately owned by production_failure_recovery.yml.
   group: production-run-watchdog
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   watchdog:
