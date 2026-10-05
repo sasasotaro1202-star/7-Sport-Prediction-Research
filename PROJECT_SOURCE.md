@@ -1353,6 +1353,9 @@ src/probabilistic_state_core.py は、全スポーツへ直接production接続�
 * local probability sensitivity
 * expected information gain
 * immutable normalized scenario representation
+* cluster-dependent effective sample size diagnostic
+* decision expected-utility / abstention diagnostic
+* information-action value after acquisition cost
 
 この層の目的は、Current Strengthを単一勝敗率へ短絡させず、observed evidence → latent state → matchup → uncertain scenarios → outcome distributionという研究構造を共通化すること。
 
