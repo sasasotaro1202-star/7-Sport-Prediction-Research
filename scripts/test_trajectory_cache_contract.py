@@ -36,5 +36,6 @@ assert verify < pos(traj, "Collect PIT-valid in-event trajectory snapshots")
 assert "BLOCKED_NO_VERIFIED_OUTCOMES" in traj
 assert "BLOCKED_NO_EXACT_PIT_SOURCES" in traj
 assert "eligible_events" in traj
+assert "  push:" not in traj
 
 print("TRAJECTORY_CACHE_CONTRACT=PASS")
