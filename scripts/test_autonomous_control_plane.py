@@ -7,6 +7,7 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import re
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -204,7 +205,7 @@ def test_control_plane_concurrency_is_job_scoped_and_coalescing() -> None:
     text = workflow.read_text(encoding="utf-8")
     before_jobs, after_jobs = text.split("jobs:\n  control:\n", 1)
     assert "\nconcurrency:" not in before_jobs
-    assert "concurrency:\n      group: autonomous-control-plane-main\n      cancel-in-progress: true" in after_jobs
+    assert re.search(r"concurrency:\\s+group:\\s+autonomous-control-plane-main\\s+cancel-in-progress:\\s+true", after_jobs)
 
 
 def test_persist_detects_missing_state_artifacts() -> None:
