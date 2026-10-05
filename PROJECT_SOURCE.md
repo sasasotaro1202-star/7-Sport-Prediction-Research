@@ -1212,6 +1212,13 @@ Cache boundary:
 
 The loop uses sport-specific horizons rather than a universal forecast horizon: VALORANT 60/180/300/600s, Basketball 120/300/600/1200s, Volleyball 60/180/300/600s, UFC 60/120/300/600s, RIZIN 60/120/300/600s. This is a research policy, not a production release decision.
 
+Autonomous research-memory continuity:
+* `src/experience_learning.py` recomputes settlement-derived memory every research sweep but preserves the prior artifact when the substantive knowledge state is unchanged, so wall-clock generation timestamps do not create false progress or commit churn.
+* `src/experience_research_bridge.py` applies the same idempotent persistence rule to prospective research candidates.
+* `.github/workflows/autonomous_research_sweep.yml` may persist these two research artifacts to `main` only when their substantive state changes and must re-check the current `main` SHA immediately before push.
+* `.github/workflows/autonomous_control_plane.yml` listens for research-sweep failures so an observed failure can enter bounded failure triage without waiting for the next scheduled control cycle.
+* This persistence is research-memory only; it never changes production models, bypasses PIT/OOS gates, or grants automatic promotion.
+
 Control Plane integration:
 `TRAJECTORY_RESEARCH` is a bounded recovery action. Missing/stale/failed trajectory evidence can be re-dispatched by the autonomous control plane. Failure events remain fail-closed and never grant model promotion or frozen-holdout access.
 
