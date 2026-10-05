@@ -121,9 +121,11 @@ jobs:
                   "--limit", "20",
                   "--json", "databaseId,status,conclusion,createdAt,headSha,event,name",
               ]
-              proc = subprocess.run(cmd, capture_output=True, text=True)
+              proc = subprocess.run(["timeout", "10s", *cmd], capture_output=True, text=True)
               if proc.returncode != 0:
-                  output["errors"][workflow] = proc.stderr.strip() or f"exit={proc.returncode}"
+                  output["errors"][workflow] = (
+                      "COMMAND_TIMEOUT" if proc.returncode == 124 else proc.stderr.strip() or f"exit={proc.returncode}"
+                  )
                   continue
               try:
                   rows = json.loads(proc.stdout or "[]")
@@ -328,8 +330,11 @@ jobs:
             verified=false
             for attempt in 1 2 3 4 5; do
               sleep 2
-              state_after="$(gh run list --workflow "$DISPATCH_WORKFLOW" --branch main --limit 20 \
-                --json databaseId,status,createdAt,headSha,event,conclusion)"
+              if ! state_after="$(timeout 12s gh run list --workflow "$DISPATCH_WORKFLOW" --branch main --limit 20 \
+                --json databaseId,status,createdAt,headSha,event,conclusion)"; then
+                echo "AUTO_DISPATCH_VERIFY_QUERY_TIMEOUT workflow=$DISPATCH_WORKFLOW attempt=$attempt" >&2
+                continue
+              fi
               if printf '%s' "$state_after" | jq -e \
                 --arg sha "$main_sha" --argjson started "$dispatch_started_at" '
                   any(.[];
