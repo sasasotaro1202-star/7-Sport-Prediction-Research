@@ -205,7 +205,10 @@ def test_control_plane_concurrency_is_job_scoped_and_coalescing() -> None:
     text = workflow.read_text(encoding="utf-8")
     before_jobs, after_jobs = text.split("jobs:\n  control:\n", 1)
     assert "\nconcurrency:" not in before_jobs
-    concurrency_pos = after_jobs.index("concurrency:")\n    group_pos = after_jobs.index("group: autonomous-control-plane-main", concurrency_pos)\n    cancel_pos = after_jobs.index("cancel-in-progress: true", group_pos)\n    assert concurrency_pos < group_pos < cancel_pos
+    concurrency_pos = after_jobs.index("concurrency:")
+    group_pos = after_jobs.index("group: autonomous-control-plane-main", concurrency_pos)
+    cancel_pos = after_jobs.index("cancel-in-progress: true", group_pos)
+    assert concurrency_pos < group_pos < cancel_pos
 
 
 def test_persist_detects_missing_state_artifacts() -> None:
