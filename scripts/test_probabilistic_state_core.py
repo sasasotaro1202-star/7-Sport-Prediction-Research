@@ -5,7 +5,6 @@ import pytest
 
 from src.probabilistic_state_core import (
     ScenarioMixture,
-    effective_information_gain,
     expected_information_gain,
     latent_state_from_components,
     matchup_interaction,
@@ -89,7 +88,3 @@ def test_invalid_probability_or_weight_fails_closed():
     with pytest.raises(ValueError):
         normalize_scenarios([ScenarioMixture("a", 0.5, 0.0)])
 
-
-# Backward-compatible alias guard: no production code should depend on this.
-def effective_information_gain(*args, **kwargs):
-    return expected_information_gain(*args, **kwargs)
