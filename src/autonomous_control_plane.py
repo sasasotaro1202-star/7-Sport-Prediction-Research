@@ -115,10 +115,28 @@ def fingerprint(*parts: Any) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
 
 
-def queue_fingerprints() -> set[str]:
+def queue_identity(selected: dict[str, Any]) -> str:
+    """Return a stable identity for one logical research task.
+
+    Queue identity intentionally excludes invocation SHA, timestamps, priority,
+    state fingerprints, and other volatile evidence so a persistent unresolved
+    task is not re-enqueued solely because main advanced or time moved forward.
+    A changed action/target/reason still creates a new queue entry.
+    """
+    normalized = {
+        "action": str(selected.get("action") or ""),
+        "workflow": str(selected.get("workflow") or ""),
+        "target": str(selected.get("target") or ""),
+        "reason": str(selected.get("reason") or ""),
+        "dispatch_policy": str(selected.get("dispatch_policy") or ""),
+    }
+    return fingerprint(json.dumps(normalized, sort_keys=True, ensure_ascii=False))
+
+
+def latest_queue_identity() -> str | None:
     if not QUEUE_OUT.exists():
-        return set()
-    out: set[str] = set()
+        return None
+    latest: str | None = None
     for line in QUEUE_OUT.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
@@ -126,9 +144,16 @@ def queue_fingerprints() -> set[str]:
             row = json.loads(line)
         except json.JSONDecodeError as exc:
             raise RuntimeError("RESEARCH_QUEUE_INVALID_JSONL") from exc
-        if isinstance(row, dict) and row.get("fingerprint"):
-            out.add(str(row["fingerprint"]))
-    return out
+        if not isinstance(row, dict):
+            continue
+        key = row.get("queue_key")
+        if key:
+            latest = str(key)
+            continue
+        # Backward compatibility for legacy entries that predate queue_key.
+        if row.get("action") and row.get("workflow") and row.get("target"):
+            latest = queue_identity(row)
+    return latest
 
 
 def load_actions_snapshot() -> tuple[dict[str, Any], dict[str, str]]:
@@ -912,13 +937,27 @@ def write_state(
     selected["fingerprint"] = fingerprint(
         fp, selected["action"], selected["target"], selected["reason"]
     )
-    queue_ids = queue_fingerprints()
-    queue_added = selected["fingerprint"] not in queue_ids
+    queue_key = queue_identity(selected)
+    previous_queue_key = None
+    if isinstance(previous, dict):
+        previous_queue = previous.get("queue")
+        if isinstance(previous_queue, dict) and previous_queue.get("key"):
+            previous_queue_key = str(previous_queue["key"])
+        elif isinstance(previous.get("selected_action"), dict):
+            previous_queue_key = queue_identity(previous["selected_action"])
+    if previous_queue_key is None:
+        previous_queue_key = latest_queue_identity()
+
+    # Queue semantics are transition-based: repeated control cycles describing
+    # the same unresolved logical task do not append duplicates merely because
+    # main SHA, timestamps, evidence freshness, or priority changed.
+    queue_added = queue_key != previous_queue_key
     if queue_added:
         with QUEUE_OUT.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps({
                 "queued_at_utc": state["observed_at_utc"],
                 "head_sha": state["head_sha"],
+                "queue_key": queue_key,
                 **selected,
             }, ensure_ascii=False, sort_keys=True) + "\n")
 
@@ -950,8 +989,11 @@ def write_state(
             "automatic_promotion": False,
             "queue": {
                 "fingerprint": selected["fingerprint"],
+                "key": queue_key,
                 "added": queue_added,
+                "previous_key": previous_queue_key,
                 "previous_state_fingerprint": previous_fp,
+                "identity_policy": "action+workflow+target+reason+dispatch_policy",
             },
             "allowed_workflows": ALLOWED_WORKFLOWS,
             "safety": {
@@ -967,6 +1009,8 @@ def write_state(
                 "state_fingerprint_excludes_volatile_action_age": True,
                 "state_fingerprint_excludes_derived_current_main_metadata": True,
                 "action_log_appends_only_on_decision_change": True,
+                "research_queue_deduplicates_by_logical_task": True,
+                "research_queue_identity_excludes_volatile_sha_time_priority": True,
             },
         }
         CONTROL_OUT.write_text(json.dumps(control, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
