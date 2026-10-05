@@ -173,8 +173,53 @@ jobs:
           if [ "$guard_rc" -ne 0 ]; then echo 'ERROR: collection guard failed; refusing to mark partition healthy.' >&2; exit "$guard_rc"; fi
           if [ "$collector_rc" -ne 0 ] && [ "$backfill_rc" -ne 0 ]; then echo 'WARNING: all collection paths degraded; release gate will decide whether coverage is safe.' >&2; fi
           exit 0
-      - name: Save database
+      - name: Gate active-scope database cache publication
+        id: active_cache_gate
         if: success()
+        env:
+          SPORT_NAME: ${{ matrix.sport }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import sqlite3
+          from pathlib import Path
+
+          sport = os.environ["SPORT_NAME"]
+          db = Path("data/db/sports_v45.sqlite")
+          guard = Path(f"results/v45/collection_guard_{sport}.json")
+          allowed = False
+          reason = "DATABASE_UNAVAILABLE"
+
+          if db.is_file() and db.stat().st_size > 0:
+              con = sqlite3.connect(db)
+              try:
+                  events = int(con.execute(
+                      "SELECT COUNT(*) FROM event WHERE sport=?", (sport,)
+                  ).fetchone()[0])
+              finally:
+                  con.close()
+              guard_status = "UNKNOWN"
+              if guard.is_file():
+                  try:
+                      guard_status = str(json.loads(guard.read_text(encoding="utf-8")).get("status", "UNKNOWN")).upper()
+                  except (OSError, ValueError, TypeError):
+                      guard_status = "UNVERIFIABLE"
+              allowed = events > 0 and guard_status in {"PASS", "PARTIAL"}
+              reason = f"events={events};collection_guard={guard_status}"
+          else:
+              events = 0
+              guard_status = "UNKNOWN"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"save={'true' if allowed else 'false'}\n")
+          print(f"ACTIVE_CACHE_PUBLICATION_ALLOWED={str(allowed).lower()} sport={sport} reason={reason}")
+          if not allowed:
+              print(f"ACTIVE_CACHE_PUBLICATION_SKIPPED sport={sport} reason={reason}")
+
+      - name: Save database
+        if: success() && steps.active_cache_gate.outputs.save == 'true'
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: data/db
@@ -335,6 +380,75 @@ jobs:
         run: |
           set -euo pipefail
           timeout --signal=TERM 2700s python -m src.pit_replay_builder
+
+      - name: Gate trajectory-ready post-outcome PIT cache
+        id: trajectory_cache_gate
+        if: success()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+
+          db = Path("data/db/sports_v45.sqlite")
+          if not db.is_file() or db.stat().st_size <= 0:
+              raise SystemExit("TRAJECTORY_CACHE_SKIPPED=DATABASE_UNAVAILABLE")
+
+          con = sqlite3.connect(db)
+          try:
+              eligible = int(con.execute(
+                  """
+                  SELECT COUNT(*)
+                  FROM event e
+                  JOIN event_outcome o ON o.event_id=e.event_id
+                  WHERE e.sport IN ('valorant','basketball','volleyball','ufc','rizin')
+                    AND UPPER(COALESCE(e.status,'')) IN ('COMPLETED','FINISHED','POST','FINAL')
+                    AND e.event_end_time_utc IS NOT NULL
+                    AND UPPER(COALESCE(o.outcome_status,''))='VERIFIED'
+                    AND UPPER(COALESCE(o.outcome,'')) IN ('A','B')
+                  """
+              ).fetchone()[0])
+              stats = int(con.execute(
+                  """
+                  SELECT COUNT(*)
+                  FROM match_stats ms
+                  JOIN event e ON e.event_id=ms.event_id
+                  WHERE e.sport IN ('valorant','basketball','volleyball','ufc','rizin')
+                    AND ms.value_num IS NOT NULL
+                    AND ms.observed_at_utc IS NOT NULL
+                  """
+              ).fetchone()[0])
+              exact_sources = int(con.execute(
+                  """
+                  SELECT COUNT(*)
+                  FROM source_snapshot s
+                  WHERE s.sport IN ('valorant','basketball','volleyball','ufc','rizin')
+                    AND UPPER(COALESCE(s.availability_status,''))='EXACT'
+                    AND s.source_available_at_utc IS NOT NULL
+                    AND s.event_time_utc IS NOT NULL
+                  """
+              ).fetchone()[0])
+          finally:
+              con.close()
+
+          if eligible <= 0 or stats <= 0:
+              raise SystemExit(
+                  f"TRAJECTORY_CACHE_SKIPPED eligible_events={eligible} "
+                  f"match_stats={stats} exact_sources={exact_sources}"
+              )
+
+          print(
+              f"TRAJECTORY_CACHE_ALLOWED eligible_events={eligible} "
+              f"match_stats={stats} exact_sources={exact_sources}"
+          )
+          PY
+
+      - name: Save trajectory-ready post-outcome PIT database
+        id: trajectory_cache
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: trajectory-ready-db-v1-${{ github.run_id }}
 
       - name: Parallel experience and historical learning
         id: dual_learning
