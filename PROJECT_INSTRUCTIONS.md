@@ -79,7 +79,7 @@ The Actions snapshot also monitors production, PIT History Expansion, Production
 
 
 ### Event-driven failure triage
-The autonomous control plane also listens to completed failures of production, PIT History Expansion, Production Failure Recovery, and its own fast regression workflow. It accepts only failure/timed_out/startup_failure/cancelled outcomes, requires the triggering run head SHA to match current main, and dispatches only bounded RESEARCH_HEALTH. The workflow_run payload is first-class evidence so newer snapshot rows cannot mask the triggering failure.
+The autonomous control plane also listens to completed failures of production, Pre-Event Adaptive Timing Prediction, PIT History Expansion, Production Failure Recovery, Autonomous Research Sweep, and its own fast regression workflow. It accepts only failure/timed_out/startup_failure/cancelled outcomes, requires the triggering run head SHA to match current main, and dispatches only bounded RESEARCH_HEALTH. The workflow_run payload is first-class evidence so newer snapshot rows cannot mask the triggering failure.
 
 
 ### Autonomous Experience persistence
