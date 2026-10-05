@@ -148,6 +148,21 @@ def main() -> None:
     pre_event_watchdog = pre_event_watchdog.split("      - name: Cancel over-time production and PIT runs", 1)[0]
     assert "latest_created=" not in pre_event_watchdog
     assert "Save validated pre-event database" in workflow
+    # Experience persistence is a single writer after the matrix so
+    # per-sport lanes never race to mutate the shared durable archive.
+    assert "  persist_experience:" in workflow
+    persist_pos = workflow.index("  persist_experience:")
+    status_pos = workflow.index("      - name: Preserve explicit lane status")
+    assert status_pos < persist_pos
+    assert "needs: pre_event" in workflow
+    assert "group: pre-event-experience-persistence" in workflow
+    assert "cancel-in-progress: false" in workflow
+    assert "actions/download-artifact@v4" in workflow
+    assert "results/experience/predictions/**" in workflow
+    assert "results/experience/settlements/**" in workflow
+    assert "python -m src.prediction_experience --merge-artifacts pre_event_experience_artifacts" in workflow
+    assert "STALE_MAIN_BEFORE_EXPERIENCE_PUSH" in workflow
+    assert 'git push origin HEAD:main' in workflow
     assert "steps.dbguard.outputs.rc == '0'" in workflow
     assert "Backfill a missed 9-hour PIT boundary once per boundary window" in watchdog
     assert "attempt_in_boundary" in watchdog
