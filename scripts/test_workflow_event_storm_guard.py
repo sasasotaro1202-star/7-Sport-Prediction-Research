@@ -15,7 +15,9 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 
 
 def trigger_block(text: str) -> str:
-    match = re.search(r'(?m)^(?:"on"|on):\s*
+    match = re.search(r"(?m)^on:\s*$", text)
+    if not match:
+        match = re.search(r'(?m)^"on":\s*$', text)
     if not match:
         raise AssertionError("workflow is missing a canonical on: block")
     jobs = re.search(r"(?m)^jobs:\s*$", text[match.end() :])
