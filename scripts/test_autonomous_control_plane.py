@@ -204,7 +204,7 @@ def test_control_plane_concurrency_is_job_scoped_and_coalescing() -> None:
     text = workflow.read_text(encoding="utf-8")
     before_jobs, after_jobs = text.split("jobs:\n  control:\n", 1)
     assert "\nconcurrency:" not in before_jobs
-    assert "concurrency:\n      group: autonomous-control-plane-main\n      cancel-in-progress: true" in after_jobs
+    assert "concurrency:\n      group: autonomous-control-plane-main\n      cancel-in-progress: false" in after_jobs
 
 
 def test_persist_detects_missing_state_artifacts() -> None:
@@ -216,6 +216,8 @@ def test_persist_detects_missing_state_artifacts() -> None:
     assert "state_paths=(" in block
     assert 'for state_path in "${state_paths[@]}"; do' in block
     assert 'if [ ! -f "$state_path" ]; then' in block
+    assert 'git ls-files --error-unmatch -- "$state_path"' in block
+    assert 'CONTROL_PLANE_STATE_NOT_TRACKED path=$state_path' in block
     assert 'if [ "$needs_persist" = false ] && git diff --quiet -- "${state_paths[@]}"; then' in block
 
 def test_pre_event_control_plane_registration() -> None:
