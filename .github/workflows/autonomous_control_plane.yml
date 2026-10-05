@@ -207,11 +207,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- \
-              results/research/autonomous_control_plane.json \
-              results/research/automation_health.json \
-              results/research/research_queue.jsonl \
-              results/research/autonomous_action_log.jsonl; then
+          state_paths=(
+            results/research/autonomous_control_plane.json
+            results/research/automation_health.json
+            results/research/research_queue.jsonl
+            results/research/autonomous_action_log.jsonl
+          )
+          needs_persist=false
+          for state_path in "${state_paths[@]}"; do
+            if [ ! -f "$state_path" ]; then
+              needs_persist=true
+              break
+            fi
+          done
+
+          # git diff does not report untracked files. Missing state artifacts
+          # therefore must force the initial durable write instead of being
+          # misclassified as NO_CHANGE.
+          if [ "$needs_persist" = false ] && git diff --quiet -- "${state_paths[@]}"; then
             remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
             test "$remote_sha" = "$CONTROL_PLANE_CURRENT_MAIN_SHA" || {
               echo "STALE_MAIN_NO_CHANGE expected=$CONTROL_PLANE_CURRENT_MAIN_SHA actual=$remote_sha" >&2
@@ -225,11 +238,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            results/research/autonomous_control_plane.json \
-            results/research/automation_health.json \
-            results/research/research_queue.jsonl \
-            results/research/autonomous_action_log.jsonl
+          git add "${state_paths[@]}"
           git commit -m "ops: reconcile autonomous research control plane"
 
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
