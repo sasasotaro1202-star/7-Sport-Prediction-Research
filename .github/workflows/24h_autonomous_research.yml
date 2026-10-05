@@ -63,6 +63,8 @@ jobs:
         run: python scripts/test_24h_research_evidence.py
       - name: Preflight 24H workflow contract test
         run: python scripts/test_24h_workflow_contract.py
+      - name: Preflight 24H stage continuity tests
+        run: python scripts/test_24h_research_stage_main.py
       - name: Preflight scope boundary test
         run: python scripts/test_scope_boundary.py
       - name: Preflight snapshot idempotency test
