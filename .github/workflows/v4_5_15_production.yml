@@ -11,7 +11,8 @@ permissions:
   contents: write
 concurrency:
   # Keep an active canonical run intact. At most one newer run waits behind it;
-  # stale-SHA guards stop an old run before mutable publication if main advances.
+  # main-advance compatibility permits only verified durable-state-only advances
+  # while any code/config/main-semantic advance remains fail-closed.
   group: active-scope-target-canonical-production
   cancel-in-progress: false
 env:
@@ -32,29 +33,23 @@ jobs:
           # Full history is required for safe recovery of the last accepted
           # frozen-holdout model when the current run has a transient PIT outage.
           fetch-depth: 0
-      - name: Verify merge run SHA is current main before mutable work
+      - name: Verify main-advance compatibility before mutable work
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
-          if [ "$GITHUB_SHA" != "$main_sha" ]; then
-            echo "STALE_MERGE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
-            exit 1
-          fi
+          PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: requirements.txt
-      - name: Verify workflow SHA is current main before any mutable work
+      - name: Verify main-advance compatibility before any mutable work
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
-          if [ "$GITHUB_SHA" != "$main_sha" ]; then
-            echo "STALE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
-            exit 1
-          fi
+          PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"
 
       - name: Install dependencies with transient-network retry
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
@@ -239,15 +234,12 @@ jobs:
           # Full history is required for safe recovery of the last accepted
           # frozen-holdout model when the current run has a transient PIT outage.
           fetch-depth: 0
-      - name: Verify merge workflow SHA is current main before any mutable work
+      - name: Verify main-advance compatibility before any merge mutation
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
-          if [ "$GITHUB_SHA" != "$main_sha" ]; then
-            echo "STALE_MERGE_WORKFLOW_SHA current_run=$GITHUB_SHA current_main=$main_sha"
-            exit 1
-          fi
+          PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
@@ -663,18 +655,15 @@ jobs:
           git diff --cached --check
           if git diff --cached --quiet; then exit 0; fi
           git fetch origin main
-          ensure_main_unchanged() {
+          ensure_main_compatible() {
             local main_sha
             main_sha=$(git rev-parse origin/main)
-            if [ "$GITHUB_SHA" != "$main_sha" ]; then
-              echo "STALE_PUBLISH_RUN source=$GITHUB_SHA current_main=$main_sha"
-              return 1
-            fi
+            PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"
           }
-          ensure_main_unchanged
+          ensure_main_compatible
           git commit -m 'chore: update active-scope research results'
           git fetch origin main
-          ensure_main_unchanged
+          ensure_main_compatible
           rebase_with_generated_output_resolution() {
             if git rebase --autostash origin/main; then
               return 0
@@ -700,17 +689,17 @@ jobs:
             echo 'ERROR: main advanced with a non-generated-file conflict.' >&2
             return 1
           }
-          ensure_main_unchanged
+          ensure_main_compatible
           if ! rebase_with_generated_output_resolution; then
             exit 1
           fi
-          ensure_main_unchanged
+          ensure_main_compatible
           for attempt in 1 2 3; do
-            ensure_main_unchanged
+            ensure_main_compatible
             if git push origin HEAD:main; then exit 0; fi
             if [ "$attempt" -eq 3 ]; then exit 1; fi
             git fetch origin main
-            ensure_main_unchanged
+            ensure_main_compatible
             if ! rebase_with_generated_output_resolution; then
               exit 1
             fi
