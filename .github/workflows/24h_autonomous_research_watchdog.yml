@@ -27,12 +27,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Inspect and recover stalled marathon
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           WORKFLOW: 24h_autonomous_research.yml
           SELF_RUN_ID: ${{ github.run_id }}
+          PYTHONPATH: .
         shell: bash
         run: |
           set -euo pipefail
@@ -71,7 +75,33 @@ jobs:
               return datetime.fromisoformat(raw.replace("Z", "+00:00"))
 
           candidates = [r for r in runs if int(r.get("databaseId", -1)) != self_id]
-          current = [r for r in candidates if r.get("headSha") == main_sha and r.get("status") in active]
+          current = []
+          compatible_runs = []
+          outdated_active = []
+          outdated_queued = []
+
+          from src.main_advance_policy import classify_main_advance
+
+          for r in candidates:
+              run_status = r.get("status")
+              run_sha = str(r.get("headSha") or "")
+              if run_status not in active and run_status != "completed":
+                  continue
+
+              try:
+                  advance = classify_main_advance(run_sha, main_sha, cwd=".")
+                  compatible = advance.status in {"EXACT_CURRENT_MAIN", "DURABLE_ONLY"}
+              except Exception:
+                  compatible = False
+
+              if compatible:
+                  compatible_runs.append(r)
+                  if run_status in active:
+                      current.append(r)
+              elif run_status in {"queued", "pending"}:
+                  outdated_queued.append(r)
+              elif run_status in active:
+                  outdated_active.append(r)
 
           stale_current = []
           for r in current:
@@ -81,24 +111,7 @@ jobs:
               elif r.get("status") in {"queued", "pending", "waiting", "requested"} and age_min >= 30:
                   stale_current.append(r)
 
-          outdated_active = []
-          for r in candidates:
-              if r.get("headSha") != main_sha and r.get("status") in active:
-                  age_min = (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() / 60
-                  if age_min >= 0:
-                      outdated_active.append(r)
-
-          outdated_queued = []
-          for r in candidates:
-              if r.get("headSha") != main_sha and r.get("status") in {"queued", "pending"}:
-                  age_min = (now - dt(r.get("updatedAt") or r.get("createdAt"))).total_seconds() / 60
-                  if age_min >= 0:
-                      outdated_queued.append(r)
-
-          completed = [
-              r for r in candidates
-              if r.get("headSha") == main_sha and r.get("status") == "completed"
-          ]
+          completed = [r for r in compatible_runs if r.get("status") == "completed"]
           completed.sort(key=lambda r: dt(r.get("updatedAt") or r.get("createdAt")), reverse=True)
 
           # The marathon is scheduled once per UTC day at 15:17. The watchdog
@@ -125,9 +138,8 @@ jobs:
           )
           next_daily_boundary_epoch = daily_boundary_epoch + 24 * 60 * 60
           current_boundary_runs = [
-              r for r in candidates
-              if r.get("headSha") == main_sha
-              and daily_boundary_started
+              r for r in compatible_runs
+              if daily_boundary_started
               and daily_boundary_epoch
               <= int(dt(r.get("createdAt") or r.get("updatedAt")).timestamp())
               < next_daily_boundary_epoch
@@ -169,7 +181,7 @@ jobs:
           elif current:
               decision = {
                   "action": "WAIT",
-                  "reason": "current_main_run_active",
+                  "reason": "compatible_current_main_run_active",
                   "main_sha": main_sha,
               }
           elif (
