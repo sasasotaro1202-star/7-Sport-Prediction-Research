@@ -20,6 +20,12 @@ def main() -> int:
     assert persist < dispatch < final, "dispatch must occur only after persistence"
 
     assert "workflow_run:" in text
+    assert "push:" in text
+    assert text.count("  push:") == 1
+    assert "'src/**'" in text
+    assert "'scripts/**'" in text
+    assert "'.github/workflows/**'" in text
+    assert "'config/**'" in text
     assert "Active-Scope Target v4.5.15 Production" in text
     assert "PIT History Expansion" in text
     assert "Production Failure Recovery" in text
@@ -51,7 +57,7 @@ def main() -> int:
     persist_block = text[persist:dispatch]
     dispatch_block = text[dispatch:final]
 
-    assert "cancel-in-progress: false" in persist_block
+    assert "cancel-in-progress: false" in text
     assert "id: persist" in persist_block
     assert 'git ls-files --error-unmatch -- "$state_path"' in persist_block
     assert 'CONTROL_PLANE_STATE_NOT_TRACKED path=$state_path' in persist_block
@@ -69,8 +75,24 @@ def main() -> int:
     assert '--arg sha "$main_sha"' in dispatch_block
     assert '--arg sha "${{ github.sha }}"' not in dispatch_block
 
+    test_control_plane_watchdog_contract()
     print("AUTONOMOUS_CONTROL_PLANE_DISPATCH_ORDER=PASS")
     return 0
+
+def test_control_plane_watchdog_contract() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane_watchdog.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert 'cron: "2,32 * * * *"' in text
+    assert "workflow_dispatch:" in text
+    assert "actions: write" in text
+    assert "CONTROL_STATE_MISSING_OR_INVALID" in text
+    assert "CONTROL_STATE_SHA_STALE" in text
+    assert "CONTROL_STATE_OLDER_THAN_3H30M" in text
+    assert "active_any" in text
+    assert "ACTIVE_CONTROL_RUN" in text
+    assert "RECENT_CONTROL_RUN" in text
+    assert "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH" in text
+    assert 'gh workflow run autonomous_control_plane.yml --ref main --repo "$repo"' in text
 
 
 if __name__ == "__main__":

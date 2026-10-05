@@ -8,14 +8,10 @@ on:
     branches:
       - main
     paths:
-      - 'src/autonomous_control_plane.py'
-      - 'scripts/test_autonomous_control_plane.py'
-      - 'scripts/test_autonomous_control_plane_workflow.py'
-      - '.github/workflows/autonomous_control_plane.yml'
-      - 'config/PROJECT_SCOPE_POLICY.json'
-      - 'config/PREDICTION_TIMING_POLICY.json'
-      - 'config/PRE_EVENT_PREDICTION_POLICY.json'
-      - 'config/SOURCE_FEASIBILITY_POLICY.json'
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+      - 'config/**'
       - 'PROJECT_INSTRUCTIONS.md'
       - 'PROJECT_SOURCE.md'
   workflow_run:

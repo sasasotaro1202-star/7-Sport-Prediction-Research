@@ -1,0 +1,122 @@
+name: Autonomous Control Plane Watchdog
+
+on:
+  schedule:
+    - cron: "2,32 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: autonomous-control-plane-watchdog
+  cancel-in-progress: true
+
+jobs:
+  watchdog:
+    name: Detect stale control plane and recover
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Resolve current main
+        id: main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          echo "sha=$remote_sha" >> "$GITHUB_OUTPUT"
+          echo "WATCHDOG_CURRENT_MAIN_SHA=$remote_sha"
+
+      - name: Inspect control-plane state and live runs
+        id: inspect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_MAIN_SHA: ${{ steps.main.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          workflow="autonomous_control_plane.yml"
+          state_json="$(gh api "repos/$repo/contents/results/research/autonomous_control_plane.json?ref=main" 2>/dev/null || true)"
+          state_sha=""
+          state_generated=""
+          if [ -n "$state_json" ]; then
+            state_content="$(printf '%s' "$state_json" | jq -r '.content // ""' | tr -d '\n' | base64 -d 2>/dev/null || true)"
+            if [ -n "$state_content" ] && printf '%s' "$state_content" | jq -e . >/dev/null 2>&1; then
+              state_sha="$(printf '%s' "$state_content" | jq -r '.head_sha // ""')"
+              state_generated="$(printf '%s' "$state_content" | jq -r '.generated_at_utc // ""')"
+            fi
+          fi
+
+          runs="$(gh run list --workflow "$workflow" --branch main --limit 50 --json databaseId,status,conclusion,createdAt,headSha,event)"
+          active_any="$(printf '%s' "$runs" | jq '[.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")] | length')"
+          latest_created="$(printf '%s' "$runs" | jq -r '[.[] | .createdAt] | sort | last // ""')"
+          stale_reason="NONE"
+          recover=false
+          if [ -z "$state_sha" ]; then
+            recover=true
+            stale_reason="CONTROL_STATE_MISSING_OR_INVALID"
+          elif [ "$state_sha" != "$CURRENT_MAIN_SHA" ]; then
+            recover=true
+            stale_reason="CONTROL_STATE_SHA_STALE"
+          else
+            now_ts="$(date -u +%s)"
+            generated_ts="$(date -u -d "$state_generated" +%s 2>/dev/null || echo 0)"
+            if [ "$generated_ts" -le 0 ]; then
+              recover=true
+              stale_reason="CONTROL_STATE_TIMESTAMP_INVALID"
+            else
+              age=$((now_ts-generated_ts))
+              if [ "$age" -ge 12600 ]; then
+                recover=true
+                stale_reason="CONTROL_STATE_OLDER_THAN_3H30M"
+              fi
+            fi
+          fi
+
+          if [ "$active_any" -ne 0 ]; then
+            recover=false
+            stale_reason="$stale_reason|ACTIVE_CONTROL_RUN"
+          fi
+
+          if [ -n "$latest_created" ]; then
+            latest_ts="$(date -u -d "$latest_created" +%s 2>/dev/null || echo 0)"
+            now_ts="$(date -u +%s)"
+            if [ "$latest_ts" -gt 0 ]; then
+              latest_age=$((now_ts-latest_ts))
+              if [ "$latest_age" -lt 1500 ]; then
+                recover=false
+                stale_reason="$stale_reason|RECENT_CONTROL_RUN"
+              fi
+            fi
+          fi
+
+          echo "recover=$recover" >> "$GITHUB_OUTPUT"
+          echo "reason=$stale_reason" >> "$GITHUB_OUTPUT"
+          echo "WATCHDOG_RECOVER=$recover reason=$stale_reason active_any=$active_any state_sha=${state_sha:-MISSING} current_main=$CURRENT_MAIN_SHA"
+
+      - name: Dispatch current-main control plane
+        if: steps.inspect.outputs.recover == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          current_sha="${{ steps.main.outputs.sha }}"
+          remote_sha="$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "$current_sha" || {
+            echo "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH expected=$current_sha actual=$remote_sha" >&2
+            exit 1
+          }
+          echo "WATCHDOG_DISPATCH control_plane.yml ref=main reason=${{ steps.inspect.outputs.reason }} sha=$current_sha"
+          gh workflow run autonomous_control_plane.yml --ref main --repo "$repo"
+
+      - name: Watchdog status
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "AUTONOMOUS_CONTROL_PLANE_WATCHDOG=COMPLETED_WITH_FAIL_CLOSED_RECOVERY"
