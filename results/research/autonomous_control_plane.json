@@ -1,0 +1,388 @@
+{
+  "version": "autonomous-control-plane-v1",
+  "generated_at_utc": "2026-10-05T11:59:12.226160+00:00",
+  "head_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+  "state_fingerprint": "5a0bb45fc334d872a438",
+  "status": "DEGRADED",
+  "active_sports": [
+    "valorant",
+    "basketball",
+    "volleyball",
+    "ufc",
+    "rizin"
+  ],
+  "deferred_sports": [
+    "tennis",
+    "f1",
+    "rugby",
+    "boxing"
+  ],
+  "observations": {
+    "observed_at_utc": "2026-10-05T11:59:12.226160+00:00",
+    "head_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+    "reproducibility": {
+      "manifest_sha": "ba31b37c6ca093ff0a2a1baa2c51ddf77394a57c",
+      "head_matches_manifest": false,
+      "status": "STALE_OR_MISSING"
+    },
+    "errors": {},
+    "quality": {
+      "status": "PASS_WITH_PENDING",
+      "pending": [
+        "accepted_model_coverage_incomplete",
+        "international_context_coverage_incomplete",
+        "no_exact_pit_replay_rows",
+        "verified_outcome_coverage_incomplete"
+      ],
+      "pit_exact_pass": 0,
+      "pit_research_blocked": true
+    },
+    "release": {
+      "status": "READY_WITH_EXPLICIT_DEFERRED_SPORTS",
+      "publish": true,
+      "active_accepted_model_gap": [
+        "valorant",
+        "basketball",
+        "volleyball",
+        "rizin"
+      ]
+    },
+    "future_prediction": {
+      "generated_at_utc": "2026-10-05T02:42:35.692181+00:00",
+      "age_hours": 9.276814994166667,
+      "age_class": "STALE",
+      "statuses": [
+        "NO_FUTURE_EVENTS"
+      ]
+    },
+    "experience": {
+      "archive_total": 0,
+      "scored_total": 0,
+      "unresolved_total": 0,
+      "generated_at_utc": "2026-10-05T02:42:40.735384+00:00"
+    },
+    "route_observability": {
+      "prediction_rows": 0,
+      "accepted_routes": 0,
+      "accepted_timing_routes": 0
+    },
+    "timing": {
+      "status": "READY_NO_ACCEPTED_ROUTES",
+      "route_count": 0
+    },
+    "actions": {
+      "source_feasibility": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 6.151174380555556,
+        "head_sha": "3fb85d47ed920044fb56a6e7153bdd56fcb4730d",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "success",
+        "run_id": 37269530443,
+        "active_run_any": false,
+        "stale": true
+      },
+      "scope_autofill": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 6.318952161666667,
+        "head_sha": "3fb85d47ed920044fb56a6e7153bdd56fcb4730d",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "success",
+        "run_id": 37268795781,
+        "active_run_any": false,
+        "stale": true
+      },
+      "runtime_health": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 3.1497854975,
+        "head_sha": "69b0a51c67a85e65d494cc1eeb473a18505f2e19",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "success",
+        "run_id": 37286121082,
+        "active_run_any": false,
+        "stale": true
+      },
+      "safety_audit": {
+        "run_status": "queued",
+        "status": "IN_PROGRESS",
+        "age_hours": 0.0058966113888888885,
+        "head_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": true,
+        "conclusion": null,
+        "run_id": 37306424453,
+        "active_run_any": true,
+        "stale": true
+      },
+      "lane_audit": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 6.0622855025,
+        "head_sha": "3fb85d47ed920044fb56a6e7153bdd56fcb4730d",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "success",
+        "run_id": 37269925187,
+        "active_run_any": false,
+        "stale": true
+      },
+      "research_sweep": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 0.7042299488888889,
+        "head_sha": "20429973873c189d1ed622e391bdbf239eff6c44",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "success",
+        "run_id": 37301932903,
+        "active_run_any": false,
+        "stale": true
+      },
+      "deep_research": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 17.358674395,
+        "head_sha": "fadb977661c61e25f2aa42dc4bf50941e3acabd6",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "failure",
+        "run_id": 37225158856,
+        "active_run_any": false,
+        "stale": true
+      },
+      "pre_event_prediction": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 2.738118841111111,
+        "head_sha": "ba39ddf815e2baccc8498b2dcad11f65b1fcfd96",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "success",
+        "run_id": 37288771525,
+        "active_run_any": false,
+        "stale": true
+      },
+      "production": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 2.737563287222222,
+        "head_sha": "ba39ddf815e2baccc8498b2dcad11f65b1fcfd96",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "failure",
+        "run_id": 37288774724,
+        "active_run_any": false,
+        "stale": true
+      },
+      "pit_history": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 5.581729955555556,
+        "head_sha": "b6ed4a44b4324ea5a9298d19688875ca5c875277",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "failure",
+        "run_id": 37272241389,
+        "active_run_any": false,
+        "stale": true
+      },
+      "failure_recovery": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 2.7836744013888888,
+        "head_sha": "a41eb6cffa27acbb3cc7953ccb4bddf7aa42ba59",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "success",
+        "run_id": 37288478962,
+        "active_run_any": false,
+        "stale": true
+      },
+      "watchdog": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 2.783674403888889,
+        "head_sha": "a41eb6cffa27acbb3cc7953ccb4bddf7aa42ba59",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "success",
+        "run_id": 37288478961,
+        "active_run_any": false,
+        "stale": true
+      },
+      "invariants": {
+        "run_status": "queued",
+        "status": "IN_PROGRESS",
+        "age_hours": 0.0058966274999999995,
+        "head_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": true,
+        "conclusion": null,
+        "run_id": 37306424499,
+        "active_run_any": true,
+        "stale": true
+      },
+      "lightweight_regression": {
+        "run_status": "in_progress",
+        "status": "IN_PROGRESS",
+        "age_hours": 0.005896628888888889,
+        "head_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": true,
+        "conclusion": null,
+        "run_id": 37306424513,
+        "active_run_any": true,
+        "stale": true
+      },
+      "control_plane_regression": {
+        "run_status": "queued",
+        "status": "IN_PROGRESS",
+        "age_hours": 0.00589663,
+        "head_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": true,
+        "conclusion": null,
+        "run_id": 37306424478,
+        "active_run_any": true,
+        "stale": true
+      },
+      "trajectory_research": {
+        "run_status": "completed",
+        "status": "STALE",
+        "age_hours": 2.7836744094444446,
+        "head_sha": "a41eb6cffa27acbb3cc7953ccb4bddf7aa42ba59",
+        "current_main_sha": "91eba3c88d005e6f9d3b071f906ebc165b93521a",
+        "sha_match": false,
+        "conclusion": "failure",
+        "run_id": 37288479107,
+        "active_run_any": false,
+        "stale": true
+      }
+    },
+    "event_evidence": {
+      "workflow": "Autonomous Control Plane Regression",
+      "conclusion": "cancelled",
+      "head_sha": "78e0005cf36d0aa9c1351f99fdd1f06777f54d94",
+      "run_id": "37306324864",
+      "target": null,
+      "relation_to_current_main": "ANCESTOR_OF_CURRENT_MAIN",
+      "ancestor_of_current_main": true,
+      "eligible": false
+    },
+    "failure_memory": {
+      "records_total": 10,
+      "recent_24h": 5,
+      "recent_7d": 10,
+      "latest": {
+        "classification_basis": "workflow_run_conclusion_and_observed_failed_job_names",
+        "conclusion": "failure",
+        "failed_jobs": [
+          "Collect basketball",
+          "Collect rizin",
+          "Collect ufc",
+          "Collect valorant",
+          "Collect volleyball"
+        ],
+        "failure_class": "COLLECTION_WORKFLOW_FAILURE",
+        "head_branch": "main",
+        "head_sha": "1e070bf4033f759892a5ee85452191e3327ab825",
+        "log_capture_status": "CAPTURED",
+        "memory_status": "DETECTED",
+        "record_id": "run-37287276956-attempt-1",
+        "recorded_at_utc": "2026-10-05T09:14:15.813874+00:00",
+        "recovery_policy": "bounded_retry_or_fresh_current_main_run",
+        "run_attempt": 1,
+        "run_id": 37287276956,
+        "schema_version": 1,
+        "source_run_url": "https://github.com/sasasotaro1202-star/7-Sport-Prediction-Research/actions/runs/37287276956",
+        "unknown_details_are_not_inferred": true,
+        "workflow_id": 357226230,
+        "workflow_name": "Active-Scope Target v4.5.15 Production"
+      },
+      "latest_failure_at_utc": "2026-10-05T09:14:15.813874+00:00",
+      "by_class_recent_24h": {
+        "COLLECTION_WORKFLOW_FAILURE": 1,
+        "PIT_WORKFLOW_FAILURE": 3,
+        "RESEARCH_RELEASE_WORKFLOW_FAILURE": 1
+      },
+      "status": "OK"
+    },
+    "dual_learning": {
+      "status": "SUCCESS",
+      "generated_at_utc": "2026-10-05T02:33:17.845817+00:00"
+    }
+  },
+  "selected_action": {
+    "action": "PIT_COVERAGE_REPAIR",
+    "workflow": "pit_history_expansion.yml",
+    "target": "active_scope",
+    "impact": 100.0,
+    "evidence_gap": 1.0,
+    "failure_relevance": 1.0,
+    "generalization": 1.0,
+    "information_value": 1.0,
+    "cost": 1.0,
+    "reason": "exact PIT evidence is absent, explicitly pending, or unresolvable; production-grade OOS cannot advance safely",
+    "auto_dispatch": false,
+    "dispatch_policy": "respect_fixed_pit_boundary_or_existing_watchdog",
+    "priority": 100.0,
+    "status": "QUEUE_ONLY",
+    "automatic_promotion": false,
+    "selection_rule": "max(priority) with deterministic action/target tie-break",
+    "fingerprint": "c5154a07832abb2a7b04"
+  },
+  "dispatch_action": {
+    "action": "RESEARCH_HEALTH",
+    "workflow": "autonomous_research_sweep.yml",
+    "target": "recent_failures",
+    "impact": 24.0,
+    "evidence_gap": 0.95,
+    "failure_relevance": 1.0,
+    "generalization": 1.0,
+    "information_value": 0.95,
+    "cost": 1.0,
+    "reason": "recent production/research failures are recorded in Failure Memory; convert observed failures into bounded root-cause research before performance changes",
+    "auto_dispatch": true,
+    "dispatch_policy": "bounded_failure-followup_when_recent_failure_memory_exists",
+    "priority": 21.66,
+    "status": "DISPATCH_CANDIDATE",
+    "automatic_promotion": false
+  },
+  "automatic_promotion": false,
+  "queue": {
+    "fingerprint": "c5154a07832abb2a7b04",
+    "added": true,
+    "previous_state_fingerprint": null
+  },
+  "allowed_workflows": {
+    "PIT_COVERAGE_REPAIR": "pit_history_expansion.yml",
+    "PRODUCTION_HEARTBEAT": "pre_event_prediction.yml",
+    "RESEARCH_HEALTH": "autonomous_research_sweep.yml",
+    "DEEP_RESEARCH": "24h_autonomous_research.yml",
+    "SOURCE_FEASIBILITY": "source_feasibility_audit.yml",
+    "SCOPE_AUTOFILL": "scope_autofill.yml",
+    "RUNTIME_HEALTH": "production_runtime_health.yml",
+    "SAFETY_AUDIT": "production_safety_audit.yml",
+    "LANE_AUDIT": "nine_sport_lane_audit.yml",
+    "TRAJECTORY_RESEARCH": "autonomous_temporal_trajectory_loop.yml"
+  },
+  "safety": {
+    "no_model_auto_promotion": true,
+    "no_frozen_holdout_tuning": true,
+    "pit_fail_closed": true,
+    "missing_not_zero": true,
+    "single_writer": true,
+    "main_sha_recheck_required_before_push": true,
+    "actions_snapshot_is_provenance_input": true,
+    "automatic_dispatch_is_bounded_and_allowlisted": true,
+    "state_fingerprint_excludes_invocation_sha": true,
+    "state_fingerprint_excludes_volatile_action_age": true,
+    "state_fingerprint_excludes_derived_current_main_metadata": true,
+    "action_log_appends_only_on_decision_change": true
+  }
+}
