@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # This is a short deferred smoke test; keep only the newest validation state.
+  group: f1-current-roster-pit-smoke-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
