@@ -298,16 +298,15 @@ def collect(
     try:
         if not all(table_exists(con, x) for x in ("event", "event_participant", "match_stats", "source_snapshot", "event_outcome")):
             return {"status": "BLOCKED", "sport": sport, "reason": "REQUIRED_TABLE_MISSING"}
+        # Snapshot coverage is independent from final-outcome verification.
+        # Unverified outcomes are never used for OOS; they may be attached later.
         event_rows = con.execute(
             """SELECT e.event_id
                  FROM event e
-                JOIN event_outcome o ON o.event_id=e.event_id
                 WHERE e.sport=?
                   AND e.event_time_utc IS NOT NULL
                   AND e.event_end_time_utc IS NOT NULL
                   AND UPPER(e.status) IN ('COMPLETED','FINISHED','POST','FINAL')
-                  AND UPPER(o.outcome_status)='VERIFIED'
-                  AND UPPER(o.outcome) IN ('A','B')
                 ORDER BY e.event_time_utc,e.event_id""",
             (sport,),
         ).fetchall()
@@ -338,6 +337,8 @@ def collect(
             "sport": sport,
             "mode": mode,
             "sample_minutes": int(sample_minutes),
+            "outcome_requirement_for_snapshot_collection": "NOT_REQUIRED",
+            "oos_requires_verified_outcome": True,
             "events_scanned": len(event_rows),
             "events_with_snapshots": len({x["event_id"] for x in snapshots}),
             "snapshot_count": len(snapshots),
