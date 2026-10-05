@@ -36,6 +36,8 @@ jobs:
           ruff check --output-format=github --select F821 src/research_cycle_strict.py
       - name: Active scope workflow consistency
         run: PYTHONPATH=. python scripts/test_active_scope_workflow.py
+      - name: Main-advance compatibility regression
+        run: PYTHONPATH=. python scripts/test_main_advance_compatibility.py
       - name: PIT cache namespace regression
         run: PYTHONPATH=. python scripts/test_pit_cache_namespace.py
       - name: Competition profile regression
