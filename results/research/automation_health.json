@@ -1,7 +1,7 @@
 {
   "version": "automation-health-v1",
-  "generated_at_utc": "2026-10-05T12:13:31.112812+00:00",
-  "head_sha": "5731c7bbf76618c6fb918a311d329dad2b183def",
+  "generated_at_utc": "2026-10-05T12:26:39.326172+00:00",
+  "head_sha": "903f52af17e68bb8318b81d94cee4f1cf469470c",
   "control_plane_status": "DEGRADED",
   "selected_action": "PIT_COVERAGE_REPAIR",
   "selected_workflow": "pit_history_expansion.yml",
