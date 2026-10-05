@@ -447,7 +447,10 @@ class PredictionExperienceTests(unittest.TestCase):
                 pe.SETTLEMENTS_DIR = root / "durable_settlements"
                 pe.PREDICTION_INDEX = root / "durable_index.txt"
 
-                artifact = root / "artifacts" / "sport-a" / "results" / "experience"
+                # GitHub download-artifact commonly flattens the uploaded
+                # results/experience prefix, leaving predictions/ and settlements/
+                # directly under the downloaded artifact directory.
+                artifact = root / "artifacts" / "sport-a"
                 (artifact / "predictions").mkdir(parents=True)
                 (artifact / "settlements").mkdir(parents=True)
 
@@ -527,7 +530,7 @@ class PredictionExperienceTests(unittest.TestCase):
                     encoding="utf-8",
                 )
 
-                incoming = root / "artifacts" / "results" / "experience" / "predictions"
+                incoming = root / "artifacts" / "predictions"
                 incoming.mkdir(parents=True)
                 (incoming / "2026-10-05.jsonl").write_text(
                     json.dumps({
