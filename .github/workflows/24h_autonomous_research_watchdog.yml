@@ -3,6 +3,8 @@ name: 24H Autonomous Research Watchdog
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/24h_autonomous_research.yml"
       - ".github/workflows/24h_autonomous_research_watchdog.yml"
