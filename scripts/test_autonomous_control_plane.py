@@ -336,6 +336,17 @@ def main() -> int:
         assert active_state["actions"]["research_sweep"]["active_run_any"] is True
         _, active_dispatch = cp.choose_actions(active_state)
         assert active_dispatch is None or active_dispatch["workflow"] != "autonomous_research_sweep.yml"
+
+        # Remove the independent PIT blocker so the next assertions exercise the
+        # workflow_run event-triage path itself.
+        (root / "results/quality_gate.json").write_text(
+            json.dumps({
+                "status": "PASS",
+                "pending": [],
+                "checks": [{"check": "pit_leakage", "exact_pass": 1}],
+            }),
+            encoding="utf-8",
+        )
         os.environ["CONTROL_PLANE_EVENT_WORKFLOW"] = "v4_5_15_production.yml"
         os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
