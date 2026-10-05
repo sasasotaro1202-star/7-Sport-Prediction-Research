@@ -168,6 +168,14 @@ def test_research_sweep_control_plane_registration() -> None:
     assert cp.MONITORED_WORKFLOWS["research_sweep"] == "autonomous_research_sweep.yml"
 
 
+def test_control_plane_concurrency_is_job_scoped_and_coalescing() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
+    text = workflow.read_text(encoding="utf-8")
+    before_jobs, after_jobs = text.split("jobs:\n  control:\n", 1)
+    assert "\nconcurrency:" not in before_jobs
+    assert "concurrency:\n      group: autonomous-control-plane-main\n      cancel-in-progress: true" in after_jobs
+
+
 def test_pre_event_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"] == "pre_event_prediction.yml"
     assert cp.MONITORED_WORKFLOWS["pre_event"] == "pre_event_prediction.yml"
@@ -179,6 +187,7 @@ def main() -> int:
     test_trajectory_control_plane_registration()
     test_research_sweep_control_plane_registration()
     test_pre_event_control_plane_registration()
+    test_control_plane_concurrency_is_job_scoped_and_coalescing()
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         bind(root)
