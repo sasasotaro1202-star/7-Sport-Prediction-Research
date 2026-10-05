@@ -680,6 +680,7 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
     # Snapshot-only fallback covers failures observed between event delivery
     # and the next snapshot refresh. SHA match is mandatory.
     for monitored_target in (
+        "pre_event",
         "production",
         "pit_history",
         "failure_recovery",
