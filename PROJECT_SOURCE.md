@@ -1206,8 +1206,8 @@ AUTOMATION:
 `.github/workflows/autonomous_temporal_trajectory_loop.yml` runs on a recurring schedule and after successful canonical production/pre-event runs. Five active sports are collected in parallel from restored GitHub Actions database caches. A single merge writer reconciles against the newest main, deduplicates snapshot/outcome ledgers, reruns chronological OOS, and commits only when persistent evidence changes.
 Cache boundary:
 * The canonical production collector cache is a seed for later collection and is not treated as trajectory evidence merely because `event` rows exist.
-* The trajectory loop restores `trajectory-ready-db-v1-*` first. This cache is produced only after the production merge has completed `Outcomes` and `Strict PIT replay` and has verified completed events, numeric match statistics, and exact source availability metadata.
-* Empty/deferred/no-verified-outcome conditions do not create a trajectory-ready cache. The trajectory collector reports the missing evidence class explicitly and remains BLOCKED rather than treating an incomplete seed as usable history.
+* The trajectory loop restores `trajectory-ready-db-v1-*` first. This cache is produced only after the production merge reaches the post-`Outcomes`/post-`Strict PIT replay` stage and has verified completed events, numeric match statistics, and exact source availability metadata.
+* Verified final outcome is not required merely to preserve an in-event snapshot. Snapshot coverage and outcome coverage are separate debts: PIT-valid snapshots may be accumulated before final outcome verification, while OOS remains BLOCKED until a canonical VERIFIED A/B outcome is attached.
 * The pre-merge active-scope cache is publication-gated by collection-guard status and non-empty event coverage so an explicitly deferred lane does not poison the next seed.
 
 The loop uses sport-specific horizons rather than a universal forecast horizon: VALORANT 60/180/300/600s, Basketball 120/300/600/1200s, Volleyball 60/180/300/600s, UFC 60/120/300/600s, RIZIN 60/120/300/600s. This is a research policy, not a production release decision.
