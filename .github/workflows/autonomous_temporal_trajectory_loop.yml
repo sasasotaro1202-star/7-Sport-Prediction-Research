@@ -128,35 +128,55 @@ jobs:
           finally:
               con.close()
 
+          verified_outcomes = int(con.execute(
+              """
+              SELECT COUNT(*)
+              FROM event_outcome
+              WHERE sport=? AND UPPER(COALESCE(outcome_status,''))='VERIFIED'
+                AND UPPER(COALESCE(outcome,'')) IN ('A','B')
+              """,
+              (sport,),
+          ).fetchone()[0])
+
           if eligible_events > 0 and match_stats > 0 and exact_sources > 0:
               print(
-                  f"TRAJECTORY_DB_STATUS=READY sport={sport} events={events} "
-                  f"eligible_events={eligible_events} match_stats={match_stats} "
-                  f"exact_sources={exact_sources}"
+                  f"TRAJECTORY_DB_STATUS=READY_FOR_SNAPSHOT_COLLECTION sport={sport} "
+                  f"events={events} completed_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources} "
+                  f"verified_outcomes={verified_outcomes}"
               )
+              if verified_outcomes == 0:
+                  print(
+                      f"TRAJECTORY_OOS_STATUS=BLOCKED_NO_VERIFIED_OUTCOMES "
+                      f"sport={sport}"
+                  )
           elif eligible_events == 0:
               print(
-                  f"TRAJECTORY_DB_STATUS=BLOCKED_NO_VERIFIED_OUTCOMES sport={sport} "
-                  f"events={events} eligible_events={eligible_events} "
-                  f"match_stats={match_stats} exact_sources={exact_sources}"
+                  f"TRAJECTORY_DB_STATUS=BLOCKED_NO_COMPLETED_EVENTS sport={sport} "
+                  f"events={events} completed_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources} "
+                  f"verified_outcomes={verified_outcomes}"
               )
           elif match_stats == 0:
               print(
                   f"TRAJECTORY_DB_STATUS=BLOCKED_NO_MATCH_STATS sport={sport} "
-                  f"events={events} eligible_events={eligible_events} "
-                  f"match_stats={match_stats} exact_sources={exact_sources}"
+                  f"events={events} completed_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources} "
+                  f"verified_outcomes={verified_outcomes}"
               )
           elif exact_sources == 0:
               print(
                   f"TRAJECTORY_DB_STATUS=BLOCKED_NO_EXACT_PIT_SOURCES sport={sport} "
-                  f"events={events} eligible_events={eligible_events} "
-                  f"match_stats={match_stats} exact_sources={exact_sources}"
+                  f"events={events} completed_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources} "
+                  f"verified_outcomes={verified_outcomes}"
               )
           else:
               print(
                   f"TRAJECTORY_DB_STATUS=BLOCKED_INCOMPLETE_EVIDENCE sport={sport} "
-                  f"events={events} eligible_events={eligible_events} "
-                  f"match_stats={match_stats} exact_sources={exact_sources}"
+                  f"events={events} completed_events={eligible_events} "
+                  f"match_stats={match_stats} exact_sources={exact_sources} "
+                  f"verified_outcomes={verified_outcomes}"
               )
           PY
           fi
