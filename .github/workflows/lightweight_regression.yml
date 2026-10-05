@@ -3,6 +3,8 @@ name: Lightweight Regression and Safety Checks
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'ops/automation/heartbeat.json'
   pull_request:
   workflow_dispatch:
 
