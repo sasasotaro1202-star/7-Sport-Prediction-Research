@@ -54,6 +54,7 @@ The autonomous control plane is the operational orchestrator. Every three hours 
 Existing owners remain authoritative: the production watchdog owns pre-event heartbeat recovery; PIT History Expansion keeps its fixed 9-hour cadence; Production Failure Recovery owns failure-specific recovery. The control plane must not bypass these contracts.
 
 Actions state is treated as evidence, not as success by existence. Missing or malformed evidence remains UNKNOWN/UNVERIFIABLE and is never converted to zero. Automatic model promotion, frozen-holdout tuning, and silent scope activation remain forbidden.
+Trajectory research must consume the post-Outcome/Strict-PIT `trajectory-ready-db-v1-*` cache before falling back to seed caches; seed `event` rows alone never establish trajectory eligibility, and blocked evidence classes must remain explicit.
 
 ### PIT evidence automation hardening
 The fixed PIT-history workflow now performs a strict B.LEAGUE exact-materialization step using only the already-registered research evidence, the exact commit-pinned source revision, and its conservative publication bound. Canonical event/participant resolution is required; zero exact rows is a hard failure, and no model/OOS/holdout/production promotion is implied by materialization.
