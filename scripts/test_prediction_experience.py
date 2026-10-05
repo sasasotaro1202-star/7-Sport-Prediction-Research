@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 import tempfile
 import unittest
 from pathlib import Path
@@ -454,30 +455,38 @@ class PredictionExperienceTests(unittest.TestCase):
                 (artifact / "predictions").mkdir(parents=True)
                 (artifact / "settlements").mkdir(parents=True)
 
+                # Keep the fixture strictly before the test execution clock so
+                # experience_learning's future-settlement guard is exercised only
+                # by dedicated tests, not by a wall-clock-dependent merge fixture.
+                now = datetime.now(timezone.utc).replace(microsecond=0)
+                cutoff = now - timedelta(minutes=120)
+                generated = now - timedelta(minutes=110)
+                settled = now - timedelta(minutes=60)
+                day = settled.strftime("%Y-%m-%d")
                 prediction = {
                     "prediction_id": "merge-p1",
                     "sport": "ufc",
                     "event_id": "event-merge",
-                    "generated_at_utc": "2026-10-05T09:00:00+00:00",
-                    "prediction_cutoff_at_utc": "2026-10-05T08:00:00+00:00",
+                    "generated_at_utc": generated.isoformat(),
+                    "prediction_cutoff_at_utc": cutoff.isoformat(),
                 }
                 settlement = {
                     "prediction_id": "merge-p1",
                     "sport": "ufc",
                     "event_id": "event-merge",
                     "settlement_status": "SCORED",
-                    "prediction_cutoff_at_utc": "2026-10-05T08:00:00+00:00",
-                    "settled_at_utc": "2026-10-05T10:00:00+00:00",
+                    "prediction_cutoff_at_utc": cutoff.isoformat(),
+                    "settled_at_utc": settled.isoformat(),
                     "correct": True,
                     "max_probability": 0.70,
                     "logloss": 0.30,
                     "brier": 0.09,
                 }
-                (artifact / "predictions" / "2026-10-05.jsonl").write_text(
+                (artifact / "predictions" / f"{day}.jsonl").write_text(
                     json.dumps(prediction) + "\n",
                     encoding="utf-8",
                 )
-                (artifact / "settlements" / "2026-10-05.jsonl").write_text(
+                (artifact / "settlements" / f"{day}.jsonl").write_text(
                     json.dumps(settlement) + "\n",
                     encoding="utf-8",
                 )
