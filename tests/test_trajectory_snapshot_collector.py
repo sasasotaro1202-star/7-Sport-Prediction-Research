@@ -128,3 +128,5 @@ if __name__ == "__main__":
     test_snapshots_do_not_require_verified_outcome()
     test_bad_pit_is_fail_closed_for_snapshots()
     print("TRAJECTORY_SNAPSHOT_COLLECTOR_TEST=PASS")
+
+# trajectory collector regression file
