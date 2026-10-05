@@ -37,6 +37,8 @@ jobs:
         run: PYTHONPATH=. python src/production_invariants.py
       - name: Prediction experience regression
         run: PYTHONPATH=. python scripts/test_prediction_experience.py
+      - name: Experience learning regression
+        run: PYTHONPATH=. python scripts/test_experience_learning.py
       - name: Refresh experience learning memory
         run: PYTHONPATH=. python -m src.experience_learning
       - name: Build prospective experience research candidates
