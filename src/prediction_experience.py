@@ -270,16 +270,6 @@ def _artifact_jsonl_files(artifact_root: Path, leaf: str) -> list[Path]:
     )
 
 
-def _validate_artifact_rows(files: list[Path], expected_leaf: str) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for path in files:
-        for row in _load_jsonl_dir(path.parent):
-            if not isinstance(row, dict):
-                raise RuntimeError(f"EXPERIENCE_ARTIFACT_INVALID_ROW:{path}")
-            rows.append(row)
-    return rows
-
-
 def _merge_append_only_jsonl(
     target_dir: Path,
     incoming_files: list[Path],
@@ -390,6 +380,7 @@ def merge_experience_artifacts(artifact_root: Path) -> dict[str, Any]:
 
     settled_rows = load_settled_rows(SETTLEMENTS_DIR)
     memory, memory_changed = persist_memory(settled_rows)
+    from src.experience_research_bridge import build, persist_candidates
     candidates = json.loads(
         (ROOT / "results" / "research" / "experience_learning.json").read_text(
             encoding="utf-8"
