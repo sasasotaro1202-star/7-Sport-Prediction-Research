@@ -168,6 +168,14 @@ def action_health(
             "stale": True,
         }
     latest = raw.get("latest")
+    recent = raw.get("recent")
+    if not isinstance(recent, list):
+        recent = []
+    active_statuses = {"queued", "in_progress", "waiting", "requested", "pending"}
+    active_run_any = any(
+        isinstance(run, dict) and str(run.get("status") or "") in active_statuses
+        for run in recent
+    )
     if not isinstance(latest, dict):
         return {
             "status": "MISSING",
@@ -175,6 +183,7 @@ def action_health(
             "head_sha": None,
             "conclusion": None,
             "run_id": None,
+            "active_run_any": active_run_any,
             "stale": True,
         }
     created = parse_dt(latest.get("createdAt"))
@@ -215,6 +224,7 @@ def action_health(
         "sha_match": None if not current_main_sha or current_main_sha == "UNKNOWN" or not head_sha else not sha_mismatch,
         "conclusion": conclusion or None,
         "run_id": latest.get("databaseId"),
+        "active_run_any": active_run_any,
         "stale": (not healthy) or sha_mismatch,
     }
 
@@ -556,6 +566,17 @@ def inspect() -> dict[str, Any]:
 
 def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
     candidates: list[dict[str, Any]] = []
+    workflow_health_target = {
+        ALLOWED_WORKFLOWS["RESEARCH_HEALTH"]: "research_sweep",
+        ALLOWED_WORKFLOWS["DEEP_RESEARCH"]: "deep_research",
+        ALLOWED_WORKFLOWS["SOURCE_FEASIBILITY"]: "source_feasibility",
+        ALLOWED_WORKFLOWS["SCOPE_AUTOFILL"]: "scope_autofill",
+        ALLOWED_WORKFLOWS["RUNTIME_HEALTH"]: "runtime_health",
+        ALLOWED_WORKFLOWS["SAFETY_AUDIT"]: "safety_audit",
+        ALLOWED_WORKFLOWS["LANE_AUDIT"]: "lane_audit",
+        ALLOWED_WORKFLOWS["TRAJECTORY_RESEARCH"]: "trajectory_research",
+        ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"]: "pre_event_prediction",
+    }
 
     # A workflow_run failure is first-class evidence. inspect() has already
     # validated the event against current main or a verified ancestor.
@@ -786,6 +807,14 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             / c["cost"],
             6,
         )
+
+        health_target = workflow_health_target.get(c.get("workflow"))
+        health = actions.get(health_target) if health_target else None
+        if c.get("auto_dispatch") and isinstance(health, dict) and health.get("active_run_any"):
+            c["auto_dispatch"] = False
+            c["dispatch_block_reason"] = (
+                "target_workflow_already_has_an_active_run_in_recent_actions_snapshot"
+            )
 
     candidates.sort(key=lambda c: (-float(c["priority"]), str(c["action"]), str(c["target"])))
     selected = dict(candidates[0])
