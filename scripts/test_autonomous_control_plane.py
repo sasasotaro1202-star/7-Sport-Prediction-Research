@@ -204,7 +204,7 @@ def test_control_plane_concurrency_is_job_scoped_and_coalescing() -> None:
     text = workflow.read_text(encoding="utf-8")
     before_jobs, after_jobs = text.split("jobs:\n  control:\n", 1)
     assert "\nconcurrency:" not in before_jobs
-    assert "concurrency:\n      group: autonomous-control-plane-main\n      cancel-in-progress: false" in after_jobs
+    assert "concurrency:\n      group: autonomous-control-plane-main\n      cancel-in-progress: true" in after_jobs
 
 
 def test_persist_detects_missing_state_artifacts() -> None:
@@ -264,6 +264,18 @@ def test_control_plane_dispatch_has_live_all_sha_guard() -> None:
 
 
 
+def test_control_plane_dispatch_verifies_run_creation() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
+    text = workflow.read_text(encoding="utf-8")
+    start = text.index("      - name: Dispatch at most one allowlisted autonomous workflow")
+    end = text.index("      - name: Final control-plane status", start)
+    block = text[start:end]
+    assert 'dispatch_started_at="$(date -u +%s)"' in block
+    assert "AUTO_DISPATCH_VERIFIED" in block
+    assert "AUTO_DISPATCH_UNVERIFIED" in block
+    assert "fromdateiso8601" in block
+
+
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
@@ -271,6 +283,7 @@ def main() -> int:
     test_research_sweep_control_plane_registration()
     test_pre_event_control_plane_registration()
     test_control_plane_concurrency_is_job_scoped_and_coalescing()
+    test_control_plane_dispatch_verifies_run_creation()
     test_persist_detects_missing_state_artifacts()
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)

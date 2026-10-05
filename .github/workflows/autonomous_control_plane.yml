@@ -321,8 +321,31 @@ jobs:
           fi
 
           if [ "$dispatch" = true ]; then
+            dispatch_started_at="$(date -u +%s)"
             echo "AUTO_DISPATCH workflow=$DISPATCH_WORKFLOW action=$DISPATCH_ACTION reason=$reason"
             gh workflow run "$DISPATCH_WORKFLOW" --ref main
+
+            verified=false
+            for attempt in 1 2 3 4 5; do
+              sleep 2
+              state_after="$(gh run list --workflow "$DISPATCH_WORKFLOW" --branch main --limit 20 \
+                --json databaseId,status,createdAt,headSha,event,conclusion)"
+              if printf '%s' "$state_after" | jq -e \
+                --arg sha "$main_sha" --argjson started "$dispatch_started_at" '
+                  any(.[];
+                    (.headSha == $sha)
+                    and ((.createdAt | fromdateiso8601) >= $started)
+                  )
+                ' >/dev/null; then
+                verified=true
+                echo "AUTO_DISPATCH_VERIFIED workflow=$DISPATCH_WORKFLOW main_sha=$main_sha attempt=$attempt"
+                break
+              fi
+            done
+            if [ "$verified" != true ]; then
+              echo "AUTO_DISPATCH_UNVERIFIED workflow=$DISPATCH_WORKFLOW main_sha=$main_sha" >&2
+              exit 1
+            fi
           else
             echo "AUTO_DISPATCH_SKIPPED reason=$reason"
           fi

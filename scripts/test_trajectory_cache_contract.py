@@ -12,6 +12,11 @@ def pos(text: str, needle: str) -> int:
 prod = PROD.read_text(encoding="utf-8")
 traj = TRAJ.read_text(encoding="utf-8")
 
+assert 'cron: "0 * * * *"' in traj
+assert "workflow_run:" not in traj
+assert "cancel-in-progress: true" in traj
+assert "Heavy/shadow trajectory research is deliberately decoupled" in traj
+
 active_gate = pos(prod, "Gate active-scope database cache publication")
 active_save = pos(prod, "- name: Save database")
 assert active_gate < active_save

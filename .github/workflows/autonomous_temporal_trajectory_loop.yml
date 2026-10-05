@@ -1,29 +1,23 @@
 name: Autonomous Temporal Trajectory Loop
 
 on:
+  # Heavy/shadow trajectory research is deliberately decoupled from the
+  # 15-minute production prediction lane. Run hourly and coalesce stale runs.
   schedule:
-    - cron: "*/15 * * * *"
-  workflow_run:
-    workflows:
-      - Pre-Event Adaptive Timing Prediction
-      - Active-Scope Target v4.5.15 Production
-    types:
-      - completed
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
+  # Collection is read-only and replaceable; only the newest sweep is useful.
   group: autonomous-temporal-trajectory-loop
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   collect:
     name: Collect trajectory state / ${{ matrix.sport }}
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
     strategy:
       fail-fast: false
       max-parallel: 5
