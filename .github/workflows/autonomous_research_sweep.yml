@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: autonomous-research-sweep
@@ -43,3 +43,43 @@ jobs:
         run: PYTHONPATH=. python -m src.experience_research_bridge
       - name: Experience research bridge regression
         run: PYTHONPATH=. python scripts/test_experience_research_bridge.py
+      - name: Persist autonomous experience memory
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          remote_sha="$(git rev-parse origin/main)"
+          if [ "$remote_sha" != "$GITHUB_SHA" ]; then
+            echo "STALE_MAIN_BEFORE_RESEARCH_MEMORY_PUSH expected=$GITHUB_SHA actual=$remote_sha"
+            exit 1
+          fi
+
+          changed="$(git status --porcelain -- results/research/experience_learning.json results/research/experience_research_candidates.json)"
+          if [ -z "$changed" ]; then
+            echo "EXPERIENCE_MEMORY_PERSIST=NO_CHANGE"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/research/experience_learning.json results/research/experience_research_candidates.json
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "EXPERIENCE_MEMORY_PERSIST=NO_CHANGE_AFTER_STAGE"
+            exit 0
+          fi
+
+          git commit -m "ops: persist autonomous experience memory"
+          remote_sha="$(git rev-parse origin/main)"
+          latest_remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$latest_remote_sha" != "$GITHUB_SHA" ]; then
+            echo "STALE_MAIN_BEFORE_RESEARCH_MEMORY_PUSH expected=$GITHUB_SHA actual=$latest_remote_sha"
+            exit 1
+          fi
+          test "$remote_sha" = "$GITHUB_SHA" || {
+            echo "LOCAL_REMOTE_MAIN_MISMATCH expected=$GITHUB_SHA actual=$remote_sha"
+            exit 1
+          }
+          git push origin HEAD:main
+          echo "EXPERIENCE_MEMORY_PERSIST=PUSHED commit=$(git rev-parse HEAD)"
