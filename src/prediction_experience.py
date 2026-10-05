@@ -381,7 +381,7 @@ def merge_experience_artifacts(
     PREDICTION_INDEX.write_text(index_content, encoding="utf-8")
     index_changed = old_index != index_content
 
-    settled_rows = load_settled_rows(SETTLEMENTS_DIR)
+    settled_rows = list(_load_settlements().values())
     memory_path = memory_output_path or (ROOT / "results" / "research" / "experience_learning.json")
     candidate_path = candidate_output_path or (ROOT / "results" / "research" / "experience_research_candidates.json")
     memory, memory_changed = persist_memory(
