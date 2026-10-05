@@ -33,6 +33,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_uncertainty_dynamic_router.py
       - name: Matchday intelligence regression
         run: PYTHONPATH=. python scripts/test_matchday_intelligence_oos.py
+      - name: Generative world-model research contract
+        run: PYTHONPATH=. python scripts/test_scenario_world_model.py
       - name: Production invariant contract
         run: PYTHONPATH=. python src/production_invariants.py
       - name: Prediction experience regression
