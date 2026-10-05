@@ -52,6 +52,8 @@ def main() -> int:
     dispatch_block = text[dispatch:final]
 
     assert "id: persist" in persist_block
+    assert 'git ls-files --error-unmatch -- "$state_path"' in persist_block
+    assert 'CONTROL_PLANE_STATE_NOT_TRACKED path=$state_path' in persist_block
     assert 'echo "persist_ok=true" >> "$GITHUB_OUTPUT"' in persist_block
     assert 'echo "main_sha=' in persist_block
     assert 'remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main"' in persist_block
