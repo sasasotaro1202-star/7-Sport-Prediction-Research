@@ -56,13 +56,31 @@ jobs:
           latest_created="$(printf '%s' "$runs" | jq -r '[.[] | .createdAt] | sort | last // ""')"
           stale_reason="NONE"
           recover=false
+          state_provenance="UNKNOWN"
           if [ -z "$state_sha" ]; then
             recover=true
             stale_reason="CONTROL_STATE_MISSING_OR_INVALID"
-          elif [ "$state_sha" != "$CURRENT_MAIN_SHA" ]; then
-            recover=true
-            stale_reason="CONTROL_STATE_SHA_STALE"
+          elif [ "$state_sha" = "$CURRENT_MAIN_SHA" ]; then
+            state_provenance="EXACT_CURRENT_MAIN"
           else
+            # State persistence can move main without changing code/config.
+            # Only meaningful changes require control-plane recovery.
+            compare_json="$(gh api "repos/$repo/compare/$state_sha...$CURRENT_MAIN_SHA" 2>/dev/null || true)"
+            compare_status="$(printf '%s' "$compare_json" | jq -r '.status // ""')"
+            non_durable_changes="$(printf '%s' "$compare_json" | jq '[.files[]?.filename | select(
+              startswith("results/research/") or
+              startswith("results/automation_state/") or
+              . == "results/failure_memory.jsonl"
+            ) | not] | length' 2>/dev/null || echo 999)"
+            if [ "$compare_status" = "ahead" ] && [ "$non_durable_changes" -eq 0 ]; then
+              state_provenance="DURABLE_ONLY_AHEAD"
+            else
+              recover=true
+              stale_reason="CONTROL_STATE_SHA_STALE"
+              state_provenance="MEANINGFUL_CHANGE_OR_DIVERGED"
+            fi
+          fi
+          if [ "$state_provenance" = "EXACT_CURRENT_MAIN" ] || [ "$state_provenance" = "DURABLE_ONLY_AHEAD" ]; then
             now_ts="$(date -u +%s)"
             generated_ts="$(date -u -d "$state_generated" +%s 2>/dev/null || echo 0)"
             if [ "$generated_ts" -le 0 ]; then
@@ -96,7 +114,7 @@ jobs:
 
           echo "recover=$recover" >> "$GITHUB_OUTPUT"
           echo "reason=$stale_reason" >> "$GITHUB_OUTPUT"
-          echo "WATCHDOG_RECOVER=$recover reason=$stale_reason active_any=$active_any state_sha=${state_sha:-MISSING} current_main=$CURRENT_MAIN_SHA"
+          echo "WATCHDOG_RECOVER=$recover reason=$stale_reason provenance=$state_provenance active_any=$active_any state_sha=${state_sha:-MISSING} current_main=$CURRENT_MAIN_SHA"
 
       - name: Dispatch current-main control plane
         if: steps.inspect.outputs.recover == 'true'
