@@ -340,19 +340,19 @@ def main() -> int:
         os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
         event_state = cp.inspect()
-        _, event_dispatch = cp.choose_actions(event_state)
-        assert event_dispatch is not None
-        assert event_dispatch["target"] == "workflow_event_failure:production"
-        assert event_dispatch["workflow"] == "autonomous_research_sweep.yml"
+        event_selected, event_dispatch = cp.choose_actions(event_state)
+        assert event_selected["target"] == "workflow_event_failure:production"
+        assert event_dispatch is None
 
         # Failure-memory persistence may advance main after the triggering run.
-        # The event remains valid when its SHA is a verified ancestor of current main.
+        # The event remains valid when its SHA is a verified ancestor of current main,
+        # but the active research workflow still prevents a duplicate dispatch.
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "ancestor-sha"
         os.environ["CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN"] = "true"
         ancestor_state = cp.inspect()
-        _, ancestor_dispatch = cp.choose_actions(ancestor_state)
-        assert ancestor_dispatch is not None
-        assert ancestor_dispatch["target"] == "workflow_event_failure:production"
+        ancestor_selected, ancestor_dispatch = cp.choose_actions(ancestor_state)
+        assert ancestor_selected["target"] == "workflow_event_failure:production"
+        assert ancestor_dispatch is None
 
         # A stale event SHA is fail-closed and must not create this event signal.
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "stale-sha"
