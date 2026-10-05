@@ -53,6 +53,10 @@ def main() -> int:
     assert 'git checkout --detach "$remote_sha"' in reconcile_block
     assert "compare/$event_head...$remote_sha" in reconcile_block
     assert 'echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=$ancestor"' in reconcile_block
+    assert 'if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then' in reconcile_block
+    assert 'elif [ "${{ github.event_name }}" = "push" ]; then' in reconcile_block
+    assert 'compare/$event_head...$remote_sha' in reconcile_block
+    assert 'relation="ANCESTOR_OF_CURRENT_MAIN"' in reconcile_block
 
     persist_block = text[persist:dispatch]
     dispatch_block = text[dispatch:final]
@@ -74,6 +78,8 @@ def main() -> int:
 
     assert '--arg sha "$main_sha"' in dispatch_block
     assert '--arg sha "${{ github.sha }}"' not in dispatch_block
+
+    assert "if: always() && steps.resolve.outcome == 'success'" in text
 
     test_control_plane_watchdog_contract()
     print("AUTONOMOUS_CONTROL_PLANE_DISPATCH_ORDER=PASS")

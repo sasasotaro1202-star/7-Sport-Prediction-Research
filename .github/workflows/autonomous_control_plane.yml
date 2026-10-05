@@ -69,6 +69,7 @@ jobs:
           python-version: '3.12'
 
       - name: Resolve current main and verify execution SHA
+        id: resolve
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -101,13 +102,48 @@ jobs:
             echo "CONTROL_PLANE_EVENT_RUN_ID=${{ github.event.workflow_run.id || '' }}" >> "$GITHUB_ENV"
             echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
             echo "CONTROL_PLANE_MAIN_RECONCILIATION relation=$relation current_main=$remote_sha event_head=$event_head"
-          else
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            git fetch origin main --depth=1
+            git checkout --detach "$remote_sha"
+
+            event_head="${{ github.sha }}"
+            ancestor=false
+            relation="UNVERIFIED_OR_DIVERGED"
+            if [ "$event_head" = "$remote_sha" ]; then
+              ancestor=true
+              relation="SAME_CURRENT_MAIN"
+            else
+              compare_status="$(gh api "repos/${{ github.repository }}/compare/$event_head...$remote_sha" --jq '.status')"
+              if [ "$compare_status" = "ahead" ]; then
+                ancestor=true
+                relation="ANCESTOR_OF_CURRENT_MAIN"
+              fi
+            fi
+            test "$ancestor" = true || {
+              echo "STALE_OR_DIVERGED_PUSH event_head=$event_head current_main=$remote_sha relation=$relation" >&2
+              exit 1
+            }
+            echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=$ancestor" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_RELATION=$relation" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_WORKFLOW=" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_CONCLUSION=" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_HEAD_SHA=$event_head" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_RUN_ID=" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_MAIN_RECONCILIATION relation=$relation current_main=$remote_sha event_head=$event_head"
+          elif [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             test "$remote_sha" = "${{ github.sha }}" || {
               echo "STALE_MAIN_RUN expected=$remote_sha actual=${{ github.sha }}"
               exit 1
             }
+            git fetch origin main --depth=1
+            git checkout --detach "$remote_sha"
             echo "CONTROL_PLANE_CURRENT_MAIN_SHA=$remote_sha" >> "$GITHUB_ENV"
             echo "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN=false" >> "$GITHUB_ENV"
+            echo "CONTROL_PLANE_EVENT_RELATION=SAME_CURRENT_MAIN" >> "$GITHUB_ENV"
+          else
+            echo "UNSUPPORTED_CONTROL_PLANE_EVENT=${{ github.event_name }}" >&2
+            exit 1
           fi
 
       - name: Run control-plane regression
@@ -218,7 +254,7 @@ jobs:
 
       - name: Persist deterministic control-plane state
         id: persist
-        if: always()
+        if: always() && steps.resolve.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
