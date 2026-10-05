@@ -271,6 +271,7 @@ def main() -> int:
 
         # A stale event SHA is fail-closed and must not create this event signal.
         os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "stale-sha"
+        os.environ["CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN"] = "0"
         stale_state = cp.inspect()
         _, stale_dispatch = cp.choose_actions(stale_state)
         assert stale_dispatch is None or stale_dispatch["target"] != "workflow_event_failure:production"
