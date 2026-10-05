@@ -176,6 +176,17 @@ def test_control_plane_concurrency_is_job_scoped_and_coalescing() -> None:
     assert "concurrency:\n      group: autonomous-control-plane-main\n      cancel-in-progress: true" in after_jobs
 
 
+def test_persist_detects_missing_state_artifacts() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
+    text = workflow.read_text(encoding="utf-8")
+    start = text.index("      - name: Persist deterministic control-plane state")
+    end = text.index("      - name: Dispatch at most one allowlisted autonomous workflow", start)
+    block = text[start:end]
+    assert "state_paths=(" in block
+    assert 'for state_path in "${state_paths[@]}"; do' in block
+    assert 'if [ ! -f "$state_path" ]; then' in block
+    assert 'if [ "$needs_persist" = false ] && git diff --quiet -- "${state_paths[@]}"; then' in block
+
 def test_pre_event_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"] == "pre_event_prediction.yml"
     assert cp.MONITORED_WORKFLOWS["pre_event"] == "pre_event_prediction.yml"
@@ -188,6 +199,7 @@ def main() -> int:
     test_research_sweep_control_plane_registration()
     test_pre_event_control_plane_registration()
     test_control_plane_concurrency_is_job_scoped_and_coalescing()
+    test_persist_detects_missing_state_artifacts()
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         bind(root)
