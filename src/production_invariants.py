@@ -90,9 +90,8 @@ def main():
         'autonomous research queue must deduplicate repeated unresolved tasks by logical identity',
     )
     require(
-        'logical research queue deduplication' not in lightweight_wf
-        or 'test_autonomous_control_plane.py' in lightweight_wf,
-        'autonomous control-plane regression must remain in the lightweight validation path',
+        'test_autonomous_control_plane.py' in lightweight_wf,
+        'autonomous control-plane queue deduplication regression must remain in the lightweight validation path',
     )
     require('active prediction scope' in readme.lower() and '- VALORANT' in readme and '- Basketball' in readme and '- Volleyball' in readme and '- UFC' in readme and '- RIZIN' in readme,
             'README does not explicitly declare the five-sport active prediction scope')
