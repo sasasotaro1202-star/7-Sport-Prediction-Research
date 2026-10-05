@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-10-04T23:33:56.078569+00:00",
-  "source_git_commit_sha": "008930218e07f3bcce6f5cfd41c0b7be1c123ef8",
+  "generated_at_utc": "2026-10-05T01:00:02.375516+00:00",
+  "source_git_commit_sha": "e6206ac2adc50f42055c792cd0016d5f5d12c2be",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 324767744,
-      "sha256": "b8b63e1702b87532f393a96e1ac6dc3cd35fbdc8d577dfc76a347d1069851d6c"
+      "bytes": 324841472,
+      "sha256": "69f4378a11759d8cf457c406ee9e8b916129c28af091790d3fbac16ccdf75bdb"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -57,14 +57,14 @@
     {
       "path": "results/quality_gate.json",
       "exists": true,
-      "bytes": 3761,
-      "sha256": "edd38b11872384a13741eaeedbb99bc6783be6aa97923ce5f57b8eaab6519f08"
+      "bytes": 3762,
+      "sha256": "dfc07edd275409220c727e923a142bc99a36005506d2b9f7074d825824ebeb56"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
       "bytes": 4388,
-      "sha256": "4ea42fc913a98978ac75d20d1b0b72f4b38bea40ce2184e3766bfc448a7a4c4d"
+      "sha256": "edcc4eb394fb0e97535a2eedfea814d066b324ef45c6c3964a557a3fb065f5d9"
     },
     {
       "path": "results/pit_replay.json",
@@ -113,38 +113,38 @@
     {
       "path": "results/research/competition_routes.json",
       "exists": true,
-      "bytes": 495076,
-      "sha256": "916aa1d08ed80b0a235374b07d735b87185cb3d10ed03ed4d6d5b5182b67c607"
+      "bytes": 495019,
+      "sha256": "fbd3fbabe5b561f874c31fbe1185934e560b19ae31f29e8b9c3821a79d17c61a"
     },
     {
       "path": "results/research/dual_learning_cycle.json",
       "exists": true,
       "bytes": 1460,
-      "sha256": "83419e9b79d951ddf07c21ff2fc66784c7be2a503a9ceef078fc5a4ca8e93bbc"
+      "sha256": "2cd9ef8f9d602a1763f44fdca31eae6edfe15f40eabbf22af5f3394b1561cc6b"
     },
     {
       "path": "results/research/dual_learning_logs/experience_learning.log",
       "exists": true,
       "bytes": 178,
-      "sha256": "a2d744f2d76e8a2831cc9c1c1a9332d710b0cfeafc9b730c21e7ca2c94f62f2b"
+      "sha256": "f92e816a9ba7765754404b0a4edc0592412873809094b3cf6e3e969c0f9cf7ea"
     },
     {
       "path": "results/research/dual_learning_logs/historical_research.log",
       "exists": true,
-      "bytes": 512226,
-      "sha256": "5bb959a3f557fd9a67158960c569b03d835dce409261746fe2be487cb3e1b351"
+      "bytes": 513494,
+      "sha256": "2f80fee60f0273b581223c09cb75a358bb7a7b657d1703328f2fb3147abe9868"
     },
     {
       "path": "results/research/experience_learning.json",
       "exists": true,
       "bytes": 1332,
-      "sha256": "89d369c2d1f4c3d0eeb896bc7a4f11b0bd665ea0b083be2c2f11d01f429b1566"
+      "sha256": "393c500fd3d5fdb13682317882dad38a289a4651944ec064034b37a233e808c0"
     },
     {
       "path": "results/research/experience_research_candidates.json",
       "exists": true,
       "bytes": 582,
-      "sha256": "28cfb814d70f2a41fafa933baddf99178a48938e8e2671fac294afbace180640"
+      "sha256": "27b68081ba5ace89391f76c1a7bb70b7f0870a90a874fd29b40674d45135ceb5"
     },
     {
       "path": "results/research/f1.json",
@@ -156,7 +156,7 @@
       "path": "results/research/production_route_observability.json",
       "exists": true,
       "bytes": 2721,
-      "sha256": "41aef8e9832d78ee333e41241d652d4ff3ba629b72fb7aff33eec5a8bd499157"
+      "sha256": "9b193796104b9c3bb0b9a3ca21718d2525134717a4423fe541a62f8965fe94ae"
     },
     {
       "path": "results/research/rizin.json",
@@ -185,8 +185,8 @@
     {
       "path": "results/research/ufc.json",
       "exists": true,
-      "bytes": 468701,
-      "sha256": "1c1e3c881830822a9b525b2590222eff3a5b90c150c2b3cfe32cf01503c3fc2d"
+      "bytes": 469969,
+      "sha256": "b2386804219c06eeda1008826caf91b271052709f03812a1ffc81c77ba0ca084"
     },
     {
       "path": "results/research/ufc_frozen_holdout.json",
@@ -197,14 +197,14 @@
     {
       "path": "results/research/ufc_ultimate_intelligence.json",
       "exists": true,
-      "bytes": 13081,
-      "sha256": "7f119573eacdd9bad54efbb7a80c6556543c3e3b156e12b077d7c237c19ff48a"
+      "bytes": 13074,
+      "sha256": "d6df9eac8b8ea710197d739b3de4f7049b91fed21d85d2ecb49f3ab125b53540"
     },
     {
       "path": "results/research/ufc_ultimate_v13.json",
       "exists": true,
-      "bytes": 382009,
-      "sha256": "c0b33a1c53bc67dbebc0438ebc8bda9b37f88f4dd3cfdaccb29d537448968202"
+      "bytes": 383269,
+      "sha256": "e479599324d8f7110865d36c4c0d9586a3f9729f59977dad9513bb01dc3d2096"
     },
     {
       "path": "results/research/valorant.json",
@@ -246,7 +246,7 @@
       "path": "models/research/ufc_current.joblib",
       "exists": true,
       "bytes": 740169,
-      "sha256": "3d3eb12cf75b4b912e4f39ffe66517a57112703655093217c76ba1e8a8d2e4ab"
+      "sha256": "c436ebc8a7c295bf7eb1c7919c2fdc2f8c7c7ce6fc5b8f408806cf84ff3d3717"
     },
     {
       "path": "models/research/valorant_current.joblib",
