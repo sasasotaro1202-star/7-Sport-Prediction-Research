@@ -53,6 +53,7 @@ class WorkflowContractTests(unittest.TestCase):
         )
         self.assertIn("daily_boundary_epoch", text)
         self.assertIn("daily_boundary_grace_minutes", text)
+        self.assertRegex(text, r'  push:\n    branches:\n      - main\n')
         self.assertIn("current_boundary_runs", text)
         self.assertIn('reason": "missed_daily_boundary"', text)
         self.assertIn('reason": "await_scheduled_cycle_for_current_main"', text)
