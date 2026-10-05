@@ -57,6 +57,11 @@ jobs:
           }
 
           MAIN_SHA="$(gh_retry api "repos/${REPO}/git/ref/heads/main" --jq '.object.sha')"
+          # The compatibility policy compares Git commits, not just SHA strings.
+          # Fetch current main before classifying a long-running run, otherwise a
+          # durable-only advance made after this watchdog started would look
+          # unverifiable and be recovered unnecessarily.
+          git fetch origin main --prune --quiet
           runs="$(gh_retry run list --repo "${REPO}" --workflow "${WORKFLOW}" --limit 50 --json databaseId,status,conclusion,headSha,createdAt,updatedAt)"
 
           python - "${MAIN_SHA}" "${SELF_RUN_ID}" "${runs}" <<'PY' > /tmp/decision.json
