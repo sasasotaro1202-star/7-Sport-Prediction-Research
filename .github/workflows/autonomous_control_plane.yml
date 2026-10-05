@@ -31,8 +31,10 @@ jobs:
     # Failure Recovery and dedicated watchdogs own immediate failure recovery;
     # the control plane consumes their durable Failure Memory on its next cycle.
     concurrency:
+      # Control-plane reconciliation is idempotent and safely restartable. Prefer
+      # the newest main state instead of allowing stale queued runs to block recovery.
       group: autonomous-control-plane-main
-      cancel-in-progress: false
+      cancel-in-progress: true
     name: Reconcile / Decide / Dispatch / Persist
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

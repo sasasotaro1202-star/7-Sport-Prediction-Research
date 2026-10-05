@@ -55,7 +55,8 @@ def main() -> int:
     persist_block = text[persist:dispatch]
     dispatch_block = text[dispatch:final]
 
-    assert "cancel-in-progress: false" in text
+    assert "cancel-in-progress: true" in text
+    assert "idempotent and safely restartable" in text
     assert "id: persist" in persist_block
     assert 'git ls-files --error-unmatch -- "$state_path"' in persist_block
     assert 'CONTROL_PLANE_STATE_NOT_TRACKED path=$state_path' in persist_block
