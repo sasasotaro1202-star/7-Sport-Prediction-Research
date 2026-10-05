@@ -1410,3 +1410,31 @@ The control plane is not allowed to depend solely on a scheduled invocation. A d
 Recovery semantics are differentiated by provenance. A current-main control-plane run is allowed to continue. Outdated queued or in-progress control-plane runs may be cancelled because they cannot provide current-main evidence. Stale queued/pending runs are also cancellable when they exceed the queue timeout. After cancelling outdated blockers, the watchdog re-checks whether a current-main run is already active; if one exists, it does not dispatch a duplicate. Otherwise it re-checks the remote `main` SHA immediately before dispatching the current-main control plane.
 
 The watchdog is recovery-only. It does not modify production models, bypass PIT, tune frozen holdout, or promote candidates. Current-main SHA drift or unverifiable provenance fails closed.
+=== LONG-RUN MAIN-ADVANCE COMPATIBILITY — 2026-10-06 ===
+
+長時間runのmain advanceは、単純SHA一致ではなく、祖先関係 + changed-path classificationで判定する。
+
+Canonical helper:
+src/main_advance_policy.py
+
+許可:
+EXACT_CURRENT_MAIN
+DURABLE_ONLY
+
+拒否:
+NON_DURABLE_CHANGE
+UNVERIFIABLE
+
+durable-only pathsはcontrol-plane durable stateとappend-only failure memoryに限定する。
+results/research/**全体をdurableとみなしてはならない。
+
+このgateは「継続可能性」のためのreconciliation policyであり、OOS/PIT/calibration/robustness/frozen holdout/performance verification/promotionを意味しない。
+
+24H Autonomous Research:
+* concurrencyはSHA依存にしない
+* 同時marathonを1本へ制限する
+* watchdogも同じcompatibility policyを使用する
+* durable-only main advanceでは既存runをcancelしない
+* semantic code/config advanceではfail/recoveryする
+
+目的はcontrol-plane state commit → main SHA change → long-run cancellation → recovery dispatch → 再度state commit、という自己生成loopを断つこと。
