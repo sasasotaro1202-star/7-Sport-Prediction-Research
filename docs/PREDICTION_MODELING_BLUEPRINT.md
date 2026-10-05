@@ -906,7 +906,10 @@ The research-only probabilistic_state_core module provides reusable primitives f
 - total-variance decomposition;
 - local probability sensitivity;
 - expected information gain;
-- normalized event scenarios.
+- normalized event scenarios;
+- cluster-dependent effective sample size diagnostics;
+- binary decision expected-utility and abstention diagnostics;
+- information-action value after explicit acquisition cost.
 
 It is intentionally not connected directly to production routing.
 
