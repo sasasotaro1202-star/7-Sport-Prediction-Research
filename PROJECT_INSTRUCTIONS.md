@@ -93,3 +93,6 @@ The autonomous research sweep persists `results/research/experience_learning.jso
 
 ### Control-plane no-churn persistence
 The autonomous control-plane fingerprint represents stable observed workflow evidence and the selected decision. It excludes invocation/current-main SHA metadata, volatile `age_hours`, and other derived freshness fields. The action log appends only when the stable state fingerprint changes or the log is absent. This prevents the control plane from creating self-generated main commits when no material evidence changed. Current-main SHA verification and dispatch-time SHA rechecks remain mandatory safety gates.
+
+
+Autonomous control-plane watchdog: `.github/workflows/autonomous_control_plane_watchdog.yml` runs twice per hour and recovers missing, stale, or provenance-invalid current-main control state only when no control-plane run is active; it cannot bypass PIT, frozen holdout, or production promotion gates.

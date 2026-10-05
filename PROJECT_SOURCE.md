@@ -1389,3 +1389,16 @@ complexityは実装量ではなく、local chronological OOS、robustness、froz
 65. STATUS BOUNDARY
 
 現時点でprobabilistic_state_coreはIMPLEMENTED/RESEARCH_ONLYであり、production model, champion, challenger promotion stateを変更しない。CI testがPASSしてもPERFORMANCE_VERIFIEDやPRODUCTIONを意味しない。
+
+77. AUTONOMOUS CONTROL-PLANE WATCHDOG
+
+The control plane is not allowed to depend solely on a scheduled invocation. A dedicated GitHub Actions watchdog runs twice per hour and checks:
+
+- current remote main SHA
+- durable control-plane state presence and provenance
+- control-plane state age
+- active control-plane runs
+
+If durable state is missing, provenance-stale, timestamp-invalid, or older than the recovery threshold, and no recent/active control-plane run can explain the state, the watchdog dispatches the control plane against the current main SHA.
+
+The watchdog is recovery-only. It does not modify production models, bypass PIT, tune frozen holdout, or promote candidates. It re-checks the remote main immediately before dispatch and fails closed on SHA drift.
