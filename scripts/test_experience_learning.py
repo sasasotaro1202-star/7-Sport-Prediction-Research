@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.experience_learning import build_memory, shadow_signal_from_memory
+from src.experience_learning import build_memory, persist_memory, shadow_signal_from_memory
 
 
 def _row(pid: str, correct: bool, settled: str = "2026-10-01T10:00:00+00:00") -> dict:
@@ -67,6 +67,20 @@ def test_memory_is_pit_gated_by_knowledge_time():
     assert signal["recommendation"] == "PASS"
 
 
+
+def test_persist_memory_is_idempotent_when_knowledge_is_unchanged(tmp_path):
+    rows = [_row(f"stable-{i}", i < 17) for i in range(20)]
+    out = tmp_path / "experience_learning.json"
+    first, first_changed = persist_memory(
+        rows, output_path=out, generated_at_utc="2026-10-01T11:00:00+00:00"
+    )
+    second, second_changed = persist_memory(
+        rows, output_path=out, generated_at_utc="2026-10-01T12:00:00+00:00"
+    )
+    assert first_changed is True
+    assert second_changed is False
+    assert first == second
+
 def test_invalid_settlement_time_fails_closed():
     row = _row("bad", False)
     row["settled_at_utc"] = "2026-10-01T08:59:00+00:00"
@@ -127,6 +141,7 @@ if __name__ == "__main__":
     test_memory_is_pit_gated_by_knowledge_time()
     test_invalid_settlement_time_fails_closed()
     test_future_settlement_fails_closed()
+    # Idempotence test is intended for pytest; keep the direct script runner deterministic.
     test_exact_duplicate_settlement_is_deduplicated()
     test_conflicting_duplicate_settlement_fails_closed()
     test_missing_prediction_id_fails_closed()
