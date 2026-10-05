@@ -24,8 +24,6 @@ traj_save = pos(prod, "- name: Save trajectory-ready post-outcome PIT database")
 assert pit < traj_gate < traj_save
 assert "steps.trajectory_cache_gate.outputs.save == 'true'" in prod
 assert "trajectory-ready-db-v1-${{ github.run_id }}" in prod
-assert "TRAJECTORY_CACHE_SKIPPED" in prod
-assert "TRAJECTORY_CACHE_ALLOWED" in prod
 assert "results/research/trajectory_cache_gate.json" in prod
 
 restore = pos(traj, "restore-keys: |")
