@@ -335,6 +335,29 @@ def main() -> int:
         assert second["write_needed"] is False
         assert cp.ACTION_LOG_OUT.read_text(encoding="utf-8").count("\n") == 1
 
+        # A changed observed workflow run must change the state fingerprint but
+        # must not create a second queue entry for the same unresolved task.
+        changed_evidence = copy.deepcopy(same_evidence_new_sha)
+        changed_evidence["actions"]["runtime_health"]["run_id"] = 123456789
+        selected_changed, dispatch_changed = cp.choose_actions(changed_evidence)
+        third = cp.write_state(changed_evidence, selected_changed, dispatch_changed)
+        assert third["state_fingerprint"] != second["state_fingerprint"]
+        assert third["queue_added"] is False
+        assert cp.QUEUE_OUT.read_text(encoding="utf-8").count("\n") == 1
+
+        # A genuinely different logical task must enqueue a new transition.
+        new_task = copy.deepcopy(selected_changed)
+        new_task["target"] = "different_target"
+        fourth = cp.write_state(changed_evidence, new_task, dispatch_changed)
+        assert fourth["queue_added"] is True
+        queue_rows = [
+            json.loads(line)
+            for line in cp.QUEUE_OUT.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        assert len(queue_rows) == 2
+        assert queue_rows[-1]["queue_key"] != queue_rows[0]["queue_key"]
+
         control = json.loads(cp.CONTROL_OUT.read_text(encoding="utf-8"))
         assert control["automatic_promotion"] is False
         assert control["safety"]["automatic_dispatch_is_bounded_and_allowlisted"] is True
