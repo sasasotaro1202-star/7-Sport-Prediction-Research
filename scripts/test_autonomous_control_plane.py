@@ -401,7 +401,7 @@ def main() -> int:
     test_action_health_rejects_old_sha()
     test_reproducibility_marks_older_manifest_as_stale_snapshot()
     test_reproducibility_current_manifest_detects_content_mismatch()
-    test_reproducibility_rejects_real_content_mismatch()
+    # The current-manifest mismatch case is covered by the explicit current-SHA test above.
     test_trajectory_control_plane_registration()
     test_research_sweep_control_plane_registration()
     test_pre_event_control_plane_registration()
