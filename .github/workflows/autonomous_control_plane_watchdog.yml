@@ -41,6 +41,68 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Recover stale Production Watchdog heartbeat
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          current_sha="${{ steps.main.outputs.sha }}"
+          runs="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,headSha,event)"
+          active_any="$(printf '%s' "$runs" | jq '[.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")] | length')"
+          if [ "$active_any" -gt 0 ]; then
+            echo "PRODUCTION_WATCHDOG_HEARTBEAT_OK active_runs=$active_any"
+            exit 0
+          fi
+
+          latest_created="$(printf '%s' "$runs" | jq -r '[.[] | select(.headSha=="'"$current_sha"'")] | .[].createdAt' | sort | last // "")'
+          now_ts="$(date -u +%s)"
+          dispatch=false
+          reason="NO_CURRENT_MAIN_WATCHDOG_RUN"
+          if [ -n "$latest_created" ]; then
+            latest_ts="$(date -u -d "$latest_created" +%s 2>/dev/null || echo 0)"
+            if [ "$latest_ts" -gt 0 ]; then
+              age=$((now_ts-latest_ts))
+              if [ "$age" -lt 900 ]; then
+                echo "PRODUCTION_WATCHDOG_HEARTBEAT_OK age=${age}s current_main=$current_sha"
+                exit 0
+              fi
+              dispatch=true
+              reason="LATEST_CURRENT_MAIN_WATCHDOG_AGE=${age}s"
+            else
+              dispatch=true
+              reason="LATEST_CURRENT_MAIN_WATCHDOG_TIMESTAMP_UNVERIFIABLE"
+            fi
+          else
+            dispatch=true
+          fi
+
+          remote_sha="$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')"
+          test "$remote_sha" = "$current_sha" || {
+            echo "STALE_MAIN_BEFORE_PRODUCTION_WATCHDOG_RECOVERY expected=$current_sha actual=$remote_sha" >&2
+            exit 1
+          }
+
+          if [ "$dispatch" = true ]; then
+            started_at="$(date -u +%s)"
+            echo "RECOVER_PRODUCTION_WATCHDOG reason=$reason main=$current_sha"
+            gh workflow run production_watchdog.yml --ref main --repo "$repo"
+
+            for _ in 1 2 3 4; do
+              sleep 2
+              refreshed="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 30 --json databaseId,status,createdAt,headSha)"
+              verified="$(printf '%s' "$refreshed" | jq --arg sha "$current_sha" --argjson start "$started_at" '[.[] | select(.headSha==$sha) | ((.createdAt | fromdateiso8601)) as $ts | select($ts >= $start)] | length')"
+              if [ "$verified" -ge 1 ]; then
+                echo "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED main=$current_sha"
+                exit 0
+              fi
+            done
+            echo "PRODUCTION_WATCHDOG_RECOVERY_UNVERIFIED main=$current_sha reason=$reason" >&2
+            exit 1
+          fi
+          echo "PRODUCTION_WATCHDOG_HEARTBEAT_UNCHANGED"
+
       - name: Inspect control-plane state and live runs
         id: inspect
         env:
