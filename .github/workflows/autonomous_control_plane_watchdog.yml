@@ -61,7 +61,12 @@ jobs:
           dispatch=false
           reason="NO_CURRENT_MAIN_WATCHDOG_RUN"
           if [ -n "$latest_created" ]; then
-            latest_ts="$(date -u -d "$latest_created" +%s 2>/dev/null || echo 0)"
+            latest_ts=0
+            if latest_ts="$(date -u -d "$latest_created" +%s 2>/dev/null)"; then
+              :
+            else
+              latest_ts=0
+            fi
             if [ "$latest_ts" -gt 0 ]; then
               age=$((now_ts-latest_ts))
               if [ "$age" -lt 900 ]; then
