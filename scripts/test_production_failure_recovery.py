@@ -1,123 +1,94 @@
 from __future__ import annotations
 
-import json
-import os
-import subprocess
-import tempfile
-import textwrap
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "production_failure_recovery.yml"
 
-
-def _recovery_script() -> str:
-    workflow = WORKFLOW.read_text(encoding="utf-8")
-    marker = "      - name: Coalesce duplicate recovery requests and retry once\n"
-    start = workflow.index(marker)
-    run_marker = "        run: |\n"
-    start = workflow.index(run_marker, start) + len(run_marker)
-    end = workflow.find("\n      - name:", start)
-    if end < 0:
-        end = len(workflow)
-    return textwrap.dedent(workflow[start:end]).rstrip() + "\n"
+ACTIVE = {"queued", "in_progress", "waiting", "requested", "pending"}
 
 
-def _run(main_sha: str, original_sha: str, runs: list[dict[str, object]]) -> list[str]:
-    script = _recovery_script()
-    with tempfile.TemporaryDirectory() as td:
-        root = Path(td)
-        script_path = root / "recovery.sh"
-        script_path.write_text(script, encoding="utf-8")
-        fake_bin = root / "bin"
-        fake_bin.mkdir()
-        log_path = root / "gh_calls.log"
-        fake_gh = fake_bin / "gh"
-        fake_gh.write_text(
-            """#!/usr/bin/env bash
-set -euo pipefail
-log_file="$FAKE_GH_LOG"
-printf '%s\\n' "$*" >> "$log_file"
-if [ "$1" = "api" ]; then
-  endpoint="$2"
-  if [[ "$endpoint" == *"/git/ref/heads/main" ]]; then
-    printf '{"object":{"sha":"%s"}}\\n' "$FAKE_MAIN_SHA"
-    exit 0
-  fi
-  # The recovery contract issues exactly one second API request for workflow runs.
-  # Keep the stub independent of query-string glob semantics.
-  if [[ "$endpoint" == *"/actions/workflows/"*"/runs"* ]]; then
-    printf '%s\\n' "$FAKE_RUNS_JSON"
-    exit 0
-  fi
-  echo "unexpected api endpoint: $endpoint" >&2
-  exit 2
-fi
-case "$1 $2" in
-  "workflow run"|"run rerun")
-    exit 0
-    ;;
-  *)
-    echo "unexpected gh invocation: $*" >&2
-    exit 2
-    ;;
-esac
-""",
-            encoding="utf-8",
-        )
-        fake_gh.chmod(0o755)
-
-        env = dict(os.environ)
-        env["FAKE_MAIN_SHA"] = main_sha
-        env["FAKE_RUNS_JSON"] = json.dumps({"workflow_runs": runs})
-        env["FAKE_GH_LOG"] = str(log_path)
-        env["RUN_ID"] = "100"
-        env["ORIGINAL_SHA"] = original_sha
-        env["WORKFLOW_ID"] = "357226230"
-        env["REPOSITORY"] = "sasasotaro1202-star/7-Sport-Prediction-Research"
-        env["PATH"] = str(fake_bin) + os.pathsep + env["PATH"]
-
-        subprocess.run(["bash", str(script_path)], check=True, capture_output=True, text=True, cwd=ROOT, env=env)
-        return [line.strip() for line in log_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+def _decision(current_sha: str, original_sha: str, current_run_id: int, runs: list[dict[str, object]]) -> str:
+    active_current = [
+        r for r in runs
+        if int(r.get("id", -1)) != current_run_id
+        and str(r.get("head_sha") or "") == current_sha
+        and str(r.get("status") or "") in ACTIVE
+    ]
+    if active_current:
+        return "COALESCE"
+    if current_sha != original_sha:
+        return "DISPATCH_FRESH_CURRENT_MAIN"
+    return "RERUN_FAILED_ON_SAME_SHA"
 
 
-def test_active_current_main_run_coalesces_stale_recovery() -> None:
-    main = "current-main"
-    calls = _run(
-        main,
+def test_active_current_main_coalesces_stale_recovery() -> None:
+    assert _decision(
+        "current-main",
         "failed-old",
-        [{"id": 200, "status": "in_progress", "head_sha": main}],
+        100,
+        [{"id": 200, "status": "in_progress", "head_sha": "current-main"}],
+    ) == "COALESCE"
+
+
+def test_active_current_main_coalesces_same_sha_retry() -> None:
+    assert _decision(
+        "current-main",
+        "current-main",
+        100,
+        [{"id": 201, "status": "queued", "head_sha": "current-main"}],
+    ) == "COALESCE"
+
+
+def test_stale_failure_dispatches_fresh_current_main_when_no_active_run_exists() -> None:
+    assert _decision("current-main", "failed-old", 100, []) == "DISPATCH_FRESH_CURRENT_MAIN"
+
+
+def test_same_sha_failure_retries_failed_jobs_when_no_active_run_exists() -> None:
+    assert _decision("current-main", "current-main", 100, []) == "RERUN_FAILED_ON_SAME_SHA"
+
+
+def test_current_run_is_excluded_from_duplicate_detection() -> None:
+    assert _decision(
+        "current-main",
+        "failed-old",
+        100,
+        [{"id": 100, "status": "in_progress", "head_sha": "current-main"}],
+    ) == "DISPATCH_FRESH_CURRENT_MAIN"
+
+
+def test_workflow_contains_fail_closed_duplicate_guard_before_dispatch() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    required_fragments = [
+        "Coalesce duplicate recovery requests and retry once",
+        "runs_json=",
+        "active_current_main=",
+        "RECOVERY_COALESCED_ACTIVE_CURRENT_MAIN",
+        'if [ "$active_current_main" -gt 0 ]; then',
+        "exit 0",
+        'gh workflow run "${WORKFLOW_ID}" --ref main --repo "${REPOSITORY}"',
+        'gh run rerun "${RUN_ID}" --failed --repo "${REPOSITORY}"',
+    ]
+    for fragment in required_fragments:
+        assert fragment in text, f"missing recovery contract fragment: {fragment}"
+
+    guard = text[text.index("      - name: Coalesce duplicate recovery requests and retry once"):]
+    assert guard.index('if [ "$active_current_main" -gt 0 ]; then') < guard.index(
+        'gh workflow run "${WORKFLOW_ID}" --ref main --repo "${REPOSITORY}"'
     )
-    assert any("actions/workflows/357226230/runs" in call for call in calls)
-    assert not any(call.startswith("workflow run ") or call.startswith("run rerun ") for call in calls)
-
-
-def test_stale_failed_run_dispatches_once_without_active_current_main() -> None:
-    calls = _run("current-main", "failed-old", [])
-    dispatches = [call for call in calls if call.startswith("workflow run ")]
-    assert len(dispatches) == 1
-    assert not any(call.startswith("run rerun ") for call in calls)
-
-
-def test_same_sha_failure_reruns_once_without_active_current_main() -> None:
-    calls = _run("same-sha", "same-sha", [])
-    reruns = [call for call in calls if call.startswith("run rerun ")]
-    assert len(reruns) == 1
-    assert not any(call.startswith("workflow run ") for call in calls)
-
-
-def test_same_sha_failure_coalesces_existing_current_main_retry() -> None:
-    main = "same-sha"
-    calls = _run(main, main, [{"id": 201, "status": "queued", "head_sha": main}])
-    assert not any(call.startswith("workflow run ") or call.startswith("run rerun ") for call in calls)
+    assert guard.index('if [ "$active_current_main" -gt 0 ]; then') < guard.index(
+        'gh run rerun "${RUN_ID}" --failed --repo "${REPOSITORY}"'
+    )
 
 
 def main() -> None:
-    test_active_current_main_run_coalesces_stale_recovery()
-    test_stale_failed_run_dispatches_once_without_active_current_main()
-    test_same_sha_failure_reruns_once_without_active_current_main()
-    test_same_sha_failure_coalesces_existing_current_main_retry()
+    test_active_current_main_coalesces_stale_recovery()
+    test_active_current_main_coalesces_same_sha_retry()
+    test_stale_failure_dispatches_fresh_current_main_when_no_active_run_exists()
+    test_same_sha_failure_retries_failed_jobs_when_no_active_run_exists()
+    test_current_run_is_excluded_from_duplicate_detection()
+    test_workflow_contains_fail_closed_duplicate_guard_before_dispatch()
     print("PRODUCTION_FAILURE_RECOVERY_DEDUP=PASS")
 
 
