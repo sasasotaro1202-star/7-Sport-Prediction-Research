@@ -14,7 +14,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "production_failure_recovery.yml"
 
 def _recovery_script() -> str:
     workflow = WORKFLOW.read_text(encoding="utf-8")
-    marker = "      - name: Coalesce duplicate recovery requests and retry once\n"
+    marker = "      - name: Recover once without replaying a stale SHA\n"
     start = workflow.index(marker)
     run_marker = "        run: |\n"
     start = workflow.index(run_marker, start) + len(run_marker)
