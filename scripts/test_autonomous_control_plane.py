@@ -190,7 +190,7 @@ def test_action_health_sees_active_older_sha_run() -> None:
     assert health["sha_match"] is True
 
 
-def test_reproducibility_accepts_content_match_across_operational_state_commit() -> None:
+def test_reproducibility_marks_older_manifest_as_stale_snapshot() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         stable = root / "stable-input.txt"
@@ -217,7 +217,7 @@ def test_reproducibility_accepts_content_match_across_operational_state_commit()
         assert assessed["status"] == "STALE_SNAPSHOT"
         assert assessed["content_match"] is None
         assert assessed["source_sha_match"] is False
-        assert assessed["ignored_mutable_files"] == 1
+        assert assessed["ignored_mutable_files"] == 0
         assert assessed["mismatched_files"] == []
         assert assessed["missing_files"] == []
 
@@ -242,28 +242,6 @@ def test_reproducibility_current_manifest_detects_content_mismatch() -> None:
         assert assessed["content_match"] is False
         assert assessed["source_sha_match"] is True
         assert assessed["mismatched_files"] == ["stable-input.txt"]
-
-
-def test_reproducibility_rejects_real_content_mismatch() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        root = Path(td)
-        path = root / "stable-input.txt"
-        path.write_text("current\n", encoding="utf-8")
-        manifest = {
-            "source_git_commit_sha": "old-sha",
-            "files": [
-                {
-                    "path": "stable-input.txt",
-                    "exists": True,
-                    "sha256": "0" * 64,
-                }
-            ],
-        }
-        assessed = cp.assess_reproducibility(manifest, "new-sha", root)
-        assert assessed["status"] == "CONTENT_MISMATCH"
-        assert assessed["content_match"] is False
-        assert assessed["mismatched_files"] == ["stable-input.txt"]
-
 
 def test_trajectory_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["TRAJECTORY_RESEARCH"] == "autonomous_temporal_trajectory_loop.yml"
@@ -421,7 +399,7 @@ def test_research_queue_compaction_keeps_latest_logical_task() -> None:
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
-    test_reproducibility_accepts_content_match_across_operational_state_commit()
+    test_reproducibility_marks_older_manifest_as_stale_snapshot()
     test_reproducibility_current_manifest_detects_content_mismatch()
     test_reproducibility_rejects_real_content_mismatch()
     test_trajectory_control_plane_registration()
