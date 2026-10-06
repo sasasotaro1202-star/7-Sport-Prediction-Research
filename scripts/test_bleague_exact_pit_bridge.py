@@ -107,7 +107,7 @@ def main() -> None:
         evidence=root/"evidence.json"
         schedule={
             "ScheduleKey":"100","HomeTeamId":"700","AwayTeamId":"706",
-            "Date":"2021-04-18",
+            "Date":"2020.10.24",
         }
         from src.bleaguer_git_provenance import canonical_bleaguer_event_id
         event_id=canonical_bleaguer_event_id(schedule,"inst/extdata/games_202021.csv")
@@ -117,7 +117,7 @@ def main() -> None:
         con.execute(
             "INSERT INTO event VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (event_id,"basketball","B.LEAGUE","2020-21",None,None,
-             "2021-04-18T00:00:00+00:00",None,"match","COMPLETED",1,
+             "2020-10-24T00:00:00+00:00",None,"match","COMPLETED",1,
              "PRESENT_NOT_PIT_VERIFIED",None,"2026-01-01","2026-01-01"),
         )
         con.executemany(
@@ -128,9 +128,9 @@ def main() -> None:
         con.executemany(
             "INSERT INTO event_participant VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             [(event_id,"p-a","p-a","A","match",None,None,"bleaguer-github",
-              "https://example/current","2021-04-18T00:00:00+00:00","UNVERIFIABLE"),
+              "https://example/current","2020-10-24T00:00:00+00:00","UNVERIFIABLE"),
              (event_id,"p-b","p-b","B","match",None,None,"bleaguer-github",
-              "https://example/current","2021-04-18T00:00:00+00:00","UNVERIFIABLE")],
+              "https://example/current","2020-10-24T00:00:00+00:00","UNVERIFIABLE")],
         )
         con.commit()
         con.close()
