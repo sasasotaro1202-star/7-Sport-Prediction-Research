@@ -44,6 +44,12 @@ API_BASE = f"https://api.github.com/repos/{OWNER}/{REPO}/commits"
 UA = "SevenSportResearchEngine/4.6-provenance"
 SEASONS = tuple(range(2016, 2027))
 
+
+def _requests():
+    """Load the HTTP client only for paths that actually access the network."""
+    import requests
+    return requests
+
 # Feature values imported from games_summary_*.csv. Provenance is tracked at
 # event-level and pinned to a historical Git commit so pit_replay_builder can
 # use the normal source_snapshot/source_url contract without weakening PIT.
@@ -84,12 +90,14 @@ def sha256_bytes(data: bytes) -> str:
 
 
 def session() -> requests.Session:
+    requests = _requests()
     s = requests.Session()
     s.headers.update({"User-Agent": UA, "Accept": "application/vnd.github+json"})
     return s
 
 
 def get_json(s: requests.Session, url: str, params: dict[str, Any] | None = None) -> Any:
+    requests = _requests()
     last: Exception | None = None
     for attempt in range(5):
         try:
@@ -107,6 +115,7 @@ def get_json(s: requests.Session, url: str, params: dict[str, Any] | None = None
 
 
 def get_bytes(s: requests.Session, url: str) -> bytes:
+    requests = _requests()
     last: Exception | None = None
     for attempt in range(5):
         try:
