@@ -90,15 +90,13 @@ jobs:
           }
 
           if [ "$dispatch" = true ]; then
-            before_ids="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 30 --json databaseId --jq '[.[].databaseId] | join(",")')"
             echo "RECOVER_PRODUCTION_WATCHDOG reason=$reason main=$current_sha"
             gh workflow run production_watchdog.yml --ref main --repo "$repo"
 
             for _ in 1 2 3 4 5; do
               sleep 2
-              refreshed="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 30 --json databaseId,status,createdAt,headSha)"
-              verified="$(printf '%s' "$refreshed" | jq --arg sha "$current_sha" --argjson start "$started_at" 'map(select(.headSha==$sha)) | map(select((.createdAt | fromdateiso8601) >= $start)) | length')"
-              if [ "$verified" -ge 1 ]; then
+              latest="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 1 --json databaseId,headSha --jq '.[0]')"
+              if printf '%s' "$latest" | jq -e --arg sha "$current_sha" '.headSha == $sha and (.databaseId != null)' >/dev/null 2>&1; then
                 echo "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED main=$current_sha"
                 exit 0
               fi
