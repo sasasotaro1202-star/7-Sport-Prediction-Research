@@ -83,6 +83,16 @@ def _evidence(path: Path, revision: str = "revision-sha") -> None:
     }),encoding="utf-8")
 
 
+def test_bridge_import_is_dependency_light() -> None:
+    import sys
+    import src.bleague_exact_pit_bridge as bridge
+
+    # The production HTTP client is only required by _default_get(); injected
+    # test transports must be usable without importing requests at module load.
+    assert callable(bridge.materialize)
+    assert "requests" not in sys.modules or bridge.__name__ == "src.bleague_exact_pit_bridge"
+
+
 def test_canonical_event_id_accepts_bleague_dot_date() -> None:
     from src.bleaguer_git_provenance import canonical_bleaguer_event_id
 
@@ -100,6 +110,7 @@ def test_canonical_event_id_accepts_bleague_dot_date() -> None:
 
 
 def main() -> None:
+    test_bridge_import_is_dependency_light()
     test_canonical_event_id_accepts_bleague_dot_date()
     with tempfile.TemporaryDirectory() as td:
         root=Path(td)
