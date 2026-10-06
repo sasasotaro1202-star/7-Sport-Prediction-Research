@@ -214,12 +214,34 @@ def test_reproducibility_accepts_content_match_across_operational_state_commit()
             ],
         }
         assessed = cp.assess_reproducibility(manifest, "new-sha", root)
-        assert assessed["status"] == "CONTENT_MATCH"
-        assert assessed["content_match"] is True
+        assert assessed["status"] == "STALE_SNAPSHOT"
+        assert assessed["content_match"] is None
         assert assessed["source_sha_match"] is False
         assert assessed["ignored_mutable_files"] == 1
         assert assessed["mismatched_files"] == []
         assert assessed["missing_files"] == []
+
+
+def test_reproducibility_current_manifest_detects_content_mismatch() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        path = root / "stable-input.txt"
+        path.write_text("current\n", encoding="utf-8")
+        manifest = {
+            "source_git_commit_sha": "current-sha",
+            "files": [
+                {
+                    "path": "stable-input.txt",
+                    "exists": True,
+                    "sha256": "0" * 64,
+                }
+            ],
+        }
+        assessed = cp.assess_reproducibility(manifest, "current-sha", root)
+        assert assessed["status"] == "CONTENT_MISMATCH"
+        assert assessed["content_match"] is False
+        assert assessed["source_sha_match"] is True
+        assert assessed["mismatched_files"] == ["stable-input.txt"]
 
 
 def test_reproducibility_rejects_real_content_mismatch() -> None:
@@ -400,6 +422,7 @@ def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
     test_reproducibility_accepts_content_match_across_operational_state_commit()
+    test_reproducibility_current_manifest_detects_content_mismatch()
     test_reproducibility_rejects_real_content_mismatch()
     test_trajectory_control_plane_registration()
     test_research_sweep_control_plane_registration()
