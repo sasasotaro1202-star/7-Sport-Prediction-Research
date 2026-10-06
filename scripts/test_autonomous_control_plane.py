@@ -308,6 +308,22 @@ def test_control_plane_workflow_run_triggers_cover_allowlisted_autonomous_workfl
     for workflow_name in expected_workflow_names:
         assert workflow_name in text
 
+def test_control_plane_has_no_workflow_run_event_injection_path() -> None:
+    source = (
+        Path(__file__).resolve().parents[1] / "src" / "autonomous_control_plane.py"
+    ).read_text(encoding="utf-8")
+    forbidden = (
+        "CONTROL_PLANE_EVENT_WORKFLOW",
+        "CONTROL_PLANE_EVENT_CONCLUSION",
+        "CONTROL_PLANE_EVENT_HEAD_SHA",
+        "CONTROL_PLANE_EVENT_RUN_ID",
+        "CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN",
+        "workflow_event_failure:",
+        "event_payload_first_failure_triage",
+    )
+    for token in forbidden:
+        assert token not in source, token
+
 def test_control_plane_dispatch_has_live_all_sha_guard() -> None:
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
     text = workflow.read_text(encoding="utf-8")
@@ -390,6 +406,7 @@ def main() -> int:
     test_pre_event_control_plane_registration()
     test_control_plane_concurrency_is_job_scoped_and_coalescing()
     test_control_plane_dispatch_verifies_run_creation()
+    test_control_plane_has_no_workflow_run_event_injection_path()
     test_research_queue_identity_excludes_volatile_fields()
     test_research_queue_compaction_keeps_latest_logical_task()
     test_persist_detects_missing_state_artifacts()
@@ -496,83 +513,6 @@ def main() -> int:
         assert selected_failure["target"] == "active_scope"
         assert dispatch_failure is not None
         assert dispatch_failure["workflow"] == "autonomous_research_sweep.yml"
-
-        # Core pre-event prediction failures must also become immediate research signals.
-        os.environ["CONTROL_PLANE_EVENT_WORKFLOW"] = "pre_event_prediction.yml"
-        os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
-        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
-        pre_event_state = cp.inspect()
-        _, pre_event_dispatch = cp.choose_actions(pre_event_state)
-        assert pre_event_dispatch is not None
-        assert pre_event_dispatch["target"] == "workflow_event_failure:pre_event"
-        assert pre_event_dispatch["workflow"] == "autonomous_research_sweep.yml"
-
-        # The triggering workflow_run failure remains actionable even when the
-        # latest snapshot has already moved to a newer successful run.
-        (root / "results/failure_memory.jsonl").unlink()
-        event_recent_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        workflows = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
-        workflows["workflows"]["v4_5_15_production.yml"] = {
-            "latest": {
-                "databaseId": 99,
-                "status": "completed",
-                "conclusion": "success",
-                "createdAt": event_recent_iso,
-                "headSha": "new-sha",
-            }
-        }
-        workflows["workflows"]["autonomous_research_sweep.yml"]["recent"] = [{
-            "databaseId": 777,
-            "status": "in_progress",
-            "conclusion": None,
-            "createdAt": event_recent_iso,
-            "headSha": "old-sha",
-        }]
-        cp.ACTIONS_SNAPSHOT.write_text(json.dumps(workflows), encoding="utf-8")
-        active_state = cp.inspect()
-        assert active_state["actions"]["research_sweep"]["active_run_any"] is True
-        _, active_dispatch = cp.choose_actions(active_state)
-        assert active_dispatch is None or active_dispatch["workflow"] != "autonomous_research_sweep.yml"
-
-        # Remove the independent PIT blocker so the next assertions exercise the
-        # workflow_run event-triage path itself.
-        (root / "results/quality_gate.json").write_text(
-            json.dumps({
-                "status": "PASS",
-                "pending": [],
-                "checks": [{"check": "pit_leakage", "exact_pass": 1}],
-            }),
-            encoding="utf-8",
-        )
-        os.environ["CONTROL_PLANE_EVENT_WORKFLOW"] = "v4_5_15_production.yml"
-        os.environ["CONTROL_PLANE_EVENT_CONCLUSION"] = "failure"
-        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "new-sha"
-        event_state = cp.inspect()
-        event_selected, event_dispatch = cp.choose_actions(event_state)
-        assert event_selected["target"] == "workflow_event_failure:production"
-        assert event_dispatch is None or event_dispatch["workflow"] != "autonomous_research_sweep.yml"
-
-        # Failure-memory persistence may advance main after the triggering run.
-        # The event remains valid when its SHA is a verified ancestor of current main,
-        # but the active research workflow still prevents a duplicate dispatch.
-        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "ancestor-sha"
-        os.environ["CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN"] = "true"
-        ancestor_state = cp.inspect()
-        ancestor_selected, ancestor_dispatch = cp.choose_actions(ancestor_state)
-        assert ancestor_selected["target"] == "workflow_event_failure:production"
-        assert ancestor_dispatch is None or ancestor_dispatch["workflow"] != "autonomous_research_sweep.yml"
-
-        # A stale event SHA is fail-closed and must not create this event signal.
-        os.environ["CONTROL_PLANE_EVENT_HEAD_SHA"] = "stale-sha"
-        os.environ["CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN"] = "0"
-        stale_state = cp.inspect()
-        _, stale_dispatch = cp.choose_actions(stale_state)
-        assert stale_dispatch is None or stale_dispatch["target"] != "workflow_event_failure:production"
-        os.environ.pop("CONTROL_PLANE_EVENT_WORKFLOW", None)
-        os.environ.pop("CONTROL_PLANE_EVENT_CONCLUSION", None)
-        os.environ.pop("CONTROL_PLANE_EVENT_HEAD_SHA", None)
-        os.environ.pop("CONTROL_PLANE_EVENT_RUN_ID", None)
-        os.environ.pop("CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN", None)
 
     print("AUTONOMOUS_CONTROL_PLANE_V2=PASS")
     return 0
