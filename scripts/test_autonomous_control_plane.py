@@ -399,6 +399,9 @@ def test_pit_recovery_dispatches_only_after_failed_old_sha() -> None:
             "active_run_any": False,
             "stale": True,
         }
+        # Isolate this PIT-specific recovery contract from the separate
+        # failure-driven research-priority contract.
+        state["failure_memory"]["recent_24h"] = 0
         state["quality"]["pit_research_blocked"] = True
         selected, dispatch = cp.choose_actions(state)
         assert selected["action"] == "PIT_COVERAGE_REPAIR"
