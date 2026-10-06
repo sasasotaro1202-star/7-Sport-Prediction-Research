@@ -37,16 +37,16 @@ def _run(main_sha: str, original_sha: str, runs: list[dict[str, object]]) -> lis
         fake_gh.write_text(
             """#!/usr/bin/env bash
 set -euo pipefail
-log_file="\${FAKE_GH_LOG}"
+log_file="$FAKE_GH_LOG"
 printf '%s\\n' "$*" >> "$log_file"
 if [ "$1" = "api" ]; then
   endpoint="$2"
   if [[ "$endpoint" == */git/ref/heads/main ]]; then
-    printf '{"object":{"sha":"%s"}}\\n' "\${FAKE_MAIN_SHA}"
+    printf '{"object":{"sha":"%s"}}\\n' "$FAKE_MAIN_SHA"
     exit 0
   fi
-  if [[ "$endpoint" == */actions/workflows/*/runs?branch=main\\&per_page=100 ]]; then
-    printf '%s\\n' "\${FAKE_RUNS_JSON}"
+  if [[ "$endpoint" == */actions/workflows/*/runs* ]]; then
+    printf '%s\\n' "$FAKE_RUNS_JSON"
     exit 0
   fi
   echo "unexpected api endpoint: $endpoint" >&2
