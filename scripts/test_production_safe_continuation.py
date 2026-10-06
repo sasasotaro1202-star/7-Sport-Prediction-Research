@@ -7,6 +7,17 @@
     assert "PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL" in final_block
     assert "exit 1" in final_block
 
+    control_watchdog = (ROOT / ".github/workflows/autonomous_control_plane_watchdog.yml").read_text(encoding="utf-8")
+    heartbeat_start = control_watchdog.index("      - name: Recover stale Production Watchdog heartbeat")
+    heartbeat_end = control_watchdog.index("      - name: Inspect control-plane state and live runs", heartbeat_start)
+    heartbeat_block = control_watchdog[heartbeat_start:heartbeat_end]
+    assert 'workflow "production_watchdog.yml"' in heartbeat_block
+    assert "active_any=" in heartbeat_block
+    assert "age=\$((now_ts-latest_ts))" in heartbeat_block
+    assert 'if [ "\$age" -lt 900 ]; then' in heartbeat_block
+    assert "STALE_MAIN_BEFORE_PRODUCTION_WATCHDOG_RECOVERY" in heartbeat_block
+    assert "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED" in heartbeat_block
+    assert "PRODUCTION_WATCHDOG_RECOVERY_UNVERIFIED" in heartbeat_block
     relay = ROOT / ".github/workflows/production_watchdog_event_relay.yml"
     assert not relay.exists(), "production watchdog event relay must remain absent to prevent workflow_run event storms"
     watchdog = (ROOT / ".github/workflows/production_watchdog.yml").read_text(encoding="utf-8")
