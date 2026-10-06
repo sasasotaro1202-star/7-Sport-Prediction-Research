@@ -605,17 +605,12 @@ def main() -> int:
         assert state["actions"]["safety_audit"]["status"] == "STALE"
         assert state["actions"]["safety_audit"]["sha_match"] is False
         selected, dispatch = cp.choose_actions(state)
-        assert selected["action"] == "PIT_COVERAGE_REPAIR", selected
+        # Recent Failure Memory is intentionally first-class: persistent PIT
+        # debt must not starve failure-driven research.
+        assert selected["action"] == "RESEARCH_HEALTH", selected
+        assert selected["target"] == "recent_failures", selected
         assert dispatch is not None
-        assert dispatch["workflow"] in {
-            "production_runtime_health.yml",
-            "24h_autonomous_research.yml",
-            "autonomous_research_sweep.yml",
-            "source_feasibility_audit.yml",
-            "scope_autofill.yml",
-            "production_safety_audit.yml",
-            "nine_sport_lane_audit.yml",
-        }
+        assert dispatch["workflow"] == "autonomous_research_sweep.yml"
         assert dispatch["automatic_promotion"] is False
 
         first = cp.write_state(state, selected, dispatch)
