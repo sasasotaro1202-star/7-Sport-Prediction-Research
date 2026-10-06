@@ -255,6 +255,23 @@ jobs:
           set -euo pipefail
           current_sha="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           echo "Recovery target: ${REPOSITORY} run ${RUN_ID} original_sha=${ORIGINAL_SHA} current_main=${current_sha}"
+
+          # A production watchdog and this failure-recovery workflow can observe
+          # the same failed run concurrently. Never queue another run when a
+          # current-main execution is already active for the same target workflow.
+          runs_json="$(gh api "repos/${REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs?branch=main&per_page=100")"
+          active_current_main="$(printf '%s' "${runs_json}" | jq --arg sha "${current_sha}" --argjson current "${RUN_ID}" '
+            [.workflow_runs[]?
+             | select((.id // 0) != $current)
+             | select((.head_sha // "") == $sha)
+             | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")]
+            | length
+          ')"
+          if [ "${active_current_main}" -gt 0 ]; then
+            echo "RECOVERY_COALESCED_ACTIVE_CURRENT_MAIN count=${active_current_main} sha=${current_sha}"
+            exit 0
+          fi
+
           if [ "${current_sha}" != "${ORIGINAL_SHA}" ]; then
             echo "STALE_FAILED_RUN=TRUE; starting one fresh bounded run on current main."
             gh workflow run "${WORKFLOW_ID}" --ref main --repo "${REPOSITORY}"
