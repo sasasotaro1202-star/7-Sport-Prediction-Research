@@ -57,7 +57,7 @@ jobs:
             fi
           fi
 
-          runs="$(gh run list --workflow "$workflow" --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,headSha,event)"
+          runs="$(gh run list --repo "$repo" --workflow "$workflow" --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,headSha,event)"
           active_any="$(printf '%s' "$runs" | jq '[.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")] | length')"
           active_in_progress="$(printf '%s' "$runs" | jq '[.[] | select(.status=="in_progress")] | length')"
           active_current_in_progress="$(printf '%s' "$runs" | jq --arg sha "$CURRENT_MAIN_SHA" '[.[] | select(.headSha==$sha and .status=="in_progress")] | length')"
@@ -189,7 +189,7 @@ jobs:
             done
           fi
 
-          refreshed="$(gh run list --workflow autonomous_control_plane.yml --branch main --limit 50 --json databaseId,status,headSha)"
+          refreshed="$(gh run list --repo "$repo" --workflow autonomous_control_plane.yml --branch main --limit 50 --json databaseId,status,headSha)"
           active_current_after="$(printf '%s' "$refreshed" | jq --arg sha "$current_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
           active_in_progress_after="$(printf '%s' "$refreshed" | jq '[.[] | select(.status=="in_progress")] | length')"
           if [ "$active_current_after" -gt 0 ]; then
