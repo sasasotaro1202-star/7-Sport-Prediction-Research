@@ -32,8 +32,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import requests
-
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = ROOT / "data/db/sports_v45.sqlite"
 OWNER = "rintaromasuda"
