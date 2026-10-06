@@ -12,6 +12,7 @@
     heartbeat_end = control_watchdog.index("      - name: Inspect control-plane state and live runs", heartbeat_start)
     heartbeat_block = control_watchdog[heartbeat_start:heartbeat_end]
     assert 'workflow "production_watchdog.yml"' in heartbeat_block
+    assert 'jq -r --arg sha "$current_sha"' in heartbeat_block
     assert "active_any=" in heartbeat_block
     assert "age=\$((now_ts-latest_ts))" in heartbeat_block
     assert 'if [ "\$age" -lt 900 ]; then' in heartbeat_block
