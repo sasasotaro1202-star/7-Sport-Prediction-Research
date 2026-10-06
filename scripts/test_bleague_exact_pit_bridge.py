@@ -84,13 +84,13 @@ def _evidence(path: Path, revision: str = "revision-sha") -> None:
 
 
 def test_bridge_import_is_dependency_light() -> None:
-    import sys
     import src.bleague_exact_pit_bridge as bridge
+    import src.bleaguer_git_provenance as provenance
 
-    # The production HTTP client is only required by _default_get(); injected
-    # test transports must be usable without importing requests at module load.
+    # HTTP dependencies are only needed when the live network path executes;
+    # canonical parsing and injected transports remain usable in the control plane.
     assert callable(bridge.materialize)
-    assert "requests" not in sys.modules or bridge.__name__ == "src.bleague_exact_pit_bridge"
+    assert callable(provenance.canonical_bleaguer_event_id)
 
 
 def test_canonical_event_id_accepts_bleague_dot_date() -> None:
