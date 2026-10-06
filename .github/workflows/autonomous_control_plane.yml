@@ -115,6 +115,34 @@ jobs:
               "autonomous_control_plane_regression.yml",
           ]
           output = {"generated_at_utc": None, "head_sha": os.environ.get("GITHUB_SHA", ""), "workflows": {}, "errors": {}}
+          current_main_sha = os.environ.get("CONTROL_PLANE_CURRENT_MAIN_SHA") or output["head_sha"]
+
+          def main_compatibility(run_sha):
+              if not run_sha or not current_main_sha:
+                  return "UNKNOWN"
+              if run_sha == current_main_sha:
+                  return "EXACT_CURRENT_MAIN"
+              compare_url = "repos/" + os.environ["GITHUB_REPOSITORY"] + "/compare/" + run_sha + "..." + current_main_sha
+              proc = subprocess.run(["timeout", "8s", "gh", "api", compare_url], capture_output=True, text=True)
+              if proc.returncode != 0:
+                  return "UNKNOWN"
+              try:
+                  compare = json.loads(proc.stdout or "{}")
+              except json.JSONDecodeError:
+                  return "UNKNOWN"
+              if str(compare.get("status") or "") != "ahead":
+                  return "MEANINGFUL_OR_DIVERGED"
+              files = compare.get("files") or []
+              if not isinstance(files, list) or not files:
+                  return "UNKNOWN"
+              for item in files:
+                  if not isinstance(item, dict):
+                      return "MEANINGFUL_OR_DIVERGED"
+                  path = str(item.get("filename") or "")
+                  if not (path.startswith("results/") or path.startswith("models/")):
+                      return "MEANINGFUL_OR_DIVERGED"
+              return "DURABLE_ONLY"
+
           for workflow in workflows:
               cmd = [
                   "gh", "run", "list", "--workflow", workflow, "--branch", "main",
@@ -134,8 +162,11 @@ jobs:
                   continue
               rows = [x for x in rows if isinstance(x, dict)]
               rows.sort(key=lambda x: str(x.get("createdAt") or ""), reverse=True)
+              latest = rows[0] if rows else None
+              if isinstance(latest, dict):
+                  latest["mainCompatibility"] = main_compatibility(str(latest.get("headSha") or ""))
               output["workflows"][workflow] = {
-                  "latest": rows[0] if rows else None,
+                  "latest": latest,
                   "recent": rows[:20],
               }
           from datetime import datetime, timezone

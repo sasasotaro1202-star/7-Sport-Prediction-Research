@@ -142,6 +142,63 @@ def test_action_health_rejects_missing_sha_provenance() -> None:
     assert health["sha_match"] is None
 
 
+def test_action_health_accepts_successful_durable_only_advance() -> None:
+    workflows = {
+        "pit_history_expansion.yml": {
+            "latest": {
+                "databaseId": 101,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat().replace("+00:00", "Z"),
+                "headSha": "old-sha",
+                "mainCompatibility": "DURABLE_ONLY",
+            }
+        }
+    }
+    health = cp.action_health(
+        workflows,
+        "pit_history_expansion.yml",
+        12.0,
+        current_main_sha="current-sha",
+    )
+    assert health["status"] == "HEALTHY"
+    assert health["sha_match"] is False
+    assert health["main_compatibility"] == "DURABLE_ONLY"
+    assert health["stale"] is False
+
+
+def test_verified_pit_workflow_suppresses_stale_quality_block() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        bind(root)
+        fixture(root)
+        os.environ["GITHUB_SHA"] = "new-sha"
+        snapshot = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
+        snapshot["workflows"]["pit_history_expansion.yml"] = {
+            "latest": {
+                "databaseId": 102,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat().replace("+00:00", "Z"),
+                "headSha": "new-sha",
+                "mainCompatibility": "EXACT_CURRENT_MAIN",
+            }
+        }
+        cp.ACTIONS_SNAPSHOT.write_text(json.dumps(snapshot), encoding="utf-8")
+        state = cp.inspect()
+        assert state["quality"]["pit_exact_pass"] == 0
+        assert state["quality"]["pit_workflow_verified"] is True
+        assert state["quality"]["pit_research_blocked"] is False
+
+
+def test_control_plane_snapshot_records_main_compatibility() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert "main_compatibility(run_sha)" in text
+    assert '"mainCompatibility"' in text
+    assert "DURABLE_ONLY" in text
+
+
 def test_action_health_rejects_old_sha() -> None:
     workflows = {
         "production_safety_audit.yml": {
@@ -451,6 +508,9 @@ def test_research_queue_compaction_keeps_latest_logical_task() -> None:
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
+    test_action_health_accepts_successful_durable_only_advance()
+    test_verified_pit_workflow_suppresses_stale_quality_block()
+    test_control_plane_snapshot_records_main_compatibility()
     test_reproducibility_marks_older_manifest_as_stale_snapshot()
     test_reproducibility_current_manifest_detects_content_mismatch()
     # The current-manifest mismatch case is covered by the explicit current-SHA test above.
