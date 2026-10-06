@@ -405,9 +405,16 @@ def action_health(
         or current_main_sha == "UNKNOWN"
         or not head_sha
     )
+    exact_sha_match = bool(
+        not sha_provenance_missing
+        and head_sha == current_main_sha
+    )
+    main_compatibility = str(latest.get("mainCompatibility") or latest.get("main_compatibility") or "")
+    compatible_old_sha = main_compatibility == "DURABLE_ONLY"
     sha_mismatch = bool(
         not sha_provenance_missing
-        and head_sha != current_main_sha
+        and not exact_sha_match
+        and not compatible_old_sha
     )
     healthy = (
         conclusion == "success"
@@ -416,6 +423,7 @@ def action_health(
         and age <= max_age_hours
         and not sha_provenance_missing
         and not sha_mismatch
+        and (exact_sha_match or compatible_old_sha)
     )
     return {
         "run_status": run_status,
@@ -428,7 +436,8 @@ def action_health(
         "age_hours": age,
         "head_sha": latest.get("headSha"),
         "current_main_sha": current_main_sha,
-        "sha_match": None if not current_main_sha or current_main_sha == "UNKNOWN" or not head_sha else not sha_mismatch,
+        "sha_match": exact_sha_match if not sha_provenance_missing else None,
+        "main_compatibility": main_compatibility or ("EXACT_CURRENT_MAIN" if exact_sha_match else "UNKNOWN"),
         "conclusion": conclusion or None,
         "run_id": latest.get("databaseId"),
         "active_run_any": active_run_any,
@@ -610,10 +619,21 @@ def inspect() -> dict[str, Any]:
     if not isinstance(pending, list):
         errors["quality_gate.pending"] = "INVALID"
         pending = []
+    pit_workflow = action_summary.get("pit_history") or {}
+    pit_workflow_verified = bool(
+        pit_workflow.get("run_status") == "completed"
+        and pit_workflow.get("conclusion") == "success"
+        and pit_workflow.get("main_compatibility")
+        in {"EXACT_CURRENT_MAIN", "DURABLE_ONLY"}
+        and pit_workflow.get("stale") is False
+    )
     pit_pending = (
-        "no_exact_pit_replay_rows" in set(pending)
-        or pit_exact is None
-        or pit_exact == 0
+        (
+            "no_exact_pit_replay_rows" in set(pending)
+            or pit_exact is None
+            or pit_exact == 0
+        )
+        and not pit_workflow_verified
     )
 
     future_generated = future.get("generated_at_utc")
@@ -684,6 +704,7 @@ def inspect() -> dict[str, Any]:
             "status": quality.get("status", "UNKNOWN"),
             "pending": pending,
             "pit_exact_pass": pit_exact,
+            "pit_workflow_verified": pit_workflow_verified,
             "pit_research_blocked": pit_pending,
         },
         "release": {
