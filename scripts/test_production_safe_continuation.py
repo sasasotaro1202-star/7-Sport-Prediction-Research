@@ -14,9 +14,9 @@
     assert 'workflow "production_watchdog.yml"' in heartbeat_block
     assert 'jq -r --arg sha "$current_sha"' in heartbeat_block
     assert "active_any=" in heartbeat_block
-    assert "before_ids=" in heartbeat_block
-    assert "databaseId --jq '[.[].databaseId] | join(",")'" in heartbeat_block
-    assert 'jq --arg sha "$current_sha" --arg before "$before_ids"' in heartbeat_block
+    assert 'latest="$(gh run list' in heartbeat_block
+    assert '--json databaseId,headSha --jq' in heartbeat_block
+    assert 'jq -e --arg sha "$current_sha" \' .headSha == $sha and (.databaseId != null) \' ' not in heartbeat_block
     assert "STALE_MAIN_BEFORE_PRODUCTION_WATCHDOG_RECOVERY" in heartbeat_block
     assert "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED" in heartbeat_block
     assert "PRODUCTION_WATCHDOG_RECOVERY_UNVERIFIED" in heartbeat_block
