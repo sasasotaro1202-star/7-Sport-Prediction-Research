@@ -14,8 +14,9 @@
     assert 'workflow "production_watchdog.yml"' in heartbeat_block
     assert 'jq -r --arg sha "$current_sha"' in heartbeat_block
     assert "active_any=" in heartbeat_block
-    assert "age=\$((now_ts-latest_ts))" in heartbeat_block
-    assert 'if [ "\$age" -lt 900 ]; then' in heartbeat_block
+    assert "before_ids=" in heartbeat_block
+    assert "databaseId --jq '[.[].databaseId] | join(",")'" in heartbeat_block
+    assert 'jq --arg sha "$current_sha" --arg before "$before_ids"' in heartbeat_block
     assert "STALE_MAIN_BEFORE_PRODUCTION_WATCHDOG_RECOVERY" in heartbeat_block
     assert "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED" in heartbeat_block
     assert "PRODUCTION_WATCHDOG_RECOVERY_UNVERIFIED" in heartbeat_block
