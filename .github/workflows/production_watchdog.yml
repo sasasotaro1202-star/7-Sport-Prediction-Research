@@ -137,7 +137,7 @@ jobs:
             done
           done
 
-      - name: Cancel stale unfinished heavy runs from old commits
+      - name: Cancel stale unfinished heavy runs from old commits only when unsafe
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -155,28 +155,84 @@ jobs:
             state=$(gh run view "$id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
             case "$state" in
               completed|cancelled|failure|success|neutral|skipped|timed_out)
-                echo "CANCEL_RACE_ALREADY_TERMINAL run_id=$id status=$state"
+                echo "CANCEL_RACE_ALREADY_TERMINAL run_id=${id} status=$state"
                 return 0
                 ;;
               in_progress|queued|waiting|requested|pending)
-                echo "CANCEL_FAILED_ACTIVE run_id=$id status=$state"
+                echo "CANCEL_FAILED_ACTIVE run_id=${id} status=$state"
                 return 1
                 ;;
               *)
-                echo "CANCEL_STATE_UNKNOWN run_id=$id status=$state"
+                echo "CANCEL_STATE_UNKNOWN run_id=${id} status=$state"
                 return 1
                 ;;
             esac
           }
 
+          # Durable-only main advances are explicitly compatible with long-running
+          # production/PIT runs. Do not cancel those runs merely because the
+          # control-plane/failure-memory state committed a new SHA.
+          classify_main_advance_remote() {
+            local run_sha="$1" main_sha="$2"
+            local compare_json status
+            if ! compare_json="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${run_sha}...${main_sha}" 2>/dev/null)"; then
+              echo "UNVERIFIABLE"
+              return 0
+            fi
+            status="$(printf '%s' "$compare_json" | jq -r '.status // ""')"
+            if [ "$status" != "ahead" ]; then
+              echo "NON_DURABLE_CHANGE"
+              return 0
+            fi
+
+            printf '%s' "$compare_json" | jq -r '
+              [.files[]?.filename] as $files |
+              if ($files | length) == 0 then
+                "UNVERIFIABLE"
+              elif all($files[];
+                . == "results/research/autonomous_control_plane.json" or
+                . == "results/research/automation_health.json" or
+                . == "results/research/research_queue.jsonl" or
+                . == "results/research/autonomous_action_log.jsonl" or
+                startswith("results/automation_state/") or
+                . == "results/failure_memory.jsonl"
+              ) then
+                "DURABLE_ONLY"
+              else
+                "NON_DURABLE_CHANGE"
+              end
+            '
+          }
+
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
+
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
-            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha --jq '.[] | select(.headSha != "'"$main_sha"'" and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")) | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
-            while IFS=$'	' read -r run_id status event created_at head_sha; do
+            gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha |
+            while IFS=$'\t' read -r run_id status event created_at head_sha; do
               [ -n "$run_id" ] || continue
-              echo "STALE_UNFINISHED_HEAVY_RUN run_id=$run_id status=$status event=$event sha=$head_sha main=$main_sha workflow=$workflow"
-              cancel_run "$run_id"
+              [ "$status" = "in_progress" ] || continue
+
+              if [ "$head_sha" = "$main_sha" ]; then
+                echo "CURRENT_MAIN_HEAVY_RUN_PRESERVED run_id=$run_id workflow=$workflow sha=$head_sha"
+                continue
+              fi
+
+              advance_status="$(classify_main_advance_remote "$head_sha" "$main_sha")"
+              case "$advance_status" in
+                DURABLE_ONLY)
+                  echo "DURABLE_ONLY_HEAVY_RUN_PRESERVED run_id=$run_id workflow=$workflow sha=$head_sha main=$main_sha"
+                  continue
+                  ;;
+                NON_DURABLE_CHANGE|UNVERIFIABLE)
+                  echo "STALE_UNSAFE_HEAVY_RUN run_id=$run_id workflow=$workflow sha=$head_sha main=$main_sha classification=$advance_status"
+                  cancel_run "$run_id"
+                  ;;
+                *)
+                  echo "UNKNOWN_MAIN_ADVANCE_CLASSIFICATION run_id=$run_id workflow=$workflow sha=$head_sha main=$main_sha class=$advance_status" >&2
+                  cancel_run "$run_id"
+                  ;;
+              esac
             done
           done
 
