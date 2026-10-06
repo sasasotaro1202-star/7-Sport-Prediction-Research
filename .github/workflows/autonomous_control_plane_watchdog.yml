@@ -56,7 +56,7 @@ jobs:
             exit 0
           fi
 
-          latest_created="$(printf '%s' "$runs" | jq -r '[.[] | select(.headSha=="'"$current_sha"'")] | .[].createdAt' | sort | last // "")'
+          latest_created="$(printf '%s' "$runs" | jq -r --arg sha "$current_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // "")'
           now_ts="$(date -u +%s)"
           dispatch=false
           reason="NO_CURRENT_MAIN_WATCHDOG_RUN"
