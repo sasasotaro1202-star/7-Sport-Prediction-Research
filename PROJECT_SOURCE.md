@@ -996,7 +996,6 @@ aggregateだけでなく、
 
 単位で分解する。
 
-
 === AUTONOMOUS GITHUB EXECUTION CONTROL — V2 ===
 
 目的:
@@ -1041,7 +1040,7 @@ allowlist外Workflowは自動起動しない。
 ownership boundary:
 * pre-event production heartbeatはproduction watchdogが所有
 * PIT History Expansionは00:47/09:47/18:47 UTCの固定9時間cadenceが所有
-* Production Failure Recoveryはworkflow_run failure recoveryが所有
+* Production Failure Recoveryはfailure-specific retry / fresh-current-main recoveryを所有（workflow_run triggerは使用しない）
 * model promotionはproduction release gateだけが所有
 
 control planeは上記boundaryを迂回しない。
@@ -1071,7 +1070,6 @@ control planeのGREENはreconciliation/automation safetyの成功だけを意味
 PERFORMANCE_VERIFIED、ADOPTED、PRODUCTION、STABLEを意味しない。
 OOS、PIT、calibration、robustness、frozen holdout、release gateは既存契約を維持する。
 
-
 === PIT EVIDENCE AUTOMATION HARDENING — 2026-10-04 ===
 
 目的:
@@ -1098,7 +1096,6 @@ F1 OpenF1 deferred-PIT classification:
 * missing = zero conversion = forbidden
 * materialization/report status != performance verification
 
-
 === AUTONOMOUS DISPATCH ORDERING SAFETY ===
 
 control planeの安全順序は、
@@ -1115,7 +1112,6 @@ persist前後またはdispatch直前にmainが変化した場合はFAIL CLOSED�
 
 このordering safetyはautomation integrityのためのものであり、performance verification、OOS、PIT validation、holdout、production approvalを意味しない。
 
-
 === CURRENT-MAIN ACTIONS EVIDENCE GATE ===
 
 Actions health evidence is valid only when the latest observed run `headSha` matches the current control-plane `GITHUB_SHA` (the reconciled main SHA used for the cycle). A successful run on an older commit is classified STALE, not HEALTHY, so autonomous dispatch never relies on stale success evidence.
@@ -1124,41 +1120,11 @@ SHA mismatch is separate from workflow failure. The health payload records both 
 
 === FAILURE-MEMORY-AWARE CONTROL PLANE ===
 
-Failure Memoryは単なる保存先ではなく、次researchのevidence inputとして扱う。
-
-control planeは毎cycle、append-only failure_memory.jsonlを読み、
-* recent_24h
-* recent_7d
-* failure_class
-* latest failure
-を監査する。
-
-recent failureが存在する場合、観測済みfailureをroot-cause researchへ変換するRESEARCH_HEALTH candidateをpriorityへ追加する。これはproduction retryやpromotionではない。
-
-Failure Recoveryのownershipは変更しない。Production Failure Recoveryはworkflow_runとしてretry/fresh-current-main recoveryを担当し、control planeはその結果を研究priorityへ反映するだけとする。
-
 === PUSH-TRIGGERED CURRENT-MAIN RECONCILIATION ===
 
 When `autonomous_control_plane.yml` is invoked by a `push` to `main`, the triggering commit is accepted for reconciliation only when it is the current remote `main` SHA or a verified ancestor of the current remote `main` SHA. The workflow resolves and checks out the latest remote `main` before inspection, and compares the push SHA against the resolved main. A diverged or unverifiable push is fail-closed. Scheduled and manual invocations retain strict exact-SHA matching.
 
 Deterministic control-plane persistence is gated on successful current-main resolution. A failed or stale resolution therefore cannot run persistence against an unset current-main SHA and create a secondary error that obscures the primary provenance failure.
-
-
-=== EVENT-TRIGGERED CURRENT-MAIN RECONCILIATION ===
-
-workflow_run failure event受信時も、まずremote main SHAを解決し、そのcurrent mainをcheckoutしてからcontrol planeを評価する。
-
-event_head_sha == current_main
-または
-event_head_shaがcurrent mainのverified ancestor
-の場合のみevent failureをRESEARCH_HEALTH signalとして扱う。
-
-ancestor判定はGitHub compare APIのaheadを利用し、diverged/behind/unknownはfail-closed。
-scheduled/manual runは従来どおりgithub.sha == current mainを要求する。
-
-Failure Memoryが先にmainを進めた場合でも、triggering failure eventを失わず、current main上で安全にresearchへ接続する。
-automatic model promotion、PIT bypass、holdout tuningは変更しない。
-
 
 Failure Memoryは単なる保存先ではなく、次researchのevidence inputとして扱う。
 
@@ -1177,9 +1143,6 @@ Actions evidenceはdispatch allowlistとmonitor-only workflowを分離する。p
 
 JSONL破損、timestamp不正、memory欠損はUNKNOWN/DEGRADEDとして記録し、failure件数を0に偽装しない。
 
-
-=== EVENT-DRIVEN FAILURE TRIAGE ===
-
 control planeは3時間cronだけを待たず、Production、Pre-Event Adaptive Timing Prediction、PIT History Expansion、Production Failure Recovery、Autonomous Research Sweep、Autonomous Control Plane Regressionのcompleted failure eventを直接受ける。
 
 failure / timed_out / startup_failure / cancelled:
@@ -1189,7 +1152,6 @@ failure / timed_out / startup_failure / cancelled:
 → Production Failure Recoveryのretry ownershipは変更しない。
 
 event head SHAがcurrent mainと一致しない場合はFAIL CLOSEDとし、fresh current-main regressionとして扱わない。success eventはfailure triageを起動しない。automatic model promotion、PIT bypass、frozen holdout tuningは引き続き禁止。
-
 
 === CONTROL-PLANE NO-CHURN PERSISTENCE ===
 
@@ -1235,7 +1197,6 @@ Autonomous research-memory continuity:
 
 Control Plane integration:
 `TRAJECTORY_RESEARCH` is a bounded recovery action. Missing/stale/failed trajectory evidence can be re-dispatched by the autonomous control plane. Failure events remain fail-closed and never grant model promotion or frozen-holdout access.
-
 
 目的:
 最終勝敗だけを予測するのではなく、prediction cutoff時点の状態から、その後の状態軌跡・複数horizon・複数未来scenarioを予測し、最終outcome predictionへ接続する。
@@ -1304,7 +1265,6 @@ Coverage priority:
 * in-event state snapshots（event_end_time_utcが証明できる場合のみ）
 
 この層の成功条件は「時間ごとの予測を大量生成した」ではない。未知eventでのFuture Generalization、Case-Level Correctness、Calibration、Predictability Awareness、Uncertainty、Robustness、PIT Integrityが改善したことをchronological OOSとfrozen holdoutで証明することを要求する。
-
 
 61. END-TO-END SPORT PREDICTION MODELING BLUEPRINT
 
@@ -1442,7 +1402,7 @@ results/research/**全体をdurableとみなしてはならない。
 === CONTROL-PLANE EVENT-STORM BOUNDARY — 2026-10-06 ===
 
 autonomous_control_plane.ymlの起動源は、3時間schedule、manual dispatch、mainの意味のあるpushに限定する。
-多数のworkflow completed eventをworkflow_runで受信して即SKIPする構造は採用しない。
+多数のworkflow completed eventをworkflow_runで受信するイベント駆動構造自体を採用しない。
 
 Failure Recovery / Production Watchdog / 24H Watchdogが即時復旧を担当し、Control Planeは次の定期cycleでFailure Memoryを読み、観測済みfailureをRESEARCH_HEALTHへ変換する。
 
