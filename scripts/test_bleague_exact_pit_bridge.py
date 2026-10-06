@@ -50,7 +50,7 @@ def _csv(headers: list[str], rows: list[list[object]]) -> bytes:
 def _schedule_csv() -> bytes:
     return _csv(
         ["ScheduleKey","Season","EventId","Date","Arena","Attendance","HomeTeamId","AwayTeamId"],
-        [["100","2020-21","2","2021-04-18","Test Arena","100","700","706"]],
+        [["100","2020-21","2","2020.10.24","Test Arena","100","700","706"]],
     )
 
 def _summary_csv() -> bytes:
