@@ -45,6 +45,8 @@ jobs:
         run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport canonical
       - name: Validate 24H watchdog duplicate suppression
         run: PYTHONPATH=. python scripts/test_24h_autonomous_research_watchdog.py
+      - name: Validate production failure recovery deduplication
+        run: PYTHONPATH=. python scripts/test_production_failure_recovery.py
       - name: Validate research contracts
         run: |
           set -euo pipefail
