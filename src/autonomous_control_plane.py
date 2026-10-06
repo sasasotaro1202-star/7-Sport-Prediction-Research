@@ -746,6 +746,20 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
     }
 
     if state["quality"]["pit_research_blocked"]:
+        pit_health = state["actions"].get("pit_history") or {}
+        pit_conclusion = str(pit_health.get("conclusion") or "")
+        pit_head_sha = str(pit_health.get("head_sha") or "")
+        current_head_sha = str(state.get("head_sha") or "")
+        # A dedicated PIT workflow may be retried immediately only when the
+        # observed failed run belongs to an older revision than current main.
+        # This is a bounded current-main recovery path, not a PIT-boundary bypass:
+        # the live dispatch gate still coalesces active runs and enforces cooldown.
+        pit_retry_after_current_main_change = bool(
+            pit_conclusion in {"failure", "timed_out", "startup_failure", "cancelled"}
+            and pit_head_sha not in {"", "UNKNOWN"}
+            and current_head_sha not in {"", "UNKNOWN"}
+            and pit_head_sha != current_head_sha
+        )
         candidates.append({
             "action": "PIT_COVERAGE_REPAIR",
             "workflow": ALLOWED_WORKFLOWS["PIT_COVERAGE_REPAIR"],
@@ -757,8 +771,12 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "information_value": 1.0,
             "cost": 1.0,
             "reason": "exact PIT evidence is absent, explicitly pending, or unresolvable; production-grade OOS cannot advance safely",
-            "auto_dispatch": False,
-            "dispatch_policy": "respect_fixed_pit_boundary_or_existing_watchdog",
+            "auto_dispatch": pit_retry_after_current_main_change,
+            "dispatch_policy": (
+                "bounded_current_main_retry_after_failed_old_sha"
+                if pit_retry_after_current_main_change
+                else "respect_fixed_pit_boundary_or_existing_watchdog"
+            ),
         })
 
     if state["future_prediction"]["age_class"] in {"MISSING", "STALE"}:

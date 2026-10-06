@@ -147,6 +147,9 @@ jobs:
           print(json.dumps(output, ensure_ascii=False))
           PY
 
+      - name: Validate current B.LEAGUE PIT bridge before recovery dispatch
+        run: PYTHONPATH=. python scripts/test_bleague_exact_pit_bridge.py
+
       - name: Inspect current GitHub evidence
         id: control
         run: |
@@ -274,6 +277,9 @@ jobs:
               ;;
             autonomous_temporal_trajectory_loop.yml)
               cooldown=1200
+              ;;
+            pit_history_expansion.yml)
+              cooldown=21600
               ;;
             24h_autonomous_research.yml)
               cooldown=86400

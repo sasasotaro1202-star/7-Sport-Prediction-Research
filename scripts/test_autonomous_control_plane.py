@@ -324,6 +324,45 @@ def test_control_plane_has_no_workflow_run_event_injection_path() -> None:
     for token in forbidden:
         assert token not in source, token
 
+def test_pit_recovery_dispatches_only_after_failed_old_sha() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        bind(root)
+        fixture(root)
+        os.environ["GITHUB_SHA"] = "new-sha"
+        state = cp.inspect()
+        state["actions"]["pit_history"] = {
+            "status": "STALE",
+            "run_status": "completed",
+            "conclusion": "failure",
+            "head_sha": "old-sha",
+            "current_main_sha": "new-sha",
+            "sha_match": False,
+            "run_id": 37426080336,
+            "active_run_any": False,
+            "stale": True,
+        }
+        state["quality"]["pit_research_blocked"] = True
+        selected, dispatch = cp.choose_actions(state)
+        assert selected["action"] == "PIT_COVERAGE_REPAIR"
+        assert selected["auto_dispatch"] is True
+        assert selected["dispatch_policy"] == "bounded_current_main_retry_after_failed_old_sha"
+        assert dispatch is not None
+        assert dispatch["action"] == "PIT_COVERAGE_REPAIR"
+        assert dispatch["workflow"] == "pit_history_expansion.yml"
+        assert dispatch["automatic_promotion"] is False
+
+        current = copy.deepcopy(state)
+        current["actions"]["pit_history"]["head_sha"] = "new-sha"
+        current["actions"]["pit_history"]["sha_match"] = True
+        selected_current, dispatch_current = cp.choose_actions(current)
+        assert selected_current["action"] == "PIT_COVERAGE_REPAIR"
+        assert selected_current["auto_dispatch"] is False
+        assert selected_current["dispatch_policy"] == "respect_fixed_pit_boundary_or_existing_watchdog"
+        assert dispatch_current is not None
+        assert dispatch_current["workflow"] != "pit_history_expansion.yml"
+
+
 def test_control_plane_dispatch_has_live_all_sha_guard() -> None:
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
     text = workflow.read_text(encoding="utf-8")
@@ -335,6 +374,19 @@ def test_control_plane_dispatch_has_live_all_sha_guard() -> None:
     assert '[.[] | select(.status=="queued" or .status=="in_progress"' in block
     assert 'if [ "$active_any" -eq 0 ]; then' in block
 
+
+
+def test_control_plane_has_bounded_pit_recovery_gate() -> None:
+    workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
+    text = workflow.read_text(encoding="utf-8")
+    start = text.index("      - name: Validate current B.LEAGUE PIT bridge before recovery dispatch")
+    end = text.index("      - name: Inspect current GitHub evidence", start)
+    assert "scripts/test_bleague_exact_pit_bridge.py" in text[start:end]
+    dispatch_start = text.index("      - name: Dispatch at most one allowlisted autonomous workflow")
+    dispatch_end = text.index("      - name: Final control-plane status", dispatch_start)
+    block = text[dispatch_start:dispatch_end]
+    assert "pit_history_expansion.yml)" in block
+    assert "cooldown=21600" in block
 
 
 def test_control_plane_dispatch_verifies_run_creation() -> None:
@@ -406,6 +458,8 @@ def main() -> int:
     test_research_sweep_control_plane_registration()
     test_pre_event_control_plane_registration()
     test_control_plane_concurrency_is_job_scoped_and_coalescing()
+    test_pit_recovery_dispatches_only_after_failed_old_sha()
+    test_control_plane_has_bounded_pit_recovery_gate()
     test_control_plane_dispatch_verifies_run_creation()
     test_control_plane_has_no_workflow_run_event_injection_path()
     test_research_queue_identity_excludes_volatile_fields()
