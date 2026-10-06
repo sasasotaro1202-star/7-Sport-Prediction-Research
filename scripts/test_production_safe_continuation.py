@@ -84,6 +84,10 @@ def main() -> int:
     assert "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED" in heartbeat_block
     assert "PRODUCTION_WATCHDOG_RECOVERY_UNVERIFIED" in heartbeat_block
     assert "active_statuses" in heartbeat_block
+    assert "active_current" in heartbeat_block
+    assert "active_stale" in heartbeat_block
+    assert "CANCEL_STALE_PRODUCTION_WATCHDOG" in heartbeat_block
+    assert "PRODUCTION_WATCHDOG_HEARTBEAT_DEFERRED" in heartbeat_block
     assert "900" in heartbeat_block
     assert "gh('workflow', 'run', 'production_watchdog.yml'" in heartbeat_block
     assert "Inspect control-plane state and live runs" in control_watchdog

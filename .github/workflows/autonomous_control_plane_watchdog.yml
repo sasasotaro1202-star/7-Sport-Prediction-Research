@@ -81,41 +81,96 @@ jobs:
               )
           )
           active_statuses = {'queued', 'in_progress', 'waiting', 'requested', 'pending'}
-          active_any = sum(1 for row in runs if row.get('status') in active_statuses)
-          if active_any > 0:
-              print(f'PRODUCTION_WATCHDOG_HEARTBEAT_OK active_runs={active_any}')
+          active_current = [
+              row for row in runs
+              if str(row.get('headSha') or '') == current_sha
+              and row.get('status') in active_statuses
+          ]
+          active_stale = [
+              row for row in runs
+              if str(row.get('headSha') or '') != current_sha
+              and row.get('status') in active_statuses
+          ]
+
+          # Current-main watchdog owns recovery. Older-SHA runs only block
+          # when they are genuinely stale, preventing a stranded queue entry
+          # from starving current-main heartbeat recovery indefinitely.
+          if active_current:
+              print(
+                  f'PRODUCTION_WATCHDOG_HEARTBEAT_OK '
+                  f'current_main_active={len(active_current)} current_main={current_sha}'
+              )
+              sys.exit(0)
+
+          now = datetime.now(timezone.utc)
+          stale_ids_to_cancel = []
+          for row in active_stale:
+              updated = str(row.get('updatedAt') or row.get('createdAt') or '')
+              try:
+                  age_seconds = max(0, int((now - parse_utc(updated)).total_seconds()))
+              except (TypeError, ValueError, OverflowError):
+                  print(
+                      f'PRODUCTION_WATCHDOG_STALE_RUN_TIMESTAMP_UNVERIFIABLE '
+                      f'run={row.get("databaseId")} sha={row.get("headSha")}',
+                      file=sys.stderr,
+                  )
+                  sys.exit(1)
+              if age_seconds >= 900:
+                  stale_ids_to_cancel.append(str(row.get('databaseId')))
+
+          remote_sha = gh(
+              'api', f'repos/{repo}/git/ref/heads/main', '--jq', '.object.sha'
+          ).strip()
+          if remote_sha != current_sha:
+              print(
+                  f'STALE_MAIN_BEFORE_PRODUCTION_WATCHDOG_RECOVERY '
+                  f'expected={current_sha} actual={remote_sha}',
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          for run_id in stale_ids_to_cancel:
+              print(
+                  f'CANCEL_STALE_PRODUCTION_WATCHDOG run={run_id} '
+                  f'current_main={current_sha}'
+              )
+              gh('run', 'cancel', run_id, '--repo', repo)
+
+          if active_stale and not stale_ids_to_cancel:
+              print(
+                  f'PRODUCTION_WATCHDOG_HEARTBEAT_DEFERRED '
+                  f'stale_active={len(active_stale)} reason=recent_old_sha_run'
+              )
               sys.exit(0)
 
           current_runs = [row for row in runs if str(row.get('headSha') or '') == current_sha]
           current_runs.sort(key=lambda row: str(row.get('createdAt') or ''), reverse=True)
           latest_created = str(current_runs[0].get('createdAt') or '') if current_runs else ''
-          now = datetime.now(timezone.utc)
           dispatch = False
           reason = 'NO_CURRENT_MAIN_WATCHDOG_RUN'
 
           if latest_created:
               try:
                   age_seconds = max(0, int((now - parse_utc(latest_created)).total_seconds()))
-              except (TypeError, ValueError, OverflowError) as exc:
-                  print(f'PRODUCTION_WATCHDOG_TIMESTAMP_UNVERIFIABLE error={type(exc).__name__}', file=sys.stderr)
+              except (TypeError, ValueError, OverflowError):
+                  print(
+                      'PRODUCTION_WATCHDOG_TIMESTAMP_UNVERIFIABLE '
+                      'error=latest_current_main_createdAt',
+                      file=sys.stderr,
+                  )
                   dispatch = True
                   reason = 'LATEST_CURRENT_MAIN_WATCHDOG_TIMESTAMP_UNVERIFIABLE'
               else:
                   if age_seconds < 900:
-                      print(f'PRODUCTION_WATCHDOG_HEARTBEAT_OK age={age_seconds}s current_main={current_sha}')
+                      print(
+                          f'PRODUCTION_WATCHDOG_HEARTBEAT_OK '
+                          f'age={age_seconds}s current_main={current_sha}'
+                      )
                       sys.exit(0)
                   dispatch = True
                   reason = f'LATEST_CURRENT_MAIN_WATCHDOG_AGE={age_seconds}s'
           else:
               dispatch = True
-
-          remote_sha = gh('api', f'repos/{repo}/git/ref/heads/main', '--jq', '.object.sha').strip()
-          if remote_sha != current_sha:
-              print(
-                  f'STALE_MAIN_BEFORE_PRODUCTION_WATCHDOG_RECOVERY expected={current_sha} actual={remote_sha}',
-                  file=sys.stderr,
-              )
-              sys.exit(1)
 
           if not dispatch:
               print('PRODUCTION_WATCHDOG_HEARTBEAT_UNCHANGED')
