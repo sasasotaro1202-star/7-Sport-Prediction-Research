@@ -1,8 +1,9 @@
 {
   "status": "READY",
+  "changed": false,
   "mode": "SHADOW_ONLY",
   "settlement_rows": 0,
   "groups": 0,
   "review_groups": 0,
-  "knowledge_available_at_utc": "2026-10-05T02:02:04.491867+00:00"
+  "knowledge_available_at_utc": "2026-10-05T02:42:40.787541+00:00"
 }
