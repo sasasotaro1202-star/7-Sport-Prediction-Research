@@ -5,6 +5,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/autonomous_control_plane.yml"
+INSTRUCTIONS = ROOT / "PROJECT_INSTRUCTIONS.md"
+SOURCE = ROOT / "PROJECT_SOURCE.md"
 
 
 def main() -> int:
@@ -82,9 +84,25 @@ def main() -> int:
 
     assert "if: always() && steps.resolve.outcome == 'success'" in text
 
+    test_control_plane_no_event_trigger_docs()
     test_control_plane_watchdog_contract()
     print("AUTONOMOUS_CONTROL_PLANE_DISPATCH_ORDER=PASS")
     return 0
+
+def test_control_plane_no_event_trigger_docs() -> None:
+    instructions = INSTRUCTIONS.read_text(encoding="utf-8")
+    source = SOURCE.read_text(encoding="utf-8")
+
+    assert "### Event-triggered current-main reconciliation" not in instructions
+    assert "### Event-driven failure triage" not in instructions
+    assert "workflow_run payload is first-class evidence" not in instructions
+    assert "workflow failure event" not in instructions
+    assert "workflow_run failure event受信時" not in source
+    assert "completed failure eventを直接受ける" not in source
+    assert "workflow_run payloadをfirst-class evidence" not in source
+    assert "3時間schedule、manual dispatch、mainの意味のあるpushに限定する。" in source
+    assert "次の定期cycleでFailure Memoryを読み、観測済みfailureをRESEARCH_HEALTHへ変換する。" in source
+
 
 def test_control_plane_watchdog_contract() -> None:
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane_watchdog.yml"
