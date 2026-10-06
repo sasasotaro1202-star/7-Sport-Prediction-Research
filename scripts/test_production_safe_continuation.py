@@ -54,6 +54,11 @@
     # create a second production-watchdog event stream.
     relay = ROOT / ".github/workflows/production_watchdog_event_relay.yml"
     assert not relay.exists(), "production watchdog event relay must remain absent to prevent workflow_run event storms"
+    control_watchdog = (ROOT / ".github/workflows/autonomous_control_plane_watchdog.yml").read_text(encoding="utf-8")
+    assert "Recover stale Production Watchdog heartbeat" in control_watchdog
+    assert "Inspect control-plane state and live runs" in control_watchdog
+    assert "Dispatch current-main control plane" in control_watchdog
+    assert "Watchdog status" in control_watchdog
     recovery = (ROOT / ".github/workflows/production_failure_recovery.yml").read_text(encoding="utf-8")
     assert "contents: write" in recovery
     assert "group: production-failure-memory-writer" in recovery
