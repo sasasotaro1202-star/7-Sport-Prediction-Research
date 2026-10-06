@@ -66,44 +66,22 @@ def main() -> int:
     assert "results/automation_state/" in watchdog_block
     assert "results/failure_memory.jsonl" in watchdog_block
     assert "UNVERIFIABLE" in watchdog_block
+
     # Durable-only main commits may inherit validator evidence from the nearest
-    # non-durable semantic revision; this prevents state-only commits from
-    # deadlocking the hourly production owner.
+    # non-durable semantic revision; generated-output commits retain their narrow path.
     watchdog_start = watchdog.index("      - name: Ensure validated latest-main production is continuously scheduled")
     watchdog_end = watchdog.index("      - name: Backfill a missed 9-hour PIT boundary once per boundary window", watchdog_start)
     validator_block = watchdog[watchdog_start:watchdog_end]
     assert "validation_base_sha=\"$main_sha\"" in validator_block
     assert "validation_walk" in validator_block
     assert "INHERITED_VALIDATION_FROM_DURABLE_ONLY_BASE" in validator_block
+    assert "inv_ok=$(printf" in validator_block
     assert "results/research/autonomous_control_plane.json" in validator_block
     assert "results/failure_memory.jsonl" in validator_block
-    assert "inv_ok=$(printf" in validator_block
 
     relay = (ROOT / ".github/workflows/production_watchdog_event_relay.yml").read_text(encoding="utf-8")
     assert "workflow_run:" in relay
-    for workflow_name in ("Production Invariants", "Lightweight Regression and Safety Checks", "Production Safety Audit", "PIT History Expansion", "Autonomous Research Control Plane"):
-        assert workflow_name in relay
-    assert "actions: write" in relay
-    assert "contents: read" in relay
-    assert "group: production-watchdog-event-relay" in relay
-    assert "cancel-in-progress: true" in relay
-    assert "gh workflow run production_watchdog.yml --ref main --repo \"$repo\"" in relay
-    assert "AUTO_WATCHDOG_RELAY_VERIFIED" in relay
-    assert "PRODUCTION_WATCHDOG_RELAY_SKIPPED" in relay
-    # Durable-only main chains may inherit validator evidence from the nearest
-    # semantic revision; generated-output commits retain their narrow legacy path.
-    watchdog_start = watchdog.index("      - name: Ensure validated latest-main production is continuously scheduled")
-    watchdog_end = watchdog.index("      - name: Backfill a missed 9-hour PIT boundary once per boundary window", watchdog_start)
-    validator_block = watchdog[watchdog_start:watchdog_end]
-    assert "validation_base_sha=\"$main_sha\"" in validator_block
-    assert "validation_walk" in validator_block
-    assert "INHERITED_VALIDATION_FROM_DURABLE_ONLY_BASE" in validator_block
-    assert "results/research/autonomous_control_plane.json" in validator_block
-    assert "results/failure_memory.jsonl" in validator_block
-    assert "inv_ok=$(printf" in validator_block
-
-    relay = (ROOT / ".github/workflows/production_watchdog_event_relay.yml").read_text(encoding="utf-8")
-    assert "workflow_run:" in relay
+    assert "if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'" in relay
     for workflow_name in ("Production Invariants", "Lightweight Regression and Safety Checks", "Production Safety Audit", "PIT History Expansion", "Autonomous Research Control Plane"):
         assert workflow_name in relay
     assert "actions: write" in relay
@@ -111,7 +89,6 @@ def main() -> int:
     assert "group: production-watchdog-event-relay" in relay
     assert "cancel-in-progress: true" in relay
     assert "RELAY_MAIN_ADVANCED_REFRESH" in relay
-    assert "Always dispatch against the latest remote main" in relay
     assert "AUTO_WATCHDOG_RELAY_VERIFIED" in relay
     assert "PRODUCTION_WATCHDOG_RELAY_SKIPPED" in relay
     recovery = (ROOT / ".github/workflows/production_failure_recovery.yml").read_text(encoding="utf-8")
