@@ -308,6 +308,7 @@ def test_research_queue_compaction_keeps_latest_logical_task() -> None:
                 "reason": "same logical task",
                 "dispatch_policy": "respect_fixed_pit_boundary_or_existing_watchdog",
                 "head_sha": sha,
+                "queue_key": "legacy-obsolete-key",
             })
         cp.QUEUE_OUT.write_text(
             "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
@@ -323,6 +324,7 @@ def test_research_queue_compaction_keeps_latest_logical_task() -> None:
         assert len(compacted) == 1
         assert compacted[0]["head_sha"] == "new-sha"
         assert compacted[0]["queue_key"] == cp.queue_identity(compacted[0])
+        assert compacted[0]["queue_key"] != "legacy-obsolete-key"
 
 
 def main() -> int:
