@@ -4,6 +4,7 @@ import json
 import subprocess
 import tempfile
 import textwrap
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -58,20 +59,21 @@ def classify_main_advance(run_sha, current_sha, cwd='.'):
 
 def test_current_main_pending_blocks_duplicate_dispatch() -> None:
     main = '5d57eeb60cf58a549c02d60ebe6ddb131756697c'
+    recent = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat().replace('+00:00', 'Z')
     runs = [
         {
             'databaseId': 7001,
             'status': 'in_progress',
             'headSha': 'old-sha',
-            'createdAt': '2026-10-06T16:00:00Z',
-            'updatedAt': '2026-10-06T20:20:00Z',
+            'createdAt': recent,
+            'updatedAt': recent,
         },
         {
             'databaseId': 7002,
             'status': 'pending',
             'headSha': main,
-            'createdAt': '2026-10-06T20:16:00Z',
-            'updatedAt': '2026-10-06T20:20:00Z',
+            'createdAt': recent,
+            'updatedAt': recent,
         },
     ]
     decision = _run_decision(main, runs)
@@ -81,13 +83,14 @@ def test_current_main_pending_blocks_duplicate_dispatch() -> None:
 
 def test_outdated_run_can_trigger_replacement_when_no_current_run_exists() -> None:
     main = '5d57eeb60cf58a549c02d60ebe6ddb131756697c'
+    recent = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat().replace('+00:00', 'Z')
     runs = [
         {
             'databaseId': 7003,
             'status': 'in_progress',
             'headSha': 'old-sha',
-            'createdAt': '2026-10-06T16:00:00Z',
-            'updatedAt': '2026-10-06T20:20:00Z',
+            'createdAt': recent,
+            'updatedAt': recent,
         }
     ]
     decision = _run_decision(main, runs)
@@ -97,13 +100,14 @@ def test_outdated_run_can_trigger_replacement_when_no_current_run_exists() -> No
 
 def test_current_main_active_run_waits() -> None:
     main = '5d57eeb60cf58a549c02d60ebe6ddb131756697c'
+    recent = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat().replace('+00:00', 'Z')
     runs = [
         {
             'databaseId': 7004,
             'status': 'in_progress',
             'headSha': main,
-            'createdAt': '2026-10-06T20:00:00Z',
-            'updatedAt': '2026-10-06T20:20:00Z',
+            'createdAt': recent,
+            'updatedAt': recent,
         }
     ]
     decision = _run_decision(main, runs)
