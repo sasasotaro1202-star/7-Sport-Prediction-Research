@@ -95,8 +95,8 @@ jobs:
 
             for _ in 1 2 3 4 5; do
               sleep 2
-              latest="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 1 --json databaseId,headSha --jq '.[0]')"
-              if printf '%s' "$latest" | jq -e --arg sha "$current_sha" '.headSha == $sha and (.databaseId != null)' >/dev/null 2>&1; then
+              gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 1 --json databaseId,headSha > /tmp/production_watchdog_latest.json
+              if jq -e --arg sha "$current_sha" '.[0].headSha == $sha and (.[0].databaseId != null)' /tmp/production_watchdog_latest.json >/dev/null 2>&1; then
                 echo "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED main=$current_sha"
                 exit 0
               fi
