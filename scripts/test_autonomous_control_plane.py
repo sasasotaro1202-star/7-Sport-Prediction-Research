@@ -420,6 +420,35 @@ def test_pit_recovery_dispatches_only_after_failed_old_sha() -> None:
         assert dispatch_current["workflow"] != "pit_history_expansion.yml"
 
 
+def test_pit_recovery_refreshes_after_meaningful_main_change() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        bind(root)
+        fixture(root)
+        os.environ["GITHUB_SHA"] = "new-sha"
+        state = cp.inspect()
+        state["actions"]["pit_history"] = {
+            "status": "STALE",
+            "run_status": "completed",
+            "conclusion": "success",
+            "head_sha": "old-sha",
+            "current_main_sha": "new-sha",
+            "sha_match": False,
+            "main_compatibility": "MEANINGFUL_OR_DIVERGED",
+            "run_id": 37440505534,
+            "active_run_any": False,
+            "stale": True,
+        }
+        state["quality"]["pit_research_blocked"] = True
+        selected, dispatch = cp.choose_actions(state)
+        assert selected["action"] == "PIT_COVERAGE_REPAIR"
+        assert selected["auto_dispatch"] is True
+        assert selected["dispatch_policy"] == "bounded_current_main_refresh_after_meaningful_change"
+        assert dispatch is not None
+        assert dispatch["workflow"] == "pit_history_expansion.yml"
+        assert dispatch["automatic_promotion"] is False
+
+
 def test_control_plane_dispatch_has_live_all_sha_guard() -> None:
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
     text = workflow.read_text(encoding="utf-8")
@@ -519,6 +548,7 @@ def main() -> int:
     test_pre_event_control_plane_registration()
     test_control_plane_concurrency_is_job_scoped_and_coalescing()
     test_pit_recovery_dispatches_only_after_failed_old_sha()
+    test_pit_recovery_refreshes_after_meaningful_main_change()
     test_control_plane_has_bounded_pit_recovery_gate()
     test_control_plane_dispatch_verifies_run_creation()
     test_control_plane_has_no_workflow_run_event_injection_path()
