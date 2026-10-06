@@ -54,11 +54,14 @@ jobs:
 
           dispatch_started_at="$(date -u +%s)"
           remote_before="$(gh api "repos/$repo/git/ref/heads/main" --jq ".object.sha")"
-          test "$remote_before" = "$current_sha" || {
-            echo "RELAY_STALE_MAIN_BEFORE_DISPATCH expected=$current_sha actual=$remote_before" >&2
-            exit 1
-          }
+          if [ "$remote_before" != "$current_sha" ]; then
+            echo "RELAY_MAIN_ADVANCED_REFRESH old=$current_sha new=$remote_before"
+            current_sha="$remote_before"
+          fi
 
+          # The relay is an event wake-up mechanism, not an evidence source.
+          # Always dispatch against the latest remote main observed immediately
+          # before the owner workflow is started.
           echo "RELAY_DISPATCH production_watchdog.yml ref=main sha=$current_sha"
           gh workflow run production_watchdog.yml --ref main --repo "$repo"
 
