@@ -100,6 +100,7 @@ def test_canonical_event_id_accepts_bleague_dot_date() -> None:
 
 
 def main() -> None:
+    test_canonical_event_id_accepts_bleague_dot_date()
     with tempfile.TemporaryDirectory() as td:
         root=Path(td)
         db=root/"test.sqlite"
