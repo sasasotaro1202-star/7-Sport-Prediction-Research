@@ -51,6 +51,8 @@ def main() -> int:
     assert "PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL" in final_block
     assert "exit 1" in final_block
 
+    relay = ROOT / ".github/workflows/production_watchdog_event_relay.yml"
+    assert not relay.exists(), "production watchdog event relay must remain absent to prevent workflow_run event storms"
     watchdog = (ROOT / ".github/workflows/production_watchdog.yml").read_text(encoding="utf-8")
     assert "Cancel stale unfinished heavy runs from old commits only when unsafe" in watchdog
     watchdog_start = watchdog.index("      - name: Cancel stale unfinished heavy runs from old commits only when unsafe")
