@@ -937,13 +937,16 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "action": "RESEARCH_HEALTH",
             "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
             "target": "recent_failures",
-            "impact": 24.0,
-            "evidence_gap": 0.95,
+            # Failure-driven autonomy must not be permanently starved by a
+            # persistent PIT evidence gap. PIT keeps its own bounded recovery
+            # cadence; recent failures receive first-class triage priority.
+            "impact": 125.0,
+            "evidence_gap": 1.0,
             "failure_relevance": 1.0,
             "generalization": 1.0,
-            "information_value": 0.95,
+            "information_value": 1.0,
             "cost": 1.0,
-            "reason": "recent production/research failures are recorded in Failure Memory; convert observed failures into bounded root-cause research before performance changes",
+            "reason": "recent production/research failures are recorded in Failure Memory; prioritize bounded root-cause research so known failures cannot be starved by a persistent evidence gap",
             "auto_dispatch": True,
             "dispatch_policy": "bounded_failure-followup_when_recent_failure_memory_exists",
         })
