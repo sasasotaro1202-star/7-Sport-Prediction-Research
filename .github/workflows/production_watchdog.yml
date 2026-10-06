@@ -253,34 +253,83 @@ jobs:
           seen_latest=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha)] | length')
           latest_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')
 
+          # Validation evidence follows the same main-advance semantics as long-running jobs.
+          # When main consists only of durable control/failure-memory state commits, walk back
+          # through those commits to the nearest non-durable semantic revision and inherit
+          # successful validator evidence from that revision. This prevents durable-state
+          # commits from deadlocking production scheduling while still requiring fresh
+          # validation after any code/config/workflow/model change.
+          validation_base_sha="$main_sha"
+          validation_walk=0
+          validation_walk_failed=false
+          while [ "$validation_walk" -lt 20 ]; do
+            commit_meta="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${validation_base_sha}" 2>/dev/null || true)"
+            if [ -z "$commit_meta" ]; then
+              validation_walk_failed=true
+              break
+            fi
+            parent_count="$(printf '%s' "$commit_meta" | jq '.parents | length')"
+            if [ "$parent_count" -ne 1 ]; then
+              break
+            fi
+            parent_sha="$(printf '%s' "$commit_meta" | jq -r '.parents[0].sha // ""')"
+            changed_count="$(printf '%s' "$commit_meta" | jq '[.files[]?.filename] | length')"
+            durable_only="$(printf '%s' "$commit_meta" | jq -r '
+              [.files[]?.filename] as $files |
+              if ($files | length) == 0 then "false"
+              elif all($files[];
+                . == "results/research/autonomous_control_plane.json" or
+                . == "results/research/automation_health.json" or
+                . == "results/research/research_queue.jsonl" or
+                . == "results/research/autonomous_action_log.jsonl" or
+                startswith("results/automation_state/") or
+                . == "results/failure_memory.jsonl"
+              ) then "true"
+              else "false"
+              end
+            ')"
+            if [ "$changed_count" -gt 0 ] && [ "$durable_only" = "true" ] && [ -n "$parent_sha" ]; then
+              validation_base_sha="$parent_sha"
+              validation_walk=$((validation_walk + 1))
+              continue
+            fi
+            break
+          done
+          if [ "$validation_walk_failed" = "true" ]; then
+            echo "VALIDATION_BASE_UNVERIFIABLE main=$main_sha" >&2
+            validation_base_sha="$main_sha"
+          fi
+          echo "VALIDATION_BASE_SHA=$validation_base_sha main=$main_sha durable_walk=$validation_walk"
+
           inv=$(gh run list --workflow "production_invariants.yml" --limit 50 --json databaseId,status,conclusion,headSha)
           safety=$(gh run list --workflow "production_safety_audit.yml" --limit 50 --json databaseId,status,conclusion,headSha)
           lightweight=$(gh run list --workflow "lightweight_regression.yml" --limit 50 --json databaseId,status,conclusion,headSha)
           sweep=$(gh run list --workflow "autonomous_research_sweep.yml" --limit 50 --json databaseId,status,conclusion,headSha)
-          inv_ok=$(printf '%s' "$inv" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
-          safety_ok=$(printf '%s' "$safety" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
-          lightweight_ok=$(printf '%s' "$lightweight" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
-          sweep_ok=$(printf '%s' "$sweep" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
+          inv_ok=$(printf '%s' "$inv" | jq --arg sha "$validation_base_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
+          safety_ok=$(printf '%s' "$safety" | jq --arg sha "$validation_base_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
+          lightweight_ok=$(printf '%s' "$lightweight" | jq --arg sha "$validation_base_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
+          sweep_ok=$(printf '%s' "$sweep" | jq --arg sha "$validation_base_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
 
-          # A successful production run writes only generated outputs (results/models)
-          # to main. Those commits are execution products, not code changes, so
-          # requiring fresh same-SHA validators would create a deadlock. Inherit the
-          # predecessor's validation only when the commit is provably generated-only,
-          # carries the canonical production-results message, and its parent already
-          # has a successful canonical production run.
           inherited_validation=false
-          if [ "$inv_ok" -lt 1 ] || [ "$safety_ok" -lt 1 ]; then
-            commit_meta=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${main_sha}")
-            subject=$(printf '%s' "$commit_meta" | jq -r '.commit.message // ""')
-            parent_sha=$(printf '%s' "$commit_meta" | jq -r '.parents[0].sha // ""')
-            generated_only=$(printf '%s' "$commit_meta" | jq -r '[.files[]?.filename] | if length > 0 and all(startswith("results/") or startswith("models/")) then "true" else "false" end')
-            parent_production=$(gh run list --workflow "v4_5_15_production.yml" --limit 50 --json databaseId,status,conclusion,headSha               | jq --arg sha "$parent_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')
-            if [ "$generated_only" = "true" ] &&                [ "$subject" = "chore: update active-scope research results" ] &&                [ -n "$parent_sha" ] && [ "$parent_production" -ge 1 ]; then
+          if [ "$validation_base_sha" != "$main_sha" ] && [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ] && [ "$lightweight_ok" -ge 1 ]; then
+            inherited_validation=true
+            echo "INHERITED_VALIDATION_FROM_DURABLE_ONLY_BASE base=$validation_base_sha main=$main_sha"
+          fi
+
+          # A successful production run writes generated outputs (results/models) to main.
+          # Such commits are not durable-only under the canonical main-advance policy.
+          # Preserve the existing narrow production-generator inheritance path.
+          if [ "$inherited_validation" != "true" ] && { [ "$inv_ok" -lt 1 ] || [ "$safety_ok" -lt 1 ]; }; then
+            commit_meta="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${main_sha}")"
+            subject="$(printf '%s' "$commit_meta" | jq -r '.commit.message // ""')"
+            parent_sha="$(printf '%s' "$commit_meta" | jq -r '.parents[0].sha // ""')"
+            generated_only="$(printf '%s' "$commit_meta" | jq -r '[.files[]?.filename] | if length > 0 and all(startswith("results/") or startswith("models/")) then "true" else "false" end')"
+            parent_production="$(gh run list --workflow "v4_5_15_production.yml" --limit 50 --json databaseId,status,conclusion,headSha | jq --arg sha "$parent_sha" '[.[] | select(.headSha==$sha and .conclusion=="success")] | length')"
+            if [ "$generated_only" = "true" ] && [ "$subject" = "chore: update active-scope research results" ] && [ -n "$parent_sha" ] && [ "$parent_production" -ge 1 ]; then
               inherited_validation=true
               echo "INHERITED_VALIDATION_FROM_SUCCESSFUL_GENERATOR parent=$parent_sha production_runs=$parent_production"
             fi
           fi
-
           # Dispatch only after same-SHA validators pass, or after the strict
           # generated-output inheritance rule above. The first run for a SHA is
           # immediate; later retries remain bounded to one per hourly window.
