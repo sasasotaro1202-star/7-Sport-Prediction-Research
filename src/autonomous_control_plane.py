@@ -163,7 +163,9 @@ def compact_research_queue() -> tuple[int, int]:
     latest_by_key: dict[str, dict[str, Any]] = {}
     order: list[str] = []
     for row in rows:
-        key = str(row.get("queue_key") or queue_identity(row))
+        # Always recompute the key from the canonical logical identity.
+        # This repairs legacy queue rows whose stored key used an obsolete hash policy.
+        key = queue_identity(row)
         normalized = dict(row)
         normalized["queue_key"] = key
         if key not in latest_by_key:
