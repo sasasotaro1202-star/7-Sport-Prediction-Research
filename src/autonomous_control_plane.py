@@ -781,6 +781,26 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             and current_head_sha not in {"", "UNKNOWN"}
             and pit_head_sha != current_head_sha
         )
+        pit_refresh_after_meaningful_main_change = bool(
+            pit_conclusion == "success"
+            and pit_head_sha not in {"", "UNKNOWN"}
+            and current_head_sha not in {"", "UNKNOWN"}
+            and pit_head_sha != current_head_sha
+            and str(pit_health.get("main_compatibility") or "") == "MEANINGFUL_OR_DIVERGED"
+        )
+        pit_auto_dispatch = (
+            pit_retry_after_current_main_change
+            or pit_refresh_after_meaningful_main_change
+        )
+        pit_dispatch_policy = (
+            "bounded_current_main_retry_after_failed_old_sha"
+            if pit_retry_after_current_main_change
+            else (
+                "bounded_current_main_refresh_after_meaningful_change"
+                if pit_refresh_after_meaningful_main_change
+                else "respect_fixed_pit_boundary_or_existing_watchdog"
+            )
+        )
         candidates.append({
             "action": "PIT_COVERAGE_REPAIR",
             "workflow": ALLOWED_WORKFLOWS["PIT_COVERAGE_REPAIR"],
@@ -792,12 +812,8 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "information_value": 1.0,
             "cost": 1.0,
             "reason": "exact PIT evidence is absent, explicitly pending, or unresolvable; production-grade OOS cannot advance safely",
-            "auto_dispatch": pit_retry_after_current_main_change,
-            "dispatch_policy": (
-                "bounded_current_main_retry_after_failed_old_sha"
-                if pit_retry_after_current_main_change
-                else "respect_fixed_pit_boundary_or_existing_watchdog"
-            ),
+            "auto_dispatch": pit_auto_dispatch,
+            "dispatch_policy": pit_dispatch_policy,
         })
 
     if state["future_prediction"]["age_class"] in {"MISSING", "STALE"}:
