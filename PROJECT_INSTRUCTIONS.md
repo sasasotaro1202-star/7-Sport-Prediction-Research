@@ -77,27 +77,14 @@ The control plane reads append-only `results/failure_memory.jsonl` each cycle, d
 
 When the control plane is triggered by a push to `main`, the event commit is valid for reconciliation when it is the current remote `main` SHA or a verified ancestor of the current remote `main` SHA. The workflow resolves and checks out the latest remote `main` before inspection. A diverged/unverifiable push SHA remains fail-closed. Scheduled and manual control-plane runs retain exact current-main SHA matching. Deterministic state persistence is enabled only after the current-main resolution step succeeds, preventing a stale/invalid invocation from producing a secondary persistence error.
 
-### Event-triggered current-main reconciliation
-When invoked by a monitored workflow failure event, the control plane first resolves the actual remote `main` SHA. It checks out that current main before inspection, records the triggering workflow/head SHA, and verifies whether the event SHA is the current commit or an ancestor of current main. Only failure/timed_out/startup_failure/cancelled events with verified current-main or ancestor provenance become RESEARCH_HEALTH signals. Unrelated/diverged event SHA is fail-closed. Scheduled/manual invocations still require the executing SHA to equal current main.
-
-The control plane reads append-only `results/failure_memory.jsonl` each cycle, distinguishes recent recorded failures from missing/invalid evidence, and raises bounded research follow-up when failures occurred within the last 24 hours. Failure details are never inferred from absent fields. Production Failure Recovery remains the owner of failure-specific retry; the control plane only converts observed failures into research priority.
-
-The Actions snapshot also monitors production, PIT History Expansion, Production Failure Recovery, Production Watchdog, Production Invariants, and Lightweight Regression as evidence-only workflows. Monitoring does not grant permission to dispatch or promote them.
-
-
-### Event-driven failure triage
-The autonomous control plane also listens to completed failures of production, Pre-Event Adaptive Timing Prediction, PIT History Expansion, Production Failure Recovery, Autonomous Research Sweep, and its own fast regression workflow. It accepts only failure/timed_out/startup_failure/cancelled outcomes, requires the triggering run head SHA to match current main, and dispatches only bounded RESEARCH_HEALTH. The workflow_run payload is first-class evidence so newer snapshot rows cannot mask the triggering failure.
-
-
 ### Autonomous Experience persistence
 The 15-minute pre-event matrix now exports per-sport prediction/settlement archives to a dedicated single-writer job. That writer deterministically merges the current-run artifacts into `results/experience/**`, rebuilds research memory, and retries against the newest `main` up to three times when concurrent automation advances the branch. Conflicting prediction IDs fail closed. This persistence is evidence/memory only and cannot promote a model or bypass PIT/OOS/holdout gates.
 
 ### Autonomous research-memory continuity
-The autonomous research sweep persists `results/research/experience_learning.json` and `results/research/experience_research_candidates.json` to `main` only when their substantive knowledge state changes; generation-time churn alone must not create commits. The sweep uses a current-main SHA recheck before push and its failures are routed into event-triggered Control Plane triage, so a failed research cycle does not have to wait for the next three-hour schedule.
+The autonomous research sweep persists `results/research/experience_learning.json` and `results/research/experience_research_candidates.json` to `main` only when their substantive knowledge state changes; generation-time churn alone must not create commits. The sweep uses a current-main SHA recheck before push, and observed failures are consumed from append-only Failure Memory by the next control-plane cycle; failure-specific retry remains owned by Production Failure Recovery.
 
 ### Control-plane no-churn persistence
 The autonomous control-plane fingerprint represents stable observed workflow evidence and the selected decision. It excludes invocation/current-main SHA metadata, volatile `age_hours`, and other derived freshness fields. The action log appends only when the stable state fingerprint changes or the log is absent. This prevents the control plane from creating self-generated main commits when no material evidence changed. Current-main SHA verification and dispatch-time SHA rechecks remain mandatory safety gates.
-
 
 Autonomous control-plane watchdog: `.github/workflows/autonomous_control_plane_watchdog.yml` runs every 10 minutes and on relevant `main` workflow changes. It checks durable control-state provenance/age and distinguishes current-main runs from outdated queued/in-progress runs. Outdated control-plane runs may be cancelled so they cannot block current-main recovery; a current-main active run is never cancelled by this watchdog. Recovery re-checks the remote `main` SHA before dispatch and cannot bypass PIT, frozen holdout, or production-promotion gates.
 ### LONG-RUN MAIN-ADVANCE COMPATIBILITY — 2026-10-06
