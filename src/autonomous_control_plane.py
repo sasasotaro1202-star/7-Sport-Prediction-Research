@@ -937,7 +937,7 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "action": "RESEARCH_HEALTH",
             "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
             "target": "recent_failures",
-            "impact": 24.0,
+            "impact":  125.0,
             "evidence_gap": 0.95,
             "failure_relevance": 1.0,
             "generalization": 1.0,
