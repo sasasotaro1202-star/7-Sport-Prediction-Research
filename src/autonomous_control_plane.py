@@ -121,7 +121,8 @@ def queue_identity(selected: dict[str, Any]) -> str:
     Queue identity intentionally excludes invocation SHA, timestamps, priority,
     state fingerprints, and other volatile evidence so a persistent unresolved
     task is not re-enqueued solely because main advanced or time moved forward.
-    A changed action/target/reason still creates a new queue entry.
+    A changed action/workflow/target creates a new queue entry; explanatory
+    reason and dispatch policy are metadata and do not change task identity.
     """
     normalized = {
         "action": str(selected.get("action") or ""),
@@ -1036,7 +1037,7 @@ def write_state(
                 "added": queue_added,
                 "previous_key": previous_queue_key,
                 "previous_state_fingerprint": previous_fp,
-                "identity_policy": "action+workflow+target+reason+dispatch_policy",
+                "identity_policy": "action+workflow+target",
             },
             "allowed_workflows": ALLOWED_WORKFLOWS,
             "safety": {
