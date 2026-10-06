@@ -56,7 +56,7 @@ jobs:
             exit 0
           fi
 
-          latest_created="$(printf '%s' "$runs" | jq -r --arg sha "$current_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // "")'
+          latest_created="$(printf '%s' "$runs" | jq -r --arg sha "$current_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')"
           now_ts="$(date -u +%s)"
           dispatch=false
           reason="NO_CURRENT_MAIN_WATCHDOG_RUN"
@@ -178,109 +178,3 @@ jobs:
             else
               age=$((now_ts-generated_ts))
               if [ "$age" -ge 12600 ]; then
-                recover=true
-                stale_reason="CONTROL_STATE_OLDER_THAN_3H30M"
-              fi
-            fi
-          fi
-
-          run_recovery_needed=false
-          if [ "$outdated_in_progress_count" -gt 0 ]; then
-            recover=true
-            run_recovery_needed=true
-            stale_reason="OUTDATED_IN_PROGRESS_CONTROL_RUN|CONTROL_RUN_MAIN_SHA_MISMATCH"
-          fi
-
-          if [ "$stale_queued_count" -gt 0 ]; then
-            recover=true
-            run_recovery_needed=true
-            stale_reason="STALE_QUEUED_CONTROL_RUN|CONTROL_RUN_QUEUE_TIMEOUT"
-          fi
-
-          # Outdated runs are safe recovery targets. Current-main runs are
-          # protected from cancellation and may continue normally.
-          if [ "$active_current_in_progress" -gt 0 ] && [ "$run_recovery_needed" = false ]; then
-            recover=false
-            stale_reason="$stale_reason|ACTIVE_CURRENT_MAIN_CONTROL_RUN"
-          fi
-
-          if [ -n "$latest_created" ]; then
-            latest_ts="$(date -u -d "$latest_created" +%s 2>/dev/null || echo 0)"
-            now_ts="$(date -u +%s)"
-            if [ "$latest_ts" -gt 0 ]; then
-              latest_age=$((now_ts-latest_ts))
-              if [ "$latest_age" -lt 1500 ]; then
-                recover=false
-                stale_reason="$stale_reason|RECENT_CONTROL_RUN"
-              fi
-            fi
-          fi
-
-          echo "recover=$recover" >> "$GITHUB_OUTPUT"
-          echo "reason=$stale_reason" >> "$GITHUB_OUTPUT"
-          echo "stale_queued_ids=$stale_queued_ids" >> "$GITHUB_OUTPUT"
-          echo "queued_stale=$stale_queued_count" >> "$GITHUB_OUTPUT"
-          echo "outdated_in_progress_ids=$outdated_in_progress_ids" >> "$GITHUB_OUTPUT"
-          echo "outdated_in_progress=$outdated_in_progress_count" >> "$GITHUB_OUTPUT"
-          echo "CONTROL_RUN_QUEUE_TIMEOUT count=$stale_queued_count ids=${stale_queued_ids:-NONE}"
-          echo "CONTROL_RUN_OUTDATED_IN_PROGRESS count=$outdated_in_progress_count"
-          echo "WATCHDOG_RECOVER=$recover reason=$stale_reason provenance=$state_provenance active_any=$active_any state_sha=${state_sha:-MISSING} current_main=$CURRENT_MAIN_SHA"
-
-      - name: Dispatch current-main control plane
-        if: steps.inspect.outputs.recover == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          repo="${{ github.repository }}"
-          current_sha="${{ steps.main.outputs.sha }}"
-          remote_sha="$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')"
-          test "$remote_sha" = "$current_sha" || {
-            echo "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH expected=$current_sha actual=$remote_sha" >&2
-            exit 1
-          }
-          stale_queued_ids="${{ steps.inspect.outputs.stale_queued_ids }}"
-          if [ -n "$stale_queued_ids" ]; then
-            IFS=',' read -r -a stale_ids <<< "$stale_queued_ids"
-            for stale_id in "${stale_ids[@]}"; do
-              [ -n "$stale_id" ] || continue
-              echo "CANCEL_STALE_QUEUED_CONTROL_RUN run_id=$stale_id"
-              gh run cancel "$stale_id" --repo "$repo" || true
-            done
-          fi
-
-          outdated_in_progress_ids="${{ steps.inspect.outputs.outdated_in_progress_ids }}"
-          if [ -n "$outdated_in_progress_ids" ]; then
-            for outdated_id in $(printf '%s' "$outdated_in_progress_ids" | tr ',' ' '); do
-              [ -n "$outdated_id" ] || continue
-              echo "CANCEL_OUTDATED_IN_PROGRESS_CONTROL_RUN run_id=$outdated_id"
-              gh run cancel "$outdated_id" --repo "$repo" || true
-            done
-          fi
-
-          refreshed="$(gh run list --repo "$repo" --workflow autonomous_control_plane.yml --branch main --limit 50 --json databaseId,status,headSha)"
-          active_current_after="$(printf '%s' "$refreshed" | jq --arg sha "$current_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
-          active_in_progress_after="$(printf '%s' "$refreshed" | jq '[.[] | select(.status=="in_progress")] | length')"
-          if [ "$active_current_after" -gt 0 ]; then
-            echo "CURRENT_MAIN_CONTROL_RUN_AFTER_RECOVERY count=$active_current_after sha=$current_sha"
-            exit 0
-          fi
-          test "$active_in_progress_after" -eq 0 || {
-            echo "ACTIVE_CONTROL_RUN_AFTER_OUTDATED_RECOVERY count=$active_in_progress_after" >&2
-            exit 1
-          }
-          current_sha="${{ steps.main.outputs.sha }}"
-          remote_sha="$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')"
-          test "$remote_sha" = "$current_sha" || {
-            echo "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH expected=$current_sha actual=$remote_sha" >&2
-            exit 1
-          }
-          echo "WATCHDOG_DISPATCH control_plane.yml ref=main reason=${{ steps.inspect.outputs.reason }} sha=$current_sha"
-          gh workflow run autonomous_control_plane.yml --ref main --repo "$repo"
-
-      - name: Watchdog status
-        if: always()
-        run: |
-          set -euo pipefail
-          echo "AUTONOMOUS_CONTROL_PLANE_WATCHDOG=COMPLETED_WITH_FAIL_CLOSED_RECOVERY"
