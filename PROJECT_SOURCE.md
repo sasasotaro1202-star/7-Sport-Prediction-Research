@@ -1137,21 +1137,13 @@ control planeは毎cycle、append-only failure_memory.jsonlを読み、
 
 recent failureが存在する場合、観測済みfailureをroot-cause researchへ変換するRESEARCH_HEALTH candidateをpriorityへ追加する。これはproduction retryやpromotionではない。
 
-Failure Recoveryのownershipは変更しない。Production Failure Recoveryはworkflow_runとしてretry/fresh-current-main recoveryを担当し、control planeはその結果を研究priorityへ反映するだけとする。
+Failure Recoveryのownershipは変更しない。Production Failure Recoveryがfailure-specific retry / fresh-current-main recoveryを担当し、control planeはFailure Memoryを次の定期cycleで研究priorityへ反映するだけとする。
 
 Actions evidenceはdispatch allowlistとmonitor-only workflowを分離する。production、PIT History Expansion、Production Failure Recovery、Production Watchdog、Production Invariants、Lightweight Regressionは監視対象だが、自動dispatch許可対象ではない。
 
 JSONL破損、timestamp不正、memory欠損はUNKNOWN/DEGRADEDとして記録し、failure件数を0に偽装しない。
 
-control planeは3時間cronだけを待たず、Production、Pre-Event Adaptive Timing Prediction、PIT History Expansion、Production Failure Recovery、Autonomous Research Sweep、Autonomous Control Plane Regressionのcompleted failure eventを直接受ける。
-
-failure / timed_out / startup_failure / cancelled:
-→ current-main SHA確認
-→ workflow_run payloadをfirst-class evidenceとして保持
-→ Failure Memory未記録でもbounded RESEARCH_HEALTHへ変換
-→ Production Failure Recoveryのretry ownershipは変更しない。
-
-event head SHAがcurrent mainと一致しない場合はFAIL CLOSEDとし、fresh current-main regressionとして扱わない。success eventはfailure triageを起動しない。automatic model promotion、PIT bypass、frozen holdout tuningは引き続き禁止。
+Control Planeは多数のcompleted workflow eventを直接受信しない。Production Failure Recovery、Production Watchdog、24H Watchdog等のownerが即時復旧を担当し、Control Planeは次の定期cycleでFailure Memoryを読み、観測済みfailureをbounded RESEARCH_HEALTHへ変換する。event payloadをfirst-class evidenceとして扱う構造や、workflow_run依存の再起動経路は採用しない。automatic model promotion、PIT bypass、frozen holdout tuningは引き続き禁止。
 
 === CONTROL-PLANE NO-CHURN PERSISTENCE ===
 
