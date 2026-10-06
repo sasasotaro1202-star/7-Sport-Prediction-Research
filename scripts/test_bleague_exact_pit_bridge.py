@@ -84,6 +84,7 @@ def _evidence(path: Path, revision: str = "revision-sha") -> None:
 
 
 def test_bridge_import_is_dependency_light() -> None:
+    import ast
     import src.bleague_exact_pit_bridge as bridge
     import src.bleaguer_git_provenance as provenance
 
@@ -91,6 +92,12 @@ def test_bridge_import_is_dependency_light() -> None:
     # canonical parsing and injected transports remain usable in the control plane.
     assert callable(bridge.materialize)
     assert callable(provenance.canonical_bleaguer_event_id)
+
+    tree = ast.parse(provenance.__file__ and open(provenance.__file__, encoding="utf-8").read())
+    assert not any(
+        isinstance(node, ast.Import) and any(alias.name == "requests" for alias in node.names)
+        for node in tree.body
+    )
 
 
 def test_canonical_event_id_accepts_bleague_dot_date() -> None:
