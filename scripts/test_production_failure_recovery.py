@@ -27,7 +27,7 @@ def test_contract() -> None:
     assert recovery_decision("m", "old", 100, [{"id": 100, "status": "in_progress", "head_sha": "m"}]) == "DISPATCH_FRESH_CURRENT_MAIN"
 
     text = WORKFLOW.read_text(encoding="utf-8")
-    start = text.index("Coalesce duplicate recovery requests and retry once")
+    start = text.index("Recover once without replaying a stale SHA")
     guard = text[start:]
     guard_idx = guard.index("RECOVERY_COALESCED_ACTIVE_CURRENT_MAIN")
     assert "active_current_main=" in guard
