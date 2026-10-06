@@ -113,6 +113,8 @@ def test_control_plane_watchdog_contract() -> None:
     assert "queued_stale" in text
     assert "CONTROL_RUN_QUEUE_TIMEOUT" in text
     assert "gh run cancel" in text
+    assert 'gh run list --repo "$repo" --workflow "$workflow"' in text
+    assert 'gh run list --repo "$repo" --workflow autonomous_control_plane.yml' in text
     assert 'if [ "$active_current_in_progress" -gt 0 ] && [ "$run_recovery_needed" = false ]; then' in text
     assert 'if [ "$active_in_progress" -ne 0 ]; then' not in text
     assert "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH" in text
