@@ -72,6 +72,124 @@ def load_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     return obj, None
 
 
+# These files are operational state, not reproducibility inputs. Legacy manifests
+# may still contain them; the verifier ignores them so an operational state commit
+# cannot masquerade as a computational/provenance change.
+REPRODUCIBILITY_MUTABLE_PATHS = frozenset({
+    "results/research/autonomous_control_plane.json",
+    "results/research/automation_health.json",
+    "results/research/autonomous_action_log.jsonl",
+    "results/research/research_queue.jsonl",
+})
+
+
+def sha256_path(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def assess_reproducibility(
+    manifest: dict[str, Any] | None,
+    head_sha: str,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    root = root or ROOT
+    manifest = manifest or {}
+    source_sha = str(manifest.get("source_git_commit_sha") or "")
+    source_sha_match = bool(head_sha != "UNKNOWN" and source_sha and source_sha == head_sha)
+    records = manifest.get("files")
+    if not isinstance(records, list):
+        return {
+            "manifest_sha": source_sha or None,
+            "source_sha_match": source_sha_match,
+            "content_match": False,
+            "status": "UNVERIFIABLE",
+            "checked_files": 0,
+            "ignored_mutable_files": 0,
+            "mismatched_files": [],
+            "missing_files": [],
+        }
+
+    mismatched: list[str] = []
+    missing: list[str] = []
+    checked = 0
+    ignored = 0
+    root_resolved = root.resolve()
+
+    for record in records:
+        if not isinstance(record, dict):
+            mismatched.append("<invalid-record>")
+            continue
+
+        rel = record.get("path")
+        if not isinstance(rel, str) or not rel or Path(rel).is_absolute():
+            mismatched.append(str(rel or "<missing-path>"))
+            continue
+        if rel in REPRODUCIBILITY_MUTABLE_PATHS:
+            ignored += 1
+            continue
+
+        target = (root / rel).resolve()
+        try:
+            target.relative_to(root_resolved)
+        except ValueError:
+            mismatched.append(rel)
+            continue
+
+        expected_exists = record.get("exists")
+        if expected_exists is False:
+            checked += 1
+            if target.exists():
+                mismatched.append(rel)
+            continue
+
+        if expected_exists is not True:
+            mismatched.append(rel)
+            continue
+
+        expected_hash = record.get("sha256")
+        if not isinstance(expected_hash, str) or len(expected_hash) != 64:
+            mismatched.append(rel)
+            continue
+
+        checked += 1
+        if not target.is_file():
+            missing.append(rel)
+            continue
+
+        try:
+            actual_hash = sha256_path(target)
+        except OSError:
+            missing.append(rel)
+            continue
+
+        if actual_hash != expected_hash:
+            mismatched.append(rel)
+
+    if mismatched or missing:
+        status = "CONTENT_MISMATCH"
+    elif checked == 0:
+        status = "UNVERIFIABLE"
+    elif source_sha_match:
+        status = "MATCH"
+    else:
+        status = "CONTENT_MATCH"
+
+    return {
+        "manifest_sha": source_sha or None,
+        "source_sha_match": source_sha_match,
+        "content_match": status in {"MATCH", "CONTENT_MATCH"},
+        "status": status,
+        "checked_files": checked,
+        "ignored_mutable_files": ignored,
+        "mismatched_files": sorted(set(mismatched)),
+        "missing_files": sorted(set(missing)),
+    }
+
+
 def explicit_int(
     obj: dict[str, Any],
     key: str,
@@ -531,8 +649,7 @@ def inspect() -> dict[str, Any]:
             if isinstance(x, dict)
         }
 
-    manifest_sha = str(repro.get("source_git_commit_sha") or "")
-    repro_match = bool(head_sha != "UNKNOWN" and manifest_sha and head_sha == manifest_sha)
+    repro_check = assess_reproducibility(repro, head_sha, ROOT)
 
     def observed_int(
         parent: dict[str, Any],
@@ -574,13 +691,8 @@ def inspect() -> dict[str, Any]:
         "observed_at_utc": ref.isoformat(),
         "head_sha": head_sha,
         "reproducibility": {
-            "manifest_sha": manifest_sha or None,
-            "head_matches_manifest": repro_match,
-            "status": (
-                "MATCH"
-                if repro_match
-                else ("UNKNOWN" if head_sha == "UNKNOWN" else "STALE_OR_MISSING")
-            ),
+            **repro_check,
+            "head_matches_manifest": repro_check["source_sha_match"],
         },
         "errors": errors,
         "quality": {
@@ -837,7 +949,7 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "dispatch_policy": "only_when_no_current_run_and_heavy_research_cooldown_elapsed",
         })
 
-    if state["errors"] or state["reproducibility"]["status"] != "MATCH":
+    if state["errors"] or state["reproducibility"]["status"] not in {"MATCH", "CONTENT_MATCH"}:
         candidates.append({
             "action": "RESEARCH_HEALTH",
             "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
@@ -1026,7 +1138,7 @@ def write_state(
             "generated_at_utc": state["observed_at_utc"],
             "head_sha": state["head_sha"],
             "state_fingerprint": fp,
-            "status": "DEGRADED" if state["errors"] or state["reproducibility"]["status"] != "MATCH" else "READY",
+            "status": "DEGRADED" if state["errors"] or state["reproducibility"]["status"] not in {"MATCH", "CONTENT_MATCH"} else "READY",
             "active_sports": list(ACTIVE_SPORTS),
             "deferred_sports": list(DEFERRED_SPORTS),
             "observations": state,
