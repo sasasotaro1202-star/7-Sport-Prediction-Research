@@ -21,13 +21,36 @@ def _decision_script() -> str:
 def _run_decision(main_sha: str, runs: list[dict[str, object]]) -> dict[str, object]:
     script = _decision_script()
     with tempfile.TemporaryDirectory() as td:
-        path = Path(td) / 'decision.py'
+        root = Path(td)
+        path = root / 'decision.py'
         path.write_text(script + '\n', encoding='utf-8')
+        stub_package = root / 'src'
+        stub_package.mkdir()
+        (stub_package / '__init__.py').write_text('', encoding='utf-8')
+        (stub_package / 'main_advance_policy.py').write_text(
+            '''
+class Result:
+    def __init__(self, status):
+        self.status = status
+
+
+def classify_main_advance(run_sha, current_sha, cwd='.'):
+    if run_sha == current_sha:
+        return Result("EXACT_CURRENT_MAIN")
+    return Result("MEANINGFUL_CHANGE_OR_DIVERGED")
+''',
+            encoding='utf-8',
+        )
+        env = dict(__import__('os').environ)
+        repo_root = str(ROOT)
+        env['PYTHONPATH'] = str(root) + ':' + repo_root
         proc = subprocess.run(
             ['python', str(path), main_sha, '999999999', json.dumps(runs)],
             check=True,
             capture_output=True,
             text=True,
+            cwd=repo_root,
+            env=env,
         )
         return json.loads(proc.stdout.strip())
 
