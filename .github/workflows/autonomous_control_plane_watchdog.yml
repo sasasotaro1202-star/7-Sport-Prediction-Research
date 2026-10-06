@@ -97,10 +97,13 @@ jobs:
             for _ in 1 2 3 4; do
               sleep 2
               refreshed="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 30 --json databaseId,status,createdAt,headSha)"
-              verified="$(printf '%s' "$refreshed" | jq --arg sha "$current_sha" --argjson start "$started_at" '[.[] | select(.headSha==$sha) | ((.createdAt | fromdateiso8601)) as $ts | select($ts >= $start)] | length')"
-              if [ "$verified" -ge 1 ]; then
-                echo "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED main=$current_sha"
-                exit 0
+              created_at="$(printf '%s' "$refreshed" | jq -r --arg sha "$current_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // empty')"
+              if [ -n "$created_at" ]; then
+                created_ts="$(date -u -d "$created_at" +%s 2>/dev/null || true)"
+                if [ -n "$created_ts" ] && [ "$created_ts" -ge "$started_at" ]; then
+                  echo "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED main=$current_sha"
+                  exit 0
+                fi
               fi
             done
             echo "PRODUCTION_WATCHDOG_RECOVERY_UNVERIFIED main=$current_sha reason=$reason" >&2
