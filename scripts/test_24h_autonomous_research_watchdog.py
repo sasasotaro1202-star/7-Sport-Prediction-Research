@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+import textwrap
 from pathlib import Path
 
 
@@ -15,7 +16,7 @@ def _decision_script() -> str:
     marker = '          python - "${MAIN_SHA}" "${SELF_RUN_ID}" "${runs}" <<\'PY\' > /tmp/decision.json\n'
     start = text.index(marker) + len(marker)
     end = text.index('\n          PY', start)
-    return text[start:end]
+    return textwrap.dedent(text[start:end]).strip() + "\n"
 
 
 def _run_decision(main_sha: str, runs: list[dict[str, object]]) -> dict[str, object]:
