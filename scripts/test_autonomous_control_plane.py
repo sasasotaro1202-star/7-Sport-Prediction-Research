@@ -442,6 +442,9 @@ def test_pit_recovery_refreshes_after_meaningful_main_change() -> None:
             "active_run_any": False,
             "stale": True,
         }
+        # Isolate this PIT refresh contract from the separate
+        # failure-driven research-priority contract.
+        state["failure_memory"]["recent_24h"] = 0
         state["quality"]["pit_research_blocked"] = True
         selected, dispatch = cp.choose_actions(state)
         assert selected["action"] == "PIT_COVERAGE_REPAIR"
