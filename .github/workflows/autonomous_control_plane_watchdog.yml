@@ -90,20 +90,17 @@ jobs:
           }
 
           if [ "$dispatch" = true ]; then
-            started_at="$(date -u +%s)"
+            before_ids="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 30 --json databaseId --jq '[.[].databaseId] | join(",")')"
             echo "RECOVER_PRODUCTION_WATCHDOG reason=$reason main=$current_sha"
             gh workflow run production_watchdog.yml --ref main --repo "$repo"
 
-            for _ in 1 2 3 4; do
+            for _ in 1 2 3 4 5; do
               sleep 2
-              refreshed="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 30 --json databaseId,status,createdAt,headSha)"
-              created_at="$(printf '%s' "$refreshed" | jq -r --arg sha "$current_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // empty')"
-              if [ -n "$created_at" ]; then
-                created_ts="$(date -u -d "$created_at" +%s 2>/dev/null || true)"
-                if [ -n "$created_ts" ] && [ "$created_ts" -ge "$started_at" ]; then
-                  echo "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED main=$current_sha"
-                  exit 0
-                fi
+              refreshed="$(gh run list --repo "$repo" --workflow "production_watchdog.yml" --branch main --limit 30 --json databaseId,status,headSha)"
+              verified="$(printf '%s' "$refreshed" | jq --arg sha "$current_sha" --arg before "$before_ids" '[.[] | select(.headSha==$sha) | .databaseId | tostring | select(($before | split(",") | index(.)) == null)] | length')"
+              if [ "$verified" -ge 1 ]; then
+                echo "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED main=$current_sha"
+                exit 0
               fi
             done
             echo "PRODUCTION_WATCHDOG_RECOVERY_UNVERIFIED main=$current_sha reason=$reason" >&2
