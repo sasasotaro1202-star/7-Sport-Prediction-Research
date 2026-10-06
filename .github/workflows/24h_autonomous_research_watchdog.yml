@@ -170,19 +170,39 @@ jobs:
                   "main_sha": main_sha,
               }
           elif outdated_active:
-              decision = {
-                  "action": "CANCEL_OUTDATED_AND_DISPATCH",
-                  "run_id": outdated_active[0]["databaseId"],
-                  "reason": "outdated_main_run_still_active",
-                  "main_sha": main_sha,
-              }
+              # A current-main run is already a valid continuation target.
+              # Cancel only the obsolete run; never create a second marathon.
+              if current:
+                  decision = {
+                      "action": "CANCEL_OUTDATED_ONLY",
+                      "run_id": outdated_active[0]["databaseId"],
+                      "reason": "outdated_main_run_while_current_main_run_exists",
+                      "main_sha": main_sha,
+                  }
+              else:
+                  decision = {
+                      "action": "CANCEL_OUTDATED_AND_DISPATCH",
+                      "run_id": outdated_active[0]["databaseId"],
+                      "reason": "outdated_main_run_still_active",
+                      "main_sha": main_sha,
+                  }
           elif outdated_queued:
-              decision = {
-                  "action": "CANCEL_OUTDATED_AND_DISPATCH",
-                  "run_id": outdated_queued[0]["databaseId"],
-                  "reason": "outdated_main_queued_run_blocking_latest",
-                  "main_sha": main_sha,
-              }
+              # Same rule for an obsolete queued/pending run: keep the already
+              # valid current-main continuation and do not add another run.
+              if current:
+                  decision = {
+                      "action": "CANCEL_OUTDATED_ONLY",
+                      "run_id": outdated_queued[0]["databaseId"],
+                      "reason": "outdated_main_queued_run_while_current_main_run_exists",
+                      "main_sha": main_sha,
+                  }
+              else:
+                  decision = {
+                      "action": "CANCEL_OUTDATED_AND_DISPATCH",
+                      "run_id": outdated_queued[0]["databaseId"],
+                      "reason": "outdated_main_queued_run_blocking_latest",
+                      "main_sha": main_sha,
+                  }
           elif current:
               decision = {
                   "action": "WAIT",
@@ -285,6 +305,10 @@ jobs:
             CANCEL_OUTDATED_AND_DISPATCH)
               gh_retry run cancel "${run_id}" --repo "${REPO}"
               dispatch_and_verify
+              ;;
+            CANCEL_OUTDATED_ONLY)
+              echo "WATCHDOG: cancelling obsolete run without dispatch because a current-main run already exists"
+              gh_retry run cancel "${run_id}" --repo "${REPO}"
               ;;
             DISPATCH)
               dispatch_and_verify
