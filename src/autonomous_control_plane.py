@@ -524,39 +524,6 @@ def inspect() -> dict[str, Any]:
 
     head_sha = os.environ.get("GITHUB_SHA") or "UNKNOWN"
 
-    event_workflow = os.environ.get("CONTROL_PLANE_EVENT_WORKFLOW", "")
-    event_conclusion = os.environ.get("CONTROL_PLANE_EVENT_CONCLUSION", "")
-    event_head_sha = os.environ.get("CONTROL_PLANE_EVENT_HEAD_SHA", "")
-    event_run_id = os.environ.get("CONTROL_PLANE_EVENT_RUN_ID", "")
-    event_ancestor_of_main = os.environ.get("CONTROL_PLANE_EVENT_ANCESTOR_OF_MAIN", "").lower() == "true"
-    event_target = next((
-        target for target, workflow in MONITORED_WORKFLOWS.items()
-        if workflow == event_workflow
-    ), None)
-    if not event_workflow:
-        event_relation = "NONE"
-    elif event_head_sha and event_head_sha == head_sha:
-        event_relation = "SAME_CURRENT_MAIN"
-    elif event_ancestor_of_main:
-        event_relation = "ANCESTOR_OF_CURRENT_MAIN"
-    else:
-        event_relation = "UNVERIFIED_OR_DIVERGED"
-    event_evidence = {
-        "workflow": event_workflow or None,
-        "conclusion": event_conclusion or None,
-        "head_sha": event_head_sha or None,
-        "run_id": event_run_id or None,
-        "target": event_target,
-        "relation_to_current_main": event_relation,
-        "ancestor_of_current_main": event_ancestor_of_main,
-        "eligible": bool(
-            event_target is not None
-            and event_conclusion in {"failure", "timed_out", "startup_failure", "cancelled"}
-            and bool(event_head_sha)
-            and event_relation in {"SAME_CURRENT_MAIN", "ANCESTOR_OF_CURRENT_MAIN"}
-        ),
-    }
-
     for key, value in action_errors.items():
         errors[key] = value
     for key, value in failure_memory_errors.items():
@@ -738,7 +705,6 @@ def inspect() -> dict[str, Any]:
             "route_count": len(timing.get("routes") or {}) if isinstance(timing.get("routes") or {}, dict) else None,
         },
         "actions": action_summary,
-        "event_evidence": event_evidence,
         "failure_memory": failure_memory,
         "dual_learning": {
             "status": (payloads["dual_learning"] or {}).get("status", "UNKNOWN"),
@@ -760,31 +726,6 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
         ALLOWED_WORKFLOWS["TRAJECTORY_RESEARCH"]: "trajectory_research",
         ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"]: "pre_event_prediction",
     }
-
-    # A workflow_run failure is first-class evidence. inspect() has already
-    # validated the event against current main or a verified ancestor.
-    event_evidence = state.get("event_evidence") or {}
-    if event_evidence.get("eligible"):
-        event_target = str(event_evidence.get("target") or "UNKNOWN")
-        candidates.append({
-            "action": "RESEARCH_HEALTH",
-            "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
-            "target": f"workflow_event_failure:{event_target}",
-            "impact": 28.0,
-            "evidence_gap": 1.0,
-            "failure_relevance": 1.0,
-            "generalization": 1.0,
-            "information_value": 1.0,
-            "cost": 1.0,
-            "reason": (
-                f"workflow_run reported {event_evidence.get('conclusion')} for "
-                f"monitored workflow {event_evidence.get('target')}; event relation="
-                f"{event_evidence.get('relation_to_current_main')}; use event evidence "
-                "directly before later snapshot rows can mask the triggering failure"
-            ),
-            "auto_dispatch": True,
-            "dispatch_policy": "event_payload_first_failure_triage_on_current_main_or_ancestor_sha",
-        })
 
     if state["quality"]["pit_research_blocked"]:
         candidates.append({
@@ -1052,16 +993,6 @@ def state_fingerprint(
         "route_observability": state["route_observability"],
         "timing": state["timing"],
         "actions": action_fingerprint,
-        "event_evidence": {
-            key: (state.get("event_evidence") or {}).get(key)
-            for key in (
-                "workflow",
-                "conclusion",
-                "head_sha",
-                "target",
-                "relation_to_current_main",
-            )
-        },
         "failure_memory": state.get("failure_memory"),
         "dual_learning": dual,
         "selected": {
