@@ -119,6 +119,18 @@ def test_control_plane_watchdog_contract() -> None:
     assert 'if [ "$active_in_progress" -ne 0 ]; then' not in text
     assert "STALE_MAIN_BEFORE_WATCHDOG_DISPATCH" in text
     assert 'gh workflow run autonomous_control_plane.yml --ref main --repo "$repo"' in text
+    inspect_marker = "      - name: Inspect control-plane state and live runs"
+    inspect_pos = text.index(inspect_marker)
+    gh_run_list_pos = text.index('gh run list --repo "$repo" --workflow "$workflow"', inspect_pos)
+    checkout_candidates = (
+        "      - uses: actions/checkout@v6",
+        "      - uses: actions/checkout@v7",
+    )
+    checkout_positions = [text.index(marker) for marker in checkout_candidates if marker in text]
+    assert checkout_positions, "watchdog must checkout a repository before gh run list"
+    assert min(checkout_positions) < inspect_pos < gh_run_list_pos, (
+        "watchdog checkout must precede repository-context-dependent gh run list"
+    )
 
 
 if __name__ == "__main__":
