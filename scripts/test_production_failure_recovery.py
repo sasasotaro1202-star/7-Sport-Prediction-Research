@@ -41,11 +41,13 @@ log_file="$FAKE_GH_LOG"
 printf '%s\\n' "$*" >> "$log_file"
 if [ "$1" = "api" ]; then
   endpoint="$2"
-  if [[ "$endpoint" == */git/ref/heads/main ]]; then
+  if [[ "$endpoint" == *"/git/ref/heads/main" ]]; then
     printf '{"object":{"sha":"%s"}}\\n' "$FAKE_MAIN_SHA"
     exit 0
   fi
-  if [[ "$endpoint" == */actions/workflows/*/runs* ]]; then
+  # The recovery contract issues exactly one second API request for workflow runs.
+  # Keep the stub independent of query-string glob semantics.
+  if [[ "$endpoint" == *"/actions/workflows/"*"/runs"* ]]; then
     printf '%s\\n' "$FAKE_RUNS_JSON"
     exit 0
   fi
