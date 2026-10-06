@@ -80,7 +80,7 @@ def main() -> int:
     heartbeat_start = control_watchdog.index("      - name: Recover stale Production Watchdog heartbeat")
     heartbeat_end = control_watchdog.index("      - name: Inspect control-plane state and live runs", heartbeat_start)
     heartbeat_block = control_watchdog[heartbeat_start:heartbeat_end]
-    assert "workflow", "run", "production_watchdog.yml" in heartbeat_block
+    assert "gh('workflow', 'run', 'production_watchdog.yml'" in heartbeat_block
     assert "PRODUCTION_WATCHDOG_RECOVERY_VERIFIED" in heartbeat_block
     assert "PRODUCTION_WATCHDOG_RECOVERY_UNVERIFIED" in heartbeat_block
     assert "active_statuses" in heartbeat_block
