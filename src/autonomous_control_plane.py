@@ -113,6 +113,24 @@ def assess_reproducibility(
             "missing_files": [],
         }
 
+    # A manifest is a point-in-time snapshot. When its recorded Git revision is
+    # older than current main, comparing current files against that snapshot would
+    # turn legitimate post-snapshot changes into false "content mismatches".
+    # Reproducibility is therefore only content-verifiable when the source revision
+    # matches the current checkout. Otherwise retain the provenance signal as a
+    # stale snapshot and do not claim either match or mismatch.
+    if head_sha != "UNKNOWN" and source_sha and not source_sha_match:
+        return {
+            "manifest_sha": source_sha,
+            "source_sha_match": False,
+            "content_match": None,
+            "status": "STALE_SNAPSHOT",
+            "checked_files": 0,
+            "ignored_mutable_files": 0,
+            "mismatched_files": [],
+            "missing_files": [],
+        }
+
     mismatched: list[str] = []
     missing: list[str] = []
     checked = 0
@@ -890,7 +908,7 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
             "dispatch_policy": "only_when_no_current_run_and_heavy_research_cooldown_elapsed",
         })
 
-    if state["errors"] or state["reproducibility"]["status"] not in {"MATCH", "CONTENT_MATCH"}:
+    if state["errors"] or state["reproducibility"]["status"] in {"UNVERIFIABLE", "CONTENT_MISMATCH"}:
         candidates.append({
             "action": "RESEARCH_HEALTH",
             "workflow": ALLOWED_WORKFLOWS["RESEARCH_HEALTH"],
@@ -1069,7 +1087,7 @@ def write_state(
             "generated_at_utc": state["observed_at_utc"],
             "head_sha": state["head_sha"],
             "state_fingerprint": fp,
-            "status": "DEGRADED" if state["errors"] or state["reproducibility"]["status"] not in {"MATCH", "CONTENT_MATCH"} else "READY",
+            "status": "DEGRADED" if state["errors"] or state["reproducibility"]["status"] in {"UNVERIFIABLE", "CONTENT_MISMATCH"} else "READY",
             "active_sports": list(ACTIVE_SPORTS),
             "deferred_sports": list(DEFERRED_SPORTS),
             "observations": state,
