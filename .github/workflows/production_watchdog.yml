@@ -263,8 +263,7 @@ jobs:
           validation_walk=0
           validation_walk_failed=false
           while [ "$validation_walk" -lt 20 ]; do
-            commit_meta="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${validation_base_sha}" 2>/dev/null || true)"
-            if [ -z "$commit_meta" ]; then
+            if ! commit_meta="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${validation_base_sha}" 2>/dev/null)"; then
               validation_walk_failed=true
               break
             fi
