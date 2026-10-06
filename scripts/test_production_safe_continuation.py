@@ -51,6 +51,21 @@ def main() -> int:
     assert "PRODUCTION_FINAL_VERDICT=FAILED_EXPLICIT_PARTIAL" in final_block
     assert "exit 1" in final_block
 
+    watchdog = (ROOT / ".github/workflows/production_watchdog.yml").read_text(encoding="utf-8")
+    assert "Cancel stale unfinished heavy runs from old commits only when unsafe" in watchdog
+    watchdog_start = watchdog.index("      - name: Cancel stale unfinished heavy runs from old commits only when unsafe")
+    watchdog_end = watchdog.index("      - name: Ensure validated latest-main production is continuously scheduled", watchdog_start)
+    watchdog_block = watchdog[watchdog_start:watchdog_end]
+    assert 'repos/${GITHUB_REPOSITORY}/compare/${run_sha}...${main_sha}' in watchdog_block
+    assert "DURABLE_ONLY" in watchdog_block
+    assert "DURABLE_ONLY_HEAVY_RUN_PRESERVED" in watchdog_block
+    assert "results/research/autonomous_control_plane.json" in watchdog_block
+    assert "results/research/automation_health.json" in watchdog_block
+    assert "results/research/research_queue.jsonl" in watchdog_block
+    assert "results/research/autonomous_action_log.jsonl" in watchdog_block
+    assert "results/automation_state/" in watchdog_block
+    assert "results/failure_memory.jsonl" in watchdog_block
+    assert "UNVERIFIABLE" in watchdog_block
     recovery = (ROOT / ".github/workflows/production_failure_recovery.yml").read_text(encoding="utf-8")
     assert "contents: write" in recovery
     assert "group: production-failure-memory-writer" in recovery
