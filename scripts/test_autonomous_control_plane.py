@@ -190,6 +190,59 @@ def test_action_health_sees_active_older_sha_run() -> None:
     assert health["sha_match"] is True
 
 
+def test_reproducibility_accepts_content_match_across_operational_state_commit() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        stable = root / "stable-input.txt"
+        stable.write_text("stable\n", encoding="utf-8")
+        mutable = root / "results/research/autonomous_control_plane.json"
+        mutable.parent.mkdir(parents=True)
+        mutable.write_text("new-state\n", encoding="utf-8")
+        manifest = {
+            "source_git_commit_sha": "old-sha",
+            "files": [
+                {
+                    "path": "stable-input.txt",
+                    "exists": True,
+                    "sha256": cp.sha256_path(stable),
+                },
+                {
+                    "path": "results/research/autonomous_control_plane.json",
+                    "exists": True,
+                    "sha256": "0" * 64,
+                },
+            ],
+        }
+        assessed = cp.assess_reproducibility(manifest, "new-sha", root)
+        assert assessed["status"] == "CONTENT_MATCH"
+        assert assessed["content_match"] is True
+        assert assessed["source_sha_match"] is False
+        assert assessed["ignored_mutable_files"] == 1
+        assert assessed["mismatched_files"] == []
+        assert assessed["missing_files"] == []
+
+
+def test_reproducibility_rejects_real_content_mismatch() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        path = root / "stable-input.txt"
+        path.write_text("current\n", encoding="utf-8")
+        manifest = {
+            "source_git_commit_sha": "old-sha",
+            "files": [
+                {
+                    "path": "stable-input.txt",
+                    "exists": True,
+                    "sha256": "0" * 64,
+                }
+            ],
+        }
+        assessed = cp.assess_reproducibility(manifest, "new-sha", root)
+        assert assessed["status"] == "CONTENT_MISMATCH"
+        assert assessed["content_match"] is False
+        assert assessed["mismatched_files"] == ["stable-input.txt"]
+
+
 def test_trajectory_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["TRAJECTORY_RESEARCH"] == "autonomous_temporal_trajectory_loop.yml"
     assert cp.MONITORED_WORKFLOWS["trajectory_research"] == "autonomous_temporal_trajectory_loop.yml"
@@ -330,6 +383,8 @@ def test_research_queue_compaction_keeps_latest_logical_task() -> None:
 def main() -> int:
     test_action_health_rejects_missing_sha_provenance()
     test_action_health_rejects_old_sha()
+    test_reproducibility_accepts_content_match_across_operational_state_commit()
+    test_reproducibility_rejects_real_content_mismatch()
     test_trajectory_control_plane_registration()
     test_research_sweep_control_plane_registration()
     test_pre_event_control_plane_registration()
