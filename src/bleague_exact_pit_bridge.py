@@ -12,8 +12,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-import requests
-
 from src.bleaguer_git_provenance import canonical_bleaguer_event_id
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -117,6 +115,10 @@ def _parse_csv_rows(payload: bytes) -> list[dict[str, str]]:
 
 
 def _default_get(url: str) -> bytes:
+    # Keep the bridge importable in dependency-light control-plane/test jobs.
+    # The HTTP client is needed only when the real network fetch path executes.
+    import requests
+
     response = requests.get(
         url,
         headers={
