@@ -82,7 +82,25 @@ def _evidence(path: Path, revision: str = "revision-sha") -> None:
         },
     }),encoding="utf-8")
 
+
+def test_canonical_event_id_accepts_bleague_dot_date() -> None:
+    from src.bleaguer_git_provenance import canonical_bleaguer_event_id
+
+    row = {
+        "ScheduleKey": "5938",
+        "HomeTeamId": "700",
+        "AwayTeamId": "706",
+        "Date": "2020.10.24",
+    }
+    event_id = canonical_bleaguer_event_id(
+        row, "inst/extdata/games_202021.csv"
+    )
+    assert event_id is not None
+    assert len(event_id) == 32
+
+
 def main() -> None:
+    test_canonical_event_id_accepts_bleague_dot_date()
     with tempfile.TemporaryDirectory() as td:
         root=Path(td)
         db=root/"test.sqlite"

@@ -62,11 +62,21 @@ def utcnow() -> str:
 def iso(value: str | None) -> str | None:
     if not value:
         return None
-    s = value.replace("Z", "+00:00")
+    s = value.strip().replace("Z", "+00:00")
+    for fmt in ("%Y.%m.%d", "%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d %H:%M"):
+        try:
+            return datetime.strptime(s[:19], fmt).replace(
+                tzinfo=timezone.utc
+            ).isoformat()
+        except ValueError:
+            pass
     try:
-        return datetime.fromisoformat(s).astimezone(timezone.utc).isoformat()
+        dt = datetime.fromisoformat(s)
     except ValueError:
         return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat()
 
 
 def sha256_bytes(data: bytes) -> str:
