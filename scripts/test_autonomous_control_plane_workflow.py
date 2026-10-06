@@ -123,8 +123,8 @@ def test_control_plane_watchdog_contract() -> None:
     inspect_pos = text.index(inspect_marker)
     gh_run_list_pos = text.index('gh run list --repo "$repo" --workflow "$workflow"', inspect_pos)
     checkout_candidates = (
-        "      - uses: actions/checkout@v6",
-        "      - uses: actions/checkout@v7",
+        "uses: actions/checkout@v6",
+        "uses: actions/checkout@v7",
     )
     checkout_positions = [text.index(marker) for marker in checkout_candidates if marker in text]
     assert checkout_positions, "watchdog must checkout a repository before gh run list"
