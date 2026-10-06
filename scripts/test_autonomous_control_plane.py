@@ -449,6 +449,35 @@ def test_pit_recovery_refreshes_after_meaningful_main_change() -> None:
         assert dispatch["automatic_promotion"] is False
 
 
+def test_recent_failure_memory_is_not_starved_by_persistent_pit_block() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        bind(root)
+        fixture(root)
+        os.environ["GITHUB_SHA"] = "new-sha"
+        state = cp.inspect()
+        state["quality"]["pit_research_blocked"] = True
+        state["actions"]["pit_history"] = {
+            "status": "STALE",
+            "run_status": "completed",
+            "conclusion": "success",
+            "head_sha": "old-sha",
+            "current_main_sha": "new-sha",
+            "main_compatibility": "MEANINGFUL_OR_DIVERGED",
+            "run_id": 123,
+            "active_run_any": False,
+            "stale": True,
+        }
+        selected, dispatch = cp.choose_actions(state)
+        assert state["failure_memory"]["recent_24h"] == 1
+        assert selected["action"] == "RESEARCH_HEALTH"
+        assert selected["target"] == "recent_failures"
+        assert selected["priority"] > 100
+        assert dispatch is not None
+        assert dispatch["workflow"] == "autonomous_research_sweep.yml"
+        assert dispatch["automatic_promotion"] is False
+
+
 def test_control_plane_dispatch_has_live_all_sha_guard() -> None:
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
     text = workflow.read_text(encoding="utf-8")
@@ -550,6 +579,7 @@ def main() -> int:
     test_pit_recovery_dispatches_only_after_failed_old_sha()
     test_pit_recovery_refreshes_after_meaningful_main_change()
     test_control_plane_has_bounded_pit_recovery_gate()
+    test_recent_failure_memory_is_not_starved_by_persistent_pit_block()
     test_control_plane_dispatch_verifies_run_creation()
     test_control_plane_has_no_workflow_run_event_injection_path()
     test_research_queue_identity_excludes_volatile_fields()
