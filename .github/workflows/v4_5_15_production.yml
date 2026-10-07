@@ -62,10 +62,12 @@ jobs:
         with:
           path: data/db
           key: active-scope-target-db-v4-${{ matrix.sport }}-${{ github.sha }}
+          # PIT-enriched history is the preferred recovery base. Legacy/pre-event
+          # caches are lower-fidelity fallbacks and must not mask proven PIT history.
           restore-keys: |
+            active-scope-target-db-v4-${{ matrix.sport }}-pit-
             pre-event-target-db-v1-${{ matrix.sport }}-
             scope-autofill-db-v1-${{ matrix.sport }}-
-            active-scope-target-db-v4-${{ matrix.sport }}-pit-
             active-scope-target-db-v4-${{ matrix.sport }}-
       - name: Validate/repair restored database before collection
         shell: bash
