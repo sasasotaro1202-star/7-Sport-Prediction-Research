@@ -109,19 +109,42 @@ jobs:
           jobs_path = Path("recovery-artifacts/failed_jobs.txt")
           failed_jobs = sorted(dict.fromkeys(x.strip() for x in jobs_path.read_text(encoding="utf-8").splitlines() if x.strip())) if jobs_path.exists() else []
           names = " ".join(failed_jobs).lower()
+          source_log = Path("recovery-artifacts/source-run.log").read_text(encoding="utf-8", errors="replace")
+          stale_guard_markers = (
+              "STALE_PRODUCTION_WORKFLOW_SHA",
+              "STALE_MERGE_RUN_SHA",
+              "STALE_MERGE_WORKFLOW_SHA",
+              "STALE_PUBLISH_RUN",
+              "STALE_MAIN_BEFORE_PUSH",
+          )
+          stale_guard_hits = [marker for marker in stale_guard_markers if marker in source_log]
           conclusion = os.environ["CONCLUSION"]
-          if "pit" in names:
+
+          # A stale-main guard is an intentional fail-closed safety result, not
+          # evidence that the research/release stage itself is broken. Preserve
+          # the observation as automation failure metadata so future triage
+          # prioritizes reconciliation/recovery rather than model research.
+          if stale_guard_hits:
+              failure_class = "AUTOMATION_FAILURE"
+              failure_subclass = "STALE_RUN_RECONCILIATION"
+          elif "pit" in names:
               failure_class = "PIT_WORKFLOW_FAILURE"
+              failure_subclass = None
           elif "collect" in names or "backfill" in names:
               failure_class = "COLLECTION_WORKFLOW_FAILURE"
+              failure_subclass = None
           elif "research" in names or "release gate" in names:
               failure_class = "RESEARCH_RELEASE_WORKFLOW_FAILURE"
+              failure_subclass = None
           elif conclusion == "timed_out":
               failure_class = "WORKFLOW_TIMEOUT"
+              failure_subclass = None
           elif conclusion == "startup_failure":
               failure_class = "WORKFLOW_STARTUP_FAILURE"
+              failure_subclass = None
           else:
               failure_class = "WORKFLOW_FAILURE"
+              failure_subclass = None
 
           record = {
               "schema_version": 1,
@@ -135,7 +158,17 @@ jobs:
               "head_branch": os.environ["HEAD_BRANCH"],
               "conclusion": conclusion,
               "failure_class": failure_class,
-              "classification_basis": "workflow_run_conclusion_and_observed_failed_job_names",
+              "classification_basis": (
+                  "workflow_run_conclusion_and_observed_failed_job_names_and_stale_guard_signals"
+                  if stale_guard_hits
+                  else "workflow_run_conclusion_and_observed_failed_job_names"
+              ),
+              "failure_subclass": failure_subclass,
+              "failure_signal": (
+                  {"type": "STALE_MAIN_GUARD", "markers": stale_guard_hits}
+                  if stale_guard_hits
+                  else None
+              ),
               "failed_jobs": failed_jobs,
               "source_run_url": os.environ["RUN_URL"],
               "log_capture_status": Path("recovery-artifacts/log_capture_status.txt").read_text(encoding="utf-8").strip(),
