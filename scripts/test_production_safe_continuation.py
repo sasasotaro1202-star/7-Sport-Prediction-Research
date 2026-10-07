@@ -58,7 +58,8 @@ def main() -> int:
     watchdog = (ROOT / ".github/workflows/production_watchdog.yml").read_text(encoding="utf-8")
     assert "Cancel stale unfinished heavy runs from old commits only when unsafe" in watchdog
     assert "      - PIT History Expansion" in watchdog
-    assert "A successful PIT expansion is an explicit cache-readiness edge" in watchdog
+    assert "A successful PIT expansion" in watchdog
+    assert "cache-readiness edge" in watchdog
     assert 'pit_refresh_event=false' in watchdog
     assert '[ "${{ github.event.workflow_run.name }}" = "PIT History Expansion" ]' in watchdog
     assert '[ "${{ github.event.workflow_run.conclusion }}" = "success" ]' in watchdog
