@@ -144,6 +144,11 @@ def main() -> None:
     assert "no_successful_pre_event_heartbeat_retry_age=" in watchdog
     assert "reference_type=\"successful_heartbeat\"" in watchdog
     assert "reference_type=\"attempt_cooldown\"" in watchdog
+    assert "STALE_SHA_PRE_EVENT_RUN" in watchdog
+    assert "STALE_SHA_PRE_EVENT_CANCEL_REQUESTED" in watchdog
+    assert "select(.headSha != $sha and" in watchdog
+    assert "actions/runs/$stale_run_id/cancel" in watchdog
+    assert 'state=$(gh run list --workflow "pre_event_prediction.yml"' in watchdog
     pre_event_watchdog = watchdog[watchdog.index("      - name: Ensure pre-event T-60 prediction heartbeat"):]
     pre_event_watchdog = pre_event_watchdog.split("      - name: Cancel over-time production and PIT runs", 1)[0]
     assert "latest_created=" not in pre_event_watchdog
