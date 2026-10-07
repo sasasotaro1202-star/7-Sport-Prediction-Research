@@ -151,6 +151,13 @@ def main() -> int:
             time.sleep(delay)
             continue
 
+        head = run_capture(["git", "rev-parse", "HEAD"]).stdout.strip()
+        if head and current == head:
+            print(
+                f"RELIABLE_PUSH_SUCCESS already_visible attempt={attempt} head={head}",
+                flush=True,
+            )
+            return 0
         if current != args.expected_parent:
             print(
                 "RELIABLE_PUSH_STALE_MAIN "
