@@ -31,7 +31,16 @@ def main():
     c=sqlite3.connect(DB); init(c)
     rows=c.execute("SELECT event_id,sport,event_time_utc,source_count FROM event WHERE status IN ('COMPLETED','FINISHED','POST')").fetchall()
     verified=0; deferred=0
+    already_verified=0
+    upgraded_from_deferred=0
     for eid,sport,et,_ in rows:
+        existing_status = c.execute(
+            "SELECT outcome_status FROM event_outcome WHERE event_id=?",
+            (eid,),
+        ).fetchone()
+        if existing_status and existing_status[0] == "VERIFIED":
+            already_verified += 1
+            continue
         ps=participants(c,eid)
         if len(ps)<2: deferred+=1; continue
         a,b=ps[0][0],ps[1][0]
@@ -71,8 +80,34 @@ def main():
                 winner=vals[0][0]; outcome='A' if winner==a else 'B' if winner==b else None
                 if outcome: source='jolpica'; url=c.execute('SELECT source_url FROM event WHERE event_id=?',(eid,)).fetchone()[0]
         if outcome:
-            c.execute('INSERT OR REPLACE INTO event_outcome VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',(eid,sport,a,b,outcome,sa,sb,'VERIFIED',source,url,utc(),'PIT_REQUIRES_REPLAY','Derived only from source-backed result data'))
-            verified+=1
+            c.execute(
+                """
+                INSERT INTO event_outcome
+                    (event_id,sport,side_a_participant_id,side_b_participant_id,
+                     outcome,score_a,score_b,outcome_status,source,source_url,
+                     observed_at_utc,quality_status,reason)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(event_id) DO UPDATE SET
+                    sport=excluded.sport,
+                    side_a_participant_id=excluded.side_a_participant_id,
+                    side_b_participant_id=excluded.side_b_participant_id,
+                    outcome=excluded.outcome,
+                    score_a=excluded.score_a,
+                    score_b=excluded.score_b,
+                    outcome_status=excluded.outcome_status,
+                    source=excluded.source,
+                    source_url=excluded.source_url,
+                    observed_at_utc=excluded.observed_at_utc,
+                    quality_status=excluded.quality_status,
+                    reason=excluded.reason
+                WHERE event_outcome.outcome_status <> 'VERIFIED'
+                """,
+                (eid,sport,a,b,outcome,sa,sb,'VERIFIED',source,url,utc(),'PIT_REQUIRES_REPLAY','Derived only from source-backed result data'),
+            )
+            if existing_status and existing_status[0] != "VERIFIED":
+                upgraded_from_deferred += 1
+            else:
+                verified+=1
         else:
             deferred+=1
     # Settle forward predictions only after a verified canonical outcome exists.
@@ -89,6 +124,13 @@ def main():
         (settled_now,)
     )
     settled=c.execute("SELECT changes()").fetchone()[0]
-    c.commit(); print(json.dumps({'verified':verified,'deferred':deferred,'settled_forward_predictions':settled,'total_completed_events':len(rows)},ensure_ascii=False))
+    c.commit(); print(json.dumps({
+        'verified':verified,
+        'already_verified':already_verified,
+        'upgraded_from_deferred':upgraded_from_deferred,
+        'deferred':deferred,
+        'settled_forward_predictions':settled,
+        'total_completed_events':len(rows),
+    },ensure_ascii=False))
     c.close()
 if __name__=='__main__': main()
