@@ -84,6 +84,9 @@ jobs:
       - name: Run control-plane regression
         run: python scripts/test_autonomous_control_plane.py
 
+      - name: Run reliable main push regression
+        run: PYTHONPATH=. python scripts/test_reliable_main_push.py
+
       - name: Snapshot current GitHub Actions state
         env:
           GH_TOKEN: ${{ github.token }}
