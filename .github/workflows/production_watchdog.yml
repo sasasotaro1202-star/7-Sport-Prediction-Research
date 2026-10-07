@@ -407,7 +407,8 @@ jobs:
           stale_run_ids=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '
             .[]
             | select(
-                .headSha != $sha
+                .event=="schedule"
+                and .headSha != $sha
                 and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")
               )
             | .databaseId
