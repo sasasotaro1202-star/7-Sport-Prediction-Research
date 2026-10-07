@@ -738,7 +738,11 @@ jobs:
               sleep $((attempt * 5))
               continue
             fi
-            if git push origin HEAD:main; then exit 0; fi
+            if PYTHONPATH=. python scripts/reliable_main_push.py \
+    --expected-parent "$(git rev-parse HEAD^)" \
+    --attempts 6 \
+    --initial-delay 3 \
+    --max-delay 30; then exit 0; fi
             if [ "$attempt" -eq 3 ]; then exit 1; fi
             git fetch origin main
             ensure_main_compatible
