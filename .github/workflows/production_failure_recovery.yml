@@ -218,7 +218,11 @@ jobs:
             exit 0
           fi
           git commit -m "ops: record production failure memory"
-          git push origin HEAD:main
+          PYTHONPATH=. python scripts/reliable_main_push.py \
+            --expected-parent "$(git rev-parse HEAD^)" \
+            --attempts 6 \
+            --initial-delay 3 \
+            --max-delay 30
 
       - name: Upload source-run failure evidence
         if: always()
