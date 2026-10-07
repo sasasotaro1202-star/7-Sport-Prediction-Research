@@ -41,14 +41,18 @@ def main() -> int:
     pit_key = "active-scope-target-db-v4-${{ matrix.sport }}-pit-"
     pre_event_key = "pre-event-target-db-v1-${{ matrix.sport }}-"
     scope_key = "scope-autofill-db-v1-${{ matrix.sport }}-"
-    generic_key = "active-scope-target-db-v4-${{ matrix.sport }}-"
     restore_start = production.index("restore-keys: |")
     restore_tail = production[restore_start : restore_start + 500]
-    assert restore_tail.index(pit_key) < restore_tail.index(pre_event_key)
-    assert restore_tail.index(pit_key) < restore_tail.index(scope_key)
+    restore_lines = [line.strip() for line in restore_tail.splitlines() if line.strip()]
+    pit_pos = restore_lines.index(pit_key)
+    pre_event_pos = restore_lines.index(pre_event_key)
+    scope_pos = restore_lines.index(scope_key)
+    generic_pos = restore_lines.index("active-scope-target-db-v4-${{ matrix.sport }}-")
+    assert pit_pos < pre_event_pos
+    assert pit_pos < scope_pos
     # The generic active-scope prefix is intentionally last because it can
     # represent a database without the strict PIT-history enrichment.
-    assert restore_tail.index(scope_key) < restore_tail.index(generic_key)
+    assert scope_pos < generic_pos
 
     print("PIT_CACHE_NAMESPACE=PASS")
     return 0
