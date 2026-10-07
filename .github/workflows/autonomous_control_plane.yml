@@ -273,7 +273,11 @@ jobs:
             exit 1
           }
 
-          git push origin HEAD:main
+          PYTHONPATH=. python scripts/reliable_main_push.py \
+            --expected-parent "${CONTROL_PLANE_CURRENT_MAIN_SHA}" \
+            --attempts 6 \
+            --initial-delay 3 \
+            --max-delay 30
 
           new_main_sha="$(git rev-parse HEAD)"
           echo "persist_ok=true" >> "$GITHUB_OUTPUT"
