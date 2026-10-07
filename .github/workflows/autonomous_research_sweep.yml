@@ -118,5 +118,9 @@ jobs:
             exit 1
           fi
 
-          git push origin HEAD:main
+          PYTHONPATH=. python scripts/reliable_main_push.py \
+            --expected-parent "$merge_base" \
+            --attempts 6 \
+            --initial-delay 3 \
+            --max-delay 30
           echo "EXPERIENCE_MEMORY_PERSIST=PUSHED commit=$(git rev-parse HEAD)"
