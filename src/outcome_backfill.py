@@ -27,6 +27,65 @@ def init(c):
 def participants(c,eid):
     return c.execute('SELECT participant_id,side FROM event_participant WHERE event_id=? ORDER BY CASE side WHEN "A" THEN 0 WHEN "B" THEN 1 ELSE 2 END',(eid,)).fetchall()
 
+
+def upsert_verified_outcome(
+    c,
+    *,
+    event_id,
+    sport,
+    side_a_participant_id,
+    side_b_participant_id,
+    outcome,
+    score_a,
+    score_b,
+    source,
+    source_url,
+    observed_at_utc,
+):
+    """Insert a verified outcome, or upgrade a non-verified placeholder.
+
+    Verified historical outcomes are immutable: an existing VERIFIED row is
+    never overwritten, including its observation timestamp/provenance.
+    """
+    c.execute(
+        """
+        INSERT INTO event_outcome
+            (event_id,sport,side_a_participant_id,side_b_participant_id,
+             outcome,score_a,score_b,outcome_status,source,source_url,
+             observed_at_utc,quality_status,reason)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(event_id) DO UPDATE SET
+            sport=excluded.sport,
+            side_a_participant_id=excluded.side_a_participant_id,
+            side_b_participant_id=excluded.side_b_participant_id,
+            outcome=excluded.outcome,
+            score_a=excluded.score_a,
+            score_b=excluded.score_b,
+            outcome_status=excluded.outcome_status,
+            source=excluded.source,
+            source_url=excluded.source_url,
+            observed_at_utc=excluded.observed_at_utc,
+            quality_status=excluded.quality_status,
+            reason=excluded.reason
+        WHERE event_outcome.outcome_status <> 'VERIFIED'
+        """,
+        (
+            event_id,
+            sport,
+            side_a_participant_id,
+            side_b_participant_id,
+            outcome,
+            score_a,
+            score_b,
+            'VERIFIED',
+            source,
+            source_url,
+            observed_at_utc,
+            'PIT_REQUIRES_REPLAY',
+            'Derived only from source-backed result data',
+        ),
+    )
+
 def main():
     c=sqlite3.connect(DB); init(c)
     rows=c.execute("SELECT event_id,sport,event_time_utc,source_count FROM event WHERE status IN ('COMPLETED','FINISHED','POST')").fetchall()
@@ -80,34 +139,23 @@ def main():
                 winner=vals[0][0]; outcome='A' if winner==a else 'B' if winner==b else None
                 if outcome: source='jolpica'; url=c.execute('SELECT source_url FROM event WHERE event_id=?',(eid,)).fetchone()[0]
         if outcome:
-            c.execute(
-                """
-                INSERT INTO event_outcome
-                    (event_id,sport,side_a_participant_id,side_b_participant_id,
-                     outcome,score_a,score_b,outcome_status,source,source_url,
-                     observed_at_utc,quality_status,reason)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(event_id) DO UPDATE SET
-                    sport=excluded.sport,
-                    side_a_participant_id=excluded.side_a_participant_id,
-                    side_b_participant_id=excluded.side_b_participant_id,
-                    outcome=excluded.outcome,
-                    score_a=excluded.score_a,
-                    score_b=excluded.score_b,
-                    outcome_status=excluded.outcome_status,
-                    source=excluded.source,
-                    source_url=excluded.source_url,
-                    observed_at_utc=excluded.observed_at_utc,
-                    quality_status=excluded.quality_status,
-                    reason=excluded.reason
-                WHERE event_outcome.outcome_status <> 'VERIFIED'
-                """,
-                (eid,sport,a,b,outcome,sa,sb,'VERIFIED',source,url,utc(),'PIT_REQUIRES_REPLAY','Derived only from source-backed result data'),
+            upsert_verified_outcome(
+                c,
+                event_id=eid,
+                sport=sport,
+                side_a_participant_id=a,
+                side_b_participant_id=b,
+                outcome=outcome,
+                score_a=sa,
+                score_b=sb,
+                source=source,
+                source_url=url,
+                observed_at_utc=utc(),
             )
             if existing_status and existing_status[0] != "VERIFIED":
                 upgraded_from_deferred += 1
             else:
-                verified+=1
+                verified += 1
         else:
             deferred+=1
     # Settle forward predictions only after a verified canonical outcome exists.
