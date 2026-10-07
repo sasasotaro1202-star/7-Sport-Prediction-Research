@@ -402,6 +402,51 @@ jobs:
           git fetch origin main --depth=1
           main_sha=$(git rev-parse origin/main)
           state=$(gh run list --workflow "pre_event_prediction.yml" --limit 100 --json databaseId,status,event,createdAt,headSha,conclusion)
+
+          # Remove active runs pinned to obsolete SHAs before heartbeat evaluation.
+          stale_run_ids=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '
+            .[]
+            | select(
+                .event=="schedule"
+                and .headSha != $sha
+                and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")
+              )
+            | .databaseId
+          ')
+          while read -r stale_run_id; do
+            [ -n "$stale_run_id" ] || continue
+            stale_state=$(gh run view "$stale_run_id" --json status,event,createdAt,headSha)
+            stale_status=$(printf '%s' "$stale_state" | jq -r '.status')
+            stale_event=$(printf '%s' "$stale_state" | jq -r '.event')
+            stale_created=$(printf '%s' "$stale_state" | jq -r '.createdAt')
+            stale_sha=$(printf '%s' "$stale_state" | jq -r '.headSha')
+            echo "STALE_SHA_PRE_EVENT_RUN run_id=$stale_run_id status=$stale_status event=$stale_event created_at=$stale_created sha=$stale_sha main=$main_sha"
+            cancelled=false
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/sasasotaro1202-star/7-Sport-Prediction-Research/actions/runs/$stale_run_id/cancel" >/dev/null 2>&1; then
+                echo "STALE_SHA_PRE_EVENT_CANCEL_REQUESTED run_id=$stale_run_id attempt=$attempt"
+                cancelled=true
+                break
+              fi
+              sleep "$attempt"
+            done
+            if [ "$cancelled" = false ]; then
+              observed_status=$(gh run view "$stale_run_id" --json status --jq '.status' 2>/dev/null || printf 'unknown')
+              case "$observed_status" in
+                completed|cancelled|failure|success|neutral|skipped|timed_out)
+                  echo "STALE_SHA_PRE_EVENT_CANCEL_RACE_TERMINAL run_id=$stale_run_id status=$observed_status"
+                  ;;
+                *)
+                  echo "STALE_SHA_PRE_EVENT_CANCEL_FAILED run_id=$stale_run_id status=$observed_status" >&2
+                  exit 1
+                  ;;
+              esac
+            fi
+          done <<< "$stale_run_ids"
+
+          # Re-read after cancellation so current-main activity is evaluated from
+          # the freshest observable state rather than the pre-cancellation snapshot.
+          state=$(gh run list --workflow "pre_event_prediction.yml" --limit 100 --json databaseId,status,event,createdAt,headSha,conclusion)
           active=$(printf '%s' "$state" | jq --arg sha "$main_sha" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')
           latest_success_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha and .conclusion=="success") | .createdAt] | sort | last // ""')
           latest_any_created=$(printf '%s' "$state" | jq -r --arg sha "$main_sha" '[.[] | select(.headSha==$sha) | .createdAt] | sort | last // ""')
