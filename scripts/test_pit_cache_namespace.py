@@ -5,10 +5,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "pit_history_expansion.yml"
+PRODUCTION_WORKFLOW = ROOT / ".github" / "workflows" / "v4_5_15_production.yml"
 
 
 def main() -> int:
     workflow = WORKFLOW.read_text(encoding="utf-8")
+    production = PRODUCTION_WORKFLOW.read_text(encoding="utf-8")
 
     assert "  push:" not in workflow
     assert "cron: '47 0,9,18 * * *'" in workflow
@@ -32,6 +34,21 @@ def main() -> int:
     restore_start = workflow.index("restore-keys: |")
     restore_tail = workflow[restore_start:restore_start + 500]
     assert "active-scope-target-db-v4-${{ matrix.sport }}-pit-" in restore_tail
+
+    # Production must prefer the PIT-enriched cache before lower-fidelity
+    # legacy/pre-event caches. Otherwise a valid PIT history expansion can be
+    # silently masked by a newer fallback cache.
+    pit_key = "active-scope-target-db-v4-${{ matrix.sport }}-pit-"
+    pre_event_key = "pre-event-target-db-v1-${{ matrix.sport }}-"
+    scope_key = "scope-autofill-db-v1-${{ matrix.sport }}-"
+    generic_key = "active-scope-target-db-v4-${{ matrix.sport }}-"
+    restore_start = production.index("restore-keys: |")
+    restore_tail = production[restore_start : restore_start + 500]
+    assert restore_tail.index(pit_key) < restore_tail.index(pre_event_key)
+    assert restore_tail.index(pit_key) < restore_tail.index(scope_key)
+    # The generic active-scope prefix is intentionally last because it can
+    # represent a database without the strict PIT-history enrichment.
+    assert restore_tail.index(scope_key) < restore_tail.index(generic_key)
 
     print("PIT_CACHE_NAMESPACE=PASS")
     return 0
