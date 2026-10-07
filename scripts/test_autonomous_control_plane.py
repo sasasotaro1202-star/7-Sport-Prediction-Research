@@ -683,12 +683,13 @@ def main() -> int:
         assert missing["release"]["active_accepted_model_gap"] == []
         assert missing["errors"]["release_gate.coverage.valorant"] == "MISSING_OR_INVALID"
 
-        # Recent observed failures must become an autonomous research signal.
+        # A recent failure is a first-class research signal and outranks the persistent PIT gap.
         selected_failure, dispatch_failure = cp.choose_actions(state)
-        assert selected_failure["action"] == "PIT_COVERAGE_REPAIR"
-        assert selected_failure["target"] == "active_scope"
+        assert selected_failure["action"] == "RESEARCH_HEALTH"
+        assert selected_failure["target"] == "recent_failures"
         assert dispatch_failure is not None
         assert dispatch_failure["workflow"] == "autonomous_research_sweep.yml"
+        assert selected_failure["automatic_promotion"] is False
 
     print("AUTONOMOUS_CONTROL_PLANE_V2=PASS")
     return 0
