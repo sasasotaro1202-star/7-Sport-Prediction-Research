@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import ast
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "production_failure_recovery.yml"
@@ -32,9 +33,25 @@ def test_contract() -> None:
     assert '--expected-parent "$(git rev-parse HEAD^)"' in text
     assert 'git push origin HEAD:main' not in text
     push_helper = (ROOT / "scripts" / "reliable_main_push.py").read_text(encoding="utf-8")
-    assert 'git push origin HEAD:main' in push_helper
+    push_ast = ast.parse(push_helper)
+    assert 'git push origin HEAD:main' not in push_helper
+    assert 'HEAD:main' in push_helper
     assert 'verify_local_parent' in push_helper
     assert 'RELIABLE_PUSH_STALE_MAIN' in push_helper
+    push_calls = [
+        node for node in ast.walk(push_ast)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_capture"
+    ]
+    assert any(
+        isinstance(call.args[0], ast.List)
+        and any(
+            isinstance(element, ast.Constant) and element.value == "HEAD:main"
+            for element in call.args[0].elts
+        )
+        for call in push_calls
+    )
     start = text.index("Recover once without replaying a stale SHA")
     guard = text[start:]
     guard_idx = guard.index("RECOVERY_COALESCED_ACTIVE_CURRENT_MAIN")

@@ -1,0 +1,41 @@
+name: Prediction-Core PyMC Promotion Gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "27 7 * * 1"
+permissions:
+  contents: read
+
+concurrency:
+  group: prediction-core-pymc-promotion-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Validate promotion gate contract
+        run: PYTHONPATH=. python scripts/test_pymc_promotion_gate.py
+      - name: Evaluate evidence
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p results/research
+          PYTHONPATH=. python scripts/pymc_promotion_gate.py             --evidence-dir results/research/pymc_promotion_evidence             --expected-head-sha "${GITHUB_SHA}"             --output results/research/pymc_promotion_gate.json
+      - name: Upload gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prediction-core-pymc-promotion-gate-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: results/research/pymc_promotion_gate.json

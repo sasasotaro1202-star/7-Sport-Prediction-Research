@@ -1,19 +1,14 @@
 name: Prediction-Core PyMC Real Data Shadow
 
 on:
-  push:
-    paths:
-      - "scripts/pymc_pit_shadow_dataset.py"
-      - "scripts/research_pymc_real_shadow.py"
-      - "scripts/test_pymc_pit_shadow_dataset.py"
-      - "scripts/test_pymc_real_shadow.py"
-      - ".github/workflows/prediction_core_pymc_real_shadow.yml"
   pull_request:
     paths:
       - "scripts/pymc_pit_shadow_dataset.py"
       - "scripts/research_pymc_real_shadow.py"
       - "scripts/test_pymc_pit_shadow_dataset.py"
       - "scripts/test_pymc_real_shadow.py"
+      - "src/research_policy.py"
+      - "src/pit_replay_builder.py"
       - ".github/workflows/prediction_core_pymc_real_shadow.yml"
   workflow_dispatch:
   schedule:
@@ -27,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYMC_REAL_SHADOW_VERSION: "v1-sport-isolated-triggered"
+  PYMC_REAL_SHADOW_VERSION: "v2-current-pit-replay-sport-aware"
 
 jobs:
   real-shadow:
@@ -69,6 +64,19 @@ jobs:
             nine-sport-target-db-v4-${{ matrix.sport }}-pit-
             nine-sport-target-db-v4-${{ matrix.sport }}-
 
+      - name: Rebuild strict PIT replay from the restored cache
+        env:
+          SPORT_NAME: ${{ matrix.sport }}
+          CACHE_MATCHED_KEY: ${{ steps.source_cache.outputs.cache-matched-key }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CACHE_MATCHED_KEY:-}" ] || [ ! -s data/db/sports_v45.sqlite ]; then
+            echo "PYMC_REAL_SHADOW_PIT_REBUILD=${SPORT_NAME} BLOCKED_NO_PIT_SOURCE_CACHE"
+          else
+            PYTHONPATH=. python -m src.pit_replay_builder --sport "${SPORT_NAME}" --force
+            echo "PYMC_REAL_SHADOW_PIT_REBUILD=${SPORT_NAME} COMPLETE"
+          fi
+
       - name: Build sport-isolated PIT dataset
         env:
           SPORT_NAME: ${{ matrix.sport }}
@@ -93,7 +101,7 @@ jobs:
           PY
             echo "PYMC_REAL_SHADOW_DATASET=${SPORT_NAME} BLOCKED_NO_PIT_SOURCE_CACHE"
           else
-            python scripts/pymc_pit_shadow_dataset.py --sport "${SPORT_NAME}" --db data/db/sports_v45.sqlite --out "${dataset}"
+            python scripts/pymc_pit_shadow_dataset.py --sport "${SPORT_NAME}" --db data/db/sports_v45.sqlite --require-current-replay --exclude-frozen-holdout --out "${dataset}"
           fi
 
       - name: Run real-data PyMC shadow fit when PIT data is ready
@@ -110,7 +118,7 @@ jobs:
           raise SystemExit(0 if obj.get("status")=="READY" else 1)
           PY
           then
-            python scripts/research_pymc_real_shadow.py --dataset "${dataset}" --output "${output}"
+            PYTHONPATH=. python scripts/research_pymc_real_shadow.py --dataset "${dataset}" --output "${output}"
           else
             python - "${dataset}" "${output}" <<'PY'
           import json,sys

@@ -14,8 +14,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score,brier_score_loss,log_loss
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research';SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
-POLICY={'valorant':('rating','acs','adr','kast','k_d','fk_fd'),'basketball':('points','rebounds','assists','steals','blocks','turnovers','fieldGoalPct','threePointPct','freeThrowPct'),'volleyball':('attack','serve','receive','block','error','sideout'),'tennis':('ace','double_fault','first_serve','first_serve_points_won','break_points_saved','break_points_won'),'ufc':('sig_str','takedown','td_pct','sub_attempts','control_time'),'rizin':('sig_str','takedown','td_pct','sub_attempts','control_time'),'f1':(),'rugby':(),'boxing':()}
+ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
+from src.research_policy import POLICY, SPORTS
 def utc():return datetime.now(timezone.utc).isoformat()
 def h(x):return hashlib.sha256(json.dumps(x,sort_keys=True,default=str).encode()).hexdigest()[:16]
 def target_event(s,name,competition_id):
@@ -192,42 +192,58 @@ def _make_stat_history_loader(c,s):
  def load(pid,st):
   key=(pid,st)
   if key not in cache:
-   rows=c.execute("""SELECT value_num,event_time_utc,effective_at_utc,source_available_at_utc
-                      FROM (
-                        SELECT ms.value_num,pe.event_time_utc,ms.effective_at_utc,
-                               (SELECT MIN(ss.source_available_at_utc)
-                                  FROM source_snapshot ss
-                                 WHERE ss.source=ms.source
-                                   AND ss.source_url=ms.source_url
-                                   AND ss.availability_status='EXACT'
-                                   AND ss.source_available_at_utc IS NOT NULL
-                                   AND (ss.event_time_utc IS NULL OR ss.event_time_utc=pe.event_time_utc)) AS source_available_at_utc,
-                               ROW_NUMBER() OVER (
-                                 PARTITION BY ms.event_id
-                                 ORDER BY
-                                   CASE WHEN (
-                                     SELECT MIN(ss.source_available_at_utc)
-                                       FROM source_snapshot ss
-                                      WHERE ss.source=ms.source
-                                        AND ss.source_url=ms.source_url
-                                        AND ss.availability_status='EXACT'
-                                        AND ss.source_available_at_utc IS NOT NULL
-                                        AND (ss.event_time_utc IS NULL OR ss.event_time_utc=pe.event_time_utc)
-                                   ) IS NOT NULL THEN 0 ELSE 1 END,
-                                   ms.effective_at_utc DESC,
-                                   ms.observed_at_utc DESC,
-                                   ms.stat_id DESC
-                               ) AS rn
-                          FROM match_stats ms
-                          JOIN event pe ON pe.event_id=ms.event_id
-                         WHERE ms.sport=?
-                           AND ms.participant_id=?
-                           AND ms.stat_name=?
-                           AND ms.value_num IS NOT NULL
-                           AND ms.effective_at_utc IS NOT NULL
-                      )
-                     WHERE rn=1 AND source_available_at_utc IS NOT NULL
-                     ORDER BY event_time_utc ASC""",(s,pid,st)).fetchall()
+   rows=c.execute("""WITH exact_source_raw AS (
+                SELECT sport,source,source_url,event_time_utc,source_available_at_utc,snapshot_id,content_hash
+                  FROM source_snapshot
+                 WHERE availability_status='EXACT'
+                   AND source_available_at_utc IS NOT NULL
+               ),
+               exact_source_variants AS (
+                SELECT sport,source,source_url,event_time_utc,
+                       COUNT(DISTINCT COALESCE(content_hash,'__NULL_HASH__')) AS variants,
+                       SUM(CASE WHEN content_hash IS NULL THEN 1 ELSE 0 END) AS null_hash_rows
+                  FROM exact_source_raw
+                 GROUP BY sport,source,source_url,event_time_utc
+               ),
+               exact_source AS (
+                SELECT r.sport,r.source,r.source_url,r.event_time_utc,
+                       MIN(r.source_available_at_utc) AS source_available_at_utc,
+                       MIN(r.snapshot_id) AS snapshot_id
+                  FROM exact_source_raw r
+                  JOIN exact_source_variants v
+                    ON v.sport=r.sport
+                   AND v.source=r.source
+                   AND v.source_url=r.source_url
+                   AND (v.event_time_utc IS NULL OR v.event_time_utc=r.event_time_utc)
+                 WHERE v.variants=1
+                   AND (v.null_hash_rows=0 OR v.null_hash_rows=1)
+                 GROUP BY r.sport,r.source,r.source_url,r.event_time_utc
+               ),
+               ranked AS (
+                SELECT ms.value_num,pe.event_time_utc,ms.effective_at_utc,ex.source_available_at_utc,
+                       ROW_NUMBER() OVER (
+                         PARTITION BY ms.event_id
+                         ORDER BY CASE WHEN ex.event_time_utc IS NOT NULL THEN 0 ELSE 1 END,
+                                  ex.source_available_at_utc ASC,ms.effective_at_utc DESC,
+                                  ms.observed_at_utc DESC,ms.stat_id DESC
+                       ) AS rn
+                  FROM match_stats ms
+                  JOIN event pe ON pe.event_id=ms.event_id
+                  JOIN exact_source ex
+                    ON ex.sport=ms.sport
+                   AND ex.source=ms.source
+                   AND ex.source_url=ms.source_url
+                   AND (ex.event_time_utc IS NULL OR ex.event_time_utc=pe.event_time_utc)
+                 WHERE ms.sport=?
+                   AND ms.participant_id=?
+                   AND ms.stat_name=?
+                   AND ms.value_num IS NOT NULL
+                   AND ms.effective_at_utc IS NOT NULL
+               )
+               SELECT value_num,event_time_utc,effective_at_utc,source_available_at_utc
+                 FROM ranked
+                WHERE rn=1
+                ORDER BY event_time_utc ASC""",(s,pid,st)).fetchall()
    prepared=[]
    times=[]
    for value,et,eff,src_avail in rows:
@@ -235,11 +251,9 @@ def _make_stat_history_loader(c,s):
      et_dt=datetime.fromisoformat(str(et).replace('Z','+00:00'))
      eff_dt=datetime.fromisoformat(str(eff).replace('Z','+00:00'))
      avail_dt=datetime.fromisoformat(str(src_avail).replace('Z','+00:00'))
-    except Exception:
-     continue
-    et_ts=et_dt.timestamp(); eff_ts=eff_dt.timestamp(); avail_ts=avail_dt.timestamp()
-    prepared.append((et_ts,float(value),eff_ts,avail_ts))
-    times.append(et_ts)
+    except Exception: continue
+    et_ts=et_dt.timestamp();eff_ts=eff_dt.timestamp();avail_ts=avail_dt.timestamp()
+    prepared.append((et_ts,float(value),eff_ts,avail_ts));times.append(et_ts)
    cache[key]=(times,prepared)
   return cache[key]
  def history(pid,st,event_time,cutoff_dt):
@@ -250,12 +264,10 @@ def _make_stat_history_loader(c,s):
   out=[]
   for i in range(idx,-1,-1):
    et_ts,value,eff_ts,avail_ts=prepared[i]
-   if et_ts>=event_ts:
-    continue
+   if et_ts>=event_ts: continue
    if eff_ts<=cutoff_ts and avail_ts<=cutoff_ts:
     out.append((value,datetime.fromtimestamp(et_ts,timezone.utc).isoformat(),datetime.fromtimestamp(avail_ts,timezone.utc).isoformat()))
-    if len(out)>=20:
-     break
+    if len(out)>=20: break
   return out
  return history,cache
 

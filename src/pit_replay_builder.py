@@ -1,17 +1,19 @@
 from __future__ import annotations
 import argparse
 import hashlib
+import os
 import json
 import sqlite3
 from bisect import bisect_left
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
-from src.research_cycle_v4 import POLICY
+from src.research_policy import POLICY
 from src.storage.db_v45 import utcnow
 
 DB='data/db/sports_v45.sqlite'
 MIN_PIT_GAP=timedelta(minutes=60)
 FEATURE_VERSION='pit-v3-fast-dedup-exact-source'
+REPLAY_GIT_SHA=os.environ.get('GITHUB_SHA')
 
 
 def parse_dt(v):
@@ -83,14 +85,32 @@ def load_stat_history(c, sport, stat_names):
         return {}
     marks=','.join('?' for _ in stat_names)
     sql=f"""
-        WITH exact_source AS (
-            SELECT source,source_url,event_time_utc,
-                   MIN(source_available_at_utc) AS source_available_at_utc,
-                   MIN(snapshot_id) AS snapshot_id
+        WITH exact_source_raw AS (
+            SELECT sport,source,source_url,event_time_utc,source_available_at_utc,snapshot_id,content_hash
               FROM source_snapshot
              WHERE availability_status='EXACT'
                AND source_available_at_utc IS NOT NULL
-             GROUP BY source,source_url,event_time_utc
+        ),
+        exact_source_variants AS (
+            SELECT sport,source,source_url,event_time_utc,
+                   COUNT(DISTINCT COALESCE(content_hash,'__NULL_HASH__')) AS variants,
+                   SUM(CASE WHEN content_hash IS NULL THEN 1 ELSE 0 END) AS null_hash_rows
+              FROM exact_source_raw
+             GROUP BY sport,source,source_url,event_time_utc
+        ),
+        exact_source AS (
+            SELECT r.sport,r.source,r.source_url,r.event_time_utc,
+                   MIN(r.source_available_at_utc) AS source_available_at_utc,
+                   MIN(r.snapshot_id) AS snapshot_id
+              FROM exact_source_raw r
+              JOIN exact_source_variants v
+                ON v.sport=r.sport
+               AND v.source=r.source
+               AND v.source_url=r.source_url
+               AND (v.event_time_utc IS NULL OR v.event_time_utc=r.event_time_utc)
+             WHERE v.variants=1
+               AND (v.null_hash_rows=0 OR v.null_hash_rows=1)
+             GROUP BY r.sport,r.source,r.source_url,r.event_time_utc
         ),
         ranked AS (
             SELECT ms.stat_id,ms.event_id,ms.participant_id,ms.stat_name,ms.value_num,
@@ -108,7 +128,8 @@ def load_stat_history(c, sport, stat_names):
               FROM match_stats ms
               JOIN event pe ON pe.event_id=ms.event_id
               JOIN exact_source ex
-                ON ex.source=ms.source
+                ON ex.sport=ms.sport
+               AND ex.source=ms.source
                AND ex.source_url=ms.source_url
                AND (ex.event_time_utc IS NULL OR ex.event_time_utc=pe.event_time_utc)
              WHERE ms.sport=?
@@ -308,7 +329,8 @@ def main():
 
             pending_replays.append((
                 replay_id,eid,cutoff,'event_time_minus_60m',status,'CLEAN',None,
-                FEATURE_VERSION,'strict-pit',None,None,fingerprint,utcnow(),reason
+                FEATURE_VERSION,'strict-pit',REPLAY_GIT_SHA, None, fingerprint,
+                utcnow(), reason
             ))
             features_written+=feature_count
 

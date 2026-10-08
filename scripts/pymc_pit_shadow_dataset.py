@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -17,17 +18,60 @@ def parse_dt(value: str) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def build(db_path: Path, sport: str | None = None) -> dict:
+def build(
+    db_path: Path,
+    sport: str | None = None,
+    require_current_replay: bool = False,
+    exclude_frozen_holdout: bool = False,
+    frozen_holdout_path: Path | None = None,
+) -> dict:
     selected_sports = (sport,) if sport else ACTIVE_SPORTS
     if any(s not in ACTIVE_SPORTS for s in selected_sports):
         raise ValueError(f"unsupported active sport: {selected_sports}")
     if not db_path.is_file() or db_path.stat().st_size <= 0:
         return {
             "status": "DEFERRED_NO_DB",
+            "github_head_sha": os.environ.get("GITHUB_SHA"),
             "research_only": True,
             "production_dependency": False,
             "automatic_promotion": False,
         }
+
+    holdout_ids = set()
+    holdout_paths = []
+    if exclude_frozen_holdout:
+        if frozen_holdout_path is not None:
+            if sport is None and len(selected_sports) > 1:
+                raise ValueError("explicit frozen_holdout_path requires sport-isolated dataset")
+            holdout_paths = [frozen_holdout_path]
+        else:
+            holdout_paths = [
+                ROOT / "results" / "research" / f"{item}_frozen_holdout.json"
+                for item in selected_sports
+            ]
+        missing = [p for p in holdout_paths if not p.is_file()]
+        if missing:
+            return {
+                "status": "BLOCKED_HOLDOUT_FILE_MISSING",
+                "research_only": True,
+                "production_dependency": False,
+                "automatic_promotion": False,
+                "sport": selected_sports[0] if len(selected_sports) == 1 else None,
+                "frozen_holdout_paths": [str(p) for p in holdout_paths],
+                "missing_frozen_holdout_paths": [str(p) for p in missing],
+            }
+        for holdout_file in holdout_paths:
+            holdout_obj = json.loads(holdout_file.read_text(encoding="utf-8"))
+            holdout_ids.update(str(x) for x in holdout_obj.get("event_ids", []))
+        if not holdout_ids:
+            return {
+                "status": "BLOCKED_HOLDOUT_EMPTY",
+                "research_only": True,
+                "production_dependency": False,
+                "automatic_promotion": False,
+                "sport": selected_sports[0] if len(selected_sports) == 1 else None,
+                "frozen_holdout_paths": [str(p) for p in holdout_paths],
+            }
 
     con = sqlite3.connect(db_path)
     con.row_factory = sqlite3.Row
@@ -61,6 +105,44 @@ def build(db_path: Path, sport: str | None = None) -> dict:
             )
         }
 
+        diagnostic_sql = {
+            "event_rows": f"SELECT COUNT(*) FROM event WHERE sport IN ({marks}) AND event_time_utc IS NOT NULL",
+            "verified_outcomes": f"SELECT COUNT(*) FROM event_outcome WHERE sport IN ({marks}) AND outcome_status='VERIFIED' AND outcome IN ('A','B')",
+            "ab_participant_events": f"""
+                SELECT COUNT(*) FROM (
+                  SELECT ep.event_id
+                  FROM event_participant ep
+                  JOIN event e ON e.event_id=ep.event_id
+                  WHERE e.sport IN ({marks}) AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL
+                  GROUP BY ep.event_id
+                  HAVING COUNT(DISTINCT ep.side)=2
+                )
+            """,
+            "replay_rows": f"""
+                SELECT COUNT(*) FROM pit_replay p JOIN event e ON e.event_id=p.event_id
+                WHERE e.sport IN ({marks})
+            """,
+            "replayable_rows": f"""
+                SELECT COUNT(*) FROM pit_replay p JOIN event e ON e.event_id=p.event_id
+                WHERE e.sport IN ({marks})
+                  AND p.replay_status='REPLAYABLE'
+                  AND p.leakage_status IN ('CLEAN','PASS')
+            """,
+            "clean_feature_rows": f"""
+                SELECT COUNT(*) FROM pit_feature_snapshot
+                WHERE sport IN ({marks}) AND leakage_status IN ('CLEAN','PASS')
+            """,
+            "exact_source_rows": f"""
+                SELECT COUNT(*) FROM source_snapshot
+                WHERE sport IN ({marks})
+                  AND availability_status='EXACT'
+                  AND source_available_at_utc IS NOT NULL
+            """,
+        }
+        diagnostics = {}
+        for name, sql in diagnostic_sql.items():
+            diagnostics[name] = int(con.execute(sql, selected_sports).fetchone()[0])
+
         replays = con.execute(
             f"""
             SELECT p.replay_id,p.event_id,p.prediction_cutoff_at_utc,
@@ -77,10 +159,20 @@ def build(db_path: Path, sport: str | None = None) -> dict:
 
         chosen = {}
         for row in replays:
+            if exclude_frozen_holdout and str(row["event_id"]) in holdout_ids:
+                continue
             chosen.setdefault(row["event_id"], dict(row))
 
         rows = []
+        current_sha = __import__("os").environ.get("GITHUB_SHA")
         for event_id, replay in chosen.items():
+            if require_current_replay and (
+                not current_sha or replay["git_commit_sha"] != current_sha
+            ):
+                raise RuntimeError(
+                    f"REPLAY_PROVENANCE_FAIL:{event_id}:"
+                    f"expected={current_sha}:actual={replay['git_commit_sha']}"
+                )
             event = events.get(event_id)
             sides = participants.get(event_id, {})
             outcome = outcomes.get(event_id)
@@ -169,6 +261,7 @@ def build(db_path: Path, sport: str | None = None) -> dict:
 
         payload = {
             "status": "READY" if rows else "DEFERRED_NO_ELIGIBLE_PIT_ROWS",
+            "github_head_sha": current_sha,
             "research_only": True,
             "production_dependency": False,
             "automatic_promotion": False,
@@ -184,6 +277,22 @@ def build(db_path: Path, sport: str | None = None) -> dict:
             "outcome_used_only_as_label": True,
             "future_source_check": True,
             "feature_leakage_check": True,
+            "current_replay_provenance_required": require_current_replay,
+            "current_replay_provenance_verified": (
+                (not require_current_replay)
+                or (
+                    bool(current_sha)
+                    and bool(rows)
+                    and all(
+                        row.get("replay_git_commit_sha") == current_sha
+                        for row in rows
+                    )
+                )
+            ),
+            "frozen_holdout_excluded": exclude_frozen_holdout,
+            "frozen_holdout_event_count": len(holdout_ids),
+            "frozen_holdout_paths": [str(p) for p in holdout_paths] if exclude_frozen_holdout else [],
+            "diagnostics": diagnostics,
             "rows": rows,
         }
         payload["dataset_sha256"] = hashlib.sha256(
@@ -198,9 +307,24 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default="data/db/sports_v45.sqlite")
     parser.add_argument("--sport", choices=ACTIVE_SPORTS, default=None)
+    parser.add_argument(
+        "--require-current-replay",
+        action="store_true",
+        help="Require every selected replay to carry the current GitHub SHA.",
+    )
+    parser.add_argument(
+        "--exclude-frozen-holdout",
+        action="store_true",
+        help="Fail closed unless the sport frozen-holdout file exists, then exclude its event IDs.",
+    )
     parser.add_argument("--out", default="results/research/pymc_pit_shadow_dataset.json")
     args = parser.parse_args()
-    report = build(Path(args.db), sport=args.sport)
+    report = build(
+        Path(args.db),
+        sport=args.sport,
+        require_current_replay=args.require_current_replay,
+        exclude_frozen_holdout=args.exclude_frozen_holdout,
+    )
     output = ROOT / args.out
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(

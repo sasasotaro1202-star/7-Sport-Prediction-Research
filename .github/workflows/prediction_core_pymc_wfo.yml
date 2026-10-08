@@ -1,0 +1,78 @@
+name: Prediction-Core PyMC Chronological WFO
+on:
+  pull_request:
+    paths:
+      - "scripts/research_pymc_wfo.py"
+      - "scripts/test_pymc_wfo.py"
+      - "scripts/pymc_pit_shadow_dataset.py"
+      - "src/research_policy.py"
+      - "src/pit_replay_builder.py"
+      - "results/research/*_frozen_holdout.json"
+      - ".github/workflows/prediction_core_pymc_wfo.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1"
+permissions:
+  contents: read
+concurrency:
+  group: prediction-core-pymc-wfo-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  wfo:
+    name: PyMC WFO / ${{ matrix.sport }}
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        sport: [basketball, volleyball, ufc, rizin, valorant]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install isolated PyMC research dependency
+        run: python -m pip install --retries 5 --timeout 60 "pymc==6.3.2"
+      - name: Validate WFO contract
+        run: PYTHONPATH=. python scripts/test_pymc_wfo.py
+      - name: Restore sport-scoped PIT cache
+        id: source_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db
+          key: pymc-wfo-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            active-scope-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-research-db-v4-${{ matrix.sport }}-
+            nine-sport-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-target-db-v4-${{ matrix.sport }}-
+      - name: Build current PIT dataset
+        env:
+          SPORT_NAME: ${{ matrix.sport }}
+          CACHE_MATCHED_KEY: ${{ steps.source_cache.outputs.cache-matched-key }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p results/research
+          dataset="results/research/pymc_pit_wfo_dataset_${SPORT_NAME}.json"
+          if [ -z "${CACHE_MATCHED_KEY:-}" ] || [ ! -s data/db/sports_v45.sqlite ]; then
+            printf '%s\n' '{"status":"BLOCKED_NO_PIT_SOURCE_CACHE","sport":"'"${SPORT_NAME}"'","dataset_scope":"SPORT_SINGLE","research_only":true,"production_dependency":false,"automatic_promotion":false,"promotion_status":"HOLD"}' > "${dataset}"
+          else
+            PYTHONPATH=. python -m src.pit_replay_builder --sport "${SPORT_NAME}" --force
+            PYTHONPATH=. python scripts/pymc_pit_shadow_dataset.py --sport "${SPORT_NAME}" --require-current-replay --exclude-frozen-holdout --db data/db/sports_v45.sqlite --out "${dataset}"
+          fi
+      - name: Execute chronological WFO
+        run: PYTHONPATH=. python scripts/research_pymc_wfo.py --dataset "results/research/pymc_pit_wfo_dataset_${{ matrix.sport }}.json" --output "results/research/pymc_wfo_${{ matrix.sport }}.json" --draws 250 --tune 250
+      - name: Upload WFO evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prediction-core-pymc-wfo-${{ matrix.sport }}-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 21
+          path: |
+            results/research/pymc_pit_wfo_dataset_${{ matrix.sport }}.json
+            results/research/pymc_wfo_${{ matrix.sport }}.json
