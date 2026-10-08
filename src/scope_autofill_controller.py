@@ -26,6 +26,7 @@ HISTORY_PATH = OUT_DIR / "scope_autofill_history.jsonl"
 # Free, repository-native collection routes. No commercial API is invoked.
 ACTIONS = {
     "basketball": [
+        ("historical_nba_espn", [sys.executable, "-m", "src.espn_backfill", "--sport", "basketball", "--leagues", "nba", "--start-year", "2016", "--end-year", "2026"], 1200),
         ("historical_b_league", [sys.executable, "-m", "src.basketball_cdn_backfill", "--historical"], 900),
         ("incremental_official", [sys.executable, "-m", "src.seven_sport_production", "--sport", "basketball", "--days-back", "30", "--days-forward", "14"], 420),
     ],
