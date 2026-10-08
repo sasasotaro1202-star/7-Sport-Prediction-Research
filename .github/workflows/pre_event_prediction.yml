@@ -183,11 +183,13 @@ jobs:
           fi
           days_forward="$(python -c 'import sys; lead=int(sys.argv[1]); print(max(7, (lead + 15 + 1439) // 1440))' "$requested_lead")"
           echo "requested lead=$requested_lead window=${min_lead}-${max_lead} days_forward=$days_forward adaptive=$adaptive"
-          echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"
-          echo "min_lead=$min_lead" >> "$GITHUB_OUTPUT"
-          echo "max_lead=$max_lead" >> "$GITHUB_OUTPUT"
-          echo "adaptive=$adaptive" >> "$GITHUB_OUTPUT"
-          echo "days_forward=$days_forward" >> "$GITHUB_OUTPUT"
+          {
+            echo "lead=$requested_lead"
+            echo "min_lead=$min_lead"
+            echo "max_lead=$max_lead"
+            echo "adaptive=$adaptive"
+            echo "days_forward=$days_forward"
+          } >> "$GITHUB_OUTPUT"
           args=(
             --sport "${{ matrix.sport }}"
             --lead-minutes "$requested_lead"
