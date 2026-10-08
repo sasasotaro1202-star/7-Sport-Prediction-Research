@@ -86,13 +86,13 @@ def load_stat_history(c, sport, stat_names):
     marks=','.join('?' for _ in stat_names)
     sql=f"""
         WITH exact_source AS (
-            SELECT source,source_url,event_time_utc,
+            SELECT sport,source,source_url,event_time_utc,
                    MIN(source_available_at_utc) AS source_available_at_utc,
                    MIN(snapshot_id) AS snapshot_id
               FROM source_snapshot
              WHERE availability_status='EXACT'
                AND source_available_at_utc IS NOT NULL
-             GROUP BY source,source_url,event_time_utc
+             GROUP BY sport,source,source_url,event_time_utc
         ),
         ranked AS (
             SELECT ms.stat_id,ms.event_id,ms.participant_id,ms.stat_name,ms.value_num,
@@ -110,7 +110,8 @@ def load_stat_history(c, sport, stat_names):
               FROM match_stats ms
               JOIN event pe ON pe.event_id=ms.event_id
               JOIN exact_source ex
-                ON ex.source=ms.source
+                ON ex.sport=ms.sport
+               AND ex.source=ms.source
                AND ex.source_url=ms.source_url
                AND (ex.event_time_utc IS NULL OR ex.event_time_utc=pe.event_time_utc)
              WHERE ms.sport=?
