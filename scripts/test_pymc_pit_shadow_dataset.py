@@ -41,9 +41,9 @@ for token in (
 
 assert "PIT_SOURCE_CACHE_MISSING" in workflow_source
 assert "INSUFFICIENT_PIT_EVIDENCE" in workflow_source
-assert "Install minimal PIT replay runtime" in workflow_source
-for package in ('"numpy>=1.26"', '"scikit-learn>=1.5"', '"joblib>=1.4"'):
-    assert package in workflow_source, f"missing minimal runtime dependency: {package}"
+assert "Install minimal PIT replay runtime" not in workflow_source
+assert "from src.research_policy import POLICY" in source
+assert "from src.research_cycle_v4 import POLICY" not in source
 assert "pymc_pit_shadow_source_manifest.json" in workflow_source
 assert "pymc_pit_shadow_execution.json" in workflow_source
 assert "PIT_DATASET_ONLY_NO_MODEL_PERFORMANCE_EVIDENCE" in workflow_source
