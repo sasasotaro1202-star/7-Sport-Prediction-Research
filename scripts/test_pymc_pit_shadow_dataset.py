@@ -6,6 +6,8 @@ path = ROOT / "scripts" / "pymc_pit_shadow_dataset.py"
 workflow = ROOT / ".github" / "workflows" / "prediction_core_pymc_pit_shadow.yml"
 source = path.read_text(encoding="utf-8")
 workflow_source = workflow.read_text(encoding="utf-8")
+pit_replay_source = (ROOT / "src" / "pit_replay_builder.py").read_text(encoding="utf-8")
+research_cycle_source = (ROOT / "src" / "research_cycle_v4.py").read_text(encoding="utf-8")
 
 ast.parse(source)
 
@@ -42,8 +44,9 @@ for token in (
 assert "PIT_SOURCE_CACHE_MISSING" in workflow_source
 assert "INSUFFICIENT_PIT_EVIDENCE" in workflow_source
 assert "Install minimal PIT replay runtime" not in workflow_source
-assert "from src.research_policy import POLICY" in source
-assert "from src.research_cycle_v4 import POLICY" not in source
+assert "from src.research_policy import POLICY" in pit_replay_source
+assert "from src.research_policy import POLICY, SPORTS" in research_cycle_source
+assert "from src.research_cycle_v4 import POLICY" not in pit_replay_source
 assert "pymc_pit_shadow_source_manifest.json" in workflow_source
 assert "pymc_pit_shadow_execution.json" in workflow_source
 assert "PIT_DATASET_ONLY_NO_MODEL_PERFORMANCE_EVIDENCE" in workflow_source
