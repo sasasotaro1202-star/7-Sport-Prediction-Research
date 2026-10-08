@@ -1,7 +1,7 @@
 # PROJECT_INSTRUCTIONS — 7-Sport-Prediction-Research
 
 ## Mission
-Five active production lanes: VALORANT, Basketball, Volleyball, UFC and RIZIN. Tennis, F1, Rugby and Boxing remain research-only/deferred until staged scope gates pass.
+Five active production lanes: VALORANT, Basketball, Volleyball, UFC and RIZIN. Basketball currently includes separately managed NBA, B.LEAGUE and Asian Games target competitions. Tennis, F1, Rugby and Boxing remain research-only/deferred until staged scope gates pass.
 Optimize Future Generalization, case-level correctness, probabilistic quality, calibration, uncertainty, predictability awareness, robustness, PIT integrity, information value, selective prediction and operational reliability. Historical fit alone is not success.
 
 ## Every run
