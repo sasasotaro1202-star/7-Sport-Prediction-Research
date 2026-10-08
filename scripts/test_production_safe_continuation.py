@@ -104,7 +104,13 @@ def main() -> int:
     assert "run_attempt < 2" in recovery
     assert "actions/upload-artifact@v4" in recovery
     assert "git add results/failure_memory.jsonl" in recovery
-    assert "git push origin HEAD:main" in recovery
+    assert "scripts/reliable_main_push.py" in recovery
+    assert '--expected-parent "$(git rev-parse HEAD^)"' in recovery
+    assert "git push origin HEAD:main" not in recovery
+    push_helper = (ROOT / "scripts" / "reliable_main_push.py").read_text(encoding="utf-8")
+    assert 'git push origin HEAD:main' in push_helper
+    assert "verify_local_parent" in push_helper
+    assert "RELIABLE_PUSH_STALE_MAIN" in push_helper
     assert "Production Invariants" not in recovery
     assert "Production Safety Audit" not in recovery
     assert "\\${{ " not in recovery
