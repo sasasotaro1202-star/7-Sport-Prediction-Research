@@ -49,15 +49,15 @@ def main() -> int:
     cache_gate_start = text.index("      - name: Gate active-scope database cache publication")
     cache_save_start = text.index("      - name: Save database", cache_gate_start)
     cache_gate = text[cache_gate_start:cache_save_start]
-    assert "          python - <<'PY'\\n" in cache_gate
+    assert "          python - <<'PY'\n" in cache_gate
     assert cache_gate.rstrip().endswith("          PY")
-    assert "PY\\n\\n      - name: Save database" in text
+    assert "PY\n\n      - name: Save database" in text
 
     pre_event = (ROOT / ".github" / "workflows" / "pre_event_prediction.yml").read_text(encoding="utf-8")
     predict_start = pre_event.index("      - name: Generate requested prediction lane")
     adaptive_start = pre_event.index("      - name: Generate adaptive timing research lane", predict_start)
     predict_block = pre_event[predict_start:adaptive_start]
-    assert '{\\n            echo "lead=$requested_lead"' in predict_block
+    assert '{\n            echo "lead=$requested_lead"' in predict_block
     assert '} >> "$GITHUB_OUTPUT"' in predict_block
     assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' not in predict_block
 
