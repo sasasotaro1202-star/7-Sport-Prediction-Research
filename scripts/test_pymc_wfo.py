@@ -17,6 +17,9 @@ assert "GITHUB_SHA: ${{ github.sha }}" in workflow
 assert "github_head_sha" in source
 assert "production_dependency" in source
 assert "automatic_promotion" in source
+assert "reference_model" in source
+assert "incumbent_model_id" in source
+assert "incumbent_comparison_verified" in source
 
 assert "execution_verified" in source
 assert '"performance_verification":False' in source
