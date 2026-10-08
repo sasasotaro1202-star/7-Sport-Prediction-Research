@@ -6,7 +6,7 @@ from pathlib import Path
 
 from src.competition_profiles import resolve_profile
 from src.future_predictor import _prior_record
-from src.research_cycle_v4 import target_event
+from src.research_cycle_v4 import outcome_maps, target_event
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -96,6 +96,49 @@ def main() -> int:
     starts2, wins2, _ = _prior_record(con, "basketball", "p2", cutoff)
     assert (starts1, wins1) == (1, 1)
     assert (starts2, wins2) == (0, 0)
+
+    # NBA ESPN history must remain outside strict OOS when the historical
+    # source snapshot is UNVERIFIABLE, even if the outcome row is marked VERIFIED.
+    con.execute(
+        "INSERT INTO event VALUES (?,?,?,?,?)",
+        ("e_nba_unproven", "basketball", historical_event, "COMPLETED", "NBA"),
+    )
+    con.execute("INSERT INTO event_participant VALUES (?,?,?)", ("e_nba_unproven", "nba_a", "A"))
+    con.execute("INSERT INTO event_participant VALUES (?,?,?)", ("e_nba_unproven", "nba_b", "B"))
+    con.execute(
+        "INSERT INTO event_outcome VALUES (?,?,?,?,?)",
+        ("e_nba_unproven", "basketball", "A", "VERIFIED", "https://example.test/nba_history.json"),
+    )
+    con.execute(
+        """INSERT INTO source_snapshot
+           (sport,source,source_url,event_time_utc,retrieved_at_utc,
+            source_available_at_utc,availability_status)
+           VALUES (?,?,?,?,?,?,?)""",
+        ("basketball", "espn",
+         "https://example.test/nba_history.json", None,
+         "2026-10-03T12:00:00+00:00", None, "UNVERIFIABLE"),
+    )
+    pairs = {
+        "e_nba_unproven": {
+            "time": historical_event,
+            "competition_id": "NBA",
+            "A": "nba_a",
+            "B": "nba_b",
+        }
+    }
+    labels, hist = outcome_maps(con, "basketball", pairs)
+    assert "e_nba_unproven" not in labels
+    assert not any(row[0] == "e_nba_unproven" for row in hist)
+
+    con.execute(
+        """UPDATE source_snapshot
+              SET source_available_at_utc=?, availability_status='EXACT'
+            WHERE source_url=?""",
+        ("2026-09-30T00:00:00+00:00", "https://example.test/nba_history.json"),
+    )
+    labels, hist = outcome_maps(con, "basketball", pairs)
+    assert labels.get("e_nba_unproven") == "A"
+    assert any(row[0] == "e_nba_unproven" for row in hist)
     con.close()
 
     print("BASKETBALL_TARGET_PIT=PASS")
