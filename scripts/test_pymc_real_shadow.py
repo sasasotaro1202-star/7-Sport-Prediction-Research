@@ -23,3 +23,7 @@ print("PYMC_REAL_SHADOW_PIT_PROVENANCE_CONTRACT=PASS")
 
 assert "symmetry_max_abs_error" in src
 assert "PYMC_SYMMETRY_FAIL" in src
+
+assert "fit_logistic_baseline" in src
+assert "matched_feature_logistic_logloss" in src
+assert "pymc_vs_matched_logistic_logloss_delta" in src
