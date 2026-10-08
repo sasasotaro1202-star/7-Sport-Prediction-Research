@@ -1,13 +1,14 @@
 {
   "version": "automation-health-v1",
-  "generated_at_utc": "2026-10-08T15:25:41.437203+00:00",
-  "head_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
-  "control_plane_status": "READY",
+  "generated_at_utc": "2026-10-08T15:29:02.879594+00:00",
+  "head_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
+  "control_plane_status": "DEGRADED",
   "selected_action": "PIT_COVERAGE_REPAIR",
   "selected_workflow": "pit_history_expansion.yml",
   "dispatch_candidate": "PIT_COVERAGE_REPAIR",
   "automatic_promotion": false,
   "reproducibility_status": "STALE_SNAPSHOT",
   "pit_exact_pass": 0,
-  "queue_entry_added": true
+  "pit_replayable_clean": null,
+  "queue_entry_added": false
 }

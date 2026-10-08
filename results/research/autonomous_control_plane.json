@@ -1,9 +1,9 @@
 {
   "version": "autonomous-control-plane-v1",
-  "generated_at_utc": "2026-10-08T15:25:41.437203+00:00",
-  "head_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
-  "state_fingerprint": "4ea6372c387ad005bb22",
-  "status": "READY",
+  "generated_at_utc": "2026-10-08T15:29:02.879594+00:00",
+  "head_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
+  "state_fingerprint": "687c3dbe2db7678ef5a2",
+  "status": "DEGRADED",
   "active_sports": [
     "valorant",
     "basketball",
@@ -18,8 +18,8 @@
     "boxing"
   ],
   "observations": {
-    "observed_at_utc": "2026-10-08T15:25:41.437203+00:00",
-    "head_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+    "observed_at_utc": "2026-10-08T15:29:02.879594+00:00",
+    "head_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
     "reproducibility": {
       "manifest_sha": "9b71c4bcce5099a9c02830ab9cc85aac19ad9f1c",
       "source_sha_match": false,
@@ -31,7 +31,9 @@
       "missing_files": [],
       "head_matches_manifest": false
     },
-    "errors": {},
+    "errors": {
+      "quality_gate.pit_leakage.replayable_clean": "MISSING"
+    },
     "quality": {
       "status": "PASS_WITH_PENDING",
       "pending": [
@@ -40,6 +42,7 @@
         "no_exact_pit_replay_rows"
       ],
       "pit_exact_pass": 0,
+      "pit_replayable_clean": null,
       "pit_workflow_verified": false,
       "pit_research_blocked": true
     },
@@ -55,7 +58,7 @@
     },
     "future_prediction": {
       "generated_at_utc": "2026-10-08T15:19:39.801822+00:00",
-      "age_hours": 0.1004542725,
+      "age_hours": 0.15641049222222222,
       "age_class": "FRESH",
       "statuses": [
         "NO_FUTURE_EVENTS"
@@ -80,9 +83,9 @@
       "source_feasibility": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 4.725399699722222,
+        "age_hours": 4.781355918055556,
         "head_sha": "1d8efb57215c9df4d9d7f1ff36cbec3fb1e7bbf8",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -93,9 +96,9 @@
       "scope_autofill": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 1.9362330369444445,
+        "age_hours": 1.9921892547222224,
         "head_sha": "ead9e79c0c372a06bedaa455dd23879f2eadf27a",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -106,9 +109,9 @@
       "runtime_health": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 2.1423441508333334,
+        "age_hours": 2.1983003683333333,
         "head_sha": "1d8efb57215c9df4d9d7f1ff36cbec3fb1e7bbf8",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -117,24 +120,24 @@
         "stale": true
       },
       "safety_audit": {
-        "run_status": "pending",
-        "status": "IN_PROGRESS",
-        "age_hours": 0.011510819722222223,
-        "head_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "run_status": "completed",
+        "status": "HEALTHY",
+        "age_hours": 0.023300370555555554,
+        "head_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": true,
         "main_compatibility": "EXACT_CURRENT_MAIN",
-        "conclusion": null,
-        "run_id": 37800583542,
-        "active_run_any": true,
-        "stale": true
+        "conclusion": "success",
+        "run_id": 37800945616,
+        "active_run_any": false,
+        "stale": false
       },
       "lane_audit": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 1.667344155277778,
+        "age_hours": 1.7233003725,
         "head_sha": "5102c01756ee1c72cc7a0d1eb482cc72acb3806c",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -145,9 +148,9 @@
       "research_sweep": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 0.5848441575,
+        "age_hours": 0.6408003741666667,
         "head_sha": "da9d6d9121d77e80f976cf9c2bbeb7dff6b50733",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -158,9 +161,9 @@
       "deep_research": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 15.351510825833332,
+        "age_hours": 15.407467042499999,
         "head_sha": "5f0142356c3e4ea949a8bda532aa5b617df32f5e",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "failure",
@@ -171,9 +174,9 @@
       "pre_event_prediction": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 0.7570663833333333,
+        "age_hours": 0.8130225997222222,
         "head_sha": "9b71c4bcce5099a9c02830ab9cc85aac19ad9f1c",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -184,9 +187,9 @@
       "production": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 0.5909552738888889,
+        "age_hours": 0.6469114905555555,
         "head_sha": "9b71c4bcce5099a9c02830ab9cc85aac19ad9f1c",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -197,22 +200,22 @@
       "pit_history": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 1.3106774980555556,
-        "head_sha": "9b71c4bcce5099a9c02830ab9cc85aac19ad9f1c",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "age_hours": 0.052744825555555555,
+        "head_sha": "07574ce64f11993920b5c33c5f7ec0c8e8265d98",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
-        "run_id": 37789833631,
+        "run_id": 37800704621,
         "active_run_any": false,
         "stale": true
       },
       "failure_recovery": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 1.3784552775,
+        "age_hours": 1.434411493888889,
         "head_sha": "c846e0b8b4ef4e1b401523f28c809b500cbf30bd",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "skipped",
@@ -223,9 +226,9 @@
       "watchdog": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 0.610677501388889,
+        "age_hours": 0.6666337177777777,
         "head_sha": "9b71c4bcce5099a9c02830ab9cc85aac19ad9f1c",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -234,50 +237,50 @@
         "stale": true
       },
       "invariants": {
-        "run_status": "in_progress",
-        "status": "IN_PROGRESS",
-        "age_hours": 0.011510836111111112,
-        "head_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "run_status": "completed",
+        "status": "HEALTHY",
+        "age_hours": 0.02330038611111111,
+        "head_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": true,
         "main_compatibility": "EXACT_CURRENT_MAIN",
-        "conclusion": null,
-        "run_id": 37800583697,
-        "active_run_any": true,
-        "stale": true
+        "conclusion": "success",
+        "run_id": 37800945729,
+        "active_run_any": false,
+        "stale": false
       },
       "lightweight_regression": {
-        "run_status": "in_progress",
+        "run_status": "pending",
         "status": "IN_PROGRESS",
-        "age_hours": 0.0115108375,
-        "head_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "age_hours": 0.023300387777777775,
+        "head_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": true,
         "main_compatibility": "EXACT_CURRENT_MAIN",
         "conclusion": null,
-        "run_id": 37800583587,
+        "run_id": 37800945674,
         "active_run_any": true,
         "stale": true
       },
       "control_plane_regression": {
         "run_status": "completed",
-        "status": "STALE",
-        "age_hours": 1.9645663949999999,
-        "head_sha": "81f6030121e4f1b2e7a49538e59bf19488c0dbe5",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
-        "sha_match": false,
-        "main_compatibility": "MEANINGFUL_OR_DIVERGED",
+        "status": "HEALTHY",
+        "age_hours": 0.023300389722222224,
+        "head_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
+        "sha_match": true,
+        "main_compatibility": "EXACT_CURRENT_MAIN",
         "conclusion": "success",
-        "run_id": 37784531248,
+        "run_id": 37800945705,
         "active_run_any": false,
-        "stale": true
+        "stale": false
       },
       "trajectory_research": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 6.810677507777778,
+        "age_hours": 6.866633725000001,
         "head_sha": "1d8efb57215c9df4d9d7f1ff36cbec3fb1e7bbf8",
-        "current_main_sha": "b2279b1931d1aa9f8a387dd2dccc0135a05662a6",
+        "current_main_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -341,7 +344,7 @@
     "status": "DISPATCH_CANDIDATE",
     "automatic_promotion": false,
     "selection_rule": "max(priority) with deterministic action/target tie-break",
-    "fingerprint": "d5d67f42d93243a35eab"
+    "fingerprint": "9b574d0787ad9166344b"
   },
   "dispatch_action": {
     "action": "PIT_COVERAGE_REPAIR",
@@ -362,11 +365,11 @@
   },
   "automatic_promotion": false,
   "queue": {
-    "fingerprint": "d5d67f42d93243a35eab",
+    "fingerprint": "9b574d0787ad9166344b",
     "key": "5a4c9dc6ad2d507e723c",
-    "added": true,
-    "previous_key": "423b3c1f492154f56af2",
-    "previous_state_fingerprint": "db0ee2e6dc9054f62e0c",
+    "added": false,
+    "previous_key": "5a4c9dc6ad2d507e723c",
+    "previous_state_fingerprint": "4ea6372c387ad005bb22",
     "identity_policy": "action+workflow+target"
   },
   "allowed_workflows": {
