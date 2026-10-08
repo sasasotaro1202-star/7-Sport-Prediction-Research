@@ -623,9 +623,14 @@ def main():
             and 'run_attempt < 2' in recovery_src
             and 'actions/upload-artifact@v4' in recovery_src,
             'failure memory is not ordered before bounded recovery/evidence preservation')
+    reliable_push_src=(ROOT/'scripts/reliable_main_push.py').read_text(encoding='utf-8')
     require('git add results/failure_memory.jsonl' in recovery_src
-            and 'git push origin HEAD:main' in recovery_src,
-            'failure memory is not persisted explicitly to main')
+            and 'scripts/reliable_main_push.py' in recovery_src
+            and '--expected-parent "$(git rev-parse HEAD^)"' in recovery_src
+            and 'git push origin HEAD:main' in reliable_push_src
+            and 'verify_local_parent' in reliable_push_src
+            and 'RELIABLE_PUSH_STALE_MAIN' in reliable_push_src,
+            'failure memory is not persisted explicitly to main through the fail-closed push helper')
     watchdog_src=(ROOT/'.github/workflows/production_watchdog.yml').read_text(encoding='utf-8')
     require('cancel-in-progress: false' in watchdog_src,
             'production watchdog must not self-cancel concurrent recovery events')
