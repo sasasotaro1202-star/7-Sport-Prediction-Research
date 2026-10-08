@@ -148,7 +148,13 @@ def outcome_maps(c,s,pairs):
  # handled separately by the stat-history PIT loader.
  cols={row[1] for row in c.execute("PRAGMA table_info(event)").fetchall()}
  end_expr="e.event_end_time_utc" if "event_end_time_utc" in cols else "NULL"
- q=f"""SELECT e.event_id,e.event_time_utc,{end_expr} AS event_end_time_utc,o.outcome
+ q=f"""SELECT e.event_id,e.event_time_utc,{end_expr} AS event_end_time_utc,o.outcome,
+              (SELECT MIN(ss.source_available_at_utc)
+                 FROM source_snapshot ss
+                WHERE ss.sport=e.sport
+                  AND ss.source_url=o.source_url
+                  AND ss.availability_status='EXACT'
+                  AND ss.source_available_at_utc IS NOT NULL) AS exact_source_available_at_utc
          FROM event e
          JOIN event_outcome o
            ON o.event_id=e.event_id
@@ -156,9 +162,14 @@ def outcome_maps(c,s,pairs):
           AND o.outcome IN ('A','B')
         WHERE e.sport=?
         ORDER BY e.event_time_utc,e.event_id"""
- for eid,t,end_t,o in c.execute(q,(s,)).fetchall():
+ for eid,t,end_t,o,exact_source_available in c.execute(q,(s,)).fetchall():
   p=pairs.get(eid)
   if not p or 'A' not in p or 'B' not in p:continue
+  is_nba = s == 'basketball' and str(p.get('competition_id') or '').upper() == 'NBA'
+  # NBA ESPN history stays outside strict OOS until historical source availability
+  # is explicitly proven. Retrieval alone is not a PIT publication/availability proof.
+  if is_nba and not exact_source_available:
+   continue
   labels[eid]=o
   try:
    et=datetime.fromisoformat(str(t).replace('Z','+00:00'))
@@ -168,6 +179,11 @@ def outcome_maps(c,s,pairs):
     if realized.tzinfo is None: realized=realized.replace(tzinfo=timezone.utc)
    else:
     realized=et+timedelta(hours=24)
+   if exact_source_available:
+    src_avail=datetime.fromisoformat(str(exact_source_available).replace('Z','+00:00'))
+    if src_avail.tzinfo is None: src_avail=src_avail.replace(tzinfo=timezone.utc)
+    if src_avail > realized:
+     realized=src_avail
    hist.append((eid,t,p['A'],p['B'],o,realized.isoformat()))
   except Exception:
    continue
