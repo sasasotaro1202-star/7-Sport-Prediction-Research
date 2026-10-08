@@ -619,6 +619,8 @@ strict candidate examples:
 
 ただしhistorical availability and cutoff must be proven.
 
+新しいparticipant-context standardでは、UFCStats fighter profileをprospectiveに取得し、height / weight / reach / DOB / stance / record / career-rate statisticsをparticipant_historyへ保存する。予測cutoff以前にprofile自体のsource availabilityが証明された観測だけを特徴量候補にする。後付けのhistorical profile推定は禁止する。
+
 現行監査値の一例:
 
 train: 7,293
@@ -2053,3 +2055,159 @@ Future Generalization
 「より複雑なモデル」ではなく、
 「将来未知のイベントで、いつ、何を、どの情報から、どのモデルで、どの程度確信して予測し、必要なら追加情報を取り、危険ならfallback/abstainし、失敗したら原因を特定して次の研究へ変換できるsystem」
 を最終的なPrediction Intelligenceと定義する。
+
+
+---
+
+77. PARTICIPANT / ENTITY CONTEXT FEATURE INTELLIGENCE
+
+Participant, player, fighter, driver and team context is a first-class data layer across all sports. The objective is not to maximize the number of columns; it is to capture information that is plausibly available before the cutoff and contributes incremental future-generalization value.
+
+Entity context is separated into:
+* identity and scope
+* static or slowly changing profile
+* time-varying status
+* cumulative career/season context
+* recent form
+* opponent-strength context
+* head-to-head context
+* competition context
+* event-specific context
+* detailed performance statistics
+
+Examples by sport may include, when valid and PIT-proven:
+* UFC/RIZIN: age, height, weight, reach, stance, handedness, record, career-rate statistics, recent activity, opponent strength
+* Basketball/Volleyball/VALORANT: roster/player participation, role, rankings/ratings, season/team context, recent workload and player-level performance
+* Tennis: age, handedness, ranking, surface-specific form, round, rest and opponent strength
+* F1: driver identity, team/constructor state, qualifying/race context, circuit/event type
+* Rugby/Boxing: lineup/fighter identity, position/weight class, availability, recent form and opponent context
+
+These are examples, not permission to fabricate or backfill unproven history. Sport-specific semantics and availability remain authoritative.
+
+78. PROFILE / CUMULATIVE / EVENT SEMANTICS
+
+Never mix static profile data with post-event statistics.
+
+For every candidate feature, record whether it is:
+* profile_state
+* historical_cumulative_state
+* recent_state
+* event_state
+* competition_state
+* source_quality_state
+
+A profile attribute may only be applied at a cutoff when the attribute was effective and the profile source itself was available by that cutoff. A later profile page that describes an older athlete state is not automatically historical PIT evidence.
+
+79. CANONICAL PARTICIPANT CONTEXT STORAGE
+
+Use canonical participant/team IDs for attachment. Persist raw source identity, canonical identity, source URL, observed_at, effective_at, source_available_at, quality and revision lineage.
+
+Fuzzy matching can generate candidates only. Final attachment requires deterministic identity evidence or an explicit verified mapping. Silent merge is prohibited.
+
+80. FEATURE FAMILY ARCHITECTURE
+
+Feature families are preferred to uncontrolled arbitrary feature subsets.
+
+Minimum semantic families:
+* rating
+* form
+* workload
+* opponent_strength
+* head_to_head
+* detailed_statistics
+* participant_profile
+* competition_context
+* event_context
+* interaction
+* source/data quality
+
+A family can contain many derived statistics. The model need not consume every member.
+
+81. CHRONOLOGICAL FEATURE-PATTERN SEARCH
+
+When multiple feature families and aggregations are available, pattern selection must use a nested chronological procedure:
+
+training prefix
+→ inner chronological validation
+→ pattern selection
+→ locked main OOS
+→ robustness
+→ frozen holdout
+
+The pattern search:
+* must never read frozen-holdout outcomes;
+* must never tune on main OOS outcomes;
+* must not use future revisions;
+* must use the same identity/PIT rules as production;
+* must record candidate patterns, objective, family coverage, fold metrics and selection provenance;
+* must include a bounded search budget;
+* should prefer simpler patterns when predictive quality is effectively tied;
+* must not turn missingness into an unverified semantic signal merely because it improves a local score.
+
+82. PATTERN SEARCH OBJECTIVE
+
+The default pattern-search objective should balance:
+* mean chronological LogLoss
+* fold-to-fold stability
+* Brier/probabilistic quality
+* worst-period degradation
+* pattern complexity
+* feature-family coverage
+* computational cost
+
+A research search may use a lightweight probe model to rank patterns before the full model pool is evaluated. Probe selection must be fixed before the evaluation and cannot inspect the frozen holdout.
+
+83. CROSS-SPORT ENRICHMENT STANDARD
+
+Every sport-specific adapter should attempt the highest-value participant/team/context sources available under the free-first policy.
+
+For each adapter, audit:
+* source reachability
+* historical availability
+* PIT evidence
+* identity coverage
+* attribute completeness
+* revision behavior
+* freshness
+* incremental information value
+* failure rate
+* cost/license constraints
+
+A sport remains DEFERRED when high-value context cannot be historically and PIT-safely proven. Do not replace missing proof with current-page inference.
+
+84. FEATURE ADOPTION GATE
+
+A participant/context feature or feature pattern can move from research to production only when:
+* identity integrity is proven;
+* effective_at and source_available_at satisfy the cutoff;
+* missingness semantics are explicit;
+* no leakage/meta-leakage is detected;
+* chronological OOS is positive or non-degraded under the existing benchmark;
+* robustness is acceptable;
+* frozen holdout is non-degraded;
+* calibration is not materially degraded;
+* computational/operational cost remains acceptable;
+* reproducibility and lineage are preserved.
+
+The existence of a profile parser, a populated database column, or a green workflow is not adoption evidence.
+
+85. FEATURE FRONTIER / INFORMATION VALUE
+
+When feature volume becomes large, research priority is driven by incremental information value, not column count. Compare:
+* baseline family
+* added family
+* family interactions
+* timing-dependent availability
+* source combinations
+
+and measure delta LogLoss/Brier, calibration, uncertainty, OOD/failure avoidance, coverage and cost.
+
+Repeatedly non-incremental feature families should be deprioritized; high-value families with weak coverage should trigger coverage/PIT research rather than blind model complexity.
+
+86. FINAL ENRICHMENT RULE
+
+The system should continually ask:
+
+"Which information about this specific participant/team/event was genuinely available at prediction time, can be attached to the correct canonical entity, and has demonstrated incremental value on unseen future periods?"
+
+That question, rather than "How many features can be added?", is the default rule for all current and future sports.
