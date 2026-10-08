@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert ok["diagnostics"]["replayable_rows"] == 1
         holdout = Path(tmp) / "basketball_frozen_holdout.json"
         holdout.write_text(
-            '{"version":"test","sport":"basketball","event_ids":["e1"]}\n",
+            '{"version":"test","sport":"basketball","event_ids":["e1"]}\n',
             encoding="utf-8",
         )
         excluded = build(
