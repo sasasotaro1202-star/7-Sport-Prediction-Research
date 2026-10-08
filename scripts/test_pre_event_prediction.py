@@ -133,7 +133,9 @@ def main() -> None:
     assert "must be 5-180" not in workflow
     assert "no artificial upper bound" in workflow
     assert '--lead-minutes "$requested_lead"' in workflow
-    assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' in workflow
+    assert 'echo "lead=$requested_lead"' in workflow
+    assert '} >> "$GITHUB_OUTPUT"' in workflow
+    assert 'echo "lead=$requested_lead" >> "$GITHUB_OUTPUT"' not in workflow
     assert "adaptive_research_rc" in workflow
     assert '--target-lead-minutes "${{ steps.predict.outputs.lead }}"' in workflow
     assert "cron: '3-58/15 * * * *'" in workflow
