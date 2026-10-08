@@ -20,3 +20,6 @@ assert "--require-current-replay" in workflow
 assert "from src.research_policy import POLICY" in pit
 assert "from src.research_cycle_v4 import POLICY" not in pit
 print("PYMC_REAL_SHADOW_PIT_PROVENANCE_CONTRACT=PASS")
+
+assert "symmetry_max_abs_error" in src
+assert "PYMC_SYMMETRY_FAIL" in src
