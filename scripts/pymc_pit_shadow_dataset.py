@@ -61,6 +61,44 @@ def build(db_path: Path, sport: str | None = None, require_current_replay: bool 
             )
         }
 
+        diagnostic_sql = {
+            "event_rows": f"SELECT COUNT(*) FROM event WHERE sport IN ({marks}) AND event_time_utc IS NOT NULL",
+            "verified_outcomes": f"SELECT COUNT(*) FROM event_outcome WHERE sport IN ({marks}) AND outcome_status='VERIFIED' AND outcome IN ('A','B')",
+            "ab_participant_events": f"""
+                SELECT COUNT(*) FROM (
+                  SELECT ep.event_id
+                  FROM event_participant ep
+                  JOIN event e ON e.event_id=ep.event_id
+                  WHERE e.sport IN ({marks}) AND ep.side IN ('A','B') AND ep.participant_id IS NOT NULL
+                  GROUP BY ep.event_id
+                  HAVING COUNT(DISTINCT ep.side)=2
+                )
+            """,
+            "replay_rows": f"""
+                SELECT COUNT(*) FROM pit_replay p JOIN event e ON e.event_id=p.event_id
+                WHERE e.sport IN ({marks})
+            """,
+            "replayable_rows": f"""
+                SELECT COUNT(*) FROM pit_replay p JOIN event e ON e.event_id=p.event_id
+                WHERE e.sport IN ({marks})
+                  AND p.replay_status='REPLAYABLE'
+                  AND p.leakage_status IN ('CLEAN','PASS')
+            """,
+            "clean_feature_rows": f"""
+                SELECT COUNT(*) FROM pit_feature_snapshot
+                WHERE sport IN ({marks}) AND leakage_status IN ('CLEAN','PASS')
+            """,
+            "exact_source_rows": f"""
+                SELECT COUNT(*) FROM source_snapshot
+                WHERE sport IN ({marks})
+                  AND availability_status='EXACT'
+                  AND source_available_at_utc IS NOT NULL
+            """,
+        }
+        diagnostics = {}
+        for name, sql in diagnostic_sql.items():
+            diagnostics[name] = int(con.execute(sql, selected_sports).fetchone()[0])
+
         replays = con.execute(
             f"""
             SELECT p.replay_id,p.event_id,p.prediction_cutoff_at_utc,
@@ -200,6 +238,7 @@ def build(db_path: Path, sport: str | None = None, require_current_replay: bool 
                     for row in rows
                 )
             ),
+            "diagnostics": diagnostics,
             "rows": rows,
         }
         payload["dataset_sha256"] = hashlib.sha256(
