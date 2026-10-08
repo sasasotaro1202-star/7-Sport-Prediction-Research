@@ -542,32 +542,6 @@ jobs:
                 cancel_run "$run_id"
               fi
             done
-          done\t' read -r run_id status _event _created_at head_sha; do
-              [ -n "$run_id" ] || continue
-
-              if [ "$head_sha" = "$main_sha" ]; then
-                echo "CURRENT_MAIN_HEAVY_RUN_PRESERVED run_id=$run_id workflow=$workflow sha=$head_sha status=$status"
-                continue
-              fi
-
-              advance_status="$(classify_main_advance_remote "$head_sha" "$main_sha")"
-              case "$advance_status" in
-                DURABLE_ONLY)
-                  echo "DURABLE_ONLY_HEAVY_RUN_PRESERVED run_id=$run_id workflow=$workflow sha=$head_sha main=$main_sha status=$status"
-                  continue
-                  ;;
-                NON_DURABLE_CHANGE|UNVERIFIABLE)
-                  echo "STALE_UNSAFE_HEAVY_RUN run_id=$run_id workflow=$workflow sha=$head_sha main=$main_sha status=$status classification=$advance_status"
-                  cancel_run "$run_id"
-                  ;;
-                *)
-                  echo "UNKNOWN_MAIN_ADVANCE_CLASSIFICATION run_id=$run_id workflow=$workflow sha=$head_sha main=$main_sha status=$status class=$advance_status" >&2
-                  cancel_run "$run_id"
-                  ;;
-              esac
-            done
-          done
-
       - name: Ensure validated latest-main production is continuously scheduled
         if: steps.rescue_guard.outputs.eligible == 'true'
         env:
