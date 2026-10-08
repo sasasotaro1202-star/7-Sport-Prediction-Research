@@ -32,6 +32,10 @@ jobs:
           python-version: '3.12'
       - name: Install validation dependencies
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Validate canonical production workflow YAML
+        run: |
+          set -euo pipefail
+          ruby -e 'require "yaml"; data = YAML.load_file(".github/workflows/v4_5_15_production.yml"); abort "workflow YAML is empty" unless data.is_a?(Hash) && data["jobs"].is_a?(Hash) && !data["jobs"].empty?; puts "PRODUCTION_WORKFLOW_YAML=PASS"'
       - name: Run model system smoke test
         run: PYTHONPATH=. python scripts/model_system_smoke.py
       - name: Run production invariants
