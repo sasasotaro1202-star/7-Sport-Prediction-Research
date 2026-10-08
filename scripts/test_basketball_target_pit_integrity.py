@@ -19,6 +19,9 @@ def main() -> int:
     assert resolve_profile("basketball", "NBA", None)["matched"] is True
     assert target_event("basketball", "Boston Celtics vs Los Angeles Lakers", "NBA") is True
 
+    assert resolve_profile("basketball", "NBA", None)["matched"] is True
+    assert target_event("basketball", "Boston Celtics vs Los Angeles Lakers", "NBA") is True
+
     for tier in ("B.PREMIER", "B.ONE", "B.TWO"):
         assert resolve_profile("basketball", tier, None)["matched"] is True
         assert target_event("basketball", "Chiba Jets vs Shimane Susanoo Magic", tier) is True
