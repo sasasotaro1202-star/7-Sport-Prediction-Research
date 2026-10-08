@@ -142,6 +142,7 @@ jobs:
               python -m src.valorant_git_provenance
               ;;
             basketball)
+              python -m src.espn_backfill --sport basketball --leagues nba --start-year 2016 --end-year 2026
               python -m src.basketball_cdn_backfill --official-only
               ;;
             volleyball)
