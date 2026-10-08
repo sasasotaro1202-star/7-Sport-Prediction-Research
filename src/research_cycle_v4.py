@@ -197,7 +197,8 @@ def _make_stat_history_loader(c,s):
                         SELECT ms.value_num,pe.event_time_utc,ms.effective_at_utc,
                                (SELECT MIN(ss.source_available_at_utc)
                                   FROM source_snapshot ss
-                                 WHERE ss.source=ms.source
+                                 WHERE ss.sport=ms.sport
+                                   AND ss.source=ms.source
                                    AND ss.source_url=ms.source_url
                                    AND ss.availability_status='EXACT'
                                    AND ss.source_available_at_utc IS NOT NULL
