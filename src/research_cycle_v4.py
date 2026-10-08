@@ -14,8 +14,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score,brier_score_loss,log_loss
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research';SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')
-POLICY={'valorant':('rating','acs','adr','kast','k_d','fk_fd'),'basketball':('points','rebounds','assists','steals','blocks','turnovers','fieldGoalPct','threePointPct','freeThrowPct'),'volleyball':('attack','serve','receive','block','error','sideout'),'tennis':('ace','double_fault','first_serve','first_serve_points_won','break_points_saved','break_points_won'),'ufc':('sig_str','takedown','td_pct','sub_attempts','control_time'),'rizin':('sig_str','takedown','td_pct','sub_attempts','control_time'),'f1':(),'rugby':(),'boxing':()}
+ROOT=Path(__file__).resolve().parents[1];DB=ROOT/'data/db/sports_v45.sqlite';MODELS=ROOT/'models/research';RESULTS=ROOT/'results/research'
+from src.research_policy import POLICY, SPORTS
 def utc():return datetime.now(timezone.utc).isoformat()
 def h(x):return hashlib.sha256(json.dumps(x,sort_keys=True,default=str).encode()).hexdigest()[:16]
 def target_event(s,name,competition_id):
@@ -197,7 +197,8 @@ def _make_stat_history_loader(c,s):
                         SELECT ms.value_num,pe.event_time_utc,ms.effective_at_utc,
                                (SELECT MIN(ss.source_available_at_utc)
                                   FROM source_snapshot ss
-                                 WHERE ss.source=ms.source
+                                 WHERE ss.sport=ms.sport
+                                   AND ss.source=ms.source
                                    AND ss.source_url=ms.source_url
                                    AND ss.availability_status='EXACT'
                                    AND ss.source_available_at_utc IS NOT NULL
