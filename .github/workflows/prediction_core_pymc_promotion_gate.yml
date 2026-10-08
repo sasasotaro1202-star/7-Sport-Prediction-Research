@@ -4,13 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "27 7 * * 1"
-  push:
-    paths:
-      - "scripts/pymc_promotion_gate.py"
-      - "scripts/test_pymc_promotion_gate.py"
-      - ".github/workflows/prediction_core_pymc_promotion_gate.yml"
-      - "results/research/pymc_promotion_evidence/**"
-
 permissions:
   contents: read
 
