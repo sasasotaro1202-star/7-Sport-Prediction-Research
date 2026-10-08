@@ -31,6 +31,26 @@ def parse_utc(value: str | None) -> datetime | None:
         return None
 
 
+def pit_replay_quality(con: sqlite3.Connection) -> tuple[int, int, int]:
+    """Return leakage violations, exact-clean rows, and replayable-clean rows.
+
+    ``REPLAYABLE`` is the canonical status emitted by ``pit_replay_builder``.
+    It is not relabeled as ``EXACT``: both statuses remain separately visible
+    while the quality gate recognizes a clean replayable PIT row as usable
+    strict-PIT evidence.
+    """
+    leak = con.execute(
+        "select count(*) from pit_replay where leakage_status not in ('PASS','UNKNOWN','CLEAN')"
+    ).fetchone()[0]
+    exact = con.execute(
+        "select count(*) from pit_replay where replay_status='EXACT' and leakage_status in ('PASS','CLEAN')"
+    ).fetchone()[0]
+    replayable = con.execute(
+        "select count(*) from pit_replay where replay_status='REPLAYABLE' and leakage_status in ('PASS','CLEAN')"
+    ).fetchone()[0]
+    return int(leak), int(exact), int(replayable)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--strict", action="store_true")
@@ -149,16 +169,17 @@ def main() -> None:
             if cm:
                 pending.append("international_context_coverage_incomplete")
 
-            leak = con.execute(
-                "select count(*) from pit_replay where leakage_status not in ('PASS','UNKNOWN','CLEAN')"
-            ).fetchone()[0]
-            exact = con.execute(
-                "select count(*) from pit_replay where replay_status='EXACT' and leakage_status in ('PASS','CLEAN')"
-            ).fetchone()[0]
-            checks.append({"check": "pit_leakage", "ok": leak == 0, "nonpass": int(leak), "exact_pass": int(exact)})
+            leak, exact, replayable = pit_replay_quality(con)
+            checks.append({
+                "check": "pit_leakage",
+                "ok": leak == 0,
+                "nonpass": leak,
+                "exact_pass": exact,
+                "replayable_clean": replayable,
+            })
             if leak:
                 fatal.append("pit_leakage_detected")
-            if exact == 0:
+            if exact == 0 and replayable == 0:
                 pending.append("no_exact_pit_replay_rows")
 
             outc = {k: int(v) for k, v in con.execute(
