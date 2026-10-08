@@ -42,6 +42,8 @@ for token in (
 assert "PIT_SOURCE_CACHE_MISSING" in workflow_source
 assert "INSUFFICIENT_PIT_EVIDENCE" in workflow_source
 assert "pymc_pit_shadow_source_manifest.json" in workflow_source
+assert "pymc_pit_shadow_execution.json" in workflow_source
+assert "PIT_DATASET_ONLY_NO_MODEL_PERFORMANCE_EVIDENCE" in workflow_source
 assert "needs.collect-pit-source.result != 'success'" in workflow_source
 assert "MERGED_PIT_DB_SCOPE_CONTAMINATION" in workflow_source
 
