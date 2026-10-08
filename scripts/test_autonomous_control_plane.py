@@ -191,6 +191,45 @@ def test_verified_pit_workflow_suppresses_stale_quality_block() -> None:
         assert state["quality"]["pit_research_blocked"] is False
 
 
+def test_clean_replayable_pit_suppresses_quality_block_without_exact_rows() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        bind(root)
+        fixture(root)
+        os.environ["GITHUB_SHA"] = "new-sha"
+
+        quality = json.loads((root / "results/quality_gate.json").read_text(encoding="utf-8"))
+        quality["pending"] = ["no_exact_pit_replay_rows"]
+        quality["checks"] = [{
+            "check": "pit_leakage",
+            "exact_pass": 0,
+            "replayable_clean": 1122,
+        }]
+        (root / "results/quality_gate.json").write_text(
+            json.dumps(quality), encoding="utf-8"
+        )
+
+        snapshot = json.loads(cp.ACTIONS_SNAPSHOT.read_text(encoding="utf-8"))
+        snapshot["workflows"]["pit_history_expansion.yml"] = {
+            "latest": {
+                "databaseId": 103,
+                "status": "completed",
+                "conclusion": "failure",
+                "createdAt": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+                "headSha": "old-sha",
+                "mainCompatibility": "MEANINGFUL_OR_DIVERGED",
+            }
+        }
+        cp.ACTIONS_SNAPSHOT.write_text(json.dumps(snapshot), encoding="utf-8")
+
+        state = cp.inspect()
+
+        assert state["quality"]["pit_exact_pass"] == 0
+        assert state["quality"]["pit_replayable_clean"] == 1122
+        assert state["quality"]["pit_workflow_verified"] is False
+        assert state["quality"]["pit_research_blocked"] is False
+
+
 def test_control_plane_snapshot_records_main_compatibility() -> None:
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "autonomous_control_plane.yml"
     text = workflow.read_text(encoding="utf-8")
