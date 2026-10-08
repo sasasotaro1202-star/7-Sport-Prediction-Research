@@ -310,7 +310,7 @@ def main():
 
             pending_replays.append((
                 replay_id,eid,cutoff,'event_time_minus_60m',status,'CLEAN',None,
-                FEATURE_VERSION,'strict-pit',REPLAY_GIT_SHA, fingerprint,
+                FEATURE_VERSION,'strict-pit',REPLAY_GIT_SHA, None, fingerprint,
                 utcnow(), reason
             ))
             features_written+=feature_count
