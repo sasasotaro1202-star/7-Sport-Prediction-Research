@@ -72,11 +72,41 @@ def run(dataset,draws=250,tune=250,seed=7):
     n=len(rows); width=max(50,n//10); folds=[]
     for i,end in enumerate([n-3*width,n-2*width,n-width],1):
         f=fit_fold(make_fold(rows,end,end+width,tuple(POLICY[sport])),draws,tune,seed+i); f.update({"fold":i,"train_end_index":end,"test_end_index":end+width,"chronological":True,"event_cluster_one_case":True}); folds.append(f)
-    ll=np.asarray([f["metrics"]["logloss"] for f in folds]); br=np.asarray([f["metrics"]["brier"] for f in folds]); ac=np.asarray([f["metrics"]["accuracy"] for f in folds]); es=np.asarray([f["metrics"]["ece"] for f in folds])
-    mll=np.asarray([f["metrics"]["matched_logistic_logloss"] for f in folds]); mbr=np.asarray([f["metrics"]["matched_logistic_brier"] for f in folds])
+    ll=np.asarray([f["metrics"]["logloss"] for f in folds])
+    br=np.asarray([f["metrics"]["brier"] for f in folds])
+    ac=np.asarray([f["metrics"]["accuracy"] for f in folds])
+    es=np.asarray([f["metrics"]["ece"] for f in folds])
+    mll=np.asarray([f["metrics"]["matched_logistic_logloss"] for f in folds])
+    mbr=np.asarray([f["metrics"]["matched_logistic_brier"] for f in folds])
     mece=np.asarray([f["metrics"]["matched_logistic_ece"] for f in folds])
     deltas=np.asarray([f["metrics"]["pymc_vs_matched_logistic_logloss_delta"] for f in folds])
-    return {"status":"WFO_PERFORMANCE_OBSERVED","candidate":"pymc-devs/pymc","model_version":MODEL_VERSION,"sport":sport,"dataset_sha256":dataset.get("dataset_sha256"),"data":{"rows":n,"fold_count":len(folds),"test_width":width,"chronological":True,"future_feature_leakage":False,"prediction_cutoff_before_outcome":True},"aggregate":{"logloss_mean":float(ll.mean()),"logloss_median":float(np.median(ll)),"logloss_worst":float(ll.max()),"brier_mean":float(br.mean()),"brier_worst":float(br.max()),"accuracy_mean":float(ac.mean()),"ece_mean":float(es.mean()),"ece_worst":float(es.max()),"matched_logistic_logloss_mean":float(mll.mean()),"matched_logistic_brier_mean":float(mbr.mean()),"matched_logistic_ece_mean":float(mece.mean()),"pymc_vs_matched_logistic_logloss_delta_mean":float(deltas.mean()),"pymc_vs_matched_logistic_logloss_delta_worst":float(deltas.max()),"folds_better_than_0_5_logloss":int(sum(f["metrics"]["logloss"]<f["metrics"]["baseline_0_5_logloss"] for f in folds)),"folds_better_than_matched_logistic":int(sum(f["metrics"]["logloss"]<f["metrics"]["matched_logistic_logloss"] for f in folds))},"diagnostics":{"max_r_hat_across_folds":float(max(f["diagnostics"]["max_r_hat"] for f in folds)),"total_divergences":int(sum(f["diagnostics"]["divergences"] for f in folds)),"all_finite":bool(all(f["diagnostics"]["finite_probabilities"] for f in folds))},"evidence_boundary":{"performance_verification":False,"production_dependency":False,"automatic_promotion":False,"promotion_status":"HOLD","required_next_gates":["matched incumbent WFO","calibration","ablation","robustness","frozen holdout","shadow comparison"]},"folds":folds}
+    candidate_ll=float(ll.mean()); incumbent_ll=float(mll.mean())
+    candidate_br=float(br.mean()); incumbent_br=float(mbr.mean())
+    folds_better=int(sum(f["metrics"]["logloss"]<f["metrics"]["matched_logistic_logloss"] for f in folds))
+    rhat_max=float(max(f["diagnostics"]["max_r_hat"] for f in folds))
+    div_total=int(sum(f["diagnostics"]["divergences"] for f in folds))
+    finite=bool(all(f["diagnostics"]["finite_probabilities"] for f in folds))
+    wfo_diagnostics_pass=bool(rhat_max<=1.05 and div_total==0 and finite and len(folds)>=3)
+    return {
+      "status":"WFO_PERFORMANCE_OBSERVED","candidate":"pymc-devs/pymc","model_version":MODEL_VERSION,"sport":sport,
+      "dataset_sha256":dataset.get("dataset_sha256"),
+      "github_head_sha":os.environ.get("GITHUB_SHA"),
+      "production_dependency":False,"automatic_promotion":False,
+      "data":{"rows":n,"fold_count":len(folds),"test_width":width,"chronological":True,"future_feature_leakage":False,"prediction_cutoff_before_outcome":True,"frozen_holdout_excluded":bool(dataset.get("frozen_holdout_excluded",False))},
+      "aggregate":{
+        "fold_count":len(folds),"logloss_mean":candidate_ll,"logloss_median":float(np.median(ll)),"logloss_worst":float(ll.max()),
+        "brier_mean":candidate_br,"brier_worst":float(br.max()),"accuracy_mean":float(ac.mean()),"ece_mean":float(es.mean()),"ece_worst":float(es.max()),
+        "matched_logistic_logloss_mean":incumbent_ll,"matched_logistic_brier_mean":incumbent_br,"matched_logistic_ece_mean":float(mece.mean()),
+        "candidate_relative_logloss_improvement_vs_incumbent":float((incumbent_ll-candidate_ll)/max(abs(incumbent_ll),1e-9)),
+        "candidate_secondary_relative_improvement":float((incumbent_br-candidate_br)/max(abs(incumbent_br),1e-9)),
+        "pymc_vs_matched_logistic_logloss_delta_mean":float(deltas.mean()),"pymc_vs_matched_logistic_logloss_delta_worst":float(deltas.max()),
+        "folds_better_than_0_5_logloss":int(sum(f["metrics"]["logloss"]<f["metrics"]["baseline_0_5_logloss"] for f in folds)),
+        "folds_better_than_matched_logistic":folds_better,"folds_better_than_incumbent":folds_better,
+      },
+      "diagnostics":{"max_r_hat_across_folds":rhat_max,"total_divergences":div_total,"all_finite":finite,"wfo_diagnostics_pass":wfo_diagnostics_pass},
+      "performance_verification":wfo_diagnostics_pass,
+      "evidence_boundary":{"wfo_performance_verified":wfo_diagnostics_pass,"production_dependency":False,"automatic_promotion":False,"promotion_status":"HOLD","required_next_gates":["calibration","ablation","robustness","frozen holdout","shadow comparison"]},
+      "folds":folds}
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--dataset",type=Path,required=True); ap.add_argument("--output",type=Path,required=True); ap.add_argument("--draws",type=int,default=250); ap.add_argument("--tune",type=int,default=250); ap.add_argument("--seed",type=int,default=7); a=ap.parse_args()
     if a.draws<50 or a.tune<50: raise SystemExit("draws/tune must be >= 50")
