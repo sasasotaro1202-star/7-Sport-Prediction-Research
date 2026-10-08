@@ -100,7 +100,7 @@ def test_control_plane_no_event_trigger_docs() -> None:
     assert "workflow_run failure event受信時" not in source
     assert "completed failure eventを直接受ける" not in source
     assert "workflow_run payloadをfirst-class evidence" not in source
-    assert "3時間schedule、manual dispatch、mainの意味のあるpushに限定する。" in source
+    assert "autonomous_control_plane.ymlの起動源は、毎時07分UTCのschedule、manual dispatch、mainの意味のあるpushに限定する。" in source
     assert "次の定期cycleでFailure Memoryを読み、観測済みfailureをRESEARCH_HEALTHへ変換する。" in source
 
 
