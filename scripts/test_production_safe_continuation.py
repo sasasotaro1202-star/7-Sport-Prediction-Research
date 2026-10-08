@@ -108,7 +108,7 @@ def main() -> int:
     assert '--expected-parent "$(git rev-parse HEAD^)"' in recovery
     assert "git push origin HEAD:main" not in recovery
     push_helper = (ROOT / "scripts" / "reliable_main_push.py").read_text(encoding="utf-8")
-    assert 'git push origin HEAD:main' in push_helper
+    assert 'run_capture(["git", "push", "origin", "HEAD:main"])' in push_helper
     assert "verify_local_parent" in push_helper
     assert "RELIABLE_PUSH_STALE_MAIN" in push_helper
     assert "Production Invariants" not in recovery
