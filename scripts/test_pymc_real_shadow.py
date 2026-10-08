@@ -11,6 +11,9 @@ for token in ("SPORT_SINGLE","chronological","prediction_cutoff_before_outcome",
 assert "train_test_split" not in src
 assert "KFold" not in src
 assert "random_split" not in src.lower()
+assert "centered_strength" in src
+assert "symmetry_max_abs_error" in src
+assert "PYMC_SYMMETRY_FAIL" in src
 print("PYMC_REAL_SHADOW_CONTRACT=PASS")
 
 for sport in ("basketball", "volleyball", "ufc", "rizin", "valorant"):
