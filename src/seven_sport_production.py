@@ -252,27 +252,65 @@ def fetch_many(h, urls):
     return out
 
 
-def collect_espn(c,h,sport,leagues,start_date,end_date):
+def collect_espn(c,h,sport,leagues,start_date,end_date,store_outcomes=False):
     d=start_date
     while d<=end_date:
         urls=[f'https://site.api.espn.com/apis/site/v2/sports/{sport}/{lg}/scoreboard?dates={d.strftime("%Y%m%d")}' for lg in leagues]
-        for url in urls:
-            try: raw,retrieved,_=h.get(url); data=json.loads(raw)
-            except Exception: continue
-            ph=hashlib.sha256(raw.encode()).hexdigest(); add_snapshot(c,sport,'espn',url,retrieved,None,ph,'UNVERIFIABLE')
+        for lg,url in zip(leagues,urls):
+            try:
+                raw,retrieved,_=h.get(url)
+                data=json.loads(raw)
+            except Exception:
+                continue
+            ph=hashlib.sha256(raw.encode()).hexdigest()
+            add_snapshot(c,sport,'espn',url,retrieved,None,ph,'UNVERIFIABLE')
             for ev in data.get('events',[]):
-                comp=(ev.get('competitions') or [{}])[0]; et=iso(ev.get('date')); name=clean(ev.get('name') or ev.get('shortName') or ev.get('id')); status=clean((ev.get('status') or {}).get('type',{}).get('name','SCHEDULED'))
-                eid=upsert_event(c,sport,name,et,'espn',url,status,urlparse(url).path.split('/')[3] if '/' in urlparse(url).path else None)
-                for i,t in enumerate((comp.get('competitors') or [])[:2]):
-                    tm=t.get('team') or {}; n=clean(tm.get('displayName') or t.get('displayName')); pid=upsert_participant(c,sport,n,'team'); upsert_ep(c,eid,pid,pid,'A' if i==0 else 'B',None,'espn',url)
+                comp=(ev.get('competitions') or [{}])[0]
+                et=iso(ev.get('date'))
+                name=clean(ev.get('name') or ev.get('shortName') or ev.get('id'))
+                status_obj=(ev.get('status') or {}).get('type') or {}
+                completed=bool(status_obj.get('completed'))
+                status='COMPLETED' if completed else 'SCHEDULED'
+                competition_id=str(lg).upper()
+                eid=upsert_event(
+                    c,sport,name,et,'espn',url,status,competition=competition_id,
+                    season=str((ev.get('season') or {}).get('year') or d.year)
+                )
+                competitors=(comp.get('competitors') or [])[:2]
+                scored=[]
+                for i,t in enumerate(competitors):
+                    tm=t.get('team') or {}
+                    n=clean(tm.get('displayName') or t.get('displayName'))
+                    if not n:
+                        continue
+                    pid=upsert_participant(c,sport,n,'team')
+                    side='A' if i==0 else 'B'
+                    upsert_ep(c,eid,pid,pid,side,None,'espn',url)
+                    try:
+                        score_num=float(t.get('score'))
+                    except Exception:
+                        score_num=None
+                    if score_num is not None:
+                        scored.append((pid,side,score_num))
                     for st in t.get('statistics') or []:
-                        k=st.get('name') or st.get('label'); v=st.get('value')
-                        try: num=float(v)
-                        except Exception: num=None
+                        k=st.get('name') or st.get('label')
+                        v=st.get('value')
+                        try:
+                            num=float(v)
+                        except Exception:
+                            num=None
                         add_stat(c,eid,pid,pid,sport,k,num,str(v) if v is not None else None,'espn',url)
-        c.commit(); d+=timedelta(days=1)
-
-
+                if store_outcomes and completed and len(scored)==2 and scored[0][2]!=scored[1][2]:
+                    outcome='A' if scored[0][2]>scored[1][2] else 'B'
+                    c.execute("""INSERT OR REPLACE INTO event_outcome
+                       (event_id,sport,side_a_participant_id,side_b_participant_id,outcome,score_a,score_b,
+                        outcome_status,source,source_url,observed_at_utc,quality_status,reason)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       (eid,sport,scored[0][0],scored[1][0],outcome,scored[0][2],scored[1][2],
+                        'VERIFIED','espn',url,retrieved,'PIT_REQUIRES_REPLAY',
+                        'ESPN public basketball scoreboard result; historical source availability is not claimed.'))
+        c.commit()
+        d+=timedelta(days=1)
 def f1_event_status(event_time_utc, result_rows, now=None):
     """Classify F1 event status without marking future races as completed."""
     now = now or datetime.now(timezone.utc)
@@ -860,14 +898,16 @@ def main():
     for sport in sports:
         try:
             if sport=='basketball':
-                # Active Basketball scope is B.LEAGUE/Asian Games. Do not inject
-                # unrelated NBA/WNBA/college events into the active target lane.
+                # Basketball target scope is explicit: NBA, B.LEAGUE and Asian Games.
+                # NBA uses a separate ESPN competition identity; WNBA/college are not silently injected.
                 from src.basketball_cdn_backfill import collect_official
                 season_years=sorted({
                     d.year if d.month >= 9 else d.year - 1
                     for d in (start,end)
                 })
                 official_total, official_errors, official_requests, official_empty_pages = collect_official(c,season_years)
+                # Free ESPN NBA schedule/results discovery; historical PIT remains UNPROVEN.
+                collect_espn(c,h,'basketball',['nba'],start,end,store_outcomes=True)
                 if official_errors:
                     errors.extend(
                         {
