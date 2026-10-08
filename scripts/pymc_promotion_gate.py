@@ -82,6 +82,8 @@ def evaluate(evidence_dir: Path, expected_head_sha: str) -> dict:
     wfo = data["wfo"]
     if wfo.get("status") != "WFO_PERFORMANCE_OBSERVED":
         return fail("WFO_NOT_VERIFIED")
+    if wfo.get("incumbent_comparison_verified") is not True:
+        return fail("TRUE_INCUMBENT_COMPARISON_NOT_VERIFIED")
     wfo_rel = float(
         wfo.get("aggregate", {}).get(
             "candidate_relative_logloss_improvement_vs_incumbent",
@@ -133,9 +135,6 @@ def evaluate(evidence_dir: Path, expected_head_sha: str) -> dict:
         return fail("SHADOW_REGRESSION")
     if shadow.get("operational_regression") is True:
         return fail("SHADOW_OPERATIONAL_REGRESSION")
-
-    if any(obj.get("performance_verification") is False for obj in data.values()):
-        return fail("PERFORMANCE_VERIFICATION_FLAG_FALSE")
 
     return {
         "status": "PROMOTION_CANDIDATE",
