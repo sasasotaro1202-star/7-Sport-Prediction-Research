@@ -50,6 +50,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_active_scope_workflow.py
       - name: Main-advance compatibility regression
         run: PYTHONPATH=. python scripts/test_main_advance_compatibility.py
+      - name: Production watchdog PIT recovery regression
+        run: PYTHONPATH=. python scripts/test_production_watchdog_pit_recovery.py
       - name: PIT cache namespace regression
         run: PYTHONPATH=. python scripts/test_pit_cache_namespace.py
       - name: Competition profile regression
