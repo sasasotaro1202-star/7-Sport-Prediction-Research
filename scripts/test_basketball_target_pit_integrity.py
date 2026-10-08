@@ -6,7 +6,7 @@ from pathlib import Path
 
 from src.competition_profiles import resolve_profile
 from src.future_predictor import _prior_record
-from src.research_cycle_v4 import outcome_maps, target_event
+from src.research_cycle_v4 import outcome_margin_map, outcome_maps, target_event
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -139,6 +139,44 @@ def main() -> int:
     labels, hist = outcome_maps(con, "basketball", pairs)
     assert labels.get("e_nba_unproven") == "A"
     assert any(row[0] == "e_nba_unproven" for row in hist)
+
+    # Derived margin features must not expose an NBA outcome whose historical
+    # source availability is unproven, even when the outcome row itself is VERIFIED.
+    margin_con = sqlite3.connect(":memory:")
+    margin_con.executescript(
+        """
+        CREATE TABLE event(
+          event_id TEXT PRIMARY KEY, sport TEXT, competition_id TEXT
+        );
+        CREATE TABLE event_outcome(
+          event_id TEXT PRIMARY KEY, sport TEXT, outcome_status TEXT,
+          score_a REAL, score_b REAL, source_url TEXT
+        );
+        CREATE TABLE source_snapshot(
+          snapshot_id TEXT PRIMARY KEY, sport TEXT, source TEXT, source_url TEXT,
+          source_available_at_utc TEXT, availability_status TEXT
+        );
+        """
+    )
+    margin_con.execute(
+        "INSERT INTO event VALUES (?,?,?)",
+        ("m_nba", "basketball", "NBA"),
+    )
+    margin_con.execute(
+        "INSERT INTO event_outcome VALUES (?,?,?,?,?,?)",
+        ("m_nba", "basketball", "VERIFIED", 110.0, 100.0, "https://example.test/m_nba.json"),
+    )
+    margin_con.execute(
+        "INSERT INTO source_snapshot VALUES (?,?,?,?,?,?)",
+        ("m_snap", "basketball", "espn", "https://example.test/m_nba.json", None, "UNVERIFIABLE"),
+    )
+    assert "m_nba" not in outcome_margin_map(margin_con, "basketball")
+    margin_con.execute(
+        "UPDATE source_snapshot SET source_available_at_utc=?, availability_status='EXACT' WHERE snapshot_id=?",
+        ("2026-09-30T00:00:00+00:00", "m_snap"),
+    )
+    assert outcome_margin_map(margin_con, "basketball").get("m_nba") == 10.0
+    margin_con.close()
     con.close()
 
     print("BASKETBALL_TARGET_PIT=PASS")
