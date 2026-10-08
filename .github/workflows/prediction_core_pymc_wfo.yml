@@ -7,6 +7,8 @@ on:
     paths:
       - "scripts/research_pymc_wfo.py"
       - "scripts/test_pymc_wfo.py"
+      - "src/research_policy.py"
+      - "src/pit_replay_builder.py"
       - ".github/workflows/prediction_core_pymc_wfo.yml"
 permissions:
   contents: read
