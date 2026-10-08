@@ -31,6 +31,7 @@ def test_contract() -> None:
     assert 'git add results/failure_memory.jsonl' in text
     assert 'scripts/reliable_main_push.py' in text
     assert '--expected-parent "$(git rev-parse HEAD^)"' in text
+    assert 'GH_TOKEN: ${{ github.token }}' in text
     assert 'git push origin HEAD:main' not in text
     push_helper = (ROOT / "scripts" / "reliable_main_push.py").read_text(encoding="utf-8")
     tree = ast.parse(push_helper)

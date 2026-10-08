@@ -165,6 +165,8 @@ jobs:
           PY
 
       - name: Append failure memory to latest main and commit
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
