@@ -127,7 +127,7 @@ jobs:
           raise SystemExit(0 if obj.get("status")=="READY" else 1)
           PY
           then
-            python scripts/research_pymc_real_shadow.py --dataset "${dataset}" --output "${output}"
+            PYTHONPATH=. python scripts/research_pymc_real_shadow.py --dataset "${dataset}" --output "${output}"
           else
             python - "${dataset}" "${output}" <<'PY'
           import json,sys
