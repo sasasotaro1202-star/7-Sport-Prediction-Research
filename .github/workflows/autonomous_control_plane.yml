@@ -241,9 +241,13 @@ jobs:
           # required current-main provenance. Defer persistence to the next control
           # cycle rather than mutating main underneath a heavy run.
           main_sha_guard="${CONTROL_PLANE_CURRENT_MAIN_SHA:-${{ github.sha }}}"
-          heavy_active="$(gh run list --workflow v4_5_15_production.yml --branch main --limit 20 --json status,headSha --jq --arg sha "$main_sha_guard" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
-          pit_active="$(gh run list --workflow pit_history_expansion.yml --branch main --limit 20 --json status,headSha --jq --arg sha "$main_sha_guard" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
-          t60_active="$(gh run list --workflow pre_event_prediction.yml --branch main --limit 20 --json status,headSha --jq --arg sha "$main_sha_guard" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
+          heavy_runs="$(gh run list --workflow v4_5_15_production.yml --branch main --limit 20 --json status,headSha)"
+          pit_runs="$(gh run list --workflow pit_history_expansion.yml --branch main --limit 20 --json status,headSha)"
+          t60_runs="$(gh run list --workflow pre_event_prediction.yml --branch main --limit 20 --json status,headSha)"
+          active_filter='[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length'
+          heavy_active="$(printf '%s' "$heavy_runs" | jq --arg sha "$main_sha_guard" "$active_filter")"
+          pit_active="$(printf '%s' "$pit_runs" | jq --arg sha "$main_sha_guard" "$active_filter")"
+          t60_active="$(printf '%s' "$t60_runs" | jq --arg sha "$main_sha_guard" "$active_filter")"
           if [ "$heavy_active" -gt 0 ] || [ "$pit_active" -gt 0 ] || [ "$t60_active" -gt 0 ]; then
             echo "CONTROL_PLANE_PERSIST_DEFERRED_ACTIVE_HEAVY_RUN production=$heavy_active pit=$pit_active t60=$t60_active main_sha=$main_sha_guard"
             echo "persist_ok=false" >> "$GITHUB_OUTPUT"
