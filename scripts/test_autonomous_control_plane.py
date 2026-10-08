@@ -437,7 +437,7 @@ def test_pit_recovery_refreshes_after_meaningful_main_change() -> None:
             "head_sha": "old-sha",
             "current_main_sha": "new-sha",
             "sha_match": False,
-            "main_compatibility": "EXACT_CURRENT_MAIN",
+            "main_compatibility": "MEANINGFUL_OR_DIVERGED",
             "run_id": 37440505534,
             "active_run_any": False,
             "stale": True,
