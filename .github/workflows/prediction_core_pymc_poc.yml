@@ -1,12 +1,6 @@
 name: Prediction-Core PyMC Research POC
 
 on:
-  push:
-    paths:
-      - ".github/workflows/prediction_core_pymc_poc.yml"
-      - "scripts/research_poc_pymc.py"
-      - "scripts/test_pymc_poc_contract.py"
-      - "docs/PYMC_RESEARCH_POC.md"
   pull_request:
     paths:
       - ".github/workflows/prediction_core_pymc_poc.yml"
