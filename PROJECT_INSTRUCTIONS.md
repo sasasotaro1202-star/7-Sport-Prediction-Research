@@ -121,3 +121,13 @@ autonomous_control_plane.ymlは3時間schedule・manual dispatch・mainの意味
 即時failure recoveryはProduction Failure Recovery、Production Watchdog、24H Watchdogなど各ownerへ委譲する。Control Planeは次cycleでFailure Memoryを取り込み、RESEARCH_HEALTHへ変換する。
 
 この分離により、control-plane自身が大量のSKIP/CANCEL runを生成してRunner queueを圧迫するself-induced event stormを防ぐ。
+### Prediction-Core / PyMC research boundary — 2026-10-08
+
+pymc-devs/pymc is a research-only external candidate. The current PyMC work consists of:
+* isolated synthetic mechanical POC using PyMC 6.3.2;
+* sport-isolated PIT shadow dataset construction for the five active sports;
+* automated real-data PyMC shadow fitting through .github/workflows/prediction_core_pymc_real_shadow.yml.
+
+The real-data shadow lane may use only PIT-safe sport-scoped datasets and chronological train/test ordering. Missing PIT evidence yields BLOCKED rather than fabricated rows. The candidate remains HOLD until incumbent/challenger chronological WFO, calibration, ablation, robustness, frozen-holdout and shadow-comparison gates are passed.
+
+PyMC never becomes a production dependency merely because its workflow is green. Automatic model promotion remains forbidden.
