@@ -87,12 +87,13 @@ def load_stat_history(c, sport, stat_names):
     sql=f"""
         WITH exact_source AS (
             SELECT sport,source,source_url,event_time_utc,
-                   MIN(source_available_at_utc) AS source_available_at_utc,
-                   MIN(snapshot_id) AS snapshot_id
+                   source_available_at_utc,
+                   snapshot_id
               FROM source_snapshot
              WHERE availability_status='EXACT'
                AND source_available_at_utc IS NOT NULL
              GROUP BY sport,source,source_url,event_time_utc
+             HAVING COUNT(*) = 1
         ),
         ranked AS (
             SELECT ms.stat_id,ms.event_id,ms.participant_id,ms.stat_name,ms.value_num,
