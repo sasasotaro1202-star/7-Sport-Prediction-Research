@@ -17,7 +17,7 @@
       "rank": 1,
       "id": "core-pymc",
       "tier": "S+",
-      "status": "PROMOTION_CANDIDATE",
+      "status": "RESEARCH_CANDIDATE",
       "repository": "pymc-devs/pymc",
       "ref": "main",
       "verified_commit": "2394fd441ae5f79597dc6012bd771e2ea28b01a6",
@@ -37,13 +37,14 @@
         "posterior stability",
         "frozen holdout",
         "runtime/cost"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 2,
       "id": "core-optuna",
       "tier": "S+",
-      "status": "PROMOTION_CANDIDATE",
+      "status": "RESEARCH_CANDIDATE",
       "repository": "optuna/optuna",
       "ref": "master",
       "verified_commit": "bfdd420a54fd80993012a8f8393f190b5de882e5",
@@ -62,13 +63,14 @@
         "bounded search",
         "OOS replication",
         "frozen holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 3,
       "id": "core-river",
       "tier": "S+",
-      "status": "PROMOTION_CANDIDATE",
+      "status": "RESEARCH_CANDIDATE",
       "repository": "online-ml/river",
       "ref": "main",
       "verified_commit": "d32e2800df067f4e7419e69dfa6a273ad1eadb27",
@@ -87,13 +89,14 @@
         "checkpoint/recovery",
         "drift robustness",
         "frozen holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 4,
       "id": "core-ruptures",
       "tier": "S+",
-      "status": "PROMOTION_CANDIDATE",
+      "status": "RESEARCH_CANDIDATE",
       "repository": "deepcharles/ruptures",
       "ref": "master",
       "verified_commit": "ee1c8ff8a548d54c641b2bb471562165931f31c7",
@@ -111,13 +114,14 @@
         "false-positive cost",
         "OOD/regime robustness",
         "holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 5,
       "id": "core-catboost",
       "tier": "S+",
-      "status": "PROMOTION_CANDIDATE",
+      "status": "RESEARCH_CANDIDATE",
       "repository": "catboost/catboost",
       "ref": "master",
       "verified_commit": "6c46a86a17b532e8eb77a9516286f62d5fdcbe2b",
@@ -135,13 +139,14 @@
         "calibration",
         "regime robustness",
         "frozen holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 6,
       "id": "core-xgboost",
       "tier": "S",
-      "status": "PROMOTION_CANDIDATE",
+      "status": "RESEARCH_CANDIDATE",
       "repository": "dmlc/xgboost",
       "ref": "master",
       "verified_commit": "0a8a0ff96f6862511a95a43a9298fdd8415d86ff",
@@ -159,7 +164,8 @@
         "robustness",
         "compute/cost",
         "frozen holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 7,
@@ -182,7 +188,8 @@
         "paired chronological OOS",
         "information value",
         "robustness"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 8,
@@ -206,7 +213,8 @@
         "overfit stress",
         "runtime/cost",
         "frozen holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 9,
@@ -231,7 +239,8 @@
         "chronological OOS",
         "compute budget",
         "holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 10,
@@ -256,7 +265,8 @@
         "calibration",
         "robustness",
         "holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 11,
@@ -280,7 +290,8 @@
         "incremental value",
         "robustness",
         "holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     },
     {
       "rank": 12,
@@ -305,7 +316,13 @@
         "OOS calibration",
         "robustness",
         "frozen holdout"
-      ]
+      ],
+      "promotion_status": "HOLD"
     }
-  ]
+  ],
+  "registry_semantics": {
+    "status": "research maturity/status only; not production approval",
+    "promotion_status": "explicit production decision boundary",
+    "automatic_promotion": false
+  }
 }
