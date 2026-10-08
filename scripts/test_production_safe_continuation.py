@@ -52,6 +52,19 @@ def main() -> int:
     assert "exit 1" in final_block
 
     # Watchdog continuity contracts
+    # PIT completion must actively hand off to the existing watchdog because
+    # workflow_run chaining can be suppressed for GITHUB_TOKEN-originated runs.
+    pit_history = (ROOT / ".github/workflows/pit_history_expansion.yml").read_text(encoding="utf-8")
+    assert "actions: write" in pit_history
+    assert "refresh-production-watchdog:" in pit_history
+    assert "needs.expand.result == 'success'" in pit_history
+    assert "gh workflow run production_watchdog.yml" in pit_history
+    assert "PIT_REFRESH_WATCHDOG_REQUEST" in pit_history
+    assert "PIT_REFRESH_WATCHDOG_VERIFIED" in pit_history
+    assert "PIT_REFRESH_WATCHDOG_UNVERIFIED" in pit_history
+    assert '.headSha=="$main_sha"' in pit_history
+    assert '.event=="workflow_dispatch"' in pit_history
+
     relay = ROOT / ".github/workflows/production_watchdog_event_relay.yml"
     assert not relay.exists(), "production watchdog event relay must remain absent to prevent workflow_run event storms"
 
