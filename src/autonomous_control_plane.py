@@ -613,6 +613,12 @@ def inspect() -> dict[str, Any]:
             errors,
             "quality_gate.pit_leakage.exact_pass",
         )
+        pit_replayable = explicit_int(
+            pit_check,
+            "replayable_clean",
+            errors,
+            "quality_gate.pit_leakage.replayable_clean",
+        )
     pending = quality.get("pending")
     if pending is None:
         pending = []
@@ -627,14 +633,14 @@ def inspect() -> dict[str, Any]:
         in {"EXACT_CURRENT_MAIN", "DURABLE_ONLY"}
         and pit_workflow.get("stale") is False
     )
-    pit_pending = (
-        (
-            "no_exact_pit_replay_rows" in set(pending)
-            or pit_exact is None
-            or pit_exact == 0
-        )
-        and not pit_workflow_verified
+    # REPLAYABLE is the canonical clean status emitted by pit_replay_builder.
+    # Keep EXACT and REPLAYABLE distinct, but treat either clean status as
+    # usable strict-PIT evidence for control-plane readiness.
+    pit_usable = (
+        (pit_exact is not None and pit_exact > 0)
+        or (pit_replayable is not None and pit_replayable > 0)
     )
+    pit_pending = (not pit_usable) and not pit_workflow_verified
 
     future_generated = future.get("generated_at_utc")
     future_age = age_hours(future, ("generated_at_utc",), ref)
@@ -704,6 +710,7 @@ def inspect() -> dict[str, Any]:
             "status": quality.get("status", "UNKNOWN"),
             "pending": pending,
             "pit_exact_pass": pit_exact,
+            "pit_replayable_clean": pit_replayable,
             "pit_workflow_verified": pit_workflow_verified,
             "pit_research_blocked": pit_pending,
         },
@@ -1202,6 +1209,7 @@ def write_state(
             "automatic_promotion": False,
             "reproducibility_status": state["reproducibility"]["status"],
             "pit_exact_pass": state["quality"]["pit_exact_pass"],
+            "pit_replayable_clean": state["quality"]["pit_replayable_clean"],
             "queue_entry_added": queue_added,
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
