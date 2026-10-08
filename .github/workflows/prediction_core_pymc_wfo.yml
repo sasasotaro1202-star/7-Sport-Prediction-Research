@@ -1,5 +1,14 @@
 name: Prediction-Core PyMC Chronological WFO
 on:
+  pull_request:
+    paths:
+      - "scripts/research_pymc_wfo.py"
+      - "scripts/test_pymc_wfo.py"
+      - "scripts/pymc_pit_shadow_dataset.py"
+      - "src/research_policy.py"
+      - "src/pit_replay_builder.py"
+      - "results/research/*_frozen_holdout.json"
+      - ".github/workflows/prediction_core_pymc_wfo.yml"
   workflow_dispatch:
   schedule:
     - cron: "17 6 * * 1"
