@@ -329,10 +329,13 @@ def test_persist_detects_missing_state_artifacts() -> None:
     block = text[start:end]
     assert "state_paths=(" in block
     assert 'for state_path in "${state_paths[@]}"; do' in block
-    assert 'if [ ! -f "$state_path" ]; then' in block
+    assert 'if [ ! -f "$state_path" ] || ! git ls-files --error-unmatch -- "$state_path" >/dev/null 2>&1; then' in block
     assert 'git ls-files --error-unmatch -- "$state_path"' in block
-    assert 'CONTROL_PLANE_STATE_NOT_TRACKED path=$state_path' in block
-    assert 'if [ "$needs_persist" = false ] && git diff --quiet -- "${state_paths[@]}"; then' in block
+    assert 'CONTROL_PLANE_STATE_NOT_TRACKED_OR_MISSING path=$state_path' in block
+    assert 'if [ "$needs_persist" = false ]; then' in block
+    assert 'write_needed="$(python -c' in block
+    assert 'queue_added="$(python -c' in block
+    assert 'if [ "$write_needed" = true ] || [ "$queue_added" = true ]; then' in block
 
 def test_pre_event_control_plane_registration() -> None:
     assert cp.ALLOWED_WORKFLOWS["PRODUCTION_HEARTBEAT"] == "pre_event_prediction.yml"
