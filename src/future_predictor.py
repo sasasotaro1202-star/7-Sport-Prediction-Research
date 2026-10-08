@@ -627,6 +627,14 @@ def predict_sport(c,s,now,prediction_lead_minutes=PREDICTION_LEAD_MINUTES_DEFAUL
             "event_type": event_type,
         }
         route_info=competition_route.resolve_route(s,competition_profile,route_context)
+        # Basketball/Volleyball competitions must never silently consume a pooled
+        # sport-incumbent artifact. Until an independently accepted competition route
+        # exists, fail closed to the explicit PIT-safe historical prior.
+        if s in ("basketball", "volleyball") and route_info is None:
+            return _safe_prior_binary(
+                c,s,now,prediction_lead_minutes,min_lead_minutes,max_lead_minutes,
+                target_scope_only,adaptive_timing,timing_shadow
+            )
         route_active=False
         active_feature_names=features
         active_model_version=artifact.get('model_version')
