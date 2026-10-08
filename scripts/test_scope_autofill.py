@@ -33,8 +33,8 @@ def main() -> int:
     assert 'f1_v45.sqlite' not in controller
     assert '--skip-discovery' in controller
     assert 'def competition_frontier' in controller
-    # Source probing must monitor the active Basketball target universe,
-    # not unrelated NBA/WNBA feeds that cannot establish B.LEAGUE coverage.
+    # Source probing must monitor the active Basketball target universe, including NBA;
+    # B.LEAGUE and Asian Games remain independently monitored.
     source_probe = (ROOT / "src/source_probe.py").read_text(encoding="utf-8")
     tree = ast.parse(source_probe)
     sources_node = next(
@@ -44,6 +44,7 @@ def main() -> int:
     )
     sources = ast.literal_eval(sources_node.value)
     assert sources["basketball"] == [
+        "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
         "https://www.bleague.jp/schedule/",
         "https://www.aichi-nagoya2026.org/",
     ]
@@ -85,7 +86,7 @@ def main() -> int:
         {"events": 0, "verified_outcomes": 0, "exact_pit_ratio": 0.0},
         set(),
     )
-    assert selected and selected[0] == "historical_b_league"
+    assert selected and selected[0] in {"historical_b_league", "historical_nba_espn"}
 
     selected = select_action(
         "basketball",
