@@ -182,6 +182,11 @@ ROLLED_BACK
 
 Basketball
 
+現在のtarget competition registry:
+* NBA
+* B.League
+* Asian Games Basketball
+
 優先候補:
 
 * NBA
