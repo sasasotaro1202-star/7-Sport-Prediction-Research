@@ -191,13 +191,38 @@ def outcome_maps(c,s,pairs):
 def outcome_margin_map(c,s):
  out={}
  try:
-  rows=c.execute("""SELECT event_id,score_a,score_b
-                     FROM event_outcome
-                    WHERE sport=? AND outcome_status='VERIFIED'
-                      AND score_a IS NOT NULL AND score_b IS NOT NULL""",(s,)).fetchall()
-  for eid,sa,sb in rows:
-   try: out[eid]=float(sa)-float(sb)
-   except Exception: pass
+  event_cols={row[1] for row in c.execute("PRAGMA table_info(event)").fetchall()}
+  snapshot_cols={row[1] for row in c.execute("PRAGMA table_info(source_snapshot)").fetchall()}
+  nba_guard = (
+   s == 'basketball'
+   and 'competition_id' in event_cols
+   and {'source_url','availability_status','source_available_at_utc'}.issubset(snapshot_cols)
+  )
+  if nba_guard:
+   rows=c.execute("""SELECT o.event_id,o.score_a,o.score_b,e.competition_id,
+                            (SELECT MIN(ss.source_available_at_utc)
+                               FROM source_snapshot ss
+                              WHERE ss.source_url=o.source_url
+                                AND ss.availability_status='EXACT'
+                                AND ss.source_available_at_utc IS NOT NULL
+                                AND ('sport' NOT IN ({sport_cols}) OR ss.sport=e.sport OR ss.sport IS NULL)) AS exact_source_available
+                       FROM event_outcome o
+                       JOIN event e ON e.event_id=o.event_id
+                      WHERE o.sport=? AND o.outcome_status='VERIFIED'
+                        AND o.score_a IS NOT NULL AND o.score_b IS NOT NULL""".replace("{sport_cols}", repr('sport') if False else "'sport'"),(s,)).fetchall()
+   for eid,sa,sb,competition_id,exact_source_available in rows:
+    if str(competition_id or '').upper() == 'NBA' and not exact_source_available:
+     continue
+    try: out[eid]=float(sa)-float(sb)
+    except Exception: pass
+  else:
+   rows=c.execute("""SELECT event_id,score_a,score_b
+                      FROM event_outcome
+                     WHERE sport=? AND outcome_status='VERIFIED'
+                       AND score_a IS NOT NULL AND score_b IS NOT NULL""",(s,)).fetchall()
+   for eid,sa,sb in rows:
+    try: out[eid]=float(sa)-float(sb)
+    except Exception: pass
  except sqlite3.DatabaseError:
   pass
  return out
