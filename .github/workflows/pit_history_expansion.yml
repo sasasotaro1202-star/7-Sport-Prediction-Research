@@ -97,6 +97,10 @@ jobs:
       - name: Materialize immutable historical corpus
         if: steps.cadence.outputs.run == 'true' && matrix.sport == 'basketball'
         run: python -m src.basketball_cdn_backfill --historical
+      - name: Materialize NBA historical research corpus (PIT availability remains UNPROVEN)
+        if: steps.cadence.outputs.run == 'true' && matrix.sport == 'basketball'
+        run: python -m src.espn_backfill --sport basketball --leagues nba --start-year 2016 --end-year 2026
+
       - name: Record historical version provenance (strict PIT uses explicit publication evidence)
         if: steps.cadence.outputs.run == 'true'
         run: |
