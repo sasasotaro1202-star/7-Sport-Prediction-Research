@@ -274,6 +274,24 @@ jobs:
               encoding="utf-8",
           )
 
+          execution = {
+              "status": overall["status"],
+              "research_only": True,
+              "production_dependency": False,
+              "automatic_promotion": False,
+              "active_sports": active,
+              "missing_or_blocked_sports": missing,
+              "github_head_sha": "${{ github.sha }}",
+              "github_run_id": "${{ github.run_id }}",
+              "candidate": "pymc-devs/pymc",
+              "evidence_boundary": "PIT_DATASET_ONLY_NO_MODEL_PERFORMANCE_EVIDENCE",
+              "promotion_status": "HOLD",
+          }
+          Path("results/research/pymc_pit_shadow_execution.json").write_text(
+              json.dumps(execution, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
           if missing:
               Path("results/research/pymc_pit_shadow_dataset.json").write_text(
                   json.dumps({
@@ -351,6 +369,26 @@ jobs:
               raise SystemExit(f"PYMC_PIT_SHADOW_NOT_READY:{report.get('status')}")
 
           report["source_manifest"] = "results/research/pymc_pit_shadow_source_manifest.json"
+          execution = {
+              "status": report.get("status"),
+              "research_only": True,
+              "production_dependency": False,
+              "automatic_promotion": False,
+              "active_sports": active,
+              "row_count": report.get("row_count", 0),
+              "rows_by_sport": report.get("rows_by_sport", {}),
+              "dataset_sha256": report.get("dataset_sha256"),
+              "github_head_sha": "${{ github.sha }}",
+              "github_run_id": "${{ github.run_id }}",
+              "candidate": "pymc-devs/pymc",
+              "evidence_boundary": "PIT_DATASET_ONLY_NO_MODEL_PERFORMANCE_EVIDENCE",
+              "performance_verified_for_7_sport": False,
+              "promotion_status": "HOLD",
+          }
+          Path("results/research/pymc_pit_shadow_execution.json").write_text(
+              json.dumps(execution, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
           Path("results/research/pymc_pit_shadow_dataset.json").write_text(
               json.dumps(report, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
@@ -378,3 +416,4 @@ jobs:
           path: |
             results/research/pymc_pit_shadow_source_manifest.json
             results/research/pymc_pit_shadow_dataset.json
+            results/research/pymc_pit_shadow_execution.json
