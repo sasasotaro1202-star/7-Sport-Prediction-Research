@@ -114,7 +114,7 @@ def main():
     require('active prediction scope' in readme.lower() and '- VALORANT' in readme and '- Basketball' in readme and '- Volleyball' in readme and '- UFC' in readme and '- RIZIN' in readme,
             'README does not explicitly declare the five-sport active prediction scope')
     scope=(ROOT/'config/ACTIVE_SCOPE_9_SPORTS.json').read_text(encoding='utf-8')
-    require('"B.LEAGUE"' in scope and '"Asian Games Basketball"' in scope and '"Asian Games Volleyball"' in scope,'active scope target competitions missing')
+    require('"B.LEAGUE"' in scope and '"NBA"' in scope and '"Asian Games Basketball"' in scope and '"Asian Games Volleyball"' in scope,'active scope target competitions missing')
     require("target_event(s,name,competition_id)" in (ROOT/'src/research_cycle_v4.py').read_text(encoding='utf-8'),'research engine lacks explicit target-competition filtering')
     profile_cfg=(ROOT/'config/COMPETITION_PROFILE_POLICY.json').read_text(encoding='utf-8')
     profile_src=(ROOT/'src/competition_profiles.py').read_text(encoding='utf-8')
