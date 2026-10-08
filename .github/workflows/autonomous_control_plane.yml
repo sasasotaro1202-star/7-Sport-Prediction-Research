@@ -235,25 +235,36 @@ jobs:
             results/research/research_queue.jsonl
             results/research/autonomous_action_log.jsonl
           )
+
+          # src/autonomous_control_plane.py already performs semantic change
+          # detection and emits write_needed/queue_added. Use those signals so
+          # volatile generated_at/head_sha changes do not create a new main
+          # commit and invalidate otherwise-valid current-SHA validators.
+          control_result_path="control_output.json"
+          test -f "$control_result_path" || {
+            echo "CONTROL_PLANE_RESULT_MISSING" >&2
+            exit 1
+          }
+          write_needed="$(python -c 'import json; o=json.load(open("control_output.json",encoding="utf-8")); print("true" if o.get("write_needed") else "false")')"
+          queue_added="$(python -c 'import json; o=json.load(open("control_output.json",encoding="utf-8")); print("true" if o.get("queue_added") else "false")')"
+          echo "CONTROL_PLANE_SEMANTIC_CHANGE write_needed=$write_needed queue_added=$queue_added"
+
           needs_persist=false
+          if [ "$write_needed" = true ] || [ "$queue_added" = true ]; then
+            needs_persist=true
+          fi
+
+          # git diff does not report untracked files. Missing/untracked state
+          # artifacts are mandatory first-time persistence even when semantic
+          # change signals are unavailable.
           for state_path in "${state_paths[@]}"; do
-            if [ ! -f "$state_path" ]; then
+            if [ ! -f "$state_path" ] || ! git ls-files --error-unmatch -- "$state_path" >/dev/null 2>&1; then
               needs_persist=true
-              break
+              echo "CONTROL_PLANE_STATE_NOT_TRACKED_OR_MISSING path=$state_path"
             fi
           done
 
-          # git diff does not report untracked files. A state file created earlier
-          # in this run can therefore exist without being durable on main. Treat
-          # every untracked state artifact as a required first-time persistence.
-          for state_path in "${state_paths[@]}"; do
-            if ! git ls-files --error-unmatch -- "$state_path" >/dev/null 2>&1; then
-              needs_persist=true
-              echo "CONTROL_PLANE_STATE_NOT_TRACKED path=$state_path"
-            fi
-          done
-
-          if [ "$needs_persist" = false ] && git diff --quiet -- "${state_paths[@]}"; then
+          if [ "$needs_persist" = false ]; then
             remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
             test "$remote_sha" = "$CONTROL_PLANE_CURRENT_MAIN_SHA" || {
               echo "STALE_MAIN_NO_CHANGE expected=$CONTROL_PLANE_CURRENT_MAIN_SHA actual=$remote_sha" >&2
@@ -268,6 +279,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "${state_paths[@]}"
+          if git diff --cached --quiet; then
+            echo "CONTROL_PLANE_GIT=NO_CHANGE_AFTER_SEMANTIC_GATE"
+            remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+            echo "persist_ok=true" >> "$GITHUB_OUTPUT"
+            echo "main_sha=$remote_sha" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git commit -m "ops: reconcile autonomous research control plane"
 
           remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
