@@ -244,6 +244,7 @@ jobs:
           heavy_runs="$(gh run list --workflow v4_5_15_production.yml --branch main --limit 20 --json status,headSha)"
           pit_runs="$(gh run list --workflow pit_history_expansion.yml --branch main --limit 20 --json status,headSha)"
           t60_runs="$(gh run list --workflow pre_event_prediction.yml --branch main --limit 20 --json status,headSha)"
+          # shellcheck disable=SC2016
           active_filter='[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length'
           heavy_active="$(printf '%s' "$heavy_runs" | jq --arg sha "$main_sha_guard" "$active_filter")"
           pit_active="$(printf '%s' "$pit_runs" | jq --arg sha "$main_sha_guard" "$active_filter")"
