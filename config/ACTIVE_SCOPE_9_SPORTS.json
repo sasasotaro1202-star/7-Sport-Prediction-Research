@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated": "2026-09-22",
+  "updated": "2026-10-08",
   "active_scope": {
     "volleyball": [
       {
@@ -24,6 +24,13 @@
         "gender": "Men",
         "category": "Professional domestic league",
         "region": "Japan",
+        "status": "TARGET"
+      },
+      {
+        "name": "NBA",
+        "gender": "Men/Women",
+        "category": "Professional international league",
+        "region": "United States/Canada",
         "status": "TARGET"
       },
       {
@@ -78,7 +85,8 @@
   "rules": [
     "Do not train or publish Tennis, F1, Rugby or Boxing models while deferred.",
     "Do not silently substitute other basketball or volleyball competitions for the requested target scope.",
-    "B.LEAGUE and Asian Games coverage must be independently verified before being treated as collected.",
+    "NBA, B.LEAGUE and Asian Games basketball are separate competition identities; do not blindly pool them when a competition-specific route is available.",
+    "B.LEAGUE, NBA and Asian Games coverage must be independently verified before being treated as collected.",
     "Competition/gender/category must remain explicit; do not pool materially different competitions blindly.",
     "Boxing source candidates must prove historical source availability before the 60-minute prediction cutoff; retrieval time alone is not sufficient.",
     "PIT, leakage, chronological OOS, calibration and frozen-holdout gates remain mandatory."
