@@ -27,6 +27,14 @@ def test_contract() -> None:
     assert recovery_decision("m", "old", 100, [{"id": 100, "status": "in_progress", "head_sha": "m"}]) == "DISPATCH_FRESH_CURRENT_MAIN"
 
     text = WORKFLOW.read_text(encoding="utf-8")
+    assert 'git add results/failure_memory.jsonl' in text
+    assert 'scripts/reliable_main_push.py' in text
+    assert '--expected-parent "$(git rev-parse HEAD^)"' in text
+    assert 'git push origin HEAD:main' not in text
+    push_helper = (ROOT / "scripts" / "reliable_main_push.py").read_text(encoding="utf-8")
+    assert 'git push origin HEAD:main' in push_helper
+    assert 'verify_local_parent' in push_helper
+    assert 'RELIABLE_PUSH_STALE_MAIN' in push_helper
     start = text.index("Recover once without replaying a stale SHA")
     guard = text[start:]
     guard_idx = guard.index("RECOVERY_COALESCED_ACTIVE_CURRENT_MAIN")
