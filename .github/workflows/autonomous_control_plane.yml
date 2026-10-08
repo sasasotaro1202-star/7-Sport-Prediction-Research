@@ -236,6 +236,20 @@ jobs:
             results/research/autonomous_action_log.jsonl
           )
 
+          # Preserve SHA stability for heavy current-main execution. A control-plane
+          # state commit during Production/PIT/T-60 can invalidate the running job's
+          # required current-main provenance. Defer persistence to the next control
+          # cycle rather than mutating main underneath a heavy run.
+          main_sha_guard="${CONTROL_PLANE_CURRENT_MAIN_SHA:-${{ github.sha }}}"
+          heavy_active="$(gh run list --workflow v4_5_15_production.yml --branch main --limit 20 --json status,headSha --jq --arg sha "$main_sha_guard" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
+          pit_active="$(gh run list --workflow pit_history_expansion.yml --branch main --limit 20 --json status,headSha --jq --arg sha "$main_sha_guard" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
+          t60_active="$(gh run list --workflow pre_event_prediction.yml --branch main --limit 20 --json status,headSha --jq --arg sha "$main_sha_guard" '[.[] | select(.headSha==$sha and (.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending"))] | length')"
+          if [ "$heavy_active" -gt 0 ] || [ "$pit_active" -gt 0 ] || [ "$t60_active" -gt 0 ]; then
+            echo "CONTROL_PLANE_PERSIST_DEFERRED_ACTIVE_HEAVY_RUN production=$heavy_active pit=$pit_active t60=$t60_active main_sha=$main_sha_guard"
+            echo "persist_ok=false" >> "$GITHUB_OUTPUT"
+            echo "main_sha=$main_sha_guard" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # src/autonomous_control_plane.py already performs semantic change
           # detection and emits write_needed/queue_added. Use those signals so
           # volatile generated_at/head_sha changes do not create a new main
