@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import arviz as az
@@ -120,6 +121,8 @@ def fit(dataset,seed=7):
     return {
       "status":"SHADOW_PERFORMANCE_OBSERVED","candidate":"pymc-devs/pymc","pymc_version":str(pm.__version__),
       "model_version":MODEL_VERSION,"seed":seed,"sport":dataset["active_sports"][0],
+      "github_head_sha":os.environ.get("GITHUB_SHA"),
+      "production_dependency":False,"automatic_promotion":False,
       "data":{"dataset_sha256":dataset.get("dataset_sha256"),"rows":len(rows),"train_rows":split,"test_rows":len(yt),"train_known_teams":len(teams)-1,
               "oov_team_bucket":True,
               "chronological_split":True,"event_cluster_one_case":True,"prediction_cutoff_before_outcome":True},
