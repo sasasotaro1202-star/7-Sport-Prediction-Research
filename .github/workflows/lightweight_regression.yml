@@ -32,7 +32,16 @@ jobs:
         run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
       - name: Compile all source
         run: python -m compileall -q src
-      - name: Undefined-name static analysis for strict research
+      - name: Validate all GitHub Actions workflows with actionlint
+        run: |
+          set -euo pipefail
+          version='1.7.12'
+          url="https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz"
+          expected_sha256='8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8'
+          curl --fail --silent --show-error --location "$url" --output /tmp/actionlint.tar.gz
+          echo "${expected_sha256}  /tmp/actionlint.tar.gz" | sha256sum --check --status -
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          /tmp/actionlint -no-color .github/workflows/*.yml      - name: Undefined-name static analysis for strict research
         run: |
           python -m pip install --retries 5 --timeout 60 "ruff==0.16.10"
           ruff check --output-format=github --select F821 src/research_cycle_strict.py
