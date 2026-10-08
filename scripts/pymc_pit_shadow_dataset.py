@@ -18,7 +18,10 @@ def parse_dt(value: str) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def build(db_path: Path) -> dict:
+def build(db_path: Path, sport: str | None = None) -> dict:
+    selected_sports = (sport,) if sport else ACTIVE_SPORTS
+    if any(s not in ACTIVE_SPORTS for s in selected_sports):
+        raise ValueError(f"unsupported active sport: {selected_sports}")
     if not db_path.is_file() or db_path.stat().st_size <= 0:
         return {
             "status": "DEFERRED_NO_DB",
@@ -30,13 +33,13 @@ def build(db_path: Path) -> dict:
     con = sqlite3.connect(db_path)
     con.row_factory = sqlite3.Row
     try:
-        placeholders = ",".join("?" for _ in ACTIVE_SPORTS)
+        placeholders = ",".join("?" for _ in selected_sports)
         events = {
             r["event_id"]: dict(r)
             for r in con.execute(
                 f"SELECT event_id,sport,competition_id,event_time_utc "
                 f"FROM event WHERE sport IN ({placeholders}) AND event_time_utc IS NOT NULL",
-                ACTIVE_SPORTS,
+                selected_sports,
             )
         }
         participants = {}
@@ -46,7 +49,7 @@ def build(db_path: Path) -> dict:
             f"WHERE side IN ('A','B') AND event_id IN "
             f"(SELECT event_id FROM event WHERE sport IN ({placeholders})) "
             f"ORDER BY event_id,side",
-            ACTIVE_SPORTS,
+            selected_sports,
         ):
             participants.setdefault(r["event_id"], {})[r["side"]] = dict(r)
 
@@ -56,7 +59,7 @@ def build(db_path: Path) -> dict:
                 f"SELECT event_id,outcome FROM event_outcome "
                 f"WHERE sport IN ({placeholders}) "
                 "AND outcome_status='VERIFIED' AND outcome IN ('A','B')",
-                ACTIVE_SPORTS,
+                selected_sports,
             )
         }
 
@@ -183,7 +186,8 @@ def build(db_path: Path) -> dict:
             "research_only": True,
             "production_dependency": False,
             "automatic_promotion": False,
-            "active_sports": list(ACTIVE_SPORTS),
+            "active_sports": list(selected_sports),
+            "dataset_scope": "SPORT_SINGLE" if sport else "ACTIVE_ALL",
             "row_count": len(rows),
             "rows_by_sport": counts,
             "minimum_pit_gap_minutes": 60,
@@ -216,11 +220,12 @@ def build(db_path: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default="data/db/sports_v45.sqlite")
+    parser.add_argument("--sport", choices=ACTIVE_SPORTS, default=None)
     parser.add_argument(
         "--out", default="results/research/pymc_pit_shadow_dataset.json"
     )
     args = parser.parse_args()
-    report = build(Path(args.db))
+    report = build(Path(args.db), sport=args.sport)
     output = ROOT / args.out
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
