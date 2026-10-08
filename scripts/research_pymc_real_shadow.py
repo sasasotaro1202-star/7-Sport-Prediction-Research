@@ -80,6 +80,13 @@ def fit(dataset,seed=7):
     isamp=np.asarray(post["intercept"].values); bsamp=np.asarray(post["beta"].values); tsamp=np.asarray(post["team_strength"].values)
     logits=(isamp[...,None]+tsamp[...,ta[split:]]-tsamp[...,tb[split:]]+np.einsum("scf,nf->scn",bsamp,design[split:]))
     p=sigmoid(logits).mean(axis=(0,1)); yt=y[split:]
+    stat_width=len(stats)
+    swapped=design[split:].copy()
+    swapped[:, :stat_width] *= -1.0
+    swapped_logits=(isamp[...,None]+tsamp[...,tb[split:]]-tsamp[...,ta[split:]]+
+                    np.einsum("scf,nf->scn",bsamp,swapped))
+    p_swapped=sigmoid(swapped_logits).mean(axis=(0,1))
+    symmetry_error=float(np.max(np.abs((p + p_swapped) - 1.0)))
     summary=az.summary(idata,var_names=["intercept","sigma_strength"],round_to=6)
     rhat=float(summary["r_hat"].max()); div=int(np.asarray(idata.sample_stats["diverging"]).sum())
     return {
@@ -91,7 +98,9 @@ def fit(dataset,seed=7):
       "metrics":{"logloss":logloss(yt,p),"brier":brier(yt,p),"accuracy":float(np.mean((p>=0.5)==yt)),"ece":ece(yt,p),
                  "baseline_0_5_logloss":logloss(yt,np.full(len(yt),0.5)),"baseline_0_5_brier":brier(yt,np.full(len(yt),0.5))},
       "diagnostics":{"max_r_hat":rhat,"divergences":div,"finite_probabilities":bool(np.isfinite(p).all()),
-                      "minimum_rhat_margin_to_fail":float(1.05-rhat)},
+                      "minimum_rhat_margin_to_fail":float(1.05-rhat),
+                      "symmetry_max_abs_error":symmetry_error,
+                      "symmetry_contract":"P(A)+P(B)=1 under exact A/B feature and team swap"},
       "evidence_boundary":{"real_7_sport_data_used":True,"performance_verification":False,"production_dependency":False,"automatic_promotion":False,
                            "promotion_status":"HOLD","required_next_gates":["incumbent/challenger WFO","calibration","ablation","robustness","frozen holdout","shadow comparison"]}
     }
@@ -101,6 +110,7 @@ def main():
     a=ap.parse_args(); d=json.loads(a.dataset.read_text(encoding="utf-8")); r=fit(d); a.output.parent.mkdir(parents=True,exist_ok=True)
     if r["diagnostics"]["max_r_hat"]>1.05: raise ValueError("PYMC_RHAT_FAIL")
     if r["diagnostics"]["divergences"]>0: raise ValueError("PYMC_DIVERGENCE_FAIL")
+    if r["diagnostics"]["symmetry_max_abs_error"] > 1e-5: raise ValueError("PYMC_SYMMETRY_FAIL")
     a.output.write_text(json.dumps(r,ensure_ascii=False,indent=2)+"\n",encoding="utf-8"); print(json.dumps(r,ensure_ascii=False,indent=2))
 
 if __name__=="__main__": main()
