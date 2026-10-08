@@ -36,21 +36,31 @@ def build(
         }
 
     holdout_ids = set()
+    holdout_paths = []
     if exclude_frozen_holdout:
-        holdout_file = frozen_holdout_path or (
-            ROOT / "results" / "research" / f"{selected_sports[0]}_frozen_holdout.json"
-        )
-        if not holdout_file.is_file():
+        if frozen_holdout_path is not None:
+            if sport is None and len(selected_sports) > 1:
+                raise ValueError("explicit frozen_holdout_path requires sport-isolated dataset")
+            holdout_paths = [frozen_holdout_path]
+        else:
+            holdout_paths = [
+                ROOT / "results" / "research" / f"{item}_frozen_holdout.json"
+                for item in selected_sports
+            ]
+        missing = [p for p in holdout_paths if not p.is_file()]
+        if missing:
             return {
                 "status": "BLOCKED_HOLDOUT_FILE_MISSING",
                 "research_only": True,
                 "production_dependency": False,
                 "automatic_promotion": False,
                 "sport": selected_sports[0] if len(selected_sports) == 1 else None,
-                "frozen_holdout_path": str(holdout_file),
+                "frozen_holdout_paths": [str(p) for p in holdout_paths],
+                "missing_frozen_holdout_paths": [str(p) for p in missing],
             }
-        holdout_obj = json.loads(holdout_file.read_text(encoding="utf-8"))
-        holdout_ids = {str(x) for x in holdout_obj.get("event_ids", [])}
+        for holdout_file in holdout_paths:
+            holdout_obj = json.loads(holdout_file.read_text(encoding="utf-8"))
+            holdout_ids.update(str(x) for x in holdout_obj.get("event_ids", []))
         if not holdout_ids:
             return {
                 "status": "BLOCKED_HOLDOUT_EMPTY",
@@ -58,7 +68,7 @@ def build(
                 "production_dependency": False,
                 "automatic_promotion": False,
                 "sport": selected_sports[0] if len(selected_sports) == 1 else None,
-                "frozen_holdout_path": str(holdout_file),
+                "frozen_holdout_paths": [str(p) for p in holdout_paths],
             }
 
     con = sqlite3.connect(db_path)
@@ -274,10 +284,7 @@ def build(
             ),
             "frozen_holdout_excluded": exclude_frozen_holdout,
             "frozen_holdout_event_count": len(holdout_ids),
-            "frozen_holdout_path": str(
-                frozen_holdout_path
-                or (ROOT / "results" / "research" / f"{selected_sports[0]}_frozen_holdout.json")
-            ) if exclude_frozen_holdout else None,
+            "frozen_holdout_paths": [str(p) for p in holdout_paths] if exclude_frozen_holdout else [],
             "diagnostics": diagnostics,
             "rows": rows,
         }
