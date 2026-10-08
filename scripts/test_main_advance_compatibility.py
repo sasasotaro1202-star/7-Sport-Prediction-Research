@@ -63,9 +63,13 @@ def test_shallow_history_repair_recovers_real_ancestor() -> None:
         (source / "README.md").write_text("base\\n", encoding="utf-8")
         _commit(source, "base")
         base = _git(source, "rev-parse", "HEAD")
+        durable = source / "results" / "research"
+        durable.mkdir(parents=True)
         for index in range(3):
-            (source / "README.md").write_text(f"step {index}\\n", encoding="utf-8")
-            _commit(source, f"step {index}")
+            (durable / "autonomous_control_plane.json").write_text(
+                f'{{"step": {index}}}\\n', encoding="utf-8"
+            )
+            _commit(source, f"durable step {index}")
         current = _git(source, "rev-parse", "HEAD")
 
         _git(source, "clone", "--bare", str(source), str(remote))
@@ -76,8 +80,9 @@ def test_shallow_history_repair_recovers_real_ancestor() -> None:
         assert shallow.stdout.strip().lower() == "true"
         assert _run_git(["merge-base", "--is-ancestor", base, current], clone).returncode != 0
 
-        assert _repair_shallow_ancestry(base, current, cwd=clone) is True
-        assert _run_git(["merge-base", "--is-ancestor", base, current], clone).returncode == 0
+        decision = classify_main_advance(base, current, cwd=clone)
+        assert decision.status == "DURABLE_ONLY"
+        assert decision.unsafe_paths == ()
 
 def test_diverged_main_is_rejected_fail_closed() -> None:
     with tempfile.TemporaryDirectory() as raw:
