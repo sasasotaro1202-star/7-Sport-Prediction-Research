@@ -32,3 +32,7 @@ assert "matched_feature_logistic_logloss" in src
 assert "pymc_vs_matched_logistic_logloss_delta" in src
 
 assert "PYTHONPATH=. python scripts/research_pymc_real_shadow.py" in workflow
+
+assert "github_head_sha" in src
+assert "production_dependency" in src
+assert "automatic_promotion" in src
