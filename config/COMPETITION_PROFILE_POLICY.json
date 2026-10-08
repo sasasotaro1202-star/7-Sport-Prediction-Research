@@ -33,6 +33,20 @@
   },
   "profiles": [
     {
+      "profile_id": "basketball:nba",
+      "sport": "basketball",
+      "phase_type": "league",
+      "rules_profile": "nba",
+      "aliases": [
+        "nba",
+        "national basketball association",
+        "nba regular season",
+        "nba preseason",
+        "nba playoffs"
+      ],
+      "canonical_competition_id": "basketball:nba"
+    },
+    {
       "profile_id": "basketball:bleague",
       "sport": "basketball",
       "phase_type": "league",
