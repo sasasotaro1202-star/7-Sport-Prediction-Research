@@ -12,6 +12,31 @@
   "active_sports": {
     "basketball": [
       {
+        "source_id": "espn_nba_public_api",
+        "name": "ESPN NBA public scoreboard API",
+        "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+        "kind": "public_structured_api",
+        "capabilities": [
+          "future_schedule",
+          "event_identity",
+          "event_time",
+          "live_results",
+          "final_results",
+          "team_identity",
+          "game_statistics"
+        ],
+        "required_signals": [
+          "National Basketball Association",
+          "NBA"
+        ],
+        "probe_mode": "json_collection",
+        "minimum_records": 1,
+        "critical": true,
+        "cost_status": "FREE_PUBLIC_NO_KEY",
+        "pit_status": "UNPROVEN",
+        "role": "nba_current_and_historical_schedule_results_candidate"
+      },
+      {
         "source_id": "bleague_official_schedule",
         "name": "B.LEAGUE official",
         "url": "https://www.bleague.jp/schedule/",
