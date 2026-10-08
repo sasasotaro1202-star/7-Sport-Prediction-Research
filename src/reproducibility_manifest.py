@@ -13,6 +13,13 @@ BOXING_DB = ROOT / "data/db/boxing_v45.sqlite"
 SPORTS = ("valorant", "basketball", "volleyball", "tennis", "ufc", "rizin", "f1", "rugby", "boxing")
 OUT = ROOT / "results/reproducibility_manifest.json"
 
+def display_path(path: Path) -> str:
+    """Render repo-relative paths while tolerating isolated test/temp paths."""
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
 
 def display_path(path: Path) -> str:
     """Return a stable relative path for repo files, absolute path otherwise."""
