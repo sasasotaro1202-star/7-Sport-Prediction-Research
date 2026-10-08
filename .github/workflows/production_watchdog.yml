@@ -210,6 +210,8 @@ jobs:
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
             gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha |
             while read -r run_id status _event _created_at head_sha; do
+              [ -n "$run_id" ] || continue
+              [ "$status" = "in_progress" ] || continue
 
               if [ "$head_sha" = "$main_sha" ]; then
                 echo "CURRENT_MAIN_HEAVY_RUN_PRESERVED run_id=$run_id workflow=$workflow sha=$head_sha"
