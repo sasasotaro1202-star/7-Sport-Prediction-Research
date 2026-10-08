@@ -17,7 +17,7 @@ def parse_dt(value: str) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def build(db_path: Path, sport: str | None = None) -> dict:
+def build(db_path: Path, sport: str | None = None, require_current_replay: bool = False) -> dict:
     selected_sports = (sport,) if sport else ACTIVE_SPORTS
     if any(s not in ACTIVE_SPORTS for s in selected_sports):
         raise ValueError(f"unsupported active sport: {selected_sports}")
@@ -80,7 +80,15 @@ def build(db_path: Path, sport: str | None = None) -> dict:
             chosen.setdefault(row["event_id"], dict(row))
 
         rows = []
+        current_sha = __import__("os").environ.get("GITHUB_SHA")
         for event_id, replay in chosen.items():
+            if require_current_replay and (
+                not current_sha or replay["git_commit_sha"] != current_sha
+            ):
+                raise RuntimeError(
+                    f"REPLAY_PROVENANCE_FAIL:{event_id}:"
+                    f"expected={current_sha}:actual={replay['git_commit_sha']}"
+                )
             event = events.get(event_id)
             sides = participants.get(event_id, {})
             outcome = outcomes.get(event_id)
@@ -184,6 +192,14 @@ def build(db_path: Path, sport: str | None = None) -> dict:
             "outcome_used_only_as_label": True,
             "future_source_check": True,
             "feature_leakage_check": True,
+            "current_replay_provenance_required": require_current_replay,
+            "current_replay_provenance_verified": (
+                (not require_current_replay)
+                or all(
+                    row.get("replay_git_commit_sha") == current_sha
+                    for row in rows
+                )
+            ),
             "rows": rows,
         }
         payload["dataset_sha256"] = hashlib.sha256(
@@ -198,9 +214,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default="data/db/sports_v45.sqlite")
     parser.add_argument("--sport", choices=ACTIVE_SPORTS, default=None)
+    parser.add_argument(
+        "--require-current-replay",
+        action="store_true",
+        help="Require every selected replay to carry the current GitHub SHA.",
+    )
     parser.add_argument("--out", default="results/research/pymc_pit_shadow_dataset.json")
     args = parser.parse_args()
-    report = build(Path(args.db), sport=args.sport)
+    report = build(
+        Path(args.db),
+        sport=args.sport,
+        require_current_replay=args.require_current_replay,
+    )
     output = ROOT / args.out
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
