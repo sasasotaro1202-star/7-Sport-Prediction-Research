@@ -342,14 +342,14 @@ jobs:
                       "SELECT COUNT(*) FROM event WHERE sport IN (?,?,?,?,?)", active
                   ).fetchone()[0]
               )
+              sport_rows = dict(
+                  con.execute("SELECT sport,COUNT(*) FROM event GROUP BY sport").fetchall()
+              )
           finally:
               con.close()
           if total_events <= 0:
               raise SystemExit("MERGED_PIT_DB_EMPTY")
 
-          sport_rows = dict(
-              con.execute("SELECT sport,COUNT(*) FROM event GROUP BY sport").fetchall()
-          )
           unexpected_sports = sorted(set(sport_rows) - set(active))
           if unexpected_sports:
               raise SystemExit(
