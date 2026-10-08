@@ -131,3 +131,7 @@ pymc-devs/pymc is a research-only external candidate. The current PyMC work cons
 The real-data shadow lane may use only PIT-safe sport-scoped datasets and chronological train/test ordering. Missing PIT evidence yields BLOCKED rather than fabricated rows. The candidate remains HOLD until incumbent/challenger chronological WFO, calibration, ablation, robustness, frozen-holdout and shadow-comparison gates are passed.
 
 PyMC never becomes a production dependency merely because its workflow is green. Automatic model promotion remains forbidden.
+
+
+## Prediction-Core PyMC gate
+Prediction-Core OSS candidates remain research-only until current-HEAD PIT provenance is re-materialized and independently verified. PyMC real-data Shadow must use sport-isolated datasets, a forced strict PIT replay rebuild from a verified cache, current Git replay provenance, chronological evaluation, explicit convergence diagnostics and a research-only promotion boundary. A baseline improvement versus 0.5 is not incumbent/challenger evidence. Production adoption remains HOLD until chronological WFO, calibration, ablation, robustness, frozen holdout and shadow comparison are independently verified.
