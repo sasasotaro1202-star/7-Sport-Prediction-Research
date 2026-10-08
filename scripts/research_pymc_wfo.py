@@ -34,6 +34,22 @@ def make_fold(rows,train_end,test_end,stats):
     med=np.nanmedian(x,axis=0); med=np.where(np.isfinite(med),med,0.0); x=np.where(np.isfinite(x),x,med); x2=np.where(np.isfinite(x2),x2,med)
     mu=x.mean(axis=0); scale=x.std(axis=0); scale=np.where(scale>1e-8,scale,1.0)
     return train,test,teams,ta,tb,y,np.concatenate([(x-mu)/scale,m],1),ta2,tb2,y2,np.concatenate([(x2-mu)/scale,m2],1)
+def fit_logistic_baseline(x,y,l2=1.0,steps=60):
+    x=np.asarray(x,float); y=np.asarray(y,float)
+    xb=np.concatenate([np.ones((len(x),1)),x],axis=1); w=np.zeros(xb.shape[1],float)
+    reg=np.eye(xb.shape[1],dtype=float)*float(l2); reg[0,0]=0.0
+    for _ in range(int(steps)):
+        p=sigmoid(xb@w); wt=np.clip(p*(1-p),1e-6,None)
+        h=(xb.T*wt)@xb+reg; g=xb.T@(p-y)+reg@w
+        try: delta=np.linalg.solve(h,g)
+        except np.linalg.LinAlgError: delta=np.linalg.pinv(h)@g
+        w-=delta
+        if float(np.max(np.abs(delta)))<1e-7: break
+    return w
+def logistic_predict(w,x):
+    xb=np.concatenate([np.ones((len(x),1)),np.asarray(x,float)],axis=1)
+    return sigmoid(xb@w)
+
 def fit_fold(payload,draws,tune,seed):
     train,test,teams,ta,tb,y,x,ta2,tb2,y2,x2=payload
     with pm.Model(coords={"team":np.arange(len(teams)),"feature":np.arange(x.shape[1])}):
@@ -45,8 +61,9 @@ def fit_fold(payload,draws,tune,seed):
         idata=pm.sample(draws=draws,tune=tune,chains=2,cores=2,random_seed=seed,target_accept=0.9,progressbar=False,return_inferencedata=True)
     post=idata.posterior; ic=np.asarray(post["intercept"].values); bc=np.asarray(post["beta"].values); tc=np.asarray(post["team_strength"].values); tc=tc-tc.mean(axis=-1,keepdims=True)
     p=sigmoid(ic[...,None]+tc[...,ta2]-tc[...,tb2]+np.einsum("scf,nf->scn",bc,x2)).mean((0,1)); base=np.full(len(y2),0.5)
+    p_logistic=logistic_predict(fit_logistic_baseline(x,y),x2)
     summ=az.summary(idata,var_names=["intercept","sigma_strength"],round_to=6)
-    return {"train_rows":len(train),"test_rows":len(test),"metrics":{"logloss":logloss(y2,p),"brier":brier(y2,p),"accuracy":float(np.mean((p>=0.5)==y2)),"ece":ece(y2,p),"baseline_0_5_logloss":logloss(y2,base),"baseline_0_5_brier":brier(y2,base)},"diagnostics":{"max_r_hat":float(summ["r_hat"].max()),"divergences":int(np.asarray(idata.sample_stats["diverging"]).sum()),"finite_probabilities":bool(np.isfinite(p).all())}}
+    return {"train_rows":len(train),"test_rows":len(test),"metrics":{"logloss":logloss(y2,p),"brier":brier(y2,p),"accuracy":float(np.mean((p>=0.5)==y2)),"ece":ece(y2,p),"baseline_0_5_logloss":logloss(y2,base),"baseline_0_5_brier":brier(y2,base),"matched_logistic_logloss":logloss(y2,p_logistic),"matched_logistic_brier":brier(y2,p_logistic),"pymc_vs_matched_logistic_logloss_delta":float(logloss(y2,p_logistic)-logloss(y2,p))},"diagnostics":{"max_r_hat":float(summ["r_hat"].max()),"divergences":int(np.asarray(idata.sample_stats["diverging"]).sum()),"finite_probabilities":bool(np.isfinite(p).all())}}
 def run(dataset,draws=250,tune=250,seed=7):
     if dataset.get("status")!="READY": return {"status":"BLOCKED_PIT_DATASET","dataset_status":dataset.get("status")}
     if dataset.get("dataset_scope")!="SPORT_SINGLE": raise ValueError("WFO requires SPORT_SINGLE dataset")
