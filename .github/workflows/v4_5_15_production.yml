@@ -217,6 +217,7 @@ jobs:
           print(f"ACTIVE_CACHE_PUBLICATION_ALLOWED={str(allowed).lower()} sport={sport} reason={reason}")
           if not allowed:
               print(f"ACTIVE_CACHE_PUBLICATION_SKIPPED sport={sport} reason={reason}")
+          PY
 
       - name: Save database
         if: success() && steps.active_cache_gate.outputs.save == 'true'
