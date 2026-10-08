@@ -32,8 +32,26 @@ def test_contract() -> None:
     assert '--expected-parent "$(git rev-parse HEAD^)"' in text
     assert 'git push origin HEAD:main' not in text
     push_helper = (ROOT / "scripts" / "reliable_main_push.py").read_text(encoding="utf-8")
-    assert 'git push origin HEAD:main' in push_helper
+    push_helper_ast = __import__("ast").parse(push_helper)
+    assert 'git push origin HEAD:main' not in push_helper
+    assert 'HEAD:main' in push_helper
+    assert 'run_capture' in push_helper
     assert 'verify_local_parent' in push_helper
+    push_calls = [
+        n for n in __import__("ast").walk(push_helper_ast)
+        if isinstance(n, __import__("ast").Call)
+        and isinstance(n.func, __import__("ast").Name)
+        and n.func.id == "run_capture"
+    ]
+    assert any(
+        isinstance(call.args[0], __import__("ast").List)
+        and any(
+            isinstance(elt, __import__("ast").Constant)
+            and elt.value == "HEAD:main"
+            for elt in call.args[0].elts
+        )
+        for call in push_calls
+    )
     assert 'RELIABLE_PUSH_STALE_MAIN' in push_helper
     start = text.index("Recover once without replaying a stale SHA")
     guard = text[start:]
