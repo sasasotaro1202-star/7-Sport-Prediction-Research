@@ -16,6 +16,8 @@ on:
       - "scripts/research_pymc_real_shadow.py"
       - "scripts/test_pymc_pit_shadow_dataset.py"
       - "scripts/test_pymc_real_shadow.py"
+      - "src/research_policy.py"
+      - "src/pit_replay_builder.py"
       - ".github/workflows/prediction_core_pymc_real_shadow.yml"
   workflow_dispatch:
   schedule:
