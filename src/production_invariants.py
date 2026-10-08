@@ -627,7 +627,7 @@ def main():
     require('git add results/failure_memory.jsonl' in recovery_src
             and 'scripts/reliable_main_push.py' in recovery_src
             and '--expected-parent "$(git rev-parse HEAD^)"' in recovery_src
-            and 'git push origin HEAD:main' in reliable_push_src
+            and 'run_capture(["git", "push", "origin", "HEAD:main"])' in reliable_push_src
             and 'verify_local_parent' in reliable_push_src
             and 'RELIABLE_PUSH_STALE_MAIN' in reliable_push_src,
             'failure memory is not persisted explicitly to main through the fail-closed push helper')
