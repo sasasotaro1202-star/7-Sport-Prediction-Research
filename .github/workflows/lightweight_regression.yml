@@ -100,6 +100,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_basketball_target_pit_integrity.py
       - name: Production safe continuation regression
         run: PYTHONPATH=. python scripts/test_production_safe_continuation.py
+      - name: Reliable main push contract
+        run: PYTHONPATH=. python scripts/test_reliable_main_push_contract.py
       - name: Production final verdict fail-closed regression
         run: PYTHONPATH=. python scripts/test_production_final_verdict_fail_closed.py
       - name: Continuous scope autofill regression
