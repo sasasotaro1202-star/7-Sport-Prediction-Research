@@ -47,28 +47,10 @@ jobs:
           set -euo pipefail
           mkdir -p results/research
           if [ ! -s data/db/sports_v45.sqlite ]; then
-            python - <<'PY'
-            from pathlib import Path
-            import json
-
-            path = Path("results/research/pymc_pit_shadow_dataset.json")
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(
-                json.dumps(
-                    {
-                        "status": "DEFERRED_NO_DB",
-                        "research_only": True,
-                        "production_dependency": False,
-                        "automatic_promotion": False,
-                    },
-                    indent=2,
-                )
-                + "\n"
-            )
-            print("PYMC_PIT_SHADOW_STATUS=DEFERRED_NO_DB")
-            PY
+            printf '%s\n' '{"status":"DEFERRED_NO_DB","research_only":true,"production_dependency":false,"automatic_promotion":false}' > results/research/pymc_pit_shadow_dataset.json
+            echo "PYMC_PIT_SHADOW_STATUS=DEFERRED_NO_DB"
           else
-            python scripts/pymc_pit_shadow_dataset.py               --db data/db/sports_v45.sqlite               --out results/research/pymc_pit_shadow_dataset.json
+            python scripts/pymc_pit_shadow_dataset.py --db data/db/sports_v45.sqlite --out results/research/pymc_pit_shadow_dataset.json
           fi
       - name: Upload shadow dataset artifact
         uses: actions/upload-artifact@v4
