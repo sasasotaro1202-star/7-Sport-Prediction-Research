@@ -208,10 +208,34 @@ jobs:
           main_sha=$(git rev-parse origin/main)
 
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
-            # Emit one TSV row per active heavy run. Reading raw JSON as line-oriented
-            # shell fields is unsafe because gh returns a JSON array.
+            # Emit one whitespace-safe TSV row per active heavy run. Every emitted
+            # field is free of spaces, so default shell IFS is sufficient.
             gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha               --jq '.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending") | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
-            while IFS=
+            while read -r run_id status _event _created_at head_sha; do
+              [ -n "$run_id" ] || continue
+
+              if [ "$head_sha" = "$main_sha" ]; then
+                echo "CURRENT_MAIN_HEAVY_RUN_PRESERVED run_id=$run_id workflow=$workflow status=$status sha=$head_sha"
+                continue
+              fi
+
+              advance_status="$(classify_main_advance_remote "$head_sha" "$main_sha")"
+              case "$advance_status" in
+                DURABLE_ONLY)
+                  echo "DURABLE_ONLY_HEAVY_RUN_PRESERVED run_id=$run_id workflow=$workflow status=$status sha=$head_sha main=$main_sha"
+                  continue
+                  ;;
+                NON_DURABLE_CHANGE|UNVERIFIABLE)
+                  echo "STALE_UNSAFE_HEAVY_RUN run_id=$run_id workflow=$workflow status=$status sha=$head_sha main=$main_sha classification=$advance_status"
+                  cancel_run "$run_id"
+                  ;;
+                *)
+                  echo "UNKNOWN_MAIN_ADVANCE_CLASSIFICATION run_id=$run_id workflow=$workflow status=$status sha=$head_sha main=$main_sha class=$advance_status" >&2
+                  cancel_run "$run_id"
+                  ;;
+              esac
+            done
+          done
 
       - name: Ensure validated latest-main production is continuously scheduled
         if: steps.rescue_guard.outputs.eligible == 'true'
