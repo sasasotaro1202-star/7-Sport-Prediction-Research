@@ -152,6 +152,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_external_research_candidates.py
       - name: Prediction-core OSS research registry guard
         run: PYTHONPATH=. python scripts/test_prediction_core_oss_candidates.py
+      - name: PyMC POC contract regression
+        run: PYTHONPATH=. python scripts/test_pymc_poc_contract.py
       - name: Import canonical modules
         run: |
           python - <<'PY'
