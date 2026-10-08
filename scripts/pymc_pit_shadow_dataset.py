@@ -17,7 +17,13 @@ def parse_dt(value: str) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def build(db_path: Path, sport: str | None = None, require_current_replay: bool = False) -> dict:
+def build(
+    db_path: Path,
+    sport: str | None = None,
+    require_current_replay: bool = False,
+    exclude_frozen_holdout: bool = False,
+    frozen_holdout_path: Path | None = None,
+) -> dict:
     selected_sports = (sport,) if sport else ACTIVE_SPORTS
     if any(s not in ACTIVE_SPORTS for s in selected_sports):
         raise ValueError(f"unsupported active sport: {selected_sports}")
@@ -28,6 +34,32 @@ def build(db_path: Path, sport: str | None = None, require_current_replay: bool 
             "production_dependency": False,
             "automatic_promotion": False,
         }
+
+    holdout_ids = set()
+    if exclude_frozen_holdout:
+        holdout_file = frozen_holdout_path or (
+            ROOT / "results" / "research" / f"{selected_sports[0]}_frozen_holdout.json"
+        )
+        if not holdout_file.is_file():
+            return {
+                "status": "BLOCKED_HOLDOUT_FILE_MISSING",
+                "research_only": True,
+                "production_dependency": False,
+                "automatic_promotion": False,
+                "sport": selected_sports[0] if len(selected_sports) == 1 else None,
+                "frozen_holdout_path": str(holdout_file),
+            }
+        holdout_obj = json.loads(holdout_file.read_text(encoding="utf-8"))
+        holdout_ids = {str(x) for x in holdout_obj.get("event_ids", [])}
+        if not holdout_ids:
+            return {
+                "status": "BLOCKED_HOLDOUT_EMPTY",
+                "research_only": True,
+                "production_dependency": False,
+                "automatic_promotion": False,
+                "sport": selected_sports[0] if len(selected_sports) == 1 else None,
+                "frozen_holdout_path": str(holdout_file),
+            }
 
     con = sqlite3.connect(db_path)
     con.row_factory = sqlite3.Row
@@ -115,6 +147,8 @@ def build(db_path: Path, sport: str | None = None, require_current_replay: bool 
 
         chosen = {}
         for row in replays:
+            if exclude_frozen_holdout and str(row["event_id"]) in holdout_ids:
+                continue
             chosen.setdefault(row["event_id"], dict(row))
 
         rows = []
@@ -238,6 +272,12 @@ def build(db_path: Path, sport: str | None = None, require_current_replay: bool 
                     for row in rows
                 )
             ),
+            "frozen_holdout_excluded": exclude_frozen_holdout,
+            "frozen_holdout_event_count": len(holdout_ids),
+            "frozen_holdout_path": str(
+                frozen_holdout_path
+                or (ROOT / "results" / "research" / f"{selected_sports[0]}_frozen_holdout.json")
+            ) if exclude_frozen_holdout else None,
             "diagnostics": diagnostics,
             "rows": rows,
         }
@@ -258,12 +298,18 @@ def main() -> int:
         action="store_true",
         help="Require every selected replay to carry the current GitHub SHA.",
     )
+    parser.add_argument(
+        "--exclude-frozen-holdout",
+        action="store_true",
+        help="Fail closed unless the sport frozen-holdout file exists, then exclude its event IDs.",
+    )
     parser.add_argument("--out", default="results/research/pymc_pit_shadow_dataset.json")
     args = parser.parse_args()
     report = build(
         Path(args.db),
         sport=args.sport,
         require_current_replay=args.require_current_replay,
+        exclude_frozen_holdout=args.exclude_frozen_holdout,
     )
     output = ROOT / args.out
     output.parent.mkdir(parents=True, exist_ok=True)
