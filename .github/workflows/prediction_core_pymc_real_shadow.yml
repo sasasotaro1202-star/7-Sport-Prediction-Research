@@ -31,7 +31,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYMC_REAL_SHADOW_VERSION: "v2-current-pit-replay-sport-aware"
+  PYMC_REAL_SHADOW_VERSION: "v3-current-pit-replay-sport-aware"
 
 jobs:
   real-shadow:
@@ -43,6 +43,8 @@ jobs:
         sport: [basketball, volleyball, ufc, rizin, valorant]
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v6
         with:
@@ -112,6 +114,22 @@ jobs:
           else
             python scripts/pymc_pit_shadow_dataset.py --sport "${SPORT_NAME}" --db data/db/sports_v45.sqlite --require-current-replay --out "${dataset}"
           fi
+
+      - name: Initialize explicit shadow execution evidence
+        env:
+          SPORT_NAME: \${{ matrix.sport }}
+        run: |
+          set -euo pipefail
+          mkdir -p results/research
+          cat > "results/research/pymc_real_shadow_\${SPORT_NAME}.json" <<'JSON'
+          {
+            "status": "EXECUTED_PENDING_FIT",
+            "research_only": true,
+            "production_dependency": false,
+            "automatic_promotion": false,
+            "promotion_status": "HOLD"
+          }
+          JSON
 
       - name: Run real-data PyMC shadow fit when PIT data is ready
         env:
