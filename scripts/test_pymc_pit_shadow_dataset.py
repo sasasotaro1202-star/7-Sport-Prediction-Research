@@ -41,6 +41,8 @@ for token in (
 
 assert "PIT_SOURCE_CACHE_MISSING" in workflow_source
 assert "INSUFFICIENT_PIT_EVIDENCE" in workflow_source
+assert "Install PIT replay runtime" in workflow_source
+assert "pip install --retries 5 --timeout 60 -r requirements.txt" in workflow_source
 assert "pymc_pit_shadow_source_manifest.json" in workflow_source
 assert "pymc_pit_shadow_execution.json" in workflow_source
 assert "PIT_DATASET_ONLY_NO_MODEL_PERFORMANCE_EVIDENCE" in workflow_source
