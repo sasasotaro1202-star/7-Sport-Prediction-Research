@@ -16,6 +16,10 @@ def main():
     assert "PROJECT_SCOPE_POLICY.json" in future
     assert "PROJECT_SCOPE_POLICY.json" in eligibility
     assert "active_prediction_scope" in latest
+    # Competition-specific routing is mandatory for basketball/volleyball;
+    # an accepted sport-incumbent artifact must not be silently pooled across competitions.
+    assert 'if s in ("basketball", "volleyball") and route_info is None:' in future
+    assert "_safe_prior_binary(" in future
 
     legacy_future = 'SPORTS=("valorant","basketball","volleyball","tennis","ufc","rizin","f1","rugby","boxing")'
     legacy_policy = "SPORTS=('valorant','basketball','volleyball','tennis','ufc','rizin','f1','rugby','boxing')"
