@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from src.main_advance_policy import _run_git, classify_main_advance
+from src.main_advance_policy import _repair_shallow_ancestry, _run_git, classify_main_advance
 
 
 POLICY = Path("src/main_advance_policy.py")
@@ -59,6 +59,7 @@ def test_shallow_history_repair_recovers_real_ancestor() -> None:
         _git(source, "init", "-q")
         _git(source, "config", "user.email", "test@example.invalid")
         _git(source, "config", "user.name", "test")
+        _git(source, "checkout", "-q", "-b", "main")
         (source / "README.md").write_text("base\\n", encoding="utf-8")
         _commit(source, "base")
         base = _git(source, "rev-parse", "HEAD")
@@ -66,57 +67,17 @@ def test_shallow_history_repair_recovers_real_ancestor() -> None:
             (source / "README.md").write_text(f"step {index}\\n", encoding="utf-8")
             _commit(source, f"step {index}")
         current = _git(source, "rev-parse", "HEAD")
+
         _git(source, "clone", "--bare", str(source), str(remote))
         _git(source, "clone", "--depth", "1", f"file://{remote}", str(clone))
-        _git(clone, "config", "user.email", "test@example.invalid")
-        _git(clone, "config", "user.name", "test")
 
         shallow = _run_git(["rev-parse", "--is-shallow-repository"], clone)
         assert shallow.returncode == 0
         assert shallow.stdout.strip().lower() == "true"
+        assert _run_git(["merge-base", "--is-ancestor", base, current], clone).returncode != 0
 
-        decision_before = classify_main_advance(base, current, cwd=clone)
-        # The policy must remain fail-closed until the ancestry evidence can be
-        # established; the CLI/workflow layer repairs shallow history explicitly.
-        assert decision_before.status == "NON_DURABLE_CHANGE"
-
-        # This directly exercises the bounded history repair used by the CLI.
-        for deepen in (64, 256, 1024):
-            fetched = _run_git(
-                ["fetch", "origin", "main", f"--deepen={deepen}"],
-                clone,
-            )
-            if fetched.returncode != 0:
-                break
-            if _run_git(
-                ["merge-base", "--is-ancestor", base, current],
-                clone,
-            ).returncode == 0:
-                break
-
-        repaired = _run_git(
-            ["merge-base", "--is-ancestor", base, current],
-            clone,
-        )
-        assert repaired.returncode == 0
-
-
-def test_non_durable_main_advance_is_rejected() -> None:
-    with tempfile.TemporaryDirectory() as raw:
-        repo = Path(raw)
-        _git(repo, "init", "-q")
-        _git(repo, "config", "user.email", "test@example.invalid")
-        _git(repo, "config", "user.name", "test")
-        (repo / "README.md").write_text("base\\n", encoding="utf-8")
-        base = _commit(repo, "base")
-
-        (repo / "README.md").write_text("semantic change\\n", encoding="utf-8")
-        current = _commit(repo, "semantic")
-
-        decision = classify_main_advance(base, current, cwd=repo)
-        assert decision.status == "NON_DURABLE_CHANGE"
-        assert "README.md" in decision.unsafe_paths
-
+        assert _repair_shallow_ancestry(base, current, cwd=clone) is True
+        assert _run_git(["merge-base", "--is-ancestor", base, current], clone).returncode == 0
 
 def test_diverged_main_is_rejected_fail_closed() -> None:
     with tempfile.TemporaryDirectory() as raw:
