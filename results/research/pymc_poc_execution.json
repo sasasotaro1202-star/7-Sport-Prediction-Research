@@ -1,0 +1,31 @@
+{
+  "artifact_run_id": 37728502100,
+  "artifact_id": 11528836660,
+  "artifact_sha256": "993c7125bedcc3685530bcc1e9fa0277d1d64f4c598ed5a6e4220b42e594de16",
+  "head_sha_executed": "f0292dc79dd6b61157883127cbf2b891fb05ac96",
+  "candidate": "pymc-devs/pymc",
+  "pymc_version": "6.3.2",
+  "state": "EXECUTED",
+  "execution_verified": true,
+  "performance_verified_for_7_sport": false,
+  "promotion_status": "HOLD",
+  "data_scope": "synthetic_only",
+  "chronological_split": true,
+  "future_feature_leakage": false,
+  "prediction_cutoff_before_outcome": true,
+  "same_event_snapshot_duplication": false,
+  "metrics": {
+    "pymc_logloss": 0.6894378724996666,
+    "baseline_logloss": 0.6931471805599454,
+    "relative_logloss_improvement": 0.005350908602869353,
+    "pymc_brier": 0.2476334606087697,
+    "baseline_brier": 0.25,
+    "accuracy": 0.5833333333333334
+  },
+  "diagnostics": {
+    "max_r_hat": 1.005913,
+    "finite_probabilities": true,
+    "posterior_samples_finite": true
+  },
+  "next_gate": "PIT-safe real-event Shadow Dataset"
+}
