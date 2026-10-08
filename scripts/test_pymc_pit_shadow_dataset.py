@@ -246,3 +246,10 @@ with tempfile.TemporaryDirectory() as tmp:
             os.environ["GITHUB_SHA"] = old_sha
 
 print("PYMC_PIT_SHADOW_EXECUTABLE_FIXTURE_CONTRACT=PASS")
+
+pit_source=(ROOT/"src"/"pit_replay_builder.py").read_text(encoding="utf-8")
+research_cycle=(ROOT/"src"/"research_cycle_v4.py").read_text(encoding="utf-8")
+assert "ex.sport=ms.sport" in pit_source
+assert "ss.sport=ms.sport" in research_cycle
+assert "INSERT OR REPLACE INTO pit_replay" in pit_source
+assert "FEATURE_VERSION,'strict-pit',REPLAY_GIT_SHA, None, fingerprint" in pit_source
