@@ -230,6 +230,13 @@ jobs:
           pattern: prediction-core-pymc-pit-source-*
           path: pit_source_artifacts
           merge-multiple: false
+      - name: Fail closed on collector execution failure
+        if: ${{ needs.collect-pit-source.result != 'success' }}
+        run: |
+          set -euo pipefail
+          echo "PYMC_PIT_SHADOW_COLLECTOR_RESULT=${{ needs.collect-pit-source.result }}" >&2
+          exit 1
+
       - name: Evaluate source coverage and build merged PIT database
         run: |
           set -euo pipefail
@@ -318,6 +325,15 @@ jobs:
               con.close()
           if total_events <= 0:
               raise SystemExit("MERGED_PIT_DB_EMPTY")
+
+          sport_rows = dict(
+              con.execute("SELECT sport,COUNT(*) FROM event GROUP BY sport").fetchall()
+          )
+          unexpected_sports = sorted(set(sport_rows) - set(active))
+          if unexpected_sports:
+              raise SystemExit(
+                  "MERGED_PIT_DB_SCOPE_CONTAMINATION:" + ",".join(unexpected_sports)
+              )
 
           subprocess.run(
               [
