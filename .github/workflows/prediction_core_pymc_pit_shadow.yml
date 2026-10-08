@@ -19,8 +19,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: prediction-core-pymc-pit-shadow
-  cancel-in-progress: false
+  group: prediction-core-pymc-pit-shadow-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   collect-pit-source:
