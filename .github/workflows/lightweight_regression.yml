@@ -41,7 +41,8 @@ jobs:
           curl --fail --silent --show-error --location "$url" --output /tmp/actionlint.tar.gz
           echo "${expected_sha256}  /tmp/actionlint.tar.gz" | sha256sum --check --status -
           tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
-          /tmp/actionlint -no-color .github/workflows/*.yml      - name: Undefined-name static analysis for strict research
+          /tmp/actionlint -no-color .github/workflows/*.yml
+      - name: Undefined-name static analysis for strict research
         run: |
           python -m pip install --retries 5 --timeout 60 "ruff==0.16.10"
           ruff check --output-format=github --select F821 src/research_cycle_strict.py
