@@ -14,7 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> int:
     collector = (ROOT / "src/seven_sport_production.py").read_text(encoding="utf-8")
     assert "from src.basketball_cdn_backfill import collect_official" in collector
-    assert "collect_espn(c,h,sport,['nba','wnba','mens-college-basketball'],start,end)" not in collector
+    assert "collect_espn(c,h,'basketball',['nba'],start,end,store_outcomes=True)" in collector
+
+    assert resolve_profile("basketball", "NBA", None)["matched"] is True
+    assert target_event("basketball", "Boston Celtics vs Los Angeles Lakers", "NBA") is True
 
     for tier in ("B.PREMIER", "B.ONE", "B.TWO"):
         assert resolve_profile("basketball", tier, None)["matched"] is True
