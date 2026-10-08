@@ -7,6 +7,7 @@ from pathlib import Path
 import arviz as az
 import numpy as np
 import pymc as pm
+from src.research_policy import POLICY
 
 MODEL_VERSION = "pymc-real-shadow-v1"
 
@@ -36,17 +37,27 @@ def prepare(dataset):
     rows=sorted(dataset.get("rows") or [],key=lambda r:(r["event_time_utc"],r["event_id"]))
     if len(rows)<100: raise ValueError("insufficient rows")
     split=int(len(rows)*0.8)
-    teams=sorted({str(r["team_a"]) for r in rows}|{str(r["team_b"]) for r in rows})
+    train_rows = rows[:split]
+    teams=sorted({str(r["team_a"]) for r in train_rows}|{str(r["team_b"]) for r in train_rows})
+    oov_team="__OOV_TEAM__"
+    teams.append(oov_team)
     ti={t:i for i,t in enumerate(teams)}
     ta=[];tb=[];y=[];x=[];m=[]
-    stats=("points","rebounds","assists","steals","blocks","turnovers","fieldGoalPct","threePointPct","freeThrowPct")
+    sport = dataset["active_sports"][0]
+    stats = tuple(POLICY[sport])
+    if not stats:
+        raise ValueError(f"no shadow stats configured for sport: {sport}")
     for r in rows:
         f=r.get("features") or {}; vals=[]; flags=[]
         for s in stats:
             a=f.get(f"A__{s}__mean"); b=f.get(f"B__{s}__mean")
             if a is None or b is None: vals.append(np.nan); flags.append(1.0)
             else: vals.append(float(a)-float(b)); flags.append(0.0)
-        x.append(vals); m.append(flags); ta.append(ti[str(r["team_a"])]); tb.append(ti[str(r["team_b"])]); y.append(1 if r["outcome"]=="A" else 0)
+        x.append(vals)
+        m.append(flags)
+        ta.append(ti.get(str(r["team_a"]), ti[oov_team]))
+        tb.append(ti.get(str(r["team_b"]), ti[oov_team]))
+        y.append(1 if r["outcome"]=="A" else 0)
     x=np.asarray(x,float); m=np.asarray(m,float)
     med=np.nanmedian(x[:split],axis=0); med=np.where(np.isfinite(med),med,0.0)
     x=np.where(np.isfinite(x),x,med)
@@ -74,7 +85,8 @@ def fit(dataset,seed=7):
     return {
       "status":"SHADOW_PERFORMANCE_OBSERVED","candidate":"pymc-devs/pymc","pymc_version":str(pm.__version__),
       "model_version":MODEL_VERSION,"seed":seed,"sport":dataset["active_sports"][0],
-      "data":{"dataset_sha256":dataset.get("dataset_sha256"),"rows":len(rows),"train_rows":split,"test_rows":len(yt),"unique_teams":len(teams),
+      "data":{"dataset_sha256":dataset.get("dataset_sha256"),"rows":len(rows),"train_rows":split,"test_rows":len(yt),"train_known_teams":len(teams)-1,
+              "oov_team_bucket":True,
               "chronological_split":True,"event_cluster_one_case":True,"prediction_cutoff_before_outcome":True},
       "metrics":{"logloss":logloss(yt,p),"brier":brier(yt,p),"accuracy":float(np.mean((p>=0.5)==yt)),"ece":ece(yt,p),
                  "baseline_0_5_logloss":logloss(yt,np.full(len(yt),0.5)),"baseline_0_5_brier":brier(yt,np.full(len(yt),0.5))},
