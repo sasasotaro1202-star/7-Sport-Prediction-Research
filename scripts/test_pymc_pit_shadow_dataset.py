@@ -7,3 +7,7 @@ for token in ("--sport","SPORT_SINGLE","source_available_at_utc","PIT_SOURCE_NOT
     assert token in src
 assert "retrieved_at_utc" not in src
 print("PYMC_PIT_SHADOW_CONTRACT=PASS")
+
+assert "require_current_replay" in src
+assert "--require-current-replay" in src
+assert "REPLAY_PROVENANCE_FAIL" in src
