@@ -64,6 +64,22 @@ with tempfile.TemporaryDirectory() as tmp:
         assert ok["row_count"] == 1
         assert ok["current_replay_provenance_verified"] is True
         assert ok["diagnostics"]["replayable_rows"] == 1
+        holdout = Path(tmp) / "basketball_frozen_holdout.json"
+        holdout.write_text(
+            '{"version":"test","sport":"basketball","event_ids":["e1"]}\n",
+            encoding="utf-8",
+        )
+        excluded = build(
+            db,
+            sport="basketball",
+            require_current_replay=True,
+            exclude_frozen_holdout=True,
+            frozen_holdout_path=holdout,
+        )
+        assert excluded["status"] == "DEFERRED_NO_ELIGIBLE_PIT_ROWS"
+        assert excluded["row_count"] == 0
+        assert excluded["frozen_holdout_excluded"] is True
+
 
         con = sqlite3.connect(db)
         con.execute("UPDATE source_snapshot SET source_available_at_utc=? WHERE snapshot_id='s1'", ("2026-01-01T11:30:00+00:00",))
