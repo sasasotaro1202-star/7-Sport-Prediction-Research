@@ -24,7 +24,7 @@ def build_fixture() -> sqlite3.Connection:
           observed_at_utc TEXT, quality_status TEXT, reason TEXT
         );
         CREATE TABLE source_snapshot(
-          snapshot_id TEXT PRIMARY KEY, source TEXT, source_url TEXT,
+          snapshot_id TEXT PRIMARY KEY, sport TEXT, source TEXT, source_url TEXT,
           source_available_at_utc TEXT, event_time_utc TEXT,
           availability_status TEXT
         );
@@ -49,8 +49,8 @@ def build_fixture() -> sqlite3.Connection:
         url = f"https://example.test/{eid}"
         avail = "2024-12-31T00:00:00+00:00"
         c.execute(
-            "INSERT INTO source_snapshot VALUES(?,?,?,?,?,?)",
-            (f"s{i}", "fixture", url, avail, ts, "EXACT"),
+            "INSERT INTO source_snapshot VALUES(?,?,?,?,?,?,?)",
+            (f"s{i}", "ufc", "fixture", url, avail, ts, "EXACT"),
         )
         c.execute(
             "INSERT INTO event_outcome VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
