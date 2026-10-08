@@ -1,0 +1,78 @@
+name: Prediction-Core PyMC PIT Shadow Dataset
+
+on:
+  push:
+    paths:
+      - "scripts/pymc_pit_shadow_dataset.py"
+      - "scripts/test_pymc_pit_shadow_dataset.py"
+      - ".github/workflows/prediction_core_pymc_pit_shadow.yml"
+  pull_request:
+    paths:
+      - "scripts/pymc_pit_shadow_dataset.py"
+      - "scripts/test_pymc_pit_shadow_dataset.py"
+      - ".github/workflows/prediction_core_pymc_pit_shadow.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "37 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prediction-core-pymc-pit-shadow
+  cancel-in-progress: false
+
+jobs:
+  build-shadow-dataset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Validate shadow builder contract
+        run: PYTHONPATH=. python scripts/test_pymc_pit_shadow_dataset.py
+      - name: Restore latest PIT-safe merged database
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: prediction-core-pit-shadow-${{ github.run_id }}
+          restore-keys: |
+            trajectory-ready-db-v1-merged-
+      - name: Build PIT-safe PyMC shadow dataset
+        run: |
+          set -euo pipefail
+          mkdir -p results/research
+          if [ ! -s data/db/sports_v45.sqlite ]; then
+            python - <<'PY'
+from pathlib import Path
+import json
+
+path = Path("results/research/pymc_pit_shadow_dataset.json")
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(
+    json.dumps(
+        {
+            "status": "DEFERRED_NO_DB",
+            "research_only": True,
+            "production_dependency": False,
+            "automatic_promotion": False,
+        },
+        indent=2,
+    ) + "\n"
+)
+print("PYMC_PIT_SHADOW_STATUS=DEFERRED_NO_DB")
+PY
+          else
+            python scripts/pymc_pit_shadow_dataset.py               --db data/db/sports_v45.sqlite               --out results/research/pymc_pit_shadow_dataset.json
+          fi
+      - name: Upload shadow dataset artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prediction-core-pymc-pit-shadow-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+          path: results/research/pymc_pit_shadow_dataset.json
