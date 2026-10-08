@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -30,6 +31,7 @@ def build(
     if not db_path.is_file() or db_path.stat().st_size <= 0:
         return {
             "status": "DEFERRED_NO_DB",
+            "github_head_sha": os.environ.get("GITHUB_SHA"),
             "research_only": True,
             "production_dependency": False,
             "automatic_promotion": False,
@@ -259,6 +261,7 @@ def build(
 
         payload = {
             "status": "READY" if rows else "DEFERRED_NO_ELIGIBLE_PIT_ROWS",
+            "github_head_sha": current_sha,
             "research_only": True,
             "production_dependency": False,
             "automatic_promotion": False,
