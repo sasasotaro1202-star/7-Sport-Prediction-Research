@@ -496,15 +496,16 @@ def test_recent_failure_memory_is_not_starved_by_persistent_pit_block() -> None:
         state = cp.inspect()
         state["quality"]["pit_research_blocked"] = True
         state["actions"]["pit_history"] = {
-            "status": "STALE",
+            "status": "HEALTHY",
             "run_status": "completed",
             "conclusion": "success",
-            "head_sha": "old-sha",
+            "head_sha": "new-sha",
             "current_main_sha": "new-sha",
-            "main_compatibility": "MEANINGFUL_OR_DIVERGED",
+            "sha_match": True,
+            "main_compatibility": "EXACT_CURRENT_MAIN",
             "run_id": 123,
             "active_run_any": False,
-            "stale": True,
+            "stale": False,
         }
         selected, dispatch = cp.choose_actions(state)
         assert state["failure_memory"]["recent_24h"] == 1
