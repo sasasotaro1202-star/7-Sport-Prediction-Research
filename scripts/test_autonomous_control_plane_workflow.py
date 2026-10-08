@@ -64,6 +64,10 @@ def main() -> int:
     assert 'CONTROL_PLANE_STATE_NOT_TRACKED path=$state_path' in persist_block
     assert 'echo "persist_ok=true" >> "$GITHUB_OUTPUT"' in persist_block
     assert 'echo "main_sha=' in persist_block
+    assert 'write_needed="$(python -c' in persist_block
+    assert 'queue_added="$(python -c' in persist_block
+    assert 'CONTROL_PLANE_SEMANTIC_CHANGE write_needed=$write_needed queue_added=$queue_added' in persist_block
+    assert '[ "$write_needed" = true ] || [ "$queue_added" = true ]' in persist_block
     assert 'remote_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main"' in persist_block
     assert '["timeout", "10s", *cmd]' in text
     assert "COMMAND_TIMEOUT" in text
