@@ -235,7 +235,6 @@ jobs:
               esac
             done
           done
-          done
 
       - name: Ensure validated latest-main production is continuously scheduled
         if: steps.rescue_guard.outputs.eligible == 'true'
