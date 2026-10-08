@@ -30,3 +30,5 @@ assert "PYMC_SYMMETRY_FAIL" in src
 assert "fit_logistic_baseline" in src
 assert "matched_feature_logistic_logloss" in src
 assert "pymc_vs_matched_logistic_logloss_delta" in src
+
+assert "PYTHONPATH=. python scripts/research_pymc_real_shadow.py" in workflow
