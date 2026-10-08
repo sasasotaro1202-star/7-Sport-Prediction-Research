@@ -228,7 +228,6 @@ jobs:
 
           runs="$(gh run list --repo "$repo" --workflow "$workflow" --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,headSha,event)"
           active_any="$(printf '%s' "$runs" | jq '[.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending")] | length')"
-          active_in_progress="$(printf '%s' "$runs" | jq '[.[] | select(.status=="in_progress")] | length')"
           active_current_in_progress="$(printf '%s' "$runs" | jq --arg sha "$CURRENT_MAIN_SHA" '[.[] | select(.headSha==$sha and .status=="in_progress")] | length')"
           outdated_in_progress_ids="$(printf '%s' "$runs" | jq -r --arg sha "$CURRENT_MAIN_SHA" '.[] | select(.headSha!=$sha and .status=="in_progress") | .databaseId' | paste -sd ',' -)"
           outdated_in_progress_count=0
@@ -315,12 +314,14 @@ jobs:
             fi
           fi
 
-          echo "recover=$recover" >> "$GITHUB_OUTPUT"
-          echo "reason=$stale_reason" >> "$GITHUB_OUTPUT"
-          echo "stale_queued_ids=$stale_queued_ids" >> "$GITHUB_OUTPUT"
-          echo "queued_stale=$stale_queued_count" >> "$GITHUB_OUTPUT"
-          echo "outdated_in_progress_ids=$outdated_in_progress_ids" >> "$GITHUB_OUTPUT"
-          echo "outdated_in_progress=$outdated_in_progress_count" >> "$GITHUB_OUTPUT"
+          {
+            echo "recover=$recover"
+            echo "reason=$stale_reason"
+            echo "stale_queued_ids=$stale_queued_ids"
+            echo "queued_stale=$stale_queued_count"
+            echo "outdated_in_progress_ids=$outdated_in_progress_ids"
+            echo "outdated_in_progress=$outdated_in_progress_count"
+          } >> "$GITHUB_OUTPUT"
           echo "CONTROL_RUN_QUEUE_TIMEOUT count=$stale_queued_count ids=${stale_queued_ids:-NONE}"
           echo "CONTROL_RUN_OUTDATED_IN_PROGRESS count=$outdated_in_progress_count"
           echo "WATCHDOG_RECOVER=$recover reason=$stale_reason provenance=$state_provenance active_any=$active_any state_sha=${state_sha:-MISSING} current_main=$CURRENT_MAIN_SHA"
