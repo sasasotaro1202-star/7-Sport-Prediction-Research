@@ -52,6 +52,37 @@ def _is_safe_durable_path(path: str) -> bool:
     )
 
 
+def _repair_shallow_ancestry(
+    base_sha: str,
+    current_sha: str,
+    *,
+    cwd: Path | str = ".",
+) -> bool:
+    """Recover enough shallow history to verify a real ancestry relation."""
+    root = Path(cwd)
+    shallow = _run_git(
+        ["rev-parse", "--is-shallow-repository"],
+        root,
+    )
+    if shallow.returncode != 0 or shallow.stdout.strip().lower() != "true":
+        return False
+
+    for deepen in (64, 256, 1024):
+        fetched = _run_git(
+            ["fetch", f"--deepen={deepen}", "origin", "main"],
+            root,
+        )
+        if fetched.returncode != 0:
+            return False
+        if _run_git(
+            ["merge-base", "--is-ancestor", base_sha, current_sha],
+            root,
+        ).returncode == 0:
+            return True
+
+    return False
+
+
 def classify_main_advance(
     base_sha: str,
     current_sha: str,
@@ -90,32 +121,17 @@ def classify_main_advance(
     )
     if ancestor.returncode != 0:
         # GitHub Actions commonly checks out with fetch-depth=1. In that
-        # environment a real descendant relationship can be temporarily
-        # unprovable because the base commit (or its connecting ancestry) is
-        # outside the shallow boundary. Repair only this evidence gap by
-        # incrementally deepening origin/main; true divergence still remains
-        # fail-closed after the repair attempts.
-        shallow = _run_git(
-            ["rev-parse", "--is-shallow-repository"],
-            root,
-        )
-        if (
-            shallow.returncode == 0
-            and shallow.stdout.strip().lower() == "true"
+        # environment the base commit may be outside the shallow boundary.
+        # Repair only this evidence gap; true divergence remains fail-closed.
+        if _repair_shallow_ancestry(
+            base_sha,
+            current_sha,
+            cwd=root,
         ):
-            for deepen in (64, 256, 1024):
-                fetched = _run_git(
-                    ["fetch", "origin", "main", f"--deepen={deepen}"],
-                    root,
-                )
-                if fetched.returncode != 0:
-                    break
-                ancestor = _run_git(
-                    ["merge-base", "--is-ancestor", base_sha, current_sha],
-                    root,
-                )
-                if ancestor.returncode == 0:
-                    break
+            ancestor = _run_git(
+                ["merge-base", "--is-ancestor", base_sha, current_sha],
+                root,
+            )
 
     if ancestor.returncode != 0:
         return MainAdvanceDecision(
