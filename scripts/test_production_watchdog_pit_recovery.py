@@ -24,7 +24,26 @@ def main() -> int:
     assert '.status=="requested"' in stale
     assert '.status=="pending"' in stale
     assert '| @tsv' in stale
-    assert "while IFS=$'\\t' read -r run_id status" in stale
+    assert "while IFS=
+
+    pit_start = text.index("      - name: Backfill a missed 9-hour PIT boundary once per boundary window")
+    pit_end = text.index("      - name: Ensure pre-event T-60 prediction heartbeat", pit_start)
+    pit = text[pit_start:pit_end]
+
+    # Boundary attempts must be scoped to the current main SHA. Otherwise an
+    # obsolete queued run from an older SHA can permanently suppress recovery.
+    assert 'attempt_in_boundary=' in pit
+    assert 'select(.headSha==$sha and (.event=="schedule" or .event=="workflow_dispatch")' in pit
+    assert '--arg sha "$main_sha"' in pit
+    assert 'Only an attempt pinned to the current main SHA counts against this' in pit
+
+    print("PRODUCTION_WATCHDOG_PIT_RECOVERY=PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+\\t' read -r run_id status _event _created_at head_sha" in stale
 
     pit_start = text.index("      - name: Backfill a missed 9-hour PIT boundary once per boundary window")
     pit_end = text.index("      - name: Ensure pre-event T-60 prediction heartbeat", pit_start)
