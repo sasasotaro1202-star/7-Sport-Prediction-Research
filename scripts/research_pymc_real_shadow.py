@@ -90,7 +90,8 @@ def fit(dataset,seed=7):
               "chronological_split":True,"event_cluster_one_case":True,"prediction_cutoff_before_outcome":True},
       "metrics":{"logloss":logloss(yt,p),"brier":brier(yt,p),"accuracy":float(np.mean((p>=0.5)==yt)),"ece":ece(yt,p),
                  "baseline_0_5_logloss":logloss(yt,np.full(len(yt),0.5)),"baseline_0_5_brier":brier(yt,np.full(len(yt),0.5))},
-      "diagnostics":{"max_r_hat":rhat,"divergences":div,"finite_probabilities":bool(np.isfinite(p).all())},
+      "diagnostics":{"max_r_hat":rhat,"divergences":div,"finite_probabilities":bool(np.isfinite(p).all()),
+                      "minimum_rhat_margin_to_fail":float(1.05-rhat)},
       "evidence_boundary":{"real_7_sport_data_used":True,"performance_verification":False,"production_dependency":False,"automatic_promotion":False,
                            "promotion_status":"HOLD","required_next_gates":["incumbent/challenger WFO","calibration","ablation","robustness","frozen holdout","shadow comparison"]}
     }
