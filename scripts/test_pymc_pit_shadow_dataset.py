@@ -14,7 +14,7 @@ ast.parse(src)
 ast.parse(pit)
 ast.parse(cycle)
 
-for token in ("--sport", "SPORT_SINGLE", "source_available_at_utc", "PIT_SOURCE_NOT_EXACT", "FUTURE_SOURCE_FAIL", "FEATURE_LEAKAGE_FAIL", "automatic_promotion", "require_current_replay", "REPLAY_PROVENANCE_FAIL", "current_replay_provenance_verified", "diagnostics"):
+for token in ("--sport", "SPORT_SINGLE", "source_available_at_utc", "PIT_SOURCE_NOT_EXACT", "FUTURE_SOURCE_FAIL", "FEATURE_LEAKAGE_FAIL", "automatic_promotion", "require_current_replay", "REPLAY_PROVENANCE_FAIL", "current_replay_provenance_verified", "diagnostics", "exclude_frozen_holdout"):
     assert token in src
 assert "retrieved_at_utc" not in src
 assert "from src.research_cycle_v4 import POLICY" not in pit
@@ -91,3 +91,5 @@ with tempfile.TemporaryDirectory() as tmp:
 
 print("PYMC_PIT_SHADOW_CONTRACT=PASS")
 print("PYMC_PIT_SHADOW_EXECUTABLE_FIXTURE_CONTRACT=PASS")
+
+assert "--exclude-frozen-holdout" in workflow
