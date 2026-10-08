@@ -17,8 +17,9 @@ assert "ops/automation/heartbeat.json" in text
 MARKER_WRITER = ROOT / "scripts/write_keepalive_marker.py"
 marker_writer = MARKER_WRITER.read_text(encoding="utf-8")
 assert '"purpose": "repository_activity_keepalive"' in marker_writer
-assert "automation_only" in text
-assert "production_data_untouched" in text
+assert "name: Repository Activity Keepalive" in text
+assert "without touching production/model artifacts" in text
+assert "production/model artifacts" in text
 assert "max_attempts=3" in text
 assert "KEEPALIVE_RETRY" in text
 assert "git push origin HEAD:main" in text
