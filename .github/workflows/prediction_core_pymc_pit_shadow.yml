@@ -1,13 +1,6 @@
 name: Prediction-Core PyMC PIT Shadow Dataset
 
 on:
-  push:
-    paths:
-      - "scripts/pymc_pit_shadow_dataset.py"
-      - "scripts/test_pymc_pit_shadow_dataset.py"
-      - "src/research_policy.py"
-      - "src/pit_replay_builder.py"
-      - ".github/workflows/prediction_core_pymc_pit_shadow.yml"
   pull_request:
     paths:
       - "scripts/pymc_pit_shadow_dataset.py"
