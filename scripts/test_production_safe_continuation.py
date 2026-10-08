@@ -62,7 +62,7 @@ def main() -> int:
     assert "PIT_REFRESH_WATCHDOG_REQUEST" in pit_history
     assert "PIT_REFRESH_WATCHDOG_VERIFIED" in pit_history
     assert "PIT_REFRESH_WATCHDOG_UNVERIFIED" in pit_history
-    assert '.headSha=="$main_sha"' in pit_history
+    assert '.headSha==\\"$main_sha\\"' in pit_history
     assert '.event=="workflow_dispatch"' in pit_history
 
     relay = ROOT / ".github/workflows/production_watchdog_event_relay.yml"
