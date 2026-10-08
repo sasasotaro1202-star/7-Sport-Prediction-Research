@@ -15,6 +15,7 @@ WORKFLOWS = (
     Path(".github/workflows/v4_5_15_production.yml"),
     Path(".github/workflows/24h_autonomous_research.yml"),
     Path(".github/workflows/24h_autonomous_research_watchdog.yml"),
+    Path(".github/workflows/pit_history_expansion.yml"),
 )
 
 
@@ -90,6 +91,9 @@ def test_workflows_use_compatibility_policy_not_unconditional_sha_guard() -> Non
     workflow_text = "\\n".join(path.read_text(encoding="utf-8") for path in WORKFLOWS)
     policy_text = POLICY.read_text(encoding="utf-8")
     assert "src.main_advance_policy" in workflow_text
+    assert 'STALE_PIT_WORKFLOW_SHA' in workflow_text
+    assert 'if: ! PYTHONPATH=. python -m src.main_advance_policy' not in workflow_text
+    assert 'PYTHONPATH=. python -m src.main_advance_policy --base-sha "$GITHUB_SHA" --current-sha "$main_sha"' in workflow_text
     watchdog_text = Path(".github/workflows/24h_autonomous_research_watchdog.yml").read_text(encoding="utf-8")
     assert "git fetch origin main" in watchdog_text
     assert watchdog_text.index("git fetch origin main") < watchdog_text.index("from src.main_advance_policy import classify_main_advance")
