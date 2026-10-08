@@ -62,7 +62,8 @@ def evaluate(evidence_dir: Path, expected_head_sha: str) -> dict:
                 f"STALE_OR_UNVERIFIABLE_{name.upper()}_SHA",
                 reject=True,
             )
-        if obj.get("production_dependency") is True or obj.get("automatic_promotion") is True:
+        flags = obj.get("evidence_boundary", {}) if isinstance(obj.get("evidence_boundary"), dict) else {}
+        if obj.get("production_dependency") is True or obj.get("automatic_promotion") is True or flags.get("production_dependency") is True or flags.get("automatic_promotion") is True:
             return fail(
                 f"UNSAFE_{name.upper()}_PRODUCTION_FLAGS",
                 reject=True,
