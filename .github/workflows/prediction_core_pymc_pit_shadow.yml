@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYMC_PIT_SHADOW_WORKFLOW_VERSION: "v2-lightweight-policy-source-merge"
+  PYMC_PIT_SHADOW_WORKFLOW_VERSION: "v3-lightweight-policy-source-merge-contractfix"
 
 jobs:
   collect-pit-source:
