@@ -25,7 +25,7 @@ assert len({item["verified_commit"] for item in candidates}) == 12
 
 for item in candidates:
     assert item["scope"] == "research_only"
-    assert item["status"] in {"PROMOTION_CANDIDATE", "RESEARCH_CANDIDATE"}
+    assert item["status"] == "RESEARCH_CANDIDATE"
     assert item["verified_commit"]
     assert item["license"]
     assert item["gates"]
@@ -42,7 +42,8 @@ print("PREDICTION_CORE_OSS_REGISTRY=PASS")
 cfg_path = ROOT / "config" / "prediction_core_oss_candidates.json"
 import json
 cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-assert cfg["automatic_promotion"] is False
+assert cfg["auto_promotion"] is False
+assert cfg["registry_semantics"]["automatic_promotion"] is False
 assert cfg["registry_semantics"]["promotion_status"] == "explicit production decision boundary"
 for candidate in cfg["candidates"]:
     assert candidate["promotion_status"] == "HOLD"
