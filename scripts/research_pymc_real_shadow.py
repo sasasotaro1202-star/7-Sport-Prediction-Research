@@ -29,6 +29,30 @@ def ece(y,p,bins=10):
             out += float(mask.mean())*abs(float(y[mask].mean())-float(p[mask].mean()))
     return out
 
+def fit_logistic_baseline(x,y,l2=1.0,steps=60):
+    x=np.asarray(x,float); y=np.asarray(y,float)
+    xb=np.concatenate([np.ones((len(x),1)),x],axis=1)
+    w=np.zeros(xb.shape[1],dtype=float)
+    reg=np.eye(xb.shape[1],dtype=float)*float(l2)
+    reg[0,0]=0.0
+    for _ in range(int(steps)):
+        p=sigmoid(xb@w)
+        weight=np.clip(p*(1.0-p),1e-6,None)
+        h=(xb.T*weight)@xb + reg
+        g=xb.T@(p-y) + reg@w
+        try:
+            delta=np.linalg.solve(h,g)
+        except np.linalg.LinAlgError:
+            delta=np.linalg.pinv(h)@g
+        w -= delta
+        if float(np.max(np.abs(delta))) < 1e-7:
+            break
+    return w
+
+def logistic_predict(w,x):
+    xb=np.concatenate([np.ones((len(x),1)),np.asarray(x,float)],axis=1)
+    return sigmoid(xb@w)
+
 def prepare(dataset):
     if dataset.get("status")!="READY":
         raise ValueError(f"dataset not READY: {dataset.get('status')}")
@@ -80,6 +104,8 @@ def fit(dataset,seed=7):
     isamp=np.asarray(post["intercept"].values); bsamp=np.asarray(post["beta"].values); tsamp=np.asarray(post["team_strength"].values)
     logits=(isamp[...,None]+tsamp[...,ta[split:]]-tsamp[...,tb[split:]]+np.einsum("scf,nf->scn",bsamp,design[split:]))
     p=sigmoid(logits).mean(axis=(0,1)); yt=y[split:]
+    baseline_w=fit_logistic_baseline(design[:split],y[:split])
+    p_logistic=logistic_predict(baseline_w,design[split:])
     stat_width=len(stats)
     swapped=design[split:].copy()
     swapped[:, :stat_width] *= -1.0
@@ -96,7 +122,12 @@ def fit(dataset,seed=7):
               "oov_team_bucket":True,
               "chronological_split":True,"event_cluster_one_case":True,"prediction_cutoff_before_outcome":True},
       "metrics":{"logloss":logloss(yt,p),"brier":brier(yt,p),"accuracy":float(np.mean((p>=0.5)==yt)),"ece":ece(yt,p),
-                 "baseline_0_5_logloss":logloss(yt,np.full(len(yt),0.5)),"baseline_0_5_brier":brier(yt,np.full(len(yt),0.5))},
+                 "baseline_0_5_logloss":logloss(yt,np.full(len(yt),0.5)),"baseline_0_5_brier":brier(yt,np.full(len(yt),0.5)),
+                 "matched_feature_logistic_logloss":logloss(yt,p_logistic),
+                 "matched_feature_logistic_brier":brier(yt,p_logistic),
+                 "matched_feature_logistic_accuracy":float(np.mean((p_logistic>=0.5)==yt)),
+                 "matched_feature_logistic_ece":ece(yt,p_logistic),
+                 "pymc_vs_matched_logistic_logloss_delta":float(logloss(yt,p_logistic)-logloss(yt,p))},
       "diagnostics":{"max_r_hat":rhat,"divergences":div,"finite_probabilities":bool(np.isfinite(p).all()),
                       "minimum_rhat_margin_to_fail":float(1.05-rhat),
                       "symmetry_max_abs_error":symmetry_error,
