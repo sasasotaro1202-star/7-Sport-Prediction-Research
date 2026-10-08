@@ -1005,7 +1005,7 @@ GitHub Actions上でMONITOR→DETECT→TRIAGE→RESEARCH→VERIFY→RECONCILEを
 .github/workflows/autonomous_control_plane.yml
 src/autonomous_control_plane.py
 
-制御Planeは各3時間で実行され、先にGitHub Actionsの実行状態をsnapshotする。
+Control Planeは毎時07分UTCに実行され、先にGitHub Actionsの実行状態をsnapshotする。manual dispatchと意味のあるmain pushでも起動する。
 対象:
 * source_feasibility_audit.yml
 * scope_autofill.yml
@@ -1040,7 +1040,7 @@ allowlist外Workflowは自動起動しない。
 ownership boundary:
 * pre-event production heartbeatはproduction watchdogが所有
 * PIT History Expansionは00:47/09:47/18:47 UTCの固定9時間cadenceが所有
-* Production Failure Recoveryはfailure-specific retry / fresh-current-main recoveryを所有（workflow_run triggerは使用しない）
+* Production Failure Recoveryはfailure-specific retry / fresh-current-main recoveryを所有し、completed production/PIT workflowの`workflow_run`をトリガーとしてFailure Memoryへ記録する。Control Plane自身は多数のcompleted workflowを`workflow_run`で受信しない。
 * model promotionはproduction release gateだけが所有
 
 control planeは上記boundaryを迂回しない。
@@ -1395,7 +1395,7 @@ results/research/**全体をdurableとみなしてはならない。
 
 === CONTROL-PLANE EVENT-STORM BOUNDARY — 2026-10-06 ===
 
-autonomous_control_plane.ymlの起動源は、3時間schedule、manual dispatch、mainの意味のあるpushに限定する。
+autonomous_control_plane.ymlの起動源は、毎時07分UTCのschedule、manual dispatch、mainの意味のあるpushに限定する。
 多数のworkflow completed eventをworkflow_runで受信するイベント駆動構造自体を採用しない。
 
 Failure Recovery / Production Watchdog / 24H Watchdogが即時復旧を担当し、Control Planeは次の定期cycleでFailure Memoryを読み、観測済みfailureをRESEARCH_HEALTHへ変換する。
