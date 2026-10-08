@@ -104,8 +104,9 @@ def run(dataset,draws=250,tune=250,seed=7):
         "folds_better_than_matched_logistic":folds_better,"folds_better_than_incumbent":folds_better,
       },
       "diagnostics":{"max_r_hat_across_folds":rhat_max,"total_divergences":div_total,"all_finite":finite,"wfo_diagnostics_pass":wfo_diagnostics_pass},
-      "performance_verification":wfo_diagnostics_pass,
-      "evidence_boundary":{"wfo_performance_verified":wfo_diagnostics_pass,"production_dependency":False,"automatic_promotion":False,"promotion_status":"HOLD","required_next_gates":["calibration","ablation","robustness","frozen holdout","shadow comparison"]},
+      "execution_verified":True,
+      "performance_verification":False,
+      "evidence_boundary":{"wfo_execution_verified":True,"wfo_diagnostics_pass":wfo_diagnostics_pass,"wfo_performance_verified":False,"production_dependency":False,"automatic_promotion":False,"promotion_status":"HOLD","required_next_gates":["matched incumbent WFO","calibration","ablation","robustness","frozen holdout","shadow comparison"]},
       "folds":folds}
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--dataset",type=Path,required=True); ap.add_argument("--output",type=Path,required=True); ap.add_argument("--draws",type=int,default=250); ap.add_argument("--tune",type=int,default=250); ap.add_argument("--seed",type=int,default=7); a=ap.parse_args()
