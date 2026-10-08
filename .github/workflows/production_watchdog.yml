@@ -9,12 +9,15 @@ on:
   workflow_run:
     workflows:
       - Active-Scope Target v4.5.15 Production
+      - PIT History Expansion
     types: [completed]
-  # Completion-trigger recovery is limited to the canonical production run.
-  # Production Safety Audit and Lightweight Regression are already polled by
-  # the 5-minute heartbeat below; triggering a watchdog for every validator
-  # completion can create a pending-run replacement storm without improving
-  # recovery latency materially.
+  # Completion-trigger recovery is limited to the canonical production run and
+  # successful PIT History Expansion completion. Production Safety Audit and
+  # Lightweight Regression are already polled by the 5-minute heartbeat below;
+  # triggering a watchdog for every validator completion can create a pending-run
+  # replacement storm without improving recovery latency materially. A successful
+  # PIT expansion is a cache-readiness edge and needs one immediate production
+  # refresh so the enriched PIT cache is not left idle until the next heartbeat.
 
 permissions:
   actions: write
@@ -333,11 +336,21 @@ jobs:
             fi
           fi
           # Dispatch only after same-SHA validators pass, or after the strict
-          # generated-output inheritance rule above. The first run for a SHA is
-          # immediate; later retries remain bounded to one per hourly window.
+          # generated-output inheritance rule above. A successful PIT expansion
+          # is an explicit cache-readiness edge and can trigger one immediate
+          # refresh, provided no current-main production is already active.
+          pit_refresh_event=false
+          if [ "${{ github.event_name }}" = "workflow_run" ] &&
+             [ "${{ github.event.workflow_run.name }}" = "PIT History Expansion" ] &&
+             [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
+            pit_refresh_event=true
+          fi
+
           dispatch=false
           if [ "$active_any" -eq 0 ] && {               [ "$inv_ok" -ge 1 ] && [ "$safety_ok" -ge 1 ] && [ "$lightweight_ok" -ge 1 ] ||               [ "$inherited_validation" = "true" ];              }; then
-            if [ "$seen_latest" -eq 0 ]; then
+            if [ "$pit_refresh_event" = true ]; then
+              dispatch=true
+            elif [ "$seen_latest" -eq 0 ]; then
               dispatch=true
             elif [ -n "$latest_created" ]; then
               created_ts=$(date -u -d "$latest_created" +%s)
@@ -347,7 +360,7 @@ jobs:
             fi
           fi
           if [ "$dispatch" = true ]; then
-            echo "DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION main=$main_sha inv_ok=$inv_ok safety_ok=$safety_ok lightweight_ok=$lightweight_ok sweep_ok=$sweep_ok"
+            echo "DISPATCH_VALIDATED_LATEST_MAIN_PRODUCTION main=$main_sha inv_ok=$inv_ok safety_ok=$safety_ok lightweight_ok=$lightweight_ok sweep_ok=$sweep_ok pit_refresh_event=$pit_refresh_event"
             gh workflow run v4_5_15_production.yml --ref main
           else
             echo "LATEST_MAIN_PRODUCTION_GUARD active=$active_latest active_any=$active_any seen=$seen_latest inv_ok=$inv_ok safety_ok=$safety_ok lightweight_ok=$lightweight_ok main=$main_sha"
