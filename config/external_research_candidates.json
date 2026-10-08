@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "status": "RESEARCH_REGISTRY_ONLY",
+  "production_dependency": false,
+  "auto_promotion": false,
+  "source_of_truth": "2026-10-08 current GitHub repository state",
+  "candidates": [
+    {
+      "id": "oss-tier-a-skills",
+      "tier": "A",
+      "status": "PROMOTION_CANDIDATE",
+      "repository": "mattpocock/skills",
+      "ref": "main",
+      "verified_commit": "f3fc5632f401156837ee3872f14fe33ccf1024ea",
+      "license": "MIT",
+      "integration_role": "agent_skill_layer",
+      "scope": "research_engineering_only",
+      "allowed": [
+        "encode PIT/OOS/calibration/research/failure-analysis procedures as reusable skills",
+        "improve repeatability of research tasks",
+        "provide review/checklist skills without changing prediction outputs"
+      ],
+      "forbidden": [
+        "direct production model dependency",
+        "automatic model promotion",
+        "using skill output as prediction evidence",
+        "bypassing PIT/OOS/holdout gates"
+      ],
+      "gate": [
+        "local reproduction",
+        "security review",
+        "deterministic skill invocation",
+        "no production dependency increase",
+        "research-quality usefulness demonstrated"
+      ]
+    },
+    {
+      "id": "oss-tier-a-openspec",
+      "tier": "A",
+      "status": "PROMOTION_CANDIDATE",
+      "repository": "Fission-AI/OpenSpec",
+      "ref": "main",
+      "verified_commit": "9111a7654d7800391459431fff4eaf66e33a3d2e",
+      "license": "MIT",
+      "integration_role": "research_specification_layer",
+      "scope": "research_engineering_only",
+      "allowed": [
+        "structure research proposals as hypothesis/spec/design/task artifacts",
+        "separate intended changes from implementation and verification",
+        "prototype a 7-Sport research-spec schema"
+      ],
+      "forbidden": [
+        "production runtime dependency",
+        "automatic merge/promotion",
+        "overriding PROJECT_INSTRUCTIONS or PROJECT_SOURCE",
+        "treating external specs as evidence"
+      ],
+      "security_note": "The verified 2026-10-06 main commit documents a residual braces advisory and its accepted-risk treatment; this must remain part of the local security review.",
+      "gate": [
+        "local reproduction",
+        "security/advisory review",
+        "schema compatibility review",
+        "research-cycle usefulness demonstrated"
+      ]
+    },
+    {
+      "id": "oss-tier-a-graphify",
+      "tier": "A",
+      "status": "PROMOTION_CANDIDATE",
+      "repository": "Graphify-Labs/graphify",
+      "ref": "v8",
+      "verified_commit": "6478eb71237c86ee5fb6a35c702835e987ca445d",
+      "license": "Apache-2.0",
+      "integration_role": "repository_knowledge_graph",
+      "scope": "research_engineering_only",
+      "allowed": [
+        "index code/config/docs/schema relationships for research navigation",
+        "support dependency and lineage discovery",
+        "identify duplicate or disconnected research components"
+      ],
+      "forbidden": [
+        "prediction feature generation by default",
+        "production data mutation",
+        "replacing canonical registries",
+        "using graph-derived claims as production evidence"
+      ],
+      "gate": [
+        "local deterministic reproduction",
+        "graph completeness audit",
+        "no external service requirement",
+        "query latency measurement",
+        "incremental-value measurement versus existing repository search"
+      ]
+    }
+  ],
+  "tier_b": [
+    {
+      "repository": "Panniantong/Agent-Reach",
+      "status": "RESEARCH_CANDIDATE",
+      "role": "web_information_acquisition"
+    },
+    {
+      "repository": "obra/superpowers",
+      "status": "RESEARCH_CANDIDATE",
+      "role": "engineering_methodology"
+    },
+    {
+      "repository": "firecrawl/firecrawl",
+      "status": "HOLD",
+      "role": "web_retrieval_fallback",
+      "reason": "AGPL-3.0 and existing requests/BeautifulSoup/lxml stack make direct dependency premature"
+    }
+  ]
+}
