@@ -1,5 +1,5 @@
 from __future__ import annotations
-import argparse, json
+import argparse, json, os
 from pathlib import Path
 import arviz as az
 import numpy as np
