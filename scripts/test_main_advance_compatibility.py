@@ -49,6 +49,23 @@ def test_durable_only_main_advance_is_allowed() -> None:
         assert decision.unsafe_paths == ()
 
 
+def test_non_durable_main_advance_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as raw:
+        repo = Path(raw)
+        _git(repo, "init", "-q")
+        _git(repo, "config", "user.email", "test@example.invalid")
+        _git(repo, "config", "user.name", "test")
+        (repo / "README.md").write_text("base\\n", encoding="utf-8")
+        base = _commit(repo, "base")
+
+        (repo / "README.md").write_text("semantic change\\n", encoding="utf-8")
+        current = _commit(repo, "semantic")
+
+        decision = classify_main_advance(base, current, cwd=repo)
+        assert decision.status == "NON_DURABLE_CHANGE"
+        assert "README.md" in decision.unsafe_paths
+
+
 def test_shallow_history_repair_recovers_real_ancestor() -> None:
     with tempfile.TemporaryDirectory() as raw:
         root = Path(raw)
