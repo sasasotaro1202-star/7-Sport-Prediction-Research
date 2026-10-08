@@ -1,0 +1,426 @@
+name: Prediction-Core PyMC PIT Shadow Dataset
+
+on:
+  push:
+    paths:
+      - "scripts/pymc_pit_shadow_dataset.py"
+      - "scripts/test_pymc_pit_shadow_dataset.py"
+      - "src/research_policy.py"
+      - "src/pit_replay_builder.py"
+      - ".github/workflows/prediction_core_pymc_pit_shadow.yml"
+  pull_request:
+    paths:
+      - "scripts/pymc_pit_shadow_dataset.py"
+      - "scripts/test_pymc_pit_shadow_dataset.py"
+      - "src/research_policy.py"
+      - "src/pit_replay_builder.py"
+      - ".github/workflows/prediction_core_pymc_pit_shadow.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "37 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prediction-core-pymc-pit-shadow-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYMC_PIT_SHADOW_WORKFLOW_VERSION: "v3-lightweight-policy-source-merge-contractfix"
+
+jobs:
+  collect-pit-source:
+    name: Collect PIT source / ${{ matrix.sport }}
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        sport: [basketball, volleyball, ufc, rizin, valorant]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Validate shadow builder contract
+        run: PYTHONPATH=. python scripts/test_pymc_pit_shadow_dataset.py
+      - name: Prepare source directories
+        run: |
+          set -euo pipefail
+          rm -rf data/db pit_source
+          mkdir -p data/db "pit_source/${{ matrix.sport }}"
+      - name: Restore latest PIT-safe sport database
+        id: source_cache_restore
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: prediction-core-pymc-pit-source-${{ matrix.sport }}-${{ github.run_id }}
+          restore-keys: |
+            active-scope-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-research-db-v4-${{ matrix.sport }}-
+            nine-sport-target-db-v4-${{ matrix.sport }}-pit-
+            nine-sport-target-db-v4-${{ matrix.sport }}-
+      - name: Build strict PIT source partition
+        env:
+          SPORT_NAME: ${{ matrix.sport }}
+          CACHE_MATCHED_KEY: ${{ steps.source_cache_restore.outputs.cache-matched-key }}
+        run: |
+          set -euo pipefail
+          export SPORT_NAME CACHE_MATCHED_KEY
+          python - <<'PY'
+          import json
+          import os
+          import shutil
+          import sqlite3
+          import subprocess
+          from pathlib import Path
+
+          sport = os.environ["SPORT_NAME"]
+          matched = os.environ.get("CACHE_MATCHED_KEY", "")
+          db = Path("data/db/sports_v45.sqlite")
+          out_dir = Path("pit_source") / sport
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          manifest = {
+              "sport": sport,
+              "status": "BLOCKED",
+              "reason": None,
+              "cache_matched_key": matched or None,
+              "source_cache_prefixes": [
+                  f"active-scope-target-db-v4-{sport}-pit-",
+                  f"nine-sport-research-db-v4-{sport}-",
+                  f"nine-sport-target-db-v4-{sport}-pit-",
+                  f"nine-sport-target-db-v4-{sport}-",
+              ],
+              "pit_rebuild_forced": False,
+              "event_rows": 0,
+              "verified_outcomes": 0,
+              "replayable_rows": 0,
+              "clean_features": 0,
+              "exact_sources": 0,
+              "research_only": True,
+              "production_dependency": False,
+              "automatic_promotion": False,
+          }
+
+          def write():
+              (out_dir / "manifest.json").write_text(
+                  json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                  encoding="utf-8",
+              )
+
+          if not matched or not db.is_file() or db.stat().st_size <= 0:
+              manifest["reason"] = "PIT_SOURCE_CACHE_MISSING"
+              write()
+              print(f"PYMC_PIT_SOURCE={sport} BLOCKED reason=PIT_SOURCE_CACHE_MISSING")
+              raise SystemExit(0)
+
+          health = json.loads(subprocess.run(
+              ["python", "-m", "src.cache_health", "--db", str(db), "--sport", sport],
+              text=True,
+              capture_output=True,
+              check=True,
+          ).stdout)
+          if health.get("status") != "OK":
+              manifest["reason"] = f"CACHE_HEALTH_{health.get('status')}"
+              write()
+              print(f"PYMC_PIT_SOURCE={sport} BLOCKED reason={manifest['reason']}")
+              raise SystemExit(0)
+
+          subprocess.run(
+              ["python", "-m", "src.pit_replay_builder", "--force", "--sport", sport],
+              check=True,
+          )
+          manifest["pit_rebuild_forced"] = True
+
+          con = sqlite3.connect(db)
+          try:
+              manifest["event_rows"] = int(
+                  con.execute("SELECT COUNT(*) FROM event WHERE sport=?", (sport,)).fetchone()[0]
+              )
+              manifest["verified_outcomes"] = int(
+                  con.execute(
+                      "SELECT COUNT(*) FROM event_outcome WHERE sport=? "
+                      "AND outcome_status='VERIFIED' AND outcome IN ('A','B')",
+                      (sport,),
+                  ).fetchone()[0]
+              )
+              manifest["replayable_rows"] = int(
+                  con.execute(
+                      "SELECT COUNT(*) FROM pit_replay WHERE replay_status='REPLAYABLE' "
+                      "AND leakage_status IN ('CLEAN','PASS') "
+                      "AND event_id IN (SELECT event_id FROM event WHERE sport=?)",
+                      (sport,),
+                  ).fetchone()[0]
+              )
+              manifest["clean_features"] = int(
+                  con.execute(
+                      "SELECT COUNT(*) FROM pit_feature_snapshot WHERE sport=? "
+                      "AND leakage_status IN ('CLEAN','PASS')",
+                      (sport,),
+                  ).fetchone()[0]
+              )
+              manifest["exact_sources"] = int(
+                  con.execute(
+                      "SELECT COUNT(*) FROM source_snapshot WHERE sport=? "
+                      "AND availability_status='EXACT' "
+                      "AND source_available_at_utc IS NOT NULL",
+                      (sport,),
+                  ).fetchone()[0]
+              )
+          finally:
+              con.close()
+
+          if (
+              manifest["event_rows"] <= 0
+              or manifest["verified_outcomes"] <= 0
+              or manifest["replayable_rows"] <= 0
+              or manifest["clean_features"] <= 0
+              or manifest["exact_sources"] <= 0
+          ):
+              manifest["reason"] = "INSUFFICIENT_PIT_EVIDENCE"
+              write()
+              print(
+                  f"PYMC_PIT_SOURCE={sport} BLOCKED "
+                  f"events={manifest['event_rows']} outcomes={manifest['verified_outcomes']} "
+                  f"replayable={manifest['replayable_rows']} features={manifest['clean_features']} "
+                  f"exact_sources={manifest['exact_sources']}"
+              )
+              raise SystemExit(0)
+
+          shutil.copy2(db, out_dir / "sports_v45.sqlite")
+          manifest["status"] = "READY"
+          write()
+          print(
+              f"PYMC_PIT_SOURCE={sport} READY cache={matched} "
+              f"events={manifest['event_rows']} outcomes={manifest['verified_outcomes']} "
+              f"replayable={manifest['replayable_rows']} features={manifest['clean_features']} "
+              f"exact_sources={manifest['exact_sources']}"
+          )
+          PY
+      - name: Compress ready PIT source partition
+        if: success()
+        run: |
+          set -euo pipefail
+          if [ -f "pit_source/${{ matrix.sport }}/sports_v45.sqlite" ]; then
+            gzip -9 -c "pit_source/${{ matrix.sport }}/sports_v45.sqlite" > "pit_source/${{ matrix.sport }}/sports_v45.sqlite.gz"
+          fi
+      - name: Upload PIT source evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prediction-core-pymc-pit-source-${{ matrix.sport }}-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+          path: pit_source/${{ matrix.sport }}/*
+
+  merge-and-build-shadow:
+    name: Merge PIT source / build shadow dataset
+    needs: collect-pit-source
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Download all PIT source evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: prediction-core-pymc-pit-source-*
+          path: pit_source_artifacts
+          merge-multiple: false
+      - name: Fail closed on collector execution failure
+        if: ${{ needs.collect-pit-source.result != 'success' }}
+        run: |
+          set -euo pipefail
+          echo "PYMC_PIT_SHADOW_COLLECTOR_RESULT=${{ needs.collect-pit-source.result }}" >&2
+          exit 1
+
+      - name: Evaluate source coverage and build merged PIT database
+        run: |
+          set -euo pipefail
+          mkdir -p results/research data/db merged_partitions
+          python - <<'PY'
+          import json
+          import shutil
+          import sqlite3
+          import subprocess
+          from pathlib import Path
+
+          active = ["basketball", "volleyball", "ufc", "rizin", "valorant"]
+          root = Path("pit_source_artifacts")
+          manifest_by_sport = {}
+          for p in root.glob("*/manifest.json"):
+              manifest = json.loads(p.read_text(encoding="utf-8"))
+              manifest_by_sport[manifest["sport"]] = manifest
+
+          missing = [s for s in active if manifest_by_sport.get(s, {}).get("status") != "READY"]
+
+          overall = {
+              "status": "BLOCKED_SOURCE_COVERAGE" if missing else "READY_FOR_MERGE",
+              "active_sports": active,
+              "missing_or_blocked_sports": missing,
+              "source_manifests": [
+                  manifest_by_sport.get(s, {"sport": s, "status": "MISSING_MANIFEST"})
+                  for s in active
+              ],
+              "research_only": True,
+              "production_dependency": False,
+              "automatic_promotion": False,
+          }
+          Path("results/research/pymc_pit_shadow_source_manifest.json").write_text(
+              json.dumps(overall, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          execution = {
+              "status": overall["status"],
+              "research_only": True,
+              "production_dependency": False,
+              "automatic_promotion": False,
+              "active_sports": active,
+              "missing_or_blocked_sports": missing,
+              "github_head_sha": "${{ github.sha }}",
+              "github_run_id": "${{ github.run_id }}",
+              "candidate": "pymc-devs/pymc",
+              "evidence_boundary": "PIT_DATASET_ONLY_NO_MODEL_PERFORMANCE_EVIDENCE",
+              "promotion_status": "HOLD",
+          }
+          Path("results/research/pymc_pit_shadow_execution.json").write_text(
+              json.dumps(execution, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          if missing:
+              Path("results/research/pymc_pit_shadow_dataset.json").write_text(
+                  json.dumps({
+                      **overall,
+                      "status": "BLOCKED_SOURCE_COVERAGE",
+                      "next_gates": [
+                          "restore or refresh the blocked sport source cache",
+                          "rebuild strict PIT replay",
+                          "rerun PyMC PIT shadow dataset",
+                      ],
+                  }, ensure_ascii=False, indent=2) + "\n",
+                  encoding="utf-8",
+              )
+              print(f"PYMC_PIT_SHADOW_STATUS=BLOCKED_SOURCE_COVERAGE missing={','.join(missing)}")
+              raise SystemExit(0)
+
+          for sport in active:
+              matches = []
+              for mp in root.glob("*/manifest.json"):
+                  m = json.loads(mp.read_text(encoding="utf-8"))
+                  if m.get("sport") == sport and m.get("status") == "READY":
+                      matches.append(mp.parent)
+              if len(matches) != 1:
+                  raise SystemExit(f"PIT_PARTITION_AMBIGUOUS:{sport}")
+              src = matches[0] / "sports_v45.sqlite"
+              if not src.is_file():
+                  raise SystemExit(f"PIT_PARTITION_MISSING:{sport}")
+              dst = Path("merged_partitions") / sport / "sports_v45.sqlite"
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dst)
+
+          subprocess.run(
+              [
+                  "python", "-m", "src.merge_partition_dbs",
+                  "--input-dir", "merged_partitions",
+                  "--output", "data/db/sports_v45.sqlite",
+              ],
+              check=True,
+          )
+
+          con = sqlite3.connect("data/db/sports_v45.sqlite")
+          try:
+              total_events = int(
+                  con.execute(
+                      "SELECT COUNT(*) FROM event WHERE sport IN (?,?,?,?,?)", active
+                  ).fetchone()[0]
+              )
+              sport_rows = dict(
+                  con.execute("SELECT sport,COUNT(*) FROM event GROUP BY sport").fetchall()
+              )
+          finally:
+              con.close()
+          if total_events <= 0:
+              raise SystemExit("MERGED_PIT_DB_EMPTY")
+
+          unexpected_sports = sorted(set(sport_rows) - set(active))
+          if unexpected_sports:
+              raise SystemExit(
+                  "MERGED_PIT_DB_SCOPE_CONTAMINATION:" + ",".join(unexpected_sports)
+              )
+
+          subprocess.run(
+              [
+                  "python", "scripts/pymc_pit_shadow_dataset.py",
+                  "--db", "data/db/sports_v45.sqlite",
+                  "--out", "results/research/pymc_pit_shadow_dataset.json",
+              ],
+              check=True,
+          )
+
+          report = json.loads(
+              Path("results/research/pymc_pit_shadow_dataset.json").read_text(encoding="utf-8")
+          )
+          if report.get("status") != "READY":
+              raise SystemExit(f"PYMC_PIT_SHADOW_NOT_READY:{report.get('status')}")
+
+          report["source_manifest"] = "results/research/pymc_pit_shadow_source_manifest.json"
+          execution = {
+              "status": report.get("status"),
+              "research_only": True,
+              "production_dependency": False,
+              "automatic_promotion": False,
+              "active_sports": active,
+              "row_count": report.get("row_count", 0),
+              "rows_by_sport": report.get("rows_by_sport", {}),
+              "dataset_sha256": report.get("dataset_sha256"),
+              "github_head_sha": "${{ github.sha }}",
+              "github_run_id": "${{ github.run_id }}",
+              "candidate": "pymc-devs/pymc",
+              "evidence_boundary": "PIT_DATASET_ONLY_NO_MODEL_PERFORMANCE_EVIDENCE",
+              "performance_verified_for_7_sport": False,
+              "promotion_status": "HOLD",
+          }
+          Path("results/research/pymc_pit_shadow_execution.json").write_text(
+              json.dumps(execution, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          Path("results/research/pymc_pit_shadow_dataset.json").write_text(
+              json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          print(
+              "PYMC_PIT_SHADOW_STATUS=READY "
+              f"rows={report.get('row_count', 0)} "
+              f"rows_by_sport={report.get('rows_by_sport', {})}"
+          )
+          PY
+      - name: Save reusable merged PIT database cache
+        if: success()
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: data/db
+          key: trajectory-ready-db-v1-merged-${{ github.run_id }}
+      - name: Upload merged PIT shadow evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prediction-core-pymc-pit-shadow-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            results/research/pymc_pit_shadow_source_manifest.json
+            results/research/pymc_pit_shadow_dataset.json
+            results/research/pymc_pit_shadow_execution.json
