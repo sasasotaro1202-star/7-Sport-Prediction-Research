@@ -280,9 +280,13 @@ def build(
             "current_replay_provenance_required": require_current_replay,
             "current_replay_provenance_verified": (
                 (not require_current_replay)
-                or all(
-                    row.get("replay_git_commit_sha") == current_sha
-                    for row in rows
+                or (
+                    bool(current_sha)
+                    and bool(rows)
+                    and all(
+                        row.get("replay_git_commit_sha") == current_sha
+                        for row in rows
+                    )
                 )
             ),
             "frozen_holdout_excluded": exclude_frozen_holdout,
