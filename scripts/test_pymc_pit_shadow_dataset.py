@@ -50,14 +50,10 @@ with tempfile.TemporaryDirectory() as tmp:
         leakage_status TEXT
     );
     CREATE TABLE source_snapshot (
-        snapshot_id TEXT PRIMARY KEY, availability_status TEXT,
+        snapshot_id TEXT PRIMARY KEY, sport TEXT, availability_status TEXT,
         source_available_at_utc TEXT, retrieved_at_utc TEXT
     );
     """)
-    con.execute(
-        "INSERT INTO event VALUES (?,?,?,?,?)",
-        ("e1","basketball","B.LEAGUE","2026-01-01T12:00:00+00:00")
-    ) if False else None
     con.execute(
         "INSERT INTO event(event_id,sport,competition_id,event_time_utc) VALUES (?,?,?,?)",
         ("e1","basketball","B.LEAGUE","2026-01-01T12:00:00+00:00")
@@ -80,8 +76,8 @@ with tempfile.TemporaryDirectory() as tmp:
          "A__points__mean",100.0,None,'["s1"]',"CLEAN")
     )
     con.execute(
-        "INSERT INTO source_snapshot VALUES (?,?,?,?)",
-        ("s1","EXACT","2026-01-01T10:30:00+00:00","2026-10-08T00:00:00+00:00")
+        "INSERT INTO source_snapshot VALUES (?,?,?,?,?)",
+        ("s1","basketball","EXACT","2026-01-01T10:30:00+00:00","2026-10-08T00:00:00+00:00")
     )
     con.commit()
     con.close()
