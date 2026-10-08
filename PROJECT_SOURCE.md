@@ -1403,3 +1403,37 @@ Failure Recovery / Production Watchdog / 24H Watchdogが即時復旧を担当し
 これにより、control-planeのdurable state commitやfailure-memory commitが大量の二次workflow_runを生成し、Runner queueを自己圧迫するevent stormを防止する。
 
 Continuous automationの要件は、イベント数を増やすことではなく、監視→復旧→研究の各ownerが重複せず、定期cycleで必ず収束することとする。
+
+=== PREDICTION-CORE PYMC REAL SHADOW — 2026-10-08 ===
+
+PyMC is an external research candidate only. It is not a production dependency and has no automatic promotion path.
+
+Research evidence chain:
+PIT-safe sport cache
+→ sport-isolated PIT dataset
+→ chronological train/test
+→ PyMC posterior inference
+→ probabilistic metrics/diagnostics
+→ incumbent/challenger WFO
+→ calibration
+→ ablation
+→ robustness
+→ frozen holdout
+→ shadow comparison
+→ explicit adoption decision.
+
+The first synthetic PyMC 6.3.2 POC is mechanical evidence only. It does not establish 7-Sport performance.
+
+The real-data shadow lane is sport-isolated. A sport may produce SHADOW_PERFORMANCE_OBSERVED only when its own PIT dataset is READY. Missing or unverifiable PIT remains BLOCKED/UNVERIFIABLE and is never converted into zero observations.
+
+For the currently observed PIT evidence, Basketball has a verified sport-scoped cache with 1,122 replayable CLEAN/PASS rows, 67,320 CLEAN/PASS feature rows and 908 EXACT sources. Volleyball, UFC, RIZIN and VALORANT currently have event/outcome coverage but insufficient EXACT PIT feature evidence for this PyMC shadow path, so they remain blocked.
+
+A green Action is execution evidence only. It never means PERFORMANCE_VERIFIED, PROMOTION_CANDIDATE, ADOPTED or PRODUCTION.
+
+Production safety:
+* production model/champion is unchanged;
+* automatic model promotion remains forbidden;
+* frozen holdout remains protected;
+* research-only PyMC dependencies are isolated to research jobs;
+* all sport/competition scope boundaries remain explicit;
+* historical evidence is append-only and is not rewritten to fit candidate results.
