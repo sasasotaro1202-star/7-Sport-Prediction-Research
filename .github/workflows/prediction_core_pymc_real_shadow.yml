@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYMC_REAL_SHADOW_VERSION: "v1-sport-isolated"
+  PYMC_REAL_SHADOW_VERSION: "v1-sport-isolated-triggered"
 
 jobs:
   real-shadow:
