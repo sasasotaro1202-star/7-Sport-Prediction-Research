@@ -154,6 +154,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_pymc_pit_shadow_dataset.py
       - name: PyMC real shadow model contract
         run: PYTHONPATH=. python scripts/test_pymc_real_shadow.py
+      - name: Prediction-Core OSS registry state contract
+        run: PYTHONPATH=. python scripts/test_prediction_core_oss_candidates.py
       - name: Import canonical modules
         run: |
           python - <<'PY'
