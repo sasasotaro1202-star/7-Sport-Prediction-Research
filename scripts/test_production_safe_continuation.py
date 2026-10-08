@@ -60,6 +60,13 @@ def main() -> int:
     watchdog_start = watchdog.index("      - name: Cancel stale unfinished heavy runs from old commits only when unsafe")
     watchdog_end = watchdog.index("      - name: Ensure validated latest-main production is continuously scheduled", watchdog_start)
     watchdog_block = watchdog[watchdog_start:watchdog_end]
+    assert "      - PIT History Expansion" in watchdog
+    assert "A successful PIT expansion" in watchdog
+    assert "cache-readiness edge" in watchdog
+    assert 'pit_refresh_event=false' in watchdog
+    assert '[ "${{ github.event.workflow_run.name }}" = "PIT History Expansion" ]' in watchdog
+    assert '[ "${{ github.event.workflow_run.conclusion }}" = "success" ]' in watchdog
+    assert 'if [ "$pit_refresh_event" = true ]; then' in watchdog
     assert "DURABLE_ONLY" in watchdog_block
     assert "DURABLE_ONLY_HEAVY_RUN_PRESERVED" in watchdog_block
     assert "results/research/autonomous_control_plane.json" in watchdog_block
