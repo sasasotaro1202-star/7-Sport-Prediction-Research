@@ -11,3 +11,6 @@ print("PYMC_PIT_SHADOW_CONTRACT=PASS")
 assert "require_current_replay" in src
 assert "--require-current-replay" in src
 assert "REPLAY_PROVENANCE_FAIL" in src
+
+for token in ("diagnostics", "event_rows", "verified_outcomes", "replayable_rows", "clean_feature_rows", "exact_source_rows"):
+    assert token in src
