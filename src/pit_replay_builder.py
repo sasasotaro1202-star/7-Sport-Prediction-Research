@@ -12,6 +12,7 @@ from src.storage.db_v45 import utcnow
 DB='data/db/sports_v45.sqlite'
 MIN_PIT_GAP=timedelta(minutes=60)
 FEATURE_VERSION='pit-v3-fast-dedup-exact-source'
+REPLAY_GIT_SHA=os.environ.get('GITHUB_SHA')
 
 
 def parse_dt(v):
@@ -308,7 +309,8 @@ def main():
 
             pending_replays.append((
                 replay_id,eid,cutoff,'event_time_minus_60m',status,'CLEAN',None,
-                FEATURE_VERSION,'strict-pit',None,None,fingerprint,utcnow(),reason
+                FEATURE_VERSION,'strict-pit',REPLAY_GIT_SHA, fingerprint,
+                utcnow(), reason
             ))
             features_written+=feature_count
 
