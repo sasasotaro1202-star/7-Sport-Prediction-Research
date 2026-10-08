@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "status": "SHADOW_PERFORMANCE_OBSERVED",
+  "candidate": "pymc-devs/pymc",
+  "pymc_version": "6.3.2",
+  "model_version": "pymc-real-shadow-v1",
+  "sport": "basketball",
+  "workflow": {
+    "name": "Prediction-Core PyMC Real Data Shadow",
+    "run_id": 37731885244,
+    "head_sha": "f4b6d32e8edb0f2c9dbb0ef296984533bc2b1d78",
+    "conclusion": "success"
+  },
+  "artifact": {
+    "id": 11530006570,
+    "name": "prediction-core-pymc-real-shadow-basketball-37731885244",
+    "digest": "sha256:7bad137387798cf43302ac6312da492d69df036178054d3bd8caa61d036639be",
+    "expires_at": "2026-10-29T05:21:32Z"
+  },
+  "dataset": {
+    "sha256": "c001547a91445cb747b6c70207dd4bae37f29a4d72c2b3ecb56f244d2e438195",
+    "rows": 1122,
+    "train_rows": 897,
+    "test_rows": 225,
+    "chronological_split": true,
+    "event_cluster_one_case": true,
+    "prediction_cutoff_before_outcome": true,
+    "minimum_pit_gap_minutes": 60
+  },
+  "metrics": {
+    "logloss": 0.5428308813524741,
+    "brier": 0.1832417051802474,
+    "accuracy": 0.6977777777777778,
+    "ece": 0.05979951017768606,
+    "baseline_0_5_logloss": 0.6931471805599453,
+    "baseline_0_5_brier": 0.25
+  },
+  "diagnostics": {
+    "max_r_hat": 1.009782,
+    "divergences": 0,
+    "finite_probabilities": true
+  },
+  "comparison": {
+    "relative_logloss_improvement_vs_0_5": 0.21684629920747128,
+    "absolute_logloss_improvement_vs_0_5": 0.15031629920747125,
+    "absolute_brier_improvement_vs_0_5": 0.0667582948197526,
+    "note": "This is a shadow candidate result against a trivial 0.5 baseline, not incumbent/challenger evidence."
+  },
+  "evidence_boundary": {
+    "real_7_sport_data_used": true,
+    "performance_verified_for_7_sport": false,
+    "production_dependency": false,
+    "automatic_promotion": false,
+    "promotion_status": "HOLD",
+    "next_gates": [
+      "incumbent/challenger chronological WFO",
+      "calibration",
+      "ablation",
+      "robustness",
+      "frozen holdout",
+      "shadow comparison"
+    ]
+  }
+}
