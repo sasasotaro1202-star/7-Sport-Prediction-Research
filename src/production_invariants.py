@@ -77,8 +77,12 @@ def main():
             and 'git push -f' not in keepalive_wf,
             'repository activity keepalive is missing its bounded safe scheduled commit contract')
     lightweight_wf=(ROOT/'.github/workflows/lightweight_regression.yml').read_text(encoding='utf-8')
-    require("ops/automation/heartbeat.json" in lightweight_wf and "paths-ignore:" in lightweight_wf,
-            'lightweight regression must ignore the automation-only heartbeat commit')
+    paths_block = lightweight_wf.split("paths:", 1)[1].split("jobs:", 1)[0] if "paths:" in lightweight_wf else ""
+    require(
+        "paths:" in lightweight_wf
+        and "ops/automation/heartbeat.json" not in paths_block,
+        'lightweight regression must ignore the automation-only heartbeat commit'
+    )
     control_plane_src=(ROOT/'src/autonomous_control_plane.py').read_text(encoding='utf-8')
     require(
         'def queue_identity' in control_plane_src
