@@ -91,6 +91,9 @@ def run(dataset,draws=250,tune=250,seed=7):
       "status":"WFO_PERFORMANCE_OBSERVED","candidate":"pymc-devs/pymc","model_version":MODEL_VERSION,"sport":sport,
       "dataset_sha256":dataset.get("dataset_sha256"),
       "github_head_sha":os.environ.get("GITHUB_SHA"),
+      "reference_model":"matched_feature_logistic_diagnostic_only",
+      "incumbent_model_id":None,
+      "incumbent_comparison_verified":False,
       "production_dependency":False,"automatic_promotion":False,
       "data":{"rows":n,"fold_count":len(folds),"test_width":width,"chronological":True,"future_feature_leakage":False,"prediction_cutoff_before_outcome":True,"frozen_holdout_excluded":bool(dataset.get("frozen_holdout_excluded",False))},
       "aggregate":{
