@@ -24,6 +24,9 @@ assert "import os" in pit
 assert "REPLAY_GIT_SHA" in pit
 assert "INSERT OR REPLACE INTO pit_replay" in pit
 assert "FEATURE_VERSION,'strict-pit',REPLAY_GIT_SHA, None, fingerprint" in pit
+assert "content_hash" in pit
+assert "exact_source_variants" in pit
+assert "v.variants=1" in pit
 
 for sport in ("basketball", "volleyball", "ufc", "rizin", "valorant"):
     assert sport in workflow
