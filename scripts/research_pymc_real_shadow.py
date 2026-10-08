@@ -108,7 +108,7 @@ def fit(dataset,seed=7):
     p=sigmoid(logits).mean(axis=(0,1)); yt=y[split:]
     baseline_w=fit_logistic_baseline(design[:split],y[:split])
     p_logistic=logistic_predict(baseline_w,design[split:])
-    stat_width=len(stats)
+    stat_width=design.shape[1]//2
     swapped=design[split:].copy()
     swapped[:, :stat_width] *= -1.0
     swapped_logits=(isamp[...,None]+tsamp[...,tb[split:]]-tsamp[...,ta[split:]]+
