@@ -21,7 +21,7 @@ def h(x):return hashlib.sha256(json.dumps(x,sort_keys=True,default=str).encode()
 def target_event(s,name,competition_id):
  n=(name or '').lower(); c=(competition_id or '').lower()
  if s=='basketball':
-  return any(k in n or k in c for k in ('b.league','b league','bリーグ','b.premier','b.one','b.two','b one','b two','asian games','アジア大会'))
+  return any(k in n or k in c for k in ('nba','national basketball association','b.league','b league','bリーグ','b.premier','b.one','b.two','b one','b two','asian games','アジア大会'))
  if s=='volleyball':
   # Active project scope currently targets Asian Games Volleyball only.
   # Other volleyball competitions may be evaluated separately as future scope,
@@ -311,6 +311,7 @@ def build(c,s,include_unlabeled=False):
   comp=str(p.get('competition_id') or '').lower()
   f['competition_is_asian_games']=1.0 if ('asian games' in comp or 'アジア大会' in comp) else 0.0
   f['competition_is_bleague']=1.0 if ('b.league' in comp or 'b league' in comp or 'bリーグ' in comp) else 0.0
+  f['competition_is_nba']=1.0 if ('nba' in comp or 'national basketball association' in comp) else 0.0
   # Do not count default Elo/median-imputation rows as strict PIT evidence.
   # A row must contain at least one feature value whose source was observable
   # at least 60 minutes before the prediction cutoff, or a provenance-verified
