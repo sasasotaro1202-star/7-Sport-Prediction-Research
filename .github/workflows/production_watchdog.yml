@@ -210,6 +210,9 @@ jobs:
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
             # Emit one whitespace-safe TSV row per active heavy run. Every emitted
             # field is free of spaces, so default shell IFS is sufficient.
+            gh run list --workflow "$workflow" --limit 50 \
+              --json databaseId,status,event,createdAt,headSha \
+              --jq '.[] | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="requested" or .status=="pending") | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
             while read -r run_id status _event _created_at head_sha; do
               [ -n "$run_id" ] || continue
 
