@@ -89,12 +89,11 @@ jobs:
               "research_only":True,
               "production_dependency":False,
               "automatic_promotion":False
-          },ensure_ascii=False,indent=2)+"
-",encoding="utf-8")
+          },ensure_ascii=False,indent=2)+chr(10),encoding="utf-8")
           PY
             echo "PYMC_REAL_SHADOW_DATASET=${SPORT_NAME} BLOCKED_NO_PIT_SOURCE_CACHE"
           else
-            python scripts/pymc_pit_shadow_dataset.py               --sport "${SPORT_NAME}"               --db data/db/sports_v45.sqlite               --out "${dataset}"
+            python scripts/pymc_pit_shadow_dataset.py --sport "${SPORT_NAME}" --db data/db/sports_v45.sqlite --out "${dataset}"
           fi
 
       - name: Run real-data PyMC shadow fit when PIT data is ready
@@ -111,7 +110,7 @@ jobs:
           raise SystemExit(0 if obj.get("status")=="READY" else 1)
           PY
           then
-            python scripts/research_pymc_real_shadow.py               --dataset "${dataset}"               --output "${output}"
+            python scripts/research_pymc_real_shadow.py --dataset "${dataset}" --output "${output}"
           else
             python - "${dataset}" "${output}" <<'PY'
           import json,sys
@@ -126,8 +125,7 @@ jobs:
               "production_dependency":False,
               "automatic_promotion":False,
               "promotion_status":"HOLD"
-          },ensure_ascii=False,indent=2)+"
-",encoding="utf-8")
+          },ensure_ascii=False,indent=2)+chr(10),encoding="utf-8")
           PY
           fi
 
