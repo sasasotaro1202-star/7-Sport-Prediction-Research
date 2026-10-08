@@ -6,7 +6,7 @@ import sqlite3
 from bisect import bisect_left
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
-from src.research_cycle_v4 import POLICY
+from src.research_policy import POLICY
 from src.storage.db_v45 import utcnow
 
 DB='data/db/sports_v45.sqlite'
