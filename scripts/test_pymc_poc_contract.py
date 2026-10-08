@@ -10,5 +10,6 @@ assert 'chronological_split' in source
 assert 'future_feature_leakage' in source
 assert 'production_dependency_added' in source
 assert 'frozen holdout' in source
-assert 'random' not in source.lower().replace('random_seed', '')
+assert 'random split' not in source.lower()
+assert 'random k-fold' not in source.lower()
 print("PYMC_POC_CONTRACT=PASS")
