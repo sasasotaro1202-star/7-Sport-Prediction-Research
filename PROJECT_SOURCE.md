@@ -1437,3 +1437,22 @@ Production safety:
 * research-only PyMC dependencies are isolated to research jobs;
 * all sport/competition scope boundaries remain explicit;
 * historical evidence is append-only and is not rewritten to fit candidate results.
+
+
+=== PREDICTION-CORE PYMC CURRENT-PIT GATE ===
+
+Prediction-Core OSS research is isolated from Production.
+
+The PyMC real-data Shadow path must:
+* restore an existing verified sport-scoped data cache;
+* force strict PIT replay materialization from that cache;
+* record the current Git SHA in replay provenance;
+* require source availability <= prediction cutoff and explicit EXACT provenance;
+* maintain one event as one evaluation case even when multiple snapshots exist;
+* use train-only team vocabulary with an explicit OOV bucket;
+* use sport-specific feature policy instead of silently borrowing another sport's feature family;
+* emit diagnostics that distinguish missing source, missing replay, missing features and other eligibility failures.
+
+Shadow performance against a trivial 0.5 baseline is feasibility evidence, not incumbent/challenger performance verification. The candidate remains HOLD until chronological WFO/OOS, calibration, ablation, robustness, frozen holdout and shadow comparison are independently verified. Automatic promotion is forbidden.
+
+The authoritative Prediction-Core candidate registry is `config/prediction_core_oss_candidates.json` with documentation in `docs/PREDICTION_CORE_OSS_CANDIDATES.md`. Registry presence does not imply adoption.
