@@ -143,6 +143,8 @@ jobs:
         run: PYTHONPATH=. python scripts/test_research_checkpoint_cache.py
       - name: Release gate fail-closed exit regression
         run: PYTHONPATH=. python scripts/test_release_gate_fail_closed.py
+      - name: Quality gate PIT replay status regression
+        run: PYTHONPATH=. python scripts/test_quality_gate_pit_replay_status.py
       - name: Strict OOS ranking fail-closed regression
         run: PYTHONPATH=. python scripts/test_strict_oos_ranking_fail_closed.py
       - name: Future predictor prediction-cutoff PIT test
