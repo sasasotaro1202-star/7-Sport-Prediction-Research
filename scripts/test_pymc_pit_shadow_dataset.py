@@ -14,3 +14,5 @@ assert "REPLAY_PROVENANCE_FAIL" in src
 
 for token in ("diagnostics", "event_rows", "verified_outcomes", "replayable_rows", "clean_feature_rows", "exact_source_rows"):
     assert token in src
+
+assert "import os" in (ROOT/"src"/"pit_replay_builder.py").read_text(encoding="utf-8")
