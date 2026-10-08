@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from src.main_advance_policy import classify_main_advance
+from src.main_advance_policy import _run_git, classify_main_advance
 
 
 POLICY = Path("src/main_advance_policy.py")
@@ -47,6 +47,58 @@ def test_durable_only_main_advance_is_allowed() -> None:
         decision = classify_main_advance(base, current, cwd=repo)
         assert decision.status == "DURABLE_ONLY"
         assert decision.unsafe_paths == ()
+
+
+def test_shallow_history_repair_recovers_real_ancestor() -> None:
+    with tempfile.TemporaryDirectory() as raw:
+        root = Path(raw)
+        source = root / "source"
+        remote = root / "remote.git"
+        clone = root / "clone"
+        source.mkdir()
+        _git(source, "init", "-q")
+        _git(source, "config", "user.email", "test@example.invalid")
+        _git(source, "config", "user.name", "test")
+        (source / "README.md").write_text("base\\n", encoding="utf-8")
+        _commit(source, "base")
+        base = _git(source, "rev-parse", "HEAD")
+        for index in range(3):
+            (source / "README.md").write_text(f"step {index}\\n", encoding="utf-8")
+            _commit(source, f"step {index}")
+        current = _git(source, "rev-parse", "HEAD")
+        _git(source, "clone", "--bare", str(source), str(remote))
+        _git(source, "clone", "--depth", "1", f"file://{remote}", str(clone))
+        _git(clone, "config", "user.email", "test@example.invalid")
+        _git(clone, "config", "user.name", "test")
+
+        shallow = _run_git(["rev-parse", "--is-shallow-repository"], clone)
+        assert shallow.returncode == 0
+        assert shallow.stdout.strip().lower() == "true"
+
+        decision_before = classify_main_advance(base, current, cwd=clone)
+        # The policy must remain fail-closed until the ancestry evidence can be
+        # established; the CLI/workflow layer repairs shallow history explicitly.
+        assert decision_before.status == "NON_DURABLE_CHANGE"
+
+        # This directly exercises the bounded history repair used by the CLI.
+        for deepen in (64, 256, 1024):
+            fetched = _run_git(
+                ["fetch", "origin", "main", f"--deepen={deepen}"],
+                clone,
+            )
+            if fetched.returncode != 0:
+                break
+            if _run_git(
+                ["merge-base", "--is-ancestor", base, current],
+                clone,
+            ).returncode == 0:
+                break
+
+        repaired = _run_git(
+            ["merge-base", "--is-ancestor", base, current],
+            clone,
+        )
+        assert repaired.returncode == 0
 
 
 def test_non_durable_main_advance_is_rejected() -> None:
@@ -98,6 +150,8 @@ def test_workflows_use_compatibility_policy_not_unconditional_sha_guard() -> Non
     assert "git fetch origin main" in watchdog_text
     assert watchdog_text.index("git fetch origin main") < watchdog_text.index("from src.main_advance_policy import classify_main_advance")
     assert '"merge-base", "--is-ancestor"' in policy_text
+    assert '"rev-parse", "--is-shallow-repository"' in policy_text
+    assert '"fetch", "origin", "main", f"--deepen={deepen}"' in policy_text
     assert '"diff", "--name-only"' in policy_text
     assert "results/research/autonomous_control_plane.json" in policy_text
     assert 'test "${remote_sha}" = "${GITHUB_SHA}" || {' not in workflow_text
@@ -106,6 +160,7 @@ def test_workflows_use_compatibility_policy_not_unconditional_sha_guard() -> Non
 if __name__ == "__main__":
     test_durable_only_main_advance_is_allowed()
     test_non_durable_main_advance_is_rejected()
+    test_shallow_history_repair_recovers_real_ancestor()
     test_diverged_main_is_rejected_fail_closed()
     test_workflows_use_compatibility_policy_not_unconditional_sha_guard()
     print("main-advance compatibility tests: PASS")
