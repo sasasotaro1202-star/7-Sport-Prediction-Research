@@ -8,7 +8,7 @@ from src.seven_sport_production import (
     upsert_ep, upsert_event, upsert_participant, utcnow, HTTP,
 )
 
-CHUNK_DAYS = 90
+CHUNK_DAYS = 30
 
 def iso(v):
     if not v:
