@@ -455,6 +455,38 @@ def test_pit_recovery_refreshes_after_meaningful_main_change() -> None:
         assert dispatch["automatic_promotion"] is False
 
 
+def test_urgent_pit_recovery_outranks_recent_failure_triage() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        bind(root)
+        fixture(root)
+        os.environ["GITHUB_SHA"] = "new-sha"
+        state = cp.inspect()
+        state["quality"]["pit_research_blocked"] = True
+        state["actions"]["pit_history"] = {
+            "status": "STALE",
+            "run_status": "completed",
+            "conclusion": "failure",
+            "head_sha": "old-sha",
+            "current_main_sha": "new-sha",
+            "sha_match": False,
+            "run_id": 456,
+            "active_run_any": False,
+            "stale": True,
+        }
+        # Failure Memory is deliberately non-empty. The failed old-SHA PIT
+        # recovery is nevertheless the higher-priority hard blocker.
+        assert state["failure_memory"]["recent_24h"] == 1
+        selected, dispatch = cp.choose_actions(state)
+        assert selected["action"] == "PIT_COVERAGE_REPAIR"
+        assert selected["auto_dispatch"] is True
+        assert selected["priority"] == 150.0
+        assert dispatch is not None
+        assert dispatch["workflow"] == "pit_history_expansion.yml"
+        assert dispatch["automatic_promotion"] is False
+
+
+
 def test_recent_failure_memory_is_not_starved_by_persistent_pit_block() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
@@ -584,6 +616,7 @@ def main() -> int:
     test_control_plane_concurrency_is_job_scoped_and_coalescing()
     test_pit_recovery_dispatches_only_after_failed_old_sha()
     test_pit_recovery_refreshes_after_meaningful_main_change()
+    test_urgent_pit_recovery_outranks_recent_failure_triage()
     test_control_plane_has_bounded_pit_recovery_gate()
     test_recent_failure_memory_is_not_starved_by_persistent_pit_block()
     test_control_plane_dispatch_verifies_run_creation()

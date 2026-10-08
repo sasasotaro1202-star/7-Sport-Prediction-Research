@@ -801,11 +801,19 @@ def choose_actions(state: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any
                 else "respect_fixed_pit_boundary_or_existing_watchdog"
             )
         )
+        # A failed/stale PIT run from an older SHA is an urgent recovery
+        # blocker: prioritize restoring strict PIT evidence over repeated
+        # failure-health sweeps, while the dispatch gate still coalesces runs
+        # and enforces the fixed PIT boundary policy for ordinary repairs.
+        pit_priority_urgent = (
+            pit_retry_after_current_main_change
+            or pit_refresh_after_meaningful_main_change
+        )
         candidates.append({
             "action": "PIT_COVERAGE_REPAIR",
             "workflow": ALLOWED_WORKFLOWS["PIT_COVERAGE_REPAIR"],
             "target": "active_scope",
-            "impact": 100.0,
+            "impact": 150.0 if pit_priority_urgent else 100.0,
             "evidence_gap": 1.0,
             "failure_relevance": 1.0,
             "generalization": 1.0,
