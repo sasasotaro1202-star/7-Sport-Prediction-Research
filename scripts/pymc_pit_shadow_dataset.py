@@ -74,7 +74,7 @@ def build(db_path: Path, sport: str | None = None) -> dict:
                AND p.leakage_status IN ('CLEAN','PASS')
              ORDER BY p.event_id,p.prediction_cutoff_at_utc DESC,p.replay_id DESC
             """,
-            ACTIVE_SPORTS,
+            selected_sports,
         ).fetchall()
 
         chosen = {}
