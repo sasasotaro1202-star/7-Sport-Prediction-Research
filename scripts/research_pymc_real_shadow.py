@@ -97,13 +97,18 @@ def fit(dataset,seed=7):
         strength=pm.Normal("team_strength",mu=0.0,sigma=sigma,dims="team")
         intercept=pm.Normal("intercept",mu=0.0,sigma=1.0)
         beta=pm.Normal("beta",mu=0.0,sigma=1.0,dims="feature")
-        logits=intercept+strength[a]-strength[b]+pm.math.sum(z*beta,axis=1)
+        centered_strength = strength - pm.math.mean(strength)
+        logits=intercept+centered_strength[a]-centered_strength[b]+pm.math.sum(z*beta,axis=1)
         pm.Bernoulli("outcome",p=pm.math.sigmoid(logits),observed=y[:split])
         idata=pm.sample(draws=400,tune=400,chains=2,cores=2,random_seed=seed,target_accept=0.9,progressbar=False,return_inferencedata=True)
     post=idata.posterior
     isamp=np.asarray(post["intercept"].values); bsamp=np.asarray(post["beta"].values); tsamp=np.asarray(post["team_strength"].values)
-    logits=(isamp[...,None]+tsamp[...,ta[split:]]-tsamp[...,tb[split:]]+np.einsum("scf,nf->scn",bsamp,design[split:]))
+    centered_tsamp = tsamp - tsamp.mean(axis=-1, keepdims=True)
+    logits=(isamp[...,None]+centered_tsamp[...,ta[split:]]-centered_tsamp[...,tb[split:]]+np.einsum("scf,nf->scn",bsamp,design[split:]))
     p=sigmoid(logits).mean(axis=(0,1)); yt=y[split:]
+    swap_logits=(isamp[...,None]+centered_tsamp[...,tb[split:]]-centered_tsamp[...,ta[split:]]-np.einsum("scf,nf->scn",bsamp,design[split:]))
+    p_swap=sigmoid(swap_logits).mean(axis=(0,1))
+    symmetry_max_abs_error=float(np.max(np.abs((p+p_swap)-1.0)))
     baseline_w=fit_logistic_baseline(design[:split],y[:split])
     p_logistic=logistic_predict(baseline_w,design[split:])
     stat_width=len(stats)
@@ -141,6 +146,7 @@ def main():
     a=ap.parse_args(); d=json.loads(a.dataset.read_text(encoding="utf-8")); r=fit(d); a.output.parent.mkdir(parents=True,exist_ok=True)
     if r["diagnostics"]["max_r_hat"]>1.05: raise ValueError("PYMC_RHAT_FAIL")
     if r["diagnostics"]["divergences"]>0: raise ValueError("PYMC_DIVERGENCE_FAIL")
+    if r["diagnostics"]["symmetry_max_abs_error"] > 1e-5: raise ValueError("PYMC_SYMMETRY_FAIL")
     if r["diagnostics"]["symmetry_max_abs_error"] > 1e-5: raise ValueError("PYMC_SYMMETRY_FAIL")
     a.output.write_text(json.dumps(r,ensure_ascii=False,indent=2)+"\n",encoding="utf-8"); print(json.dumps(r,ensure_ascii=False,indent=2))
 
