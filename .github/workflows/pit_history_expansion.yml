@@ -7,6 +7,7 @@ on:
   # Heavy PIT expansion runs only on the true 9-hour schedule or manually.
   # Repository changes are validated by the lightweight/invariant workflows.
 permissions:
+  actions: write
   contents: read
 concurrency:
   group: pit-history-expansion
@@ -153,3 +154,38 @@ jobs:
           name: pit-history-expansion-${{ matrix.sport }}-${{ github.run_id }}
           path: results/pit_history_expansion_${{ matrix.sport }}.json
           retention-days: 14
+
+  refresh-production-watchdog:
+    name: Refresh Production Watchdog after successful PIT expansion
+    if: ${{ needs.expand.result == 'success' }}
+    needs:
+      - expand
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Dispatch production watchdog through GitHub Actions API
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          echo "PIT_REFRESH_WATCHDOG_REQUEST main_sha=$main_sha pit_run=$GITHUB_RUN_ID"
+          gh workflow run production_watchdog.yml --repo "${GITHUB_REPOSITORY}" --ref main
+          verified=false
+          for attempt in 1 2 3 4 5; do
+            state="$(gh run list --workflow production_watchdog.yml --repo "${GITHUB_REPOSITORY}" --branch main --limit 20 --json databaseId,status,headSha,event --jq '.[0]')"
+            if [ -n "$state" ] && [ "$state" != "null" ]; then
+              verified=true
+              echo "PIT_REFRESH_WATCHDOG_VERIFIED $state"
+              break
+            fi
+            sleep "$attempt"
+          done
+          if [ "$verified" != true ]; then
+            echo "PIT_REFRESH_WATCHDOG_UNVERIFIED main_sha=$main_sha pit_run=$GITHUB_RUN_ID" >&2
+            exit 1
+          fi
