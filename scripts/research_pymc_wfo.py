@@ -5,7 +5,7 @@ import arviz as az
 import numpy as np
 import pymc as pm
 from src.research_policy import POLICY
-MODEL_VERSION="pymc-wfo-v1"
+MODEL_VERSION="pymc-wfo-v2-matched-control"
 MIN_ROWS=300
 def sigmoid(x): return 1.0/(1.0+np.exp(-np.clip(x,-40.0,40.0)))
 def logloss(y,p):
@@ -80,8 +80,8 @@ def run(dataset,draws=250,tune=250,seed=7):
     mbr=np.asarray([f["metrics"]["matched_logistic_brier"] for f in folds])
     mece=np.asarray([f["metrics"]["matched_logistic_ece"] for f in folds])
     deltas=np.asarray([f["metrics"]["pymc_vs_matched_logistic_logloss_delta"] for f in folds])
-    candidate_ll=float(ll.mean()); incumbent_ll=float(mll.mean())
-    candidate_br=float(br.mean()); incumbent_br=float(mbr.mean())
+    candidate_ll=float(ll.mean()); matched_ll=float(mll.mean())
+    candidate_br=float(br.mean()); matched_br=float(mbr.mean())
     folds_better=int(sum(f["metrics"]["logloss"]<f["metrics"]["matched_logistic_logloss"] for f in folds))
     rhat_max=float(max(f["diagnostics"]["max_r_hat"] for f in folds))
     div_total=int(sum(f["diagnostics"]["divergences"] for f in folds))
@@ -96,12 +96,12 @@ def run(dataset,draws=250,tune=250,seed=7):
       "aggregate":{
         "fold_count":len(folds),"logloss_mean":candidate_ll,"logloss_median":float(np.median(ll)),"logloss_worst":float(ll.max()),
         "brier_mean":candidate_br,"brier_worst":float(br.max()),"accuracy_mean":float(ac.mean()),"ece_mean":float(es.mean()),"ece_worst":float(es.max()),
-        "matched_logistic_logloss_mean":incumbent_ll,"matched_logistic_brier_mean":incumbent_br,"matched_logistic_ece_mean":float(mece.mean()),
-        "candidate_relative_logloss_improvement_vs_incumbent":float((incumbent_ll-candidate_ll)/max(abs(incumbent_ll),1e-9)),
-        "candidate_secondary_relative_improvement":float((incumbent_br-candidate_br)/max(abs(incumbent_br),1e-9)),
+        "matched_logistic_logloss_mean":matched_ll,"matched_logistic_brier_mean":matched_br,"matched_logistic_ece_mean":float(mece.mean()),
+        "candidate_relative_logloss_improvement_vs_matched_control":float((matched_ll-candidate_ll)/max(abs(matched_ll),1e-9)),
+        "candidate_secondary_relative_improvement_vs_matched_control":float((matched_br-candidate_br)/max(abs(matched_br),1e-9)),
         "pymc_vs_matched_logistic_logloss_delta_mean":float(deltas.mean()),"pymc_vs_matched_logistic_logloss_delta_worst":float(deltas.max()),
         "folds_better_than_0_5_logloss":int(sum(f["metrics"]["logloss"]<f["metrics"]["baseline_0_5_logloss"] for f in folds)),
-        "folds_better_than_matched_logistic":folds_better,"folds_better_than_incumbent":folds_better,
+        "folds_better_than_matched_logistic":folds_better,
       },
       "diagnostics":{"max_r_hat_across_folds":rhat_max,"total_divergences":div_total,"all_finite":finite,"wfo_diagnostics_pass":wfo_diagnostics_pass},
       "execution_verified":True,
