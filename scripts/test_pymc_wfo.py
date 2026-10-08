@@ -13,3 +13,7 @@ print("PYMC_WFO_CONTRACT=PASS")
 assert "src/research_policy.py" in workflow
 assert "src/pit_replay_builder.py" in workflow
 assert "GITHUB_SHA: ${{ github.sha }}" in workflow
+
+assert "github_head_sha" in source
+assert "production_dependency" in source
+assert "automatic_promotion" in source
