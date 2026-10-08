@@ -106,9 +106,6 @@ def fit(dataset,seed=7):
     centered_tsamp = tsamp - tsamp.mean(axis=-1, keepdims=True)
     logits=(isamp[...,None]+centered_tsamp[...,ta[split:]]-centered_tsamp[...,tb[split:]]+np.einsum("scf,nf->scn",bsamp,design[split:]))
     p=sigmoid(logits).mean(axis=(0,1)); yt=y[split:]
-    swap_logits=(isamp[...,None]+centered_tsamp[...,tb[split:]]-centered_tsamp[...,ta[split:]]-np.einsum("scf,nf->scn",bsamp,design[split:]))
-    p_swap=sigmoid(swap_logits).mean(axis=(0,1))
-    symmetry_max_abs_error=float(np.max(np.abs((p+p_swap)-1.0)))
     baseline_w=fit_logistic_baseline(design[:split],y[:split])
     p_logistic=logistic_predict(baseline_w,design[split:])
     stat_width=len(stats)
@@ -146,7 +143,6 @@ def main():
     a=ap.parse_args(); d=json.loads(a.dataset.read_text(encoding="utf-8")); r=fit(d); a.output.parent.mkdir(parents=True,exist_ok=True)
     if r["diagnostics"]["max_r_hat"]>1.05: raise ValueError("PYMC_RHAT_FAIL")
     if r["diagnostics"]["divergences"]>0: raise ValueError("PYMC_DIVERGENCE_FAIL")
-    if r["diagnostics"]["symmetry_max_abs_error"] > 1e-5: raise ValueError("PYMC_SYMMETRY_FAIL")
     if r["diagnostics"]["symmetry_max_abs_error"] > 1e-5: raise ValueError("PYMC_SYMMETRY_FAIL")
     a.output.write_text(json.dumps(r,ensure_ascii=False,indent=2)+"\n",encoding="utf-8"); print(json.dumps(r,ensure_ascii=False,indent=2))
 
