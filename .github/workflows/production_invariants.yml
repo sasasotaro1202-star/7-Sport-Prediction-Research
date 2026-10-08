@@ -40,6 +40,8 @@ jobs:
         run: PYTHONPATH=. python scripts/model_system_smoke.py
       - name: Run production invariants
         run: python -m src.production_invariants
+      - name: Validate canonical production trigger contract
+        run: python scripts/test_canonical_production_workflow_contract.py
       - name: Validate dynamic router syntax and import safety
         run: python scripts/validate_dynamic_router.py
       - name: Validate model pipeline regression contracts

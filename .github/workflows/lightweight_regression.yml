@@ -166,3 +166,5 @@ jobs:
         run: PYTHONPATH=. python scripts/test_pymc_real_shadow.py
       - name: Import canonical modules
         run: PYTHONPATH=. python scripts/test_import_contract.py
+      - name: Canonical production workflow trigger contract
+        run: PYTHONPATH=. python scripts/test_canonical_production_workflow_contract.py
