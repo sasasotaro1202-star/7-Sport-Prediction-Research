@@ -520,7 +520,25 @@ jobs:
           main_sha=$(git rev-parse origin/main)
           for workflow in "v4_5_15_production.yml" "pit_history_expansion.yml"; do
             gh run list --workflow "$workflow" --limit 50 --json databaseId,status,event,createdAt,headSha --jq '.[] | [.databaseId,.status,.event,.createdAt,.headSha] | @tsv' |
-            while IFS=$'\t' read -r run_id status event created_at head_sha; do
+            while IFS=
+              [ -n "$run_id" ] || continue
+              [ "$status" = "in_progress" ] || continue
+              if [ "$head_sha" != "$main_sha" ]; then
+                echo "STALE_SHA_HEAVY_RUN run_id=$run_id workflow=$workflow event=$event sha=$head_sha main=$main_sha"
+                cancel_run "$run_id"
+                continue
+              fi
+              created_ts=$(date -u -d "$created_at" +%s)
+              now=$(date -u +%s)
+              age=$((now-created_ts))
+              limit=19800
+              if [ "$workflow" = "pit_history_expansion.yml" ]; then limit=2700; fi
+              if [ "$age" -ge "$limit" ]; then
+                echo "OVERTIME_HEAVY_RUN run_id=$run_id age=${age}s workflow=$workflow event=$event sha=$head_sha"
+                cancel_run "$run_id"
+              fi
+            done
+          done\t' read -r run_id status _event _created_at head_sha; do
               [ -n "$run_id" ] || continue
               [ "$status" = "in_progress" ] || continue
               if [ "$head_sha" != "$main_sha" ]; then
