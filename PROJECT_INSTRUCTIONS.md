@@ -116,7 +116,7 @@ PIT、release gate、frozen holdout、model promotionの安全条件は変更し
 
 ### CONTROL-PLANE EVENT-STORM BOUNDARY — 2026-10-06
 
-autonomous_control_plane.ymlは3時間schedule・manual dispatch・mainの意味のあるpushだけで起動する。完了workflowごとのworkflow_runイベントを受ける設計は禁止する。
+autonomous_control_plane.ymlは毎時07分UTCのschedule・manual dispatch・mainの意味のあるpushだけで起動する。完了workflowごとのworkflow_runイベントを受ける設計は禁止する。なお、Production Failure Recoveryなどfailure-specific ownerは`workflow_run`を必要な範囲で使用できるが、Control Planeはそれらのcompleted eventを直接購読しない。
 
 即時failure recoveryはProduction Failure Recovery、Production Watchdog、24H Watchdogなど各ownerへ委譲する。Control Planeは次cycleでFailure Memoryを取り込み、RESEARCH_HEALTHへ変換する。
 
