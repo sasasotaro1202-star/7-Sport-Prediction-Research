@@ -21,11 +21,23 @@
       "repository": "pymc-devs/pymc",
       "ref": "main",
       "verified_commit": "2394fd441ae5f79597dc6012bd771e2ea28b01a6",
-      "license": "Apache-2.0",
+      "license": "Apache-2.0 (LICENSE; GitHub API SPDX field was NOASSERTION)",
       "integration_role": "hierarchical_probabilistic_modeling",
       "scope": "research_only",
-      "target_areas": ["latent team/player strength", "partial pooling", "uncertainty decomposition", "regime-aware probabilistic state"],
-      "gates": ["PIT-safe snapshots", "chronological OOS/WFO", "calibration", "posterior stability", "frozen holdout", "runtime/cost"]
+      "target_areas": [
+        "latent team/player strength",
+        "partial pooling",
+        "uncertainty decomposition",
+        "regime-aware probabilistic state"
+      ],
+      "gates": [
+        "PIT-safe snapshots",
+        "chronological OOS/WFO",
+        "calibration",
+        "posterior stability",
+        "frozen holdout",
+        "runtime/cost"
+      ]
     },
     {
       "rank": 2,
@@ -38,8 +50,19 @@
       "license": "MIT",
       "integration_role": "leakage_safe_hyperparameter_search",
       "scope": "research_only",
-      "target_areas": ["ensemble weights", "calibration parameters", "router thresholds", "model hyperparameters"],
-      "gates": ["chronological tuning", "event-cluster separation", "bounded search", "OOS replication", "frozen holdout"]
+      "target_areas": [
+        "ensemble weights",
+        "calibration parameters",
+        "router thresholds",
+        "model hyperparameters"
+      ],
+      "gates": [
+        "chronological tuning",
+        "event-cluster separation",
+        "bounded search",
+        "OOS replication",
+        "frozen holdout"
+      ]
     },
     {
       "rank": 3,
@@ -52,8 +75,19 @@
       "license": "BSD-3-Clause",
       "integration_role": "online_learning_and_drift_adaptation",
       "scope": "research_only",
-      "target_areas": ["concept drift", "incremental updating", "online calibration", "streaming anomaly signals"],
-      "gates": ["label-delay simulation", "PIT replay", "checkpoint/recovery", "drift robustness", "frozen holdout"]
+      "target_areas": [
+        "concept drift",
+        "incremental updating",
+        "online calibration",
+        "streaming anomaly signals"
+      ],
+      "gates": [
+        "label-delay simulation",
+        "PIT replay",
+        "checkpoint/recovery",
+        "drift robustness",
+        "frozen holdout"
+      ]
     },
     {
       "rank": 4,
@@ -66,8 +100,18 @@
       "license": "BSD-2-Clause",
       "integration_role": "change_point_and_regime_detection",
       "scope": "research_only",
-      "target_areas": ["regime shifts", "source behavior changes", "distribution shift alerts"],
-      "gates": ["chronological replay", "detection delay", "false-positive cost", "OOD/regime robustness", "holdout"]
+      "target_areas": [
+        "regime shifts",
+        "source behavior changes",
+        "distribution shift alerts"
+      ],
+      "gates": [
+        "chronological replay",
+        "detection delay",
+        "false-positive cost",
+        "OOD/regime robustness",
+        "holdout"
+      ]
     },
     {
       "rank": 5,
@@ -80,8 +124,18 @@
       "license": "Apache-2.0",
       "integration_role": "heterogeneous_tabular_challenger",
       "scope": "research_only",
-      "target_areas": ["nonlinear interactions", "categorical/context features", "competition-specific challenger"],
-      "gates": ["chronological OOS", "ablation", "calibration", "regime robustness", "frozen holdout"]
+      "target_areas": [
+        "nonlinear interactions",
+        "categorical/context features",
+        "competition-specific challenger"
+      ],
+      "gates": [
+        "chronological OOS",
+        "ablation",
+        "calibration",
+        "regime robustness",
+        "frozen holdout"
+      ]
     },
     {
       "rank": 6,
@@ -94,8 +148,18 @@
       "license": "Apache-2.0",
       "integration_role": "gradient_boosting_challenger",
       "scope": "research_only",
-      "target_areas": ["feature interactions", "tabular challenger", "calibration comparison"],
-      "gates": ["incremental OOS", "calibration", "robustness", "compute/cost", "frozen holdout"]
+      "target_areas": [
+        "feature interactions",
+        "tabular challenger",
+        "calibration comparison"
+      ],
+      "gates": [
+        "incremental OOS",
+        "calibration",
+        "robustness",
+        "compute/cost",
+        "frozen holdout"
+      ]
     },
     {
       "rank": 7,
@@ -108,8 +172,17 @@
       "license": "Apache-2.0",
       "integration_role": "fast_statistical_time_series_baselines",
       "scope": "research_only",
-      "target_areas": ["strength trajectories", "form/state evolution", "schedule-load trajectories"],
-      "gates": ["event-time alignment", "paired chronological OOS", "information value", "robustness"]
+      "target_areas": [
+        "strength trajectories",
+        "form/state evolution",
+        "schedule-load trajectories"
+      ],
+      "gates": [
+        "event-time alignment",
+        "paired chronological OOS",
+        "information value",
+        "robustness"
+      ]
     },
     {
       "rank": 8,
@@ -122,8 +195,18 @@
       "license": "Apache-2.0",
       "integration_role": "neural_time_series_challengers",
       "scope": "research_only",
-      "target_areas": ["latent trajectory forecasting", "multi-series states", "nonlinear temporal patterns"],
-      "gates": ["PIT replay", "chronological OOS/WFO", "overfit stress", "runtime/cost", "frozen holdout"]
+      "target_areas": [
+        "latent trajectory forecasting",
+        "multi-series states",
+        "nonlinear temporal patterns"
+      ],
+      "gates": [
+        "PIT replay",
+        "chronological OOS/WFO",
+        "overfit stress",
+        "runtime/cost",
+        "frozen holdout"
+      ]
     },
     {
       "rank": 9,
@@ -136,8 +219,19 @@
       "license": "Apache-2.0 source; TimesFM 3.0 default weights non-commercial/non-production",
       "integration_role": "time_series_foundation_model_research",
       "scope": "research_only",
-      "target_areas": ["trajectory representations", "multivariate covariate forecasting", "general temporal representations"],
-      "gates": ["checkpoint license review", "local reproduction", "PIT-compatible covariates", "chronological OOS", "compute budget", "holdout"]
+      "target_areas": [
+        "trajectory representations",
+        "multivariate covariate forecasting",
+        "general temporal representations"
+      ],
+      "gates": [
+        "checkpoint license review",
+        "local reproduction",
+        "PIT-compatible covariates",
+        "chronological OOS",
+        "compute budget",
+        "holdout"
+      ]
     },
     {
       "rank": 10,
@@ -150,8 +244,19 @@
       "license": "Apache-2.0",
       "integration_role": "time_series_modeling_framework",
       "scope": "research_only",
-      "target_areas": ["forecasting comparison", "probabilistic temporal models", "trajectory ensembles"],
-      "gates": ["event-cluster chronology", "PIT audit", "OOS/WFO", "calibration", "robustness", "holdout"]
+      "target_areas": [
+        "forecasting comparison",
+        "probabilistic temporal models",
+        "trajectory ensembles"
+      ],
+      "gates": [
+        "event-cluster chronology",
+        "PIT audit",
+        "OOS/WFO",
+        "calibration",
+        "robustness",
+        "holdout"
+      ]
     },
     {
       "rank": 11,
@@ -164,8 +269,18 @@
       "license": "BSD-3-Clause",
       "integration_role": "unified_time_series_research_framework",
       "scope": "research_only",
-      "target_areas": ["forecasting", "time-series classification/regression", "changepoint/anomaly research"],
-      "gates": ["chronological benchmark", "sport/competition stratification", "incremental value", "robustness", "holdout"]
+      "target_areas": [
+        "forecasting",
+        "time-series classification/regression",
+        "changepoint/anomaly research"
+      ],
+      "gates": [
+        "chronological benchmark",
+        "sport/competition stratification",
+        "incremental value",
+        "robustness",
+        "holdout"
+      ]
     },
     {
       "rank": 12,
@@ -178,8 +293,19 @@
       "license": "Apache-2.0",
       "integration_role": "bayesian_diagnostics_and_calibration_analysis",
       "scope": "research_only",
-      "target_areas": ["posterior diagnostics", "uncertainty analysis", "model comparison", "calibration diagnostics"],
-      "gates": ["reproducibility", "posterior diagnostics", "OOS calibration", "robustness", "frozen holdout"]
+      "target_areas": [
+        "posterior diagnostics",
+        "uncertainty analysis",
+        "model comparison",
+        "calibration diagnostics"
+      ],
+      "gates": [
+        "reproducibility",
+        "posterior diagnostics",
+        "OOS calibration",
+        "robustness",
+        "frozen holdout"
+      ]
     }
   ]
 }
