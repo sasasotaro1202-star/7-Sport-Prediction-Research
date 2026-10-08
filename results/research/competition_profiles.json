@@ -37,6 +37,20 @@
     },
     "profiles": [
       {
+        "profile_id": "basketball:nba",
+        "sport": "basketball",
+        "phase_type": "league",
+        "rules_profile": "nba",
+        "aliases": [
+          "nba",
+          "national basketball association",
+          "nba regular season",
+          "nba preseason",
+          "nba playoffs"
+        ],
+        "canonical_competition_id": "basketball:nba"
+      },
+      {
         "profile_id": "basketball:bleague",
         "sport": "basketball",
         "phase_type": "league",
@@ -172,693 +186,360 @@
     }
   },
   "sports": {
-    "volleyball": {
-      "volleyball:asian_games": {
+    "volleyball": {},
+    "basketball": {
+      "basketball:bleague": {
         "profile": {
-          "profile_id": "volleyball:asian_games",
-          "sport": "volleyball",
-          "phase_type": "tournament",
-          "rules_profile": "asian_games_volleyball",
+          "profile_id": "basketball:bleague",
+          "sport": "basketball",
+          "phase_type": "league",
+          "rules_profile": "bleague",
           "matched": true,
           "dynamic": false,
-          "competition_id": "20th Asian Games Aichi–Nagoya 2026 - Women",
-          "canonical_competition_id": "volleyball:asian_games"
+          "competition_id": "B.LEAGUE",
+          "canonical_competition_id": "basketball:bleague"
         },
         "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 74,
-          "seasons": [
-            "2026"
+          "status": "PROMOTION_CANDIDATE_HOLDOUT_REQUIRED",
+          "rows": 6153,
+          "periods": [
+            "2016-17",
+            "2017-18",
+            "2018-19",
+            "2019-20",
+            "2020-21",
+            "2021-22"
           ],
-          "required_rows": 120,
-          "required_periods": 2
+          "seasons": [
+            "2016-17",
+            "2017-18",
+            "2018-19",
+            "2019-20",
+            "2020-21",
+            "2021-22"
+          ],
+          "feature_count": 333,
+          "candidates": {
+            "logistic": {
+              "logloss": 0.6266412546952868,
+              "brier": 0.21896084770228663,
+              "ece": 0.03953922499230353,
+              "accuracy": 0.6464885712030572,
+              "folds": 4,
+              "fold_logloss_std": 0.06626493732275153,
+              "fold_brier_std": 0.030058358516502504,
+              "folds_detail": [
+                {
+                  "logloss": 0.7368229143172708,
+                  "brier": 0.26926365423438814,
+                  "accuracy": 0.521395655036208,
+                  "ece": 0.09397324434157353,
+                  "n": 1519,
+                  "oos_start": "2016-10-15T00:00:00+00:00",
+                  "oos_end": "2018-01-01T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.6133616092143808,
+                  "brier": 0.21201632808564347,
+                  "accuracy": 0.6666666666666666,
+                  "ece": 0.013367698211998402,
+                  "n": 1518,
+                  "oos_start": "2018-01-02T00:00:00+00:00",
+                  "oos_end": "2019-03-23T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5948158363376418,
+                  "brier": 0.20419004872760171,
+                  "accuracy": 0.6851119894598156,
+                  "ece": 0.03365316567006202,
+                  "n": 1518,
+                  "oos_start": "2019-03-23T00:00:00+00:00",
+                  "oos_end": "2021-01-27T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5615646589118537,
+                  "brier": 0.1903733597615132,
+                  "accuracy": 0.7127799736495388,
+                  "ece": 0.01716279174558017,
+                  "n": 1518,
+                  "oos_start": "2021-01-27T00:00:00+00:00",
+                  "oos_end": "2022-05-29T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                }
+              ]
+            },
+            "extra_trees": {
+              "logloss": 0.6045931551151036,
+              "brier": 0.20916228582570762,
+              "ece": 0.03149986165248689,
+              "accuracy": 0.6438589461029853,
+              "folds": 4,
+              "fold_logloss_std": 0.04757724407905039,
+              "fold_brier_std": 0.02183929812726876,
+              "folds_detail": [
+                {
+                  "logloss": 0.6840444990098238,
+                  "brier": 0.24583747840475081,
+                  "accuracy": 0.48847926267281105,
+                  "ece": 0.0721980190421205,
+                  "n": 1519,
+                  "oos_start": "2016-10-15T00:00:00+00:00",
+                  "oos_end": "2018-01-01T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5911668547468185,
+                  "brier": 0.20218277212209973,
+                  "accuracy": 0.6877470355731226,
+                  "ece": 0.014568565064079837,
+                  "n": 1518,
+                  "oos_start": "2018-01-02T00:00:00+00:00",
+                  "oos_end": "2019-03-23T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5853998562323488,
+                  "brier": 0.20036092207973197,
+                  "accuracy": 0.6851119894598156,
+                  "ece": 0.021483302449934228,
+                  "n": 1518,
+                  "oos_start": "2019-03-23T00:00:00+00:00",
+                  "oos_end": "2021-01-27T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5577614104714232,
+                  "brier": 0.1882679706962479,
+                  "accuracy": 0.7140974967061924,
+                  "ece": 0.017749560053813,
+                  "n": 1518,
+                  "oos_start": "2021-01-27T00:00:00+00:00",
+                  "oos_end": "2022-05-29T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                }
+              ]
+            },
+            "hist_gb": {
+              "logloss": 0.6239747132426683,
+              "brier": 0.2177370317173466,
+              "ece": 0.02894485445834478,
+              "accuracy": 0.6308508995846204,
+              "folds": 4,
+              "fold_logloss_std": 0.04832329865894916,
+              "fold_brier_std": 0.02254444498024718,
+              "folds_detail": [
+                {
+                  "logloss": 0.7032421273058509,
+                  "brier": 0.25503105365700024,
+                  "accuracy": 0.47333772218564846,
+                  "ece": 0.055465593151189686,
+                  "n": 1519,
+                  "oos_start": "2016-10-15T00:00:00+00:00",
+                  "oos_end": "2018-01-01T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.620668444335781,
+                  "brier": 0.2152404985587916,
+                  "accuracy": 0.6725955204216074,
+                  "ece": 0.0295663409035753,
+                  "n": 1518,
+                  "oos_start": "2018-01-02T00:00:00+00:00",
+                  "oos_end": "2019-03-23T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5949736350837906,
+                  "brier": 0.2042433247713741,
+                  "accuracy": 0.6791831357048749,
+                  "ece": 0.01680631388680887,
+                  "n": 1518,
+                  "oos_start": "2019-03-23T00:00:00+00:00",
+                  "oos_end": "2021-01-27T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5770146462452505,
+                  "brier": 0.19643324988222044,
+                  "accuracy": 0.6982872200263505,
+                  "ece": 0.013941169891805272,
+                  "n": 1518,
+                  "oos_start": "2021-01-27T00:00:00+00:00",
+                  "oos_end": "2022-05-29T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                }
+              ]
+            },
+            "hist_gb_shallow": {
+              "logloss": 0.6203651762868997,
+              "brier": 0.21618417497948328,
+              "ece": 0.02990795012216088,
+              "accuracy": 0.6331565649337638,
+              "folds": 4,
+              "fold_logloss_std": 0.051801328578525006,
+              "fold_brier_std": 0.024081836798774525,
+              "folds_detail": [
+                {
+                  "logloss": 0.703933381034403,
+                  "brier": 0.25537216125344253,
+                  "accuracy": 0.47333772218564846,
+                  "ece": 0.045096511850528626,
+                  "n": 1519,
+                  "oos_start": "2016-10-15T00:00:00+00:00",
+                  "oos_end": "2018-01-01T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.619772169177,
+                  "brier": 0.21490661808771072,
+                  "accuracy": 0.6699604743083004,
+                  "ece": 0.02798803840414812,
+                  "n": 1518,
+                  "oos_start": "2018-01-02T00:00:00+00:00",
+                  "oos_end": "2019-03-23T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5912685491077341,
+                  "brier": 0.20287735415835983,
+                  "accuracy": 0.6818181818181818,
+                  "ece": 0.026090337589959357,
+                  "n": 1518,
+                  "oos_start": "2019-03-23T00:00:00+00:00",
+                  "oos_end": "2021-01-27T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5664866058284617,
+                  "brier": 0.19158056641842003,
+                  "accuracy": 0.7075098814229249,
+                  "ece": 0.02045691264400743,
+                  "n": 1518,
+                  "oos_start": "2021-01-27T00:00:00+00:00",
+                  "oos_end": "2022-05-29T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                }
+              ]
+            },
+            "lightgbm": {
+              "logloss": 0.620922977154028,
+              "brier": 0.21646971934367892,
+              "ece": 0.014329959877208254,
+              "accuracy": 0.6313449707308654,
+              "folds": 4,
+              "fold_logloss_std": 0.052980605590320355,
+              "fold_brier_std": 0.02468478482643286,
+              "folds_detail": [
+                {
+                  "logloss": 0.7077225020042042,
+                  "brier": 0.2572392945301382,
+                  "accuracy": 0.47333772218564846,
+                  "ece": 0.0,
+                  "n": 1519,
+                  "oos_start": "2016-10-15T00:00:00+00:00",
+                  "oos_end": "2018-01-01T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.6167751037202711,
+                  "brier": 0.21348401637927059,
+                  "accuracy": 0.6732542819499341,
+                  "ece": 0.02088974192750179,
+                  "n": 1518,
+                  "oos_start": "2018-01-02T00:00:00+00:00",
+                  "oos_end": "2019-03-23T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5910157364216126,
+                  "brier": 0.20269985432680027,
+                  "accuracy": 0.6772068511198946,
+                  "ece": 0.016268746622732505,
+                  "n": 1518,
+                  "oos_start": "2019-03-23T00:00:00+00:00",
+                  "oos_end": "2021-01-27T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.568178566470024,
+                  "brier": 0.19245571213850662,
+                  "accuracy": 0.7015810276679841,
+                  "ece": 0.020161350958598723,
+                  "n": 1518,
+                  "oos_start": "2021-01-27T00:00:00+00:00",
+                  "oos_end": "2022-05-29T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                }
+              ]
+            },
+            "lightgbm_missing": {
+              "logloss": 0.6203920701514318,
+              "brier": 0.2162479793820974,
+              "ece": 0.016667915051599223,
+              "accuracy": 0.6316743514950287,
+              "folds": 4,
+              "fold_logloss_std": 0.05289537229616747,
+              "fold_brier_std": 0.02468836543290465,
+              "folds_detail": [
+                {
+                  "logloss": 0.7077224950603768,
+                  "brier": 0.25723929111247573,
+                  "accuracy": 0.47333772218564846,
+                  "ece": 0.0,
+                  "n": 1519,
+                  "oos_start": "2016-10-15T00:00:00+00:00",
+                  "oos_end": "2018-01-01T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.6144633814889222,
+                  "brier": 0.21267040600105985,
+                  "accuracy": 0.6693017127799736,
+                  "ece": 0.024323994712433385,
+                  "n": 1518,
+                  "oos_start": "2018-01-02T00:00:00+00:00",
+                  "oos_end": "2019-03-23T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5901029224768172,
+                  "brier": 0.2022887924674531,
+                  "accuracy": 0.6798418972332015,
+                  "ece": 0.02096435304710438,
+                  "n": 1518,
+                  "oos_start": "2019-03-23T00:00:00+00:00",
+                  "oos_end": "2021-01-27T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                },
+                {
+                  "logloss": 0.5692794815796114,
+                  "brier": 0.19279342794740081,
+                  "accuracy": 0.7042160737812911,
+                  "ece": 0.021383312446859135,
+                  "n": 1518,
+                  "oos_start": "2021-01-27T00:00:00+00:00",
+                  "oos_end": "2022-05-29T00:00:00+00:00",
+                  "not_worse_vs_logistic": null
+                }
+              ]
+            }
+          },
+          "baseline_model": "logistic",
+          "selected_research_candidate": "extra_trees",
+          "baseline_logloss": 0.6266412546952868,
+          "candidate_logloss": 0.6045931551151036,
+          "relative_logloss_improvement": 0.03518456439786169,
+          "fold_non_worse_rate": 1.0,
+          "production_route_enabled": false,
+          "holdout_required": true,
+          "policy": "competition-specific OOS selection is research-only; sport-level production model remains incumbent until independent frozen holdout and release gates pass"
         }
       }
     },
-    "basketball": {},
-    "ufc": {
-      "ufc:promotion": {
-        "profile": {
-          "profile_id": "ufc:promotion",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": false,
-          "competition_id": "UFC 3: The American Dream",
-          "canonical_competition_id": "ufc:promotion"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_VALID_CANDIDATES",
-          "rows": 8527,
-          "seasons": [
-            "1994",
-            "1995",
-            "1996",
-            "1997",
-            "1998",
-            "1999",
-            "2000",
-            "2001",
-            "2002",
-            "2003",
-            "2004",
-            "2005",
-            "2006",
-            "2007",
-            "2008",
-            "2009",
-            "2010",
-            "2011",
-            "2012",
-            "2013",
-            "2014",
-            "2015",
-            "2016",
-            "2017",
-            "2018",
-            "2019",
-            "2020",
-            "2021",
-            "2022",
-            "2023",
-            "2024",
-            "2025",
-            "2026"
-          ],
-          "candidate_results": {}
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_couture_vs_team_liddell_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_couture_vs_team_liddell_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Couture vs. Team Liddell Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_couture_vs_team_liddell_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 1,
-          "seasons": [
-            "2005"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_franklin_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_franklin_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Hughes vs. Team Franklin Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_franklin_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 3,
-          "seasons": [
-            "2005"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_ortiz_vs_team_shamrock_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_ortiz_vs_team_shamrock_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Ortiz vs. Team Shamrock Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_ortiz_vs_team_shamrock_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 4,
-          "seasons": [
-            "2006"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:ortiz_vs_shamrock_3_the_final_chapter": {
-        "profile": {
-          "profile_id": "ufc:competition:ortiz_vs_shamrock_3_the_final_chapter",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "Ortiz vs Shamrock 3: The Final Chapter",
-          "canonical_competition_id": "ufc:competition:ortiz_vs_shamrock_3_the_final_chapter"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 9,
-          "seasons": [
-            "2006"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_the_comeback_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_the_comeback_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: The Comeback Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_the_comeback_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 9,
-          "seasons": [
-            "2006"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_pulver_vs_team_penn_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_pulver_vs_team_penn_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Pulver vs. Team Penn Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_pulver_vs_team_penn_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 7,
-          "seasons": [
-            "2007"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_serra_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_serra_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Hughes vs. Team Serra Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_hughes_vs_team_serra_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 3,
-          "seasons": [
-            "2007"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_rampage_vs_team_forrest_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_rampage_vs_team_forrest_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Rampage vs Team Forrest Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_rampage_vs_team_forrest_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 8,
-          "seasons": [
-            "2008"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_nogueira_vs_team_mir_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_nogueira_vs_team_mir_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Nogueira vs. Team Mir Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_nogueira_vs_team_mir_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 2,
-          "seasons": [
-            "2008"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_united_states_vs_united_kingdom_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_united_states_vs_united_kingdom_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: United States vs. United Kingdom Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_united_states_vs_united_kingdom_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 7,
-          "seasons": [
-            "2009"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_heavyweights_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_heavyweights_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Heavyweights Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_heavyweights_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 6,
-          "seasons": [
-            "2009"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_liddell_vs_team_ortiz_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_liddell_vs_team_ortiz_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Liddell vs Team Ortiz Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_liddell_vs_team_ortiz_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 5,
-          "seasons": [
-            "2010"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_gsp_vs_team_koscheck_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_gsp_vs_team_koscheck_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team GSP vs Team Koscheck Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_gsp_vs_team_koscheck_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 5,
-          "seasons": [
-            "2010"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_lesnar_vs_team_dos_santos_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_lesnar_vs_team_dos_santos_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Lesnar vs Team dos Santos Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_lesnar_vs_team_dos_santos_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 6,
-          "seasons": [
-            "2011"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_bisping_vs_team_miller_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_bisping_vs_team_miller_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Bisping vs Team Miller Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_bisping_vs_team_miller_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 3,
-          "seasons": [
-            "2011"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_live_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_live_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Live Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_live_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 5,
-          "seasons": [
-            "2012"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_carwin_vs_team_nelson_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_carwin_vs_team_nelson_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Carwin vs. Team Nelson Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_carwin_vs_team_nelson_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 10,
-          "seasons": [
-            "2012"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_jones_vs_team_sonnen_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_jones_vs_team_sonnen_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Jones vs. Team Sonnen Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_jones_vs_team_sonnen_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 6,
-          "seasons": [
-            "2013"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_rousey_vs_team_tate_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_rousey_vs_team_tate_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Rousey vs. Team Tate Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_rousey_vs_team_tate_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 4,
-          "seasons": [
-            "2013"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_edgar_vs_team_penn_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_edgar_vs_team_penn_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Edgar vs. Team Penn Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_edgar_vs_team_penn_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 7,
-          "seasons": [
-            "2014"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_a_champion_will_be_crowned_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_a_champion_will_be_crowned_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: A Champion Will Be Crowned Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_a_champion_will_be_crowned_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 2,
-          "seasons": [
-            "2014"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_american_top_team_vs_blackzilians_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_american_top_team_vs_blackzilians_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: American Top Team vs. Blackzilians Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_american_top_team_vs_blackzilians_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 10,
-          "seasons": [
-            "2015"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_mcgregor_vs_team_faber_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_mcgregor_vs_team_faber_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team McGregor vs. Team Faber Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_mcgregor_vs_team_faber_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 8,
-          "seasons": [
-            "2015"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_team_joanna_vs_team_cl_udia_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_team_joanna_vs_team_cl_udia_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Team Joanna vs. Team Cláudia Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_team_joanna_vs_team_cl_udia_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 10,
-          "seasons": [
-            "2016"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_tournament_of_champions_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_tournament_of_champions_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Tournament of Champions Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_tournament_of_champions_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 13,
-          "seasons": [
-            "2016"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_redemption_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_redemption_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Redemption Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_redemption_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 12,
-          "seasons": [
-            "2017"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_a_new_world_champion_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_a_new_world_champion_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: A New World Champion Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_a_new_world_champion_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 7,
-          "seasons": [
-            "2017"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_undefeated_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_undefeated_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Undefeated Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_undefeated_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 7,
-          "seasons": [
-            "2018"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      },
-      "ufc:competition:the_ultimate_fighter_heavy_hitters_finale": {
-        "profile": {
-          "profile_id": "ufc:competition:the_ultimate_fighter_heavy_hitters_finale",
-          "sport": "ufc",
-          "phase_type": "promotion",
-          "rules_profile": "ufc",
-          "matched": true,
-          "dynamic": true,
-          "competition_id": "The Ultimate Fighter: Heavy Hitters Finale",
-          "canonical_competition_id": "ufc:competition:the_ultimate_fighter_heavy_hitters_finale"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 10,
-          "seasons": [
-            "2018"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      }
-    },
+    "ufc": {},
     "rizin": {
       "rizin:promotion": {
         "profile": {
@@ -952,25 +633,25 @@
   },
   "identity_audit": {
     "volleyball": {
-      "built_rows": 74,
-      "matched_rows": 74,
-      "unknown_competition_rows": 0,
-      "missing_competition_rows": 0,
-      "recognized_ratio": 1.0
-    },
-    "basketball": {
       "built_rows": 0,
       "matched_rows": 0,
       "unknown_competition_rows": 0,
       "missing_competition_rows": 0,
       "recognized_ratio": 0.0
     },
-    "ufc": {
-      "built_rows": 8716,
-      "matched_rows": 8716,
+    "basketball": {
+      "built_rows": 6153,
+      "matched_rows": 6153,
       "unknown_competition_rows": 0,
       "missing_competition_rows": 0,
       "recognized_ratio": 1.0
+    },
+    "ufc": {
+      "built_rows": 0,
+      "matched_rows": 0,
+      "unknown_competition_rows": 0,
+      "missing_competition_rows": 0,
+      "recognized_ratio": 0.0
     },
     "rizin": {
       "built_rows": 82,
