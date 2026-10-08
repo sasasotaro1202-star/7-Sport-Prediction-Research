@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,9 +33,33 @@ def test_contract() -> None:
     assert '--expected-parent "$(git rev-parse HEAD^)"' in text
     assert 'git push origin HEAD:main' not in text
     push_helper = (ROOT / "scripts" / "reliable_main_push.py").read_text(encoding="utf-8")
-    assert 'git push origin HEAD:main' in push_helper
+    tree = ast.parse(push_helper)
+    has_guarded_push = False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.args, list) or not node.args:
+            continue
+        func = node.func
+        if not isinstance(func, ast.Name) or func.id != "run_capture":
+            continue
+        arg_values = []
+        for arg in node.args:
+            if not isinstance(arg, (ast.List, ast.Tuple)):
+                break
+            values = []
+            for elt in arg.elts:
+                if not isinstance(elt, ast.Constant) or not isinstance(elt.value, str):
+                    values = []
+                    break
+                values.append(elt.value)
+            arg_values.append(values)
+        if arg_values and arg_values[0] == ["git", "push", "origin", "HEAD:main"]:
+            has_guarded_push = True
+            break
+    assert has_guarded_push, "reliable push helper must invoke guarded git push"
     assert 'verify_local_parent' in push_helper
     assert 'RELIABLE_PUSH_STALE_MAIN' in push_helper
+    assert 'verify_remote_head' in push_helper
+    assert 'classify_push_failure' in push_helper
     start = text.index("Recover once without replaying a stale SHA")
     guard = text[start:]
     guard_idx = guard.index("RECOVERY_COALESCED_ACTIVE_CURRENT_MAIN")
