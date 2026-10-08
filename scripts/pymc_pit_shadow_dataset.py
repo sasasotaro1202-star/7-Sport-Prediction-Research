@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ACTIVE_SPORTS = ("basketball", "volleyball", "ufc", "rizin", "valorant")
 MIN_PIT_GAP = timedelta(minutes=60)
+SHADOW_BUILDER_VERSION = "v1"
 
 
 def parse_dt(value: str) -> datetime:
