@@ -177,7 +177,7 @@ jobs:
           gh workflow run production_watchdog.yml --repo "${GITHUB_REPOSITORY}" --ref main
           verified=false
           for attempt in 1 2 3 4 5; do
-            state="$(gh run list --workflow production_watchdog.yml --repo "${GITHUB_REPOSITORY}" --branch main --limit 20 --json databaseId,status,headSha,event --jq '.[0]')"
+            state="$(gh run list --workflow production_watchdog.yml --repo "${GITHUB_REPOSITORY}" --branch main --limit 20 --json databaseId,status,headSha,event --jq "[.[] | select(.headSha==\"$main_sha\" and .event==\"workflow_dispatch\")] | .[0]")"
             if [ -n "$state" ] && [ "$state" != "null" ]; then
               verified=true
               echo "PIT_REFRESH_WATCHDOG_VERIFIED $state"
