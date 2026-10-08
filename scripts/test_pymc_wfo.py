@@ -21,3 +21,6 @@ assert "automatic_promotion" in source
 assert "execution_verified" in source
 assert '"performance_verification":False' in source
 assert '"wfo_performance_verified":False' in source
+
+assert "candidate_relative_logloss_improvement_vs_incumbent" not in source
+assert "folds_better_than_incumbent" not in source
