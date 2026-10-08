@@ -3,8 +3,17 @@ name: Lightweight Regression and Safety Checks
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'ops/automation/heartbeat.json'
+    # Result/model artifacts are persisted independently. Run the full regression
+    # only when source/config/workflow contracts can actually have changed.
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+      - 'config/**'
+      - 'requirements.txt'
+      - 'PROJECT_INSTRUCTIONS.md'
+      - 'PROJECT_SOURCE.md'
+      - 'README.md'
   pull_request:
   workflow_dispatch:
 

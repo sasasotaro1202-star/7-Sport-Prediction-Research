@@ -62,6 +62,13 @@ def main() -> int:
     assert "git push --force" not in keepalive
     assert "git push -f" not in keepalive
 
+    lightweight = (WORKFLOWS / "lightweight_regression.yml").read_text(encoding="utf-8")
+    lightweight_block = trigger_block(lightweight)
+    assert "paths:" in lightweight_block, "lightweight regression push trigger must be path-scoped"
+    assert "paths-ignore:" not in lightweight_block, "lightweight regression must not rely on a result-file ignore list"
+    for required in ("src/**", "scripts/**", ".github/workflows/**", "config/**"):
+        assert required in lightweight_block, f"lightweight regression missing source path {required}"
+
     print(f"WORKFLOW_EVENT_STORM_GUARD=PASS workflows={len(files)}")
     return 0
 
