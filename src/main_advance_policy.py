@@ -89,6 +89,35 @@ def classify_main_advance(
         root,
     )
     if ancestor.returncode != 0:
+        # GitHub Actions commonly checks out with fetch-depth=1. In that
+        # environment a real descendant relationship can be temporarily
+        # unprovable because the base commit (or its connecting ancestry) is
+        # outside the shallow boundary. Repair only this evidence gap by
+        # incrementally deepening origin/main; true divergence still remains
+        # fail-closed after the repair attempts.
+        shallow = _run_git(
+            ["rev-parse", "--is-shallow-repository"],
+            root,
+        )
+        if (
+            shallow.returncode == 0
+            and shallow.stdout.strip().lower() == "true"
+        ):
+            for deepen in (64, 256, 1024):
+                fetched = _run_git(
+                    ["fetch", "origin", "main", f"--deepen={deepen}"],
+                    root,
+                )
+                if fetched.returncode != 0:
+                    break
+                ancestor = _run_git(
+                    ["merge-base", "--is-ancestor", base_sha, current_sha],
+                    root,
+                )
+                if ancestor.returncode == 0:
+                    break
+
+    if ancestor.returncode != 0:
         return MainAdvanceDecision(
             "NON_DURABLE_CHANGE",
             base_sha,
