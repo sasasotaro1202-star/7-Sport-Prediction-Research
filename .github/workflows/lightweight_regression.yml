@@ -150,6 +150,10 @@ jobs:
         run: PYTHONPATH=. python scripts/test_dual_learning_cycle.py
       - name: External OSS research registry guard
         run: PYTHONPATH=. python scripts/test_external_research_candidates.py
+      - name: PyMC PIT shadow dataset contract
+        run: PYTHONPATH=. python scripts/test_pymc_pit_shadow_dataset.py
+      - name: PyMC real shadow model contract
+        run: PYTHONPATH=. python scripts/test_pymc_real_shadow.py
       - name: Import canonical modules
         run: |
           python - <<'PY'
