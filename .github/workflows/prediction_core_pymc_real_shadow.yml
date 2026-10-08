@@ -110,7 +110,7 @@ jobs:
           PY
             echo "PYMC_REAL_SHADOW_DATASET=${SPORT_NAME} BLOCKED_NO_PIT_SOURCE_CACHE"
           else
-            python scripts/pymc_pit_shadow_dataset.py --sport "${SPORT_NAME}" --db data/db/sports_v45.sqlite --require-current-replay --out "${dataset}"
+            python scripts/pymc_pit_shadow_dataset.py --sport "${SPORT_NAME}" --db data/db/sports_v45.sqlite --require-current-replay --exclude-frozen-holdout --out "${dataset}"
           fi
 
       - name: Run real-data PyMC shadow fit when PIT data is ready
