@@ -112,7 +112,7 @@ def test_workflows_use_compatibility_policy_not_unconditional_sha_guard() -> Non
     assert watchdog_text.index("git fetch origin main") < watchdog_text.index("from src.main_advance_policy import classify_main_advance")
     assert '"merge-base", "--is-ancestor"' in policy_text
     assert '"rev-parse", "--is-shallow-repository"' in policy_text
-    assert '"fetch", "origin", "main", f"--deepen={deepen}"' in policy_text
+    assert '"fetch", f"--deepen={deepen}", "origin", "main"' in policy_text
     assert '"diff", "--name-only"' in policy_text
     assert "results/research/autonomous_control_plane.json" in policy_text
     assert 'test "${remote_sha}" = "${GITHUB_SHA}" || {' not in workflow_text
