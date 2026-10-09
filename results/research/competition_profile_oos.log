@@ -1434,7 +1434,29 @@
     }
   },
   "sports": {
-    "volleyball": {},
+    "volleyball": {
+      "volleyball:asian_games": {
+        "profile": {
+          "profile_id": "volleyball:asian_games",
+          "sport": "volleyball",
+          "phase_type": "tournament",
+          "rules_profile": "asian_games_volleyball",
+          "matched": true,
+          "dynamic": false,
+          "competition_id": "20th Asian Games Aichi–Nagoya 2026 - Women",
+          "canonical_competition_id": "volleyball:asian_games"
+        },
+        "evaluation": {
+          "status": "INSUFFICIENT_DATA",
+          "rows": 74,
+          "seasons": [
+            "2026"
+          ],
+          "required_rows": 120,
+          "required_periods": 2
+        }
+      }
+    },
     "basketball": {
       "basketball:bleague": {
         "profile": {
@@ -1469,49 +1491,49 @@
           "feature_count": 333,
           "candidates": {
             "logistic": {
-              "logloss": 0.6266414202263397,
-              "brier": 0.21896092953420665,
-              "ece": 0.03953984268958623,
+              "logloss": 0.6266412546952868,
+              "brier": 0.21896084770228663,
+              "ece": 0.03953922499230353,
               "accuracy": 0.6464885712030572,
               "folds": 4,
-              "fold_logloss_std": 0.06626478674797302,
-              "fold_brier_std": 0.03005828524365883,
+              "fold_logloss_std": 0.06626493732275153,
+              "fold_brier_std": 0.030058358516502504,
               "folds_detail": [
                 {
-                  "logloss": 0.7368229143172764,
-                  "brier": 0.26926365423439075,
+                  "logloss": 0.7368229143172708,
+                  "brier": 0.26926365423438814,
                   "accuracy": 0.521395655036208,
-                  "ece": 0.09397324434157694,
+                  "ece": 0.09397324434157353,
                   "n": 1519,
                   "oos_start": "2016-10-15T00:00:00+00:00",
                   "oos_end": "2018-01-01T00:00:00+00:00",
                   "not_worse_vs_logistic": null
                 },
                 {
-                  "logloss": 0.6133616092250421,
-                  "brier": 0.2120163280909415,
+                  "logloss": 0.6133616092143808,
+                  "brier": 0.21201632808564347,
                   "accuracy": 0.6666666666666666,
-                  "ece": 0.013367698213452033,
+                  "ece": 0.013367698211998402,
                   "n": 1518,
                   "oos_start": "2018-01-02T00:00:00+00:00",
                   "oos_end": "2019-03-23T00:00:00+00:00",
                   "not_worse_vs_logistic": null
                 },
                 {
-                  "logloss": 0.5948159318788759,
-                  "brier": 0.20419008835341787,
+                  "logloss": 0.5948158363376418,
+                  "brier": 0.20419004872760171,
                   "accuracy": 0.6851119894598156,
-                  "ece": 0.03365336908373365,
+                  "ece": 0.03365316567006202,
                   "n": 1518,
                   "oos_start": "2019-03-23T00:00:00+00:00",
                   "oos_end": "2021-01-27T00:00:00+00:00",
                   "not_worse_vs_logistic": null
                 },
                 {
-                  "logloss": 0.5615652254841645,
-                  "brier": 0.19037364745807644,
+                  "logloss": 0.5615646589118537,
+                  "brier": 0.1903733597615132,
                   "accuracy": 0.7127799736495388,
-                  "ece": 0.017165059119582285,
+                  "ece": 0.01716279174558017,
                   "n": 1518,
                   "oos_start": "2021-01-27T00:00:00+00:00",
                   "oos_end": "2022-05-29T00:00:00+00:00",
@@ -1522,11 +1544,11 @@
             "extra_trees": {
               "logloss": 0.6045931551151036,
               "brier": 0.20916228582570762,
-              "ece": 0.03149986165248689,
+              "ece": 0.031499861652486895,
               "accuracy": 0.6438589461029853,
               "folds": 4,
               "fold_logloss_std": 0.04757724407905039,
-              "fold_brier_std": 0.02183929812726875,
+              "fold_brier_std": 0.02183929812726876,
               "folds_detail": [
                 {
                   "logloss": 0.6840444990098238,
@@ -1540,9 +1562,9 @@
                 },
                 {
                   "logloss": 0.5911668547468185,
-                  "brier": 0.20218277212209976,
+                  "brier": 0.20218277212209973,
                   "accuracy": 0.6877470355731226,
-                  "ece": 0.014568565064079834,
+                  "ece": 0.014568565064079837,
                   "n": 1518,
                   "oos_start": "2018-01-02T00:00:00+00:00",
                   "oos_end": "2019-03-23T00:00:00+00:00",
@@ -1552,7 +1574,7 @@
                   "logloss": 0.5853998562323488,
                   "brier": 0.20036092207973197,
                   "accuracy": 0.6851119894598156,
-                  "ece": 0.021483302449934214,
+                  "ece": 0.021483302449934228,
                   "n": 1518,
                   "oos_start": "2019-03-23T00:00:00+00:00",
                   "oos_end": "2021-01-27T00:00:00+00:00",
@@ -1560,9 +1582,9 @@
                 },
                 {
                   "logloss": 0.5577614104714232,
-                  "brier": 0.18826797069624793,
+                  "brier": 0.1882679706962479,
                   "accuracy": 0.7140974967061924,
-                  "ece": 0.017749560053812997,
+                  "ece": 0.017749560053813,
                   "n": 1518,
                   "oos_start": "2021-01-27T00:00:00+00:00",
                   "oos_end": "2022-05-29T00:00:00+00:00",
@@ -1715,7 +1737,7 @@
                   "logloss": 0.568178566470024,
                   "brier": 0.19245571213850662,
                   "accuracy": 0.7015810276679841,
-                  "ece": 0.02016135095859872,
+                  "ece": 0.020161350958598723,
                   "n": 1518,
                   "oos_start": "2021-01-27T00:00:00+00:00",
                   "oos_end": "2022-05-29T00:00:00+00:00",
@@ -1777,9 +1799,9 @@
           },
           "baseline_model": "logistic",
           "selected_research_candidate": "extra_trees",
-          "baseline_logloss": 0.6266414202263397,
+          "baseline_logloss": 0.6266412546952868,
           "candidate_logloss": 0.6045931551151036,
-          "relative_logloss_improvement": 0.03518481925958935,
+          "relative_logloss_improvement": 0.03518456439786169,
           "fold_non_worse_rate": 1.0,
           "production_route_enabled": false,
           "holdout_required": true,
@@ -1881,11 +1903,11 @@
   },
   "identity_audit": {
     "volleyball": {
-      "built_rows": 0,
-      "matched_rows": 0,
+      "built_rows": 74,
+      "matched_rows": 74,
       "unknown_competition_rows": 0,
       "missing_competition_rows": 0,
-      "recognized_ratio": 0.0
+      "recognized_ratio": 1.0
     },
     "basketball": {
       "built_rows": 6153,
