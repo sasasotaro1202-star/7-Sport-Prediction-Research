@@ -62,13 +62,13 @@
       "lightgbm",
       "extra_trees"
     ],
-    "model_version": "d8bd8f294497c152",
+    "model_version": "2ef735e845f4d3e6",
     "feature_version": "strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features",
     "training_rows": 4799,
     "frozen_holdout_rows": 1354,
     "features": 125,
     "training_cutoff_utc": "2021-02-28T00:00:00+00:00",
-    "git_commit_sha": "58d589493ed25adc355b6675e7249b24b33d394f",
+    "git_commit_sha": "43086ab07b9ac4396831763cd4a4895af4c5a716",
     "artifact_path": "models/research/basketball_current.joblib",
     "selection_oos": {
       "logistic": {
@@ -568,7 +568,7 @@
       "logloss": 0.5634649242312381,
       "brier": 0.19030453787412008,
       "accuracy": 0.7038404726735599,
-      "ece": 0.026703340778977465,
+      "ece": 0.026703340778977458,
       "n": 1354,
       "models": [
         "lightgbm",
@@ -708,7 +708,7 @@
       "oos_training_rows": 2160,
       "holdout_rows": 1354,
       "fixed_ensemble": {
-        "logloss": 0.5634649242312381,
+        "logloss": 0.563464924231238,
         "brier": 0.19030453787412008,
         "ece": 0.026703340778977458,
         "accuracy": 0.7038404726735599,
@@ -717,13 +717,13 @@
       "dynamic_router": {
         "logloss": 0.5633796021949795,
         "brier": 0.19027518891026304,
-        "ece": 0.025660942146220174,
+        "ece": 0.025660942146220167,
         "accuracy": 0.7038404726735599,
         "n": 1354
       },
-      "logloss_improvement": 8.53220362585505e-05,
+      "logloss_improvement": 8.532203625843948e-05,
       "brier_improvement": 2.9348963857034338e-05,
-      "ece_change": -0.001042398632757284,
+      "ece_change": -0.001042398632757291,
       "policy": "router_fit_pre_holdout_only; reused chronological OOF base predictions; frozen_holdout_labels_used_only_for_scoring"
     },
     "dynamic_router_status": "FALLBACK_FIXED_ENSEMBLE",
@@ -780,7 +780,7 @@
       "holdout_rows": 1354,
       "oos_training_rows": 2160,
       "fixed_ensemble": {
-        "logloss": 0.5634649242312381,
+        "logloss": 0.563464924231238,
         "brier": 0.19030453787412008,
         "accuracy": 0.7038404726735599,
         "ece": 0.026703340778977458,
@@ -790,18 +790,18 @@
         "logloss": 0.5633994087060917,
         "brier": 0.19026053484009336,
         "accuracy": 0.7023633677991138,
-        "ece": 0.02649129773239525,
+        "ece": 0.026491297732395256,
         "n": 1354
       },
       "uncertainty_router_recalibrated": {
         "logloss": 0.5633994087060917,
         "brier": 0.19026053484009336,
         "accuracy": 0.7023633677991138,
-        "ece": 0.02649129773239525,
+        "ece": 0.026491297732395256,
         "n": 1354
       },
-      "raw_logloss_improvement": 6.55155251463313e-05,
-      "recalibrated_logloss_improvement": 6.55155251463313e-05,
+      "raw_logloss_improvement": 6.551552514622028e-05,
+      "recalibrated_logloss_improvement": 6.551552514622028e-05,
       "calibration_accepted_pre_holdout": false,
       "calibration_method": "none"
     },
@@ -1264,7 +1264,7 @@
       "oos_training_rows": 2160,
       "holdout_rows": 1354,
       "fixed_ensemble": {
-        "logloss": 0.5634649242312381,
+        "logloss": 0.563464924231238,
         "brier": 0.19030453787412008,
         "ece": 0.026703340778977458,
         "accuracy": 0.7038404726735599,
@@ -1272,15 +1272,15 @@
       },
       "temporal_memory_router": {
         "logloss": 0.5634608645086244,
-        "brier": 0.19030289934805275,
-        "ece": 0.026706258004919152,
+        "brier": 0.19030289934805272,
+        "ece": 0.026706258004919138,
         "accuracy": 0.7038404726735599,
         "n": 1354
       },
-      "logloss_improvement": 4.059722613636296e-06,
-      "brier_improvement": 1.6385260673268398e-06,
-      "ece_change": 2.917225941694024e-06,
-      "mean_route_strength": 0.0032284398262382207,
+      "logloss_improvement": 4.059722613525274e-06,
+      "brier_improvement": 1.6385260673545954e-06,
+      "ece_change": 2.917225941680146e-06,
+      "mean_route_strength": 0.0032284398262382216,
       "p95_nearest_distance": 4.640467743875802,
       "k": 20,
       "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
