@@ -1,7 +1,7 @@
 {
   "version": "dual-learning-cycle-v1",
   "status": "SUCCESS",
-  "started_at_utc": "2026-10-10T08:42:00.434241+00:00",
+  "started_at_utc": "2026-10-10T13:50:31.520904+00:00",
   "sport": null,
   "parallel": true,
   "lanes": {
@@ -13,10 +13,10 @@
         "src.experience_learning"
       ],
       "log": "dual_learning_logs/experience_learning.log",
-      "pid": 2652,
-      "started_at_utc": "2026-10-10T08:42:00.435518+00:00",
+      "pid": 2617,
+      "started_at_utc": "2026-10-10T13:50:31.522182+00:00",
       "returncode": 0,
-      "finished_at_utc": "2026-10-10T09:01:58.876720+00:00"
+      "finished_at_utc": "2026-10-10T14:10:27.982536+00:00"
     },
     "historical": {
       "purpose": "learn_from_historical_games_with_chronological_oos",
@@ -26,10 +26,10 @@
         "src.research_cycle_strict"
       ],
       "log": "dual_learning_logs/historical_research.log",
-      "pid": 2653,
-      "started_at_utc": "2026-10-10T08:42:00.435962+00:00",
+      "pid": 2618,
+      "started_at_utc": "2026-10-10T13:50:31.522639+00:00",
       "returncode": 0,
-      "finished_at_utc": "2026-10-10T09:01:58.876720+00:00"
+      "finished_at_utc": "2026-10-10T14:10:27.982536+00:00"
     }
   },
   "safety": {
@@ -39,6 +39,6 @@
     "automatic_promotion": false,
     "failure_handling": "fail_closed_no_success_masking"
   },
-  "finished_at_utc": "2026-10-10T09:01:58.876720+00:00",
-  "duration_seconds": 1198.442
+  "finished_at_utc": "2026-10-10T14:10:27.982536+00:00",
+  "duration_seconds": 1196.462
 }
