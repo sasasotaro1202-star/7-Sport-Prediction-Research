@@ -186,29 +186,7 @@
     }
   },
   "sports": {
-    "volleyball": {
-      "volleyball:asian_games": {
-        "profile": {
-          "profile_id": "volleyball:asian_games",
-          "sport": "volleyball",
-          "phase_type": "tournament",
-          "rules_profile": "asian_games_volleyball",
-          "matched": true,
-          "dynamic": false,
-          "competition_id": "20th Asian Games Aichi–Nagoya 2026 - Women",
-          "canonical_competition_id": "volleyball:asian_games"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 74,
-          "seasons": [
-            "2026"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      }
-    },
+    "volleyball": {},
     "basketball": {
       "basketball:bleague": {
         "profile": {
@@ -296,17 +274,17 @@
             "extra_trees": {
               "logloss": 0.6045931551151036,
               "brier": 0.20916228582570762,
-              "ece": 0.031499861652486895,
+              "ece": 0.03149986165248688,
               "accuracy": 0.6438589461029853,
               "folds": 4,
               "fold_logloss_std": 0.04757724407905039,
-              "fold_brier_std": 0.02183929812726876,
+              "fold_brier_std": 0.021839298127268755,
               "folds_detail": [
                 {
                   "logloss": 0.6840444990098238,
                   "brier": 0.24583747840475081,
                   "accuracy": 0.48847926267281105,
-                  "ece": 0.07219801904212052,
+                  "ece": 0.0721980190421205,
                   "n": 1519,
                   "oos_start": "2016-10-15T00:00:00+00:00",
                   "oos_end": "2018-01-01T00:00:00+00:00",
@@ -326,7 +304,7 @@
                   "logloss": 0.5853998562323488,
                   "brier": 0.20036092207973197,
                   "accuracy": 0.6851119894598156,
-                  "ece": 0.021483302449934218,
+                  "ece": 0.0214833024499342,
                   "n": 1518,
                   "oos_start": "2019-03-23T00:00:00+00:00",
                   "oos_end": "2021-01-27T00:00:00+00:00",
@@ -334,9 +312,9 @@
                 },
                 {
                   "logloss": 0.5577614104714232,
-                  "brier": 0.1882679706962479,
+                  "brier": 0.18826797069624793,
                   "accuracy": 0.7140974967061924,
-                  "ece": 0.017749560053813,
+                  "ece": 0.017749560053812983,
                   "n": 1518,
                   "oos_start": "2021-01-27T00:00:00+00:00",
                   "oos_end": "2022-05-29T00:00:00+00:00",
@@ -655,11 +633,11 @@
   },
   "identity_audit": {
     "volleyball": {
-      "built_rows": 74,
-      "matched_rows": 74,
+      "built_rows": 0,
+      "matched_rows": 0,
       "unknown_competition_rows": 0,
       "missing_competition_rows": 0,
-      "recognized_ratio": 1.0
+      "recognized_ratio": 0.0
     },
     "basketball": {
       "built_rows": 6153,
