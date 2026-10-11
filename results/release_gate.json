@@ -23,8 +23,8 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 6273,
-      "timed_events": 6273,
+      "events": 6296,
+      "timed_events": 6296,
       "completed_events": 6189,
       "resolved_outcomes": 6189,
       "verified_model_outcomes": 6189,
@@ -32,9 +32,9 @@
       "model_safety": "OK"
     },
     "volleyball": {
-      "events": 21477,
-      "timed_events": 21477,
-      "completed_events": 21477,
+      "events": 21479,
+      "timed_events": 21479,
+      "completed_events": 21479,
       "resolved_outcomes": 19654,
       "verified_model_outcomes": 19654,
       "accepted_models": 0,
