@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-10-11T20:11:08.096270+00:00",
+  "timestamp_utc": "2026-10-11T20:54:57.173816+00:00",
   "status": "PASS_WITH_PENDING",
   "fatal": [],
   "pending": [
@@ -66,12 +66,12 @@
       "ok": true,
       "max_age_hours": 72,
       "age_hours": {
-        "valorant": 0.45,
-        "basketball": 0.45,
-        "volleyball": 0.46,
+        "valorant": 0.56,
+        "basketball": 0.54,
+        "volleyball": 0.56,
         "tennis": null,
-        "ufc": 0.42,
-        "rizin": 0.44,
+        "ufc": 0.52,
+        "rizin": 0.55,
         "f1": null,
         "rugby": null,
         "boxing": null
