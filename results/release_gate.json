@@ -14,8 +14,8 @@
   },
   "coverage": {
     "valorant": {
-      "events": 9541,
-      "timed_events": 5,
+      "events": 9542,
+      "timed_events": 6,
       "completed_events": 9523,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
@@ -23,8 +23,8 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 6264,
-      "timed_events": 6264,
+      "events": 6274,
+      "timed_events": 6274,
       "completed_events": 6189,
       "resolved_outcomes": 6189,
       "verified_model_outcomes": 6189,
