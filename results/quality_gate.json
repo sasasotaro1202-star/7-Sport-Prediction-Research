@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-10-14T13:32:39.833924+00:00",
+  "timestamp_utc": "2026-10-14T15:12:23.518283+00:00",
   "status": "PASS_WITH_PENDING",
   "fatal": [],
   "pending": [
@@ -22,8 +22,8 @@
       "ok": true,
       "counts": {
         "valorant": 9544,
-        "basketball": 6283,
-        "volleyball": 21593,
+        "basketball": 6281,
+        "volleyball": 21684,
         "tennis": 0,
         "ufc": 9513,
         "rizin": 1252,
