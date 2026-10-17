@@ -16,15 +16,15 @@
     "valorant": {
       "events": 9556,
       "timed_events": 20,
-      "completed_events": 9523,
+      "completed_events": 9524,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 6279,
-      "timed_events": 6279,
+      "events": 6292,
+      "timed_events": 6292,
       "completed_events": 6189,
       "resolved_outcomes": 6189,
       "verified_model_outcomes": 6189,
@@ -35,8 +35,8 @@
       "events": 21684,
       "timed_events": 21684,
       "completed_events": 21684,
-      "resolved_outcomes": 19681,
-      "verified_model_outcomes": 19681,
+      "resolved_outcomes": 19683,
+      "verified_model_outcomes": 19683,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
