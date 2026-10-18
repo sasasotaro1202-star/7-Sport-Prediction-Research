@@ -23,8 +23,8 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 6289,
-      "timed_events": 6289,
+      "events": 6308,
+      "timed_events": 6308,
       "completed_events": 6189,
       "resolved_outcomes": 6189,
       "verified_model_outcomes": 6189,
@@ -35,8 +35,8 @@
       "events": 21686,
       "timed_events": 21686,
       "completed_events": 21686,
-      "resolved_outcomes": 19698,
-      "verified_model_outcomes": 19698,
+      "resolved_outcomes": 19700,
+      "verified_model_outcomes": 19700,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
