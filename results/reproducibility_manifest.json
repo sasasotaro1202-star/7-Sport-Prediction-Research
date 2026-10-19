@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-10-19T21:06:23.642924+00:00",
-  "source_git_commit_sha": "7e5c75430877970e179d8f7a149c77ac11fe5ea8",
+  "generated_at_utc": "2026-10-19T21:30:13.111227+00:00",
+  "source_git_commit_sha": "2bc87052c06ddee39668529acf8bf62af77b44d2",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -44,7 +44,7 @@
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
       "bytes": 542392320,
-      "sha256": "8fc548e109c1684cda2337c97514076f86f0c33d6ef4eb20ff3339be497a295d"
+      "sha256": "103bd576e9a64a49b72413bbc9b48d07f22e706627c606b0508a3cdc83ed9aa7"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -58,13 +58,13 @@
       "path": "results/quality_gate.json",
       "exists": true,
       "bytes": 3686,
-      "sha256": "bbda0bc9c16895146ddcced3fb563f99b0cb16b4c6b04e3897a1b4cf92b41b18"
+      "sha256": "60b5443ca9fd784010781c68992456cdca7857564af90eff8d0898c2c6814717"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
       "bytes": 4401,
-      "sha256": "d7964323fa87f89ae257ddd2f890f4251c9dd20f0e7a1855b34aec0b0a195d0f"
+      "sha256": "4809edd6a20870a0f4fb6888530962b204e15bd5ee5bca7649d304dccae49fca"
     },
     {
       "path": "results/pit_replay.json",
@@ -95,8 +95,8 @@
     {
       "path": "results/research/basketball.json",
       "exists": true,
-      "bytes": 359117,
-      "sha256": "0ac2070fd509109a936d67fbe571c78c65dcdc9323a77aa6c08007b8901de5dc"
+      "bytes": 359120,
+      "sha256": "7910a14e1ce3c588ba84f2d13c6aedfceb1e61a1e2c209f62ce25f78f9b649aa"
     },
     {
       "path": "results/research/basketball_frozen_holdout.json",
@@ -137,26 +137,26 @@
     {
       "path": "results/research/competition_profile_oos.log",
       "exists": true,
-      "bytes": 129033,
-      "sha256": "087bc5f48584debdadde80bcc9ce66d979890f3142b330e6af55e79ff9f926a3"
+      "bytes": 129034,
+      "sha256": "a4d52ebe67b85ddaf6afb4b48471642a018f9f985dd880e4b25dc57fa8861a14"
     },
     {
       "path": "results/research/competition_profiles.json",
       "exists": true,
-      "bytes": 23048,
-      "sha256": "d403048deb31b063026e77bebba4d17c8fe14ded612a92a9327907bb6ee1fd9f"
+      "bytes": 23049,
+      "sha256": "d07eb2e57013efa5e22abb1ed5da601e9598301c0effee7b0a01a7c7205976dc"
     },
     {
       "path": "results/research/competition_routes.json",
       "exists": true,
-      "bytes": 99206,
-      "sha256": "a00414083c1d3a95d14b83db776d2b3eac5c89b027015babce95bbf9d1bf9779"
+      "bytes": 99217,
+      "sha256": "37aeceadeb86f99a8952244a5531f59e6de51035c0812a36e7afa21e18e0eb64"
     },
     {
       "path": "results/research/dual_learning_cycle.json",
       "exists": true,
       "bytes": 1459,
-      "sha256": "8103055ef6a5b82d22b43efb0ba1f91f4af024f5b882440f0574c1febb714263"
+      "sha256": "c3d8e2990522157e4a9920905f548d77c1572af8c89af9d5f2b3c597ea580d46"
     },
     {
       "path": "results/research/dual_learning_logs/experience_learning.log",
@@ -167,8 +167,8 @@
     {
       "path": "results/research/dual_learning_logs/historical_research.log",
       "exists": true,
-      "bytes": 391734,
-      "sha256": "c0d685ca88ae15ac5056706a95b386da00f9c09f6937865bb6154dbed4041176"
+      "bytes": 391737,
+      "sha256": "90212976e071fbd78edc9d913ddf1c1165bd8395c9d72d961f3e8cc84ea59911"
     },
     {
       "path": "results/research/experience_learning.json",
@@ -192,7 +192,7 @@
       "path": "results/research/production_route_observability.json",
       "exists": true,
       "bytes": 2721,
-      "sha256": "977420181380f6e99e66ed3d76eb7d5159cec8156552722b9dbde0bc95593f46"
+      "sha256": "9cfd87677e067751140551a85eb47ef537583a1173d74b332fea1febd4547564"
     },
     {
       "path": "results/research/pymc_real_shadow_basketball_37731885244.json",
@@ -390,7 +390,7 @@
       "path": "models/research/basketball_current.joblib",
       "exists": true,
       "bytes": 48531638,
-      "sha256": "30b41ed4c600ea84045e2ce0b93c9842fa19390ff078bdf252ca49310ab7b06a"
+      "sha256": "42bc7176d5fdf399eeadbcdc3b46fb19c90eb3c5e952e6c2c88f051d7b261bf6"
     },
     {
       "path": "models/research/ufc_current.joblib",
