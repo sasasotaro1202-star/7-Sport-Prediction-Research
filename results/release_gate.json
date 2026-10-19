@@ -23,8 +23,8 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "basketball": {
-      "events": 6305,
-      "timed_events": 6305,
+      "events": 6315,
+      "timed_events": 6315,
       "completed_events": 6189,
       "resolved_outcomes": 6189,
       "verified_model_outcomes": 6189,
