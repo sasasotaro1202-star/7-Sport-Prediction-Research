@@ -1,12 +1,12 @@
 {
   "status": "SKIPPED",
   "eligible_events": 0,
-  "match_stats": 240007,
-  "exact_sources": 41,
-  "verified_outcomes": 45795,
+  "match_stats": 240009,
+  "exact_sources": 1,
+  "verified_outcomes": 45796,
   "replayable_rows": 1122,
   "clean_pit_features": 67320,
   "cache_key_prefix": "trajectory-ready-db-v1-",
-  "reason": "completed_events=0;match_stats=240007;exact_sources=41;verified_outcomes=45795;replayable_rows=1122;clean_pit_features=67320",
+  "reason": "completed_events=0;match_stats=240009;exact_sources=1;verified_outcomes=45796;replayable_rows=1122;clean_pit_features=67320",
   "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION"
 }
