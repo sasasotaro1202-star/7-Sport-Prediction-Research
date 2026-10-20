@@ -5,13 +5,13 @@
     "lightgbm",
     "extra_trees"
   ],
-  "model_version": "07ced02fecc2dba6",
+  "model_version": "5a84aa9bf0070cca",
   "feature_version": "strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features",
   "training_rows": 4799,
   "frozen_holdout_rows": 1354,
   "features": 125,
   "training_cutoff_utc": "2021-02-28T00:00:00+00:00",
-  "git_commit_sha": "5407f761695418634d5e4f1293b9e4ff50c8e304",
+  "git_commit_sha": "cb735daaf8688f00cb925087f8bf31dd850fd4d3",
   "artifact_path": "models/research/basketball_current.joblib",
   "selection_oos": {
     "logistic": {
@@ -508,10 +508,10 @@
     }
   },
   "holdout_metrics": {
-    "logloss": 0.563464924231238,
+    "logloss": 0.5634649242312381,
     "brier": 0.19030453787412008,
     "accuracy": 0.7038404726735599,
-    "ece": 0.026703340778977465,
+    "ece": 0.026703340778977458,
     "n": 1354,
     "models": [
       "lightgbm",
@@ -651,7 +651,7 @@
     "oos_training_rows": 2160,
     "holdout_rows": 1354,
     "fixed_ensemble": {
-      "logloss": 0.563464924231238,
+      "logloss": 0.5634649242312381,
       "brier": 0.19030453787412008,
       "ece": 0.026703340778977458,
       "accuracy": 0.7038404726735599,
@@ -664,7 +664,7 @@
       "accuracy": 0.7038404726735599,
       "n": 1354
     },
-    "logloss_improvement": 8.532203625843948e-05,
+    "logloss_improvement": 8.53220362585505e-05,
     "brier_improvement": 2.9348963857034338e-05,
     "ece_change": -0.001042398632757291,
     "policy": "router_fit_pre_holdout_only; reused chronological OOF base predictions; frozen_holdout_labels_used_only_for_scoring"
@@ -723,7 +723,7 @@
     "holdout_rows": 1354,
     "oos_training_rows": 2160,
     "fixed_ensemble": {
-      "logloss": 0.563464924231238,
+      "logloss": 0.5634649242312381,
       "brier": 0.19030453787412008,
       "accuracy": 0.7038404726735599,
       "ece": 0.026703340778977458,
@@ -743,8 +743,8 @@
       "ece": 0.02649129773239525,
       "n": 1354
     },
-    "raw_logloss_improvement": 6.551552514622028e-05,
-    "recalibrated_logloss_improvement": 6.551552514622028e-05,
+    "raw_logloss_improvement": 6.55155251463313e-05,
+    "recalibrated_logloss_improvement": 6.55155251463313e-05,
     "calibration_accepted_pre_holdout": false,
     "calibration_method": "none"
   },
@@ -1084,7 +1084,7 @@
     "fixed_ensemble_error_rate": 0.2961595273264402,
     "risk_auc": 0.6841343650318066,
     "risk_average_precision": 0.4452646595225691,
-    "baseline_confidence_auc": 0.6893574039717077,
+    "baseline_confidence_auc": 0.6893587123481957,
     "risk_coverage": {
       "0.90": {
         "coverage": 0.9002954209748892,
@@ -1150,9 +1150,9 @@
       }
     },
     "aurc": 0.18997315821080896,
-    "baseline_confidence_aurc": 0.1861980560980227,
-    "auc_improvement": -0.00522303893990117,
-    "aurc_improvement": -0.003775102112786255,
+    "baseline_confidence_aurc": 0.18618926380710338,
+    "auc_improvement": -0.0052243473163891,
+    "aurc_improvement": -0.003783894403705579,
     "oos_auc_improvement": -0.018456116578709603,
     "oos_relative_aurc_improvement": -0.06091516032396908,
     "accepted_for_research_comparison": false,
@@ -1207,7 +1207,7 @@
     "oos_training_rows": 2160,
     "holdout_rows": 1354,
     "fixed_ensemble": {
-      "logloss": 0.563464924231238,
+      "logloss": 0.5634649242312381,
       "brier": 0.19030453787412008,
       "ece": 0.026703340778977458,
       "accuracy": 0.7038404726735599,
@@ -1220,7 +1220,7 @@
       "accuracy": 0.7038404726735599,
       "n": 1354
     },
-    "logloss_improvement": 4.059722613414252e-06,
+    "logloss_improvement": 4.059722613525274e-06,
     "brier_improvement": 1.6385260673268398e-06,
     "ece_change": 2.917225941694024e-06,
     "mean_route_strength": 0.0032284398262382203,
@@ -1498,14 +1498,14 @@
       "error_correlation": [
         [
           1.0,
-          0.7958094466425975
+          0.7958094466425951
         ],
         [
-          0.7958094466425975,
-          1.0
+          0.795809446642595,
+          0.9999999999999999
         ]
       ],
-      "mean_pairwise_error_correlation": 0.7958094466425975,
+      "mean_pairwise_error_correlation": 0.7958094466425951,
       "mean_error_overlap": 0.2708333333333333
     },
     "selective_ablation": {
@@ -4128,14 +4128,14 @@
       "error_correlation": [
         [
           1.0,
-          0.7958094466425975
+          0.7958094466425951
         ],
         [
-          0.7958094466425975,
-          1.0
+          0.795809446642595,
+          0.9999999999999999
         ]
       ],
-      "mean_pairwise_error_correlation": 0.7958094466425975,
+      "mean_pairwise_error_correlation": 0.7958094466425951,
       "mean_error_overlap": 0.2708333333333333
     },
     "future_model_failure": {
