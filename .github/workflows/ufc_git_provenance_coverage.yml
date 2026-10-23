@@ -1,0 +1,57 @@
+name: UFC Git Provenance Coverage Research
+
+on:
+  push:
+    branches:
+      - research/ufc-git-provenance-coverage-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ufc-git-provenance-coverage
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies with transient-network retry
+        run: python -m pip install --retries 5 --timeout 60 -r requirements.txt
+      - name: Restore latest safe UFC database
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57
+        with:
+          path: data/db
+          key: ufc-git-provenance-${{ github.run_id }}
+          restore-keys: |
+            nine-sport-target-db-v4-ufc-pit-
+            nine-sport-target-db-v4-ufc-
+            pit-history-seed-ufc-
+      - name: Validate database
+        run: python -m src.cache_health --db data/db/sports_v45.sqlite --sport ufc
+      - name: Compile source
+        run: python -m compileall -q src
+      - name: Parser regression
+        run: PYTHONPATH=. python scripts/test_ufc_git_provenance_coverage.py
+      - name: Run non-mutating provenance coverage estimate
+        run: PYTHONPATH=. python -m src.ufc_git_provenance_coverage --db data/db/sports_v45.sqlite --output results/ufc_git_provenance_coverage.json
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufc-git-provenance-coverage-${{ github.run_id }}
+          path: results/ufc_git_provenance_coverage.json
+          retention-days: 14
+          if-no-files-found: error
