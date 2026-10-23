@@ -1,0 +1,65 @@
+{
+  "version": "participant-context-pattern-selection-v2",
+  "mission": "Select feature-family combinations for future generalization without treating all available data as automatically useful.",
+  "pit_rule": "participant/team attributes and event-participant context are eligible only when effective_at_utc and independently proven source_available_at_utc are <= prediction_cutoff; unknown PIT is excluded.",
+  "identity_rule": "Canonical participant/team IDs only. Fuzzy matching is never used for final feature attachment.",
+  "families": {
+    "core_rating": [
+      "rating"
+    ],
+    "workload": [
+      "workload"
+    ],
+    "form": [
+      "form"
+    ],
+    "opponent_strength": [
+      "opponent"
+    ],
+    "head_to_head": [
+      "h2h"
+    ],
+    "detailed_match_statistics": [
+      "stats"
+    ],
+    "participant_or_team_context": [
+      "participant_profile"
+    ],
+    "competition_context": [
+      "competition"
+    ],
+    "interactions": [
+      "interaction"
+    ],
+    "event_context": [
+      "event_context"
+    ]
+  },
+  "search": {
+    "strategy": "chronological_inner_oos_score_guided_beam",
+    "inner_fraction_end": 0.5,
+    "min_inner_rows": 240,
+    "blocks": 3,
+    "beam_width": 3,
+    "max_depth": 3,
+    "probes": [
+      "hist_gradient_boosting_missing",
+      "logistic"
+    ],
+    "objective": "mean_logloss + 0.20*fold_logloss_std + 0.10*mean_brier + 0.05*worst_fold_excess",
+    "tie_break": [
+      "mean_logloss",
+      "mean_brier",
+      "feature_count",
+      "lexicographic_pattern"
+    ],
+    "holdout_access": false,
+    "main_oos_access": false,
+    "min_family_coverage": 0.1,
+    "selection_scope": "feature_families_only",
+    "patterns_exhaustive": false,
+    "main_oos_protected": true,
+    "holdout_protected": true
+  },
+  "acceptance": "Feature pattern is a candidate, not a promotion. Main chronological OOS, robustness, frozen holdout, PIT audit and release gates remain authoritative."
+}
