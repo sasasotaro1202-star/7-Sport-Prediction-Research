@@ -1,8 +1,8 @@
 {
   "version": "autonomous-control-plane-v1",
-  "generated_at_utc": "2026-10-23T04:36:37.203182+00:00",
-  "head_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-  "state_fingerprint": "faba4963e15c878647f3",
+  "generated_at_utc": "2026-10-23T05:41:15.671273+00:00",
+  "head_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
+  "state_fingerprint": "90744090b44f60c669ff",
   "status": "READY",
   "active_sports": [
     "valorant",
@@ -18,10 +18,10 @@
     "boxing"
   ],
   "observations": {
-    "observed_at_utc": "2026-10-23T04:36:37.203182+00:00",
-    "head_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+    "observed_at_utc": "2026-10-23T05:41:15.671273+00:00",
+    "head_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
     "reproducibility": {
-      "manifest_sha": "1b83e5027dcaef32a18e4d373420254d5505102d",
+      "manifest_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
       "source_sha_match": false,
       "content_match": null,
       "status": "STALE_SNAPSHOT",
@@ -54,9 +54,9 @@
       ]
     },
     "future_prediction": {
-      "generated_at_utc": "2026-10-23T01:21:08.151934+00:00",
-      "age_hours": 3.258069791111111,
-      "age_class": "STALE",
+      "generated_at_utc": "2026-10-23T05:34:59.545486+00:00",
+      "age_hours": 0.10447938527777778,
+      "age_class": "FRESH",
       "statuses": [
         "NO_FUTURE_EVENTS"
       ]
@@ -65,7 +65,7 @@
       "archive_total": 0,
       "scored_total": 0,
       "unresolved_total": 0,
-      "generated_at_utc": "2026-10-23T01:22:23.533074+00:00"
+      "generated_at_utc": "2026-10-23T05:36:35.610521+00:00"
     },
     "route_observability": {
       "prediction_rows": 0,
@@ -79,38 +79,38 @@
     "actions": {
       "source_feasibility": {
         "run_status": "completed",
-        "status": "STALE",
-        "age_hours": 6.901445765555556,
-        "head_sha": "3b7bb7e23793f4a8511d6e958509da66434c7416",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "status": "HEALTHY",
+        "age_hours": 0.6904647391666666,
+        "head_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
-        "run_id": 39859417199,
+        "run_id": 39903303409,
         "active_run_any": false,
-        "stale": true
+        "stale": false
       },
       "scope_autofill": {
         "run_status": "completed",
-        "status": "STALE",
-        "age_hours": 7.014779102222222,
-        "head_sha": "3b7bb7e23793f4a8511d6e958509da66434c7416",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "status": "HEALTHY",
+        "age_hours": 0.8696314091666667,
+        "head_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
-        "run_id": 39858531578,
+        "run_id": 39902342391,
         "active_run_any": false,
-        "stale": true
+        "stale": false
       },
       "runtime_health": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 3.2225568825,
+        "age_hours": 4.299909189722222,
         "head_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-        "sha_match": true,
-        "main_compatibility": "EXACT_CURRENT_MAIN",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
+        "sha_match": false,
+        "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
         "run_id": 39883699416,
         "active_run_any": false,
@@ -118,49 +118,49 @@
       },
       "safety_audit": {
         "run_status": "completed",
-        "status": "STALE",
-        "age_hours": 6.708112440000001,
-        "head_sha": "3b7bb7e23793f4a8511d6e958509da66434c7416",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "status": "HEALTHY",
+        "age_hours": 0.37852030305555556,
+        "head_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
-        "run_id": 39860909495,
+        "run_id": 39905035628,
         "active_run_any": false,
-        "stale": true
+        "stale": false
       },
       "lane_audit": {
         "run_status": "completed",
         "status": "HEALTHY",
-        "age_hours": 6.8478346638888885,
-        "head_sha": "3b7bb7e23793f4a8511d6e958509da66434c7416",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "age_hours": 0.6246314158333333,
+        "head_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
-        "run_id": 39859838687,
+        "run_id": 39903679008,
         "active_run_any": false,
         "stale": false
       },
       "research_sweep": {
         "run_status": "completed",
         "status": "HEALTHY",
-        "age_hours": 5.33977911,
-        "head_sha": "f25ab5496306e1c498ae49c8316db0d18ec1df9f",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "age_hours": 0.6512980841666667,
+        "head_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
-        "run_id": 39870667075,
+        "run_id": 39903530822,
         "active_run_any": false,
         "stale": false
       },
       "deep_research": {
         "run_status": "completed",
         "status": "FAILED",
-        "age_hours": 6.007834667222222,
+        "age_hours": 7.085186974722222,
         "head_sha": "566963a26295e0a0fbfe59fbc35bd657ab268720",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "DURABLE_ONLY",
         "conclusion": "failure",
@@ -171,74 +171,74 @@
       "pre_event_prediction": {
         "run_status": "completed",
         "status": "FAILED",
-        "age_hours": 2.7883902241666667,
-        "head_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-        "sha_match": true,
-        "main_compatibility": "EXACT_CURRENT_MAIN",
+        "age_hours": 0.3060203097222222,
+        "head_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
+        "sha_match": false,
+        "main_compatibility": "DURABLE_ONLY",
         "conclusion": "failure",
-        "run_id": 39886150092,
+        "run_id": 39905435235,
         "active_run_any": false,
         "stale": true
       },
       "production": {
         "run_status": "completed",
-        "status": "STALE",
-        "age_hours": 3.9022791147222224,
-        "head_sha": "1b83e5027dcaef32a18e4d373420254d5505102d",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "status": "HEALTHY",
+        "age_hours": 0.7499092005555555,
+        "head_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
-        "run_id": 39879708725,
+        "run_id": 39902992003,
         "active_run_any": false,
-        "stale": true
+        "stale": false
       },
       "pit_history": {
         "run_status": "completed",
         "status": "HEALTHY",
-        "age_hours": 3.901168005277778,
-        "head_sha": "1b83e5027dcaef32a18e4d373420254d5505102d",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "age_hours": 0.3271314241666667,
+        "head_sha": "ca637067662f2baaf7d4595e2b5917d81736a07d",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
-        "run_id": 39879714609,
+        "run_id": 39905319712,
         "active_run_any": false,
         "stale": false
       },
       "failure_recovery": {
         "run_status": "completed",
         "status": "IN_PROGRESS",
-        "age_hours": 4.577279118055555,
-        "head_sha": "1b83e5027dcaef32a18e4d373420254d5505102d",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-        "sha_match": false,
-        "main_compatibility": "DURABLE_ONLY",
+        "age_hours": 0.07157587027777779,
+        "head_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
+        "sha_match": true,
+        "main_compatibility": "EXACT_CURRENT_MAIN",
         "conclusion": "skipped",
-        "run_id": 39875586338,
+        "run_id": 39906738077,
         "active_run_any": false,
         "stale": true
       },
       "watchdog": {
         "run_status": "completed",
-        "status": "STALE",
-        "age_hours": 3.800334675,
-        "head_sha": "1b83e5027dcaef32a18e4d373420254d5505102d",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-        "sha_match": false,
-        "main_compatibility": "DURABLE_ONLY",
+        "status": "HEALTHY",
+        "age_hours": 0.07157587194444444,
+        "head_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
+        "sha_match": true,
+        "main_compatibility": "EXACT_CURRENT_MAIN",
         "conclusion": "success",
-        "run_id": 39880310938,
+        "run_id": 39906738011,
         "active_run_any": false,
-        "stale": true
+        "stale": false
       },
       "invariants": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 349.01616801,
+        "age_hours": 350.09352031805554,
         "head_sha": "9a318cf90abe39b8944ec5a45f251539c14217ae",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -249,9 +249,9 @@
       "lightweight_regression": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 349.01616801166665,
+        "age_hours": 350.0935203197222,
         "head_sha": "9a318cf90abe39b8944ec5a45f251539c14217ae",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -262,9 +262,9 @@
       "control_plane_regression": {
         "run_status": "completed",
         "status": "STALE",
-        "age_hours": 349.1495013463889,
+        "age_hours": 350.2268536547222,
         "head_sha": "a0f998af4dc79218a5e6b682982c7ca52c12e2e7",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
         "sha_match": false,
         "main_compatibility": "MEANINGFUL_OR_DIVERGED",
         "conclusion": "success",
@@ -275,11 +275,11 @@
       "trajectory_research": {
         "run_status": "completed",
         "status": "HEALTHY",
-        "age_hours": 0.5467235702777777,
+        "age_hours": 1.6240758783333333,
         "head_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-        "current_main_sha": "d4e5459037ff41edaa152b0c6099fbd5a7d841b0",
-        "sha_match": true,
-        "main_compatibility": "EXACT_CURRENT_MAIN",
+        "current_main_sha": "9a547923b527a07db25dda9f08a3530a3cc563a8",
+        "sha_match": false,
+        "main_compatibility": "DURABLE_ONLY",
         "conclusion": "success",
         "run_id": 39898298163,
         "active_run_any": false,
@@ -324,7 +324,7 @@
     },
     "dual_learning": {
       "status": "SUCCESS",
-      "generated_at_utc": "2026-10-23T01:11:42.445710+00:00"
+      "generated_at_utc": "2026-10-23T05:24:33.847808+00:00"
     }
   },
   "selected_action": {
@@ -344,7 +344,7 @@
     "status": "DISPATCH_CANDIDATE",
     "automatic_promotion": false,
     "selection_rule": "max(priority) with deterministic action/target tie-break",
-    "fingerprint": "66ab1f94327ad544be5c"
+    "fingerprint": "eaa746c82845ecddbbfa"
   },
   "dispatch_action": {
     "action": "RESEARCH_HEALTH",
@@ -365,11 +365,11 @@
   },
   "automatic_promotion": false,
   "queue": {
-    "fingerprint": "66ab1f94327ad544be5c",
+    "fingerprint": "eaa746c82845ecddbbfa",
     "key": "423b3c1f492154f56af2",
     "added": false,
     "previous_key": "423b3c1f492154f56af2",
-    "previous_state_fingerprint": "81af61046400da2c8eb1",
+    "previous_state_fingerprint": "faba4963e15c878647f3",
     "identity_policy": "action+workflow+target"
   },
   "allowed_workflows": {
