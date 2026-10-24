@@ -5,13 +5,13 @@
     "lightgbm",
     "extra_trees"
   ],
-  "model_version": "3428a80a58f29458",
+  "model_version": "6e861a5fa4abfb39",
   "feature_version": "strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features",
   "training_rows": 4799,
   "frozen_holdout_rows": 1354,
   "features": 125,
   "training_cutoff_utc": "2021-02-28T00:00:00+00:00",
-  "git_commit_sha": "a15338b73192940834d66f306b6e637db502ad25",
+  "git_commit_sha": "c24fa9a1a7cb3a04e62351ab0ae3a6526d002965",
   "artifact_path": "models/research/basketball_current.joblib",
   "selection_oos": {
     "logistic": {
@@ -508,10 +508,10 @@
     }
   },
   "holdout_metrics": {
-    "logloss": 0.5634649242312381,
+    "logloss": 0.563464924231238,
     "brier": 0.19030453787412008,
     "accuracy": 0.7038404726735599,
-    "ece": 0.026703340778977465,
+    "ece": 0.026703340778977472,
     "n": 1354,
     "models": [
       "lightgbm",
@@ -658,13 +658,13 @@
       "n": 1354
     },
     "dynamic_router": {
-      "logloss": 0.5633796021949794,
+      "logloss": 0.5633796021949795,
       "brier": 0.19027518891026304,
       "ece": 0.025660942146220167,
       "accuracy": 0.7038404726735599,
       "n": 1354
     },
-    "logloss_improvement": 8.532203625866153e-05,
+    "logloss_improvement": 8.53220362585505e-05,
     "brier_improvement": 2.9348963857034338e-05,
     "ece_change": -0.001042398632757291,
     "policy": "router_fit_pre_holdout_only; reused chronological OOF base predictions; frozen_holdout_labels_used_only_for_scoring"
@@ -733,14 +733,14 @@
       "logloss": 0.5633994087060917,
       "brier": 0.19026053484009342,
       "accuracy": 0.7023633677991138,
-      "ece": 0.026491297732395263,
+      "ece": 0.026491297732395246,
       "n": 1354
     },
     "uncertainty_router_recalibrated": {
       "logloss": 0.5633994087060917,
       "brier": 0.19026053484009342,
       "accuracy": 0.7023633677991138,
-      "ece": 0.026491297732395263,
+      "ece": 0.026491297732395246,
       "n": 1354
     },
     "raw_logloss_improvement": 6.55155251463313e-05,
@@ -1214,16 +1214,16 @@
       "n": 1354
     },
     "temporal_memory_router": {
-      "logloss": 0.5634608645086244,
-      "brier": 0.19030289934805275,
-      "ece": 0.026706258004919152,
+      "logloss": 0.5634608645086245,
+      "brier": 0.19030289934805272,
+      "ece": 0.026706258004919145,
       "accuracy": 0.7038404726735599,
       "n": 1354
     },
-    "logloss_improvement": 4.059722613636296e-06,
-    "brier_improvement": 1.6385260673268398e-06,
-    "ece_change": 2.917225941694024e-06,
-    "mean_route_strength": 0.0032284398262382207,
+    "logloss_improvement": 4.059722613525274e-06,
+    "brier_improvement": 1.6385260673545954e-06,
+    "ece_change": 2.917225941687085e-06,
+    "mean_route_strength": 0.0032284398262382216,
     "p95_nearest_distance": 4.640467743875802,
     "k": 20,
     "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
