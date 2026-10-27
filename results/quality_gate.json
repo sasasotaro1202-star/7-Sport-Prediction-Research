@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-10-26T23:26:32.570087+00:00",
+  "timestamp_utc": "2026-10-27T00:14:24.929076+00:00",
   "status": "PASS_WITH_PENDING",
   "fatal": [],
   "pending": [
@@ -58,7 +58,7 @@
       "check": "source_timing_transparency",
       "ok": true,
       "exact_missing_source_available_at": 0,
-      "unverifiable_source_timestamps": 1419,
+      "unverifiable_source_timestamps": 1420,
       "policy": "UNVERIFIABLE is excluded from strict PIT learning"
     },
     {
@@ -66,12 +66,12 @@
       "ok": true,
       "max_age_hours": 72,
       "age_hours": {
-        "valorant": 0.47,
-        "basketball": 0.4,
-        "volleyball": 0.47,
+        "valorant": 0.69,
+        "basketball": 0.63,
+        "volleyball": 0.7,
         "tennis": null,
-        "ufc": 0.31,
-        "rizin": 0.45,
+        "ufc": 0.54,
+        "rizin": 0.67,
         "f1": null,
         "rugby": null,
         "boxing": null
