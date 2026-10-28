@@ -1,7 +1,7 @@
 {
   "version": "production-route-observability-v1",
   "status": "PASS",
-  "generated_at_utc": "2026-10-27T23:27:51.335733+00:00",
+  "generated_at_utc": "2026-10-28T00:43:08.204201+00:00",
   "source": {
     "db": "data/db/sports_v45.sqlite",
     "active_sports": [
