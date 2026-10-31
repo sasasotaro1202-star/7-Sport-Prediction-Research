@@ -16,7 +16,7 @@
     "valorant": {
       "events": 9543,
       "timed_events": 20,
-      "completed_events": 9523,
+      "completed_events": 9524,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
       "accepted_models": 0,
@@ -35,8 +35,8 @@
       "events": 21720,
       "timed_events": 21720,
       "completed_events": 21720,
-      "resolved_outcomes": 19796,
-      "verified_model_outcomes": 19796,
+      "resolved_outcomes": 19797,
+      "verified_model_outcomes": 19797,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
