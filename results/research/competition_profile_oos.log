@@ -1,4 +1,4 @@
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -11,7 +11,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -24,7 +24,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -37,7 +37,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -50,7 +50,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -63,7 +63,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -76,7 +76,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -89,7 +89,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -102,7 +102,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -115,7 +115,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -128,7 +128,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -141,7 +141,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -154,7 +154,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -167,7 +167,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -180,7 +180,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -193,7 +193,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -206,20 +206,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 244 245 246 249 254 255 256 257 258 259 260 261
- 262 263 265 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281
- 282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
- 316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -232,7 +219,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -245,7 +232,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -258,163 +245,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -427,7 +258,163 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -440,7 +427,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -453,7 +440,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -466,163 +453,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -635,7 +466,163 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -648,7 +635,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -661,7 +648,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -674,163 +661,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -843,7 +674,163 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -856,7 +843,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -869,7 +856,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -882,163 +869,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
-  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
-  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
-  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
- 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
- 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
- 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
- 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
- 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
- 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
- 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
- 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
-  warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1051,7 +882,163 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 249 254 255 256 257 258 259 260 261 262 263 265
+ 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281 282 283 297
+ 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
+ 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1064,7 +1051,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1077,7 +1064,7 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1090,7 +1077,20 @@
  282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
  316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+  20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
+  57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
+  91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
+ 111 112 113 114 115 117 118 119 120 138 139 140 141 142 143 145 146 147
+ 148 149 150 151 152 153 154 156 157 158 159 173 174 175 176 177 178 179
+ 181 182 183 184 187 188 189 190 191 192 194 195 196 197 198 199 200 201
+ 202 203 204 205 206 207 209 210 211 212 213 214 215 216 217 218 219 220
+ 221 222 224 225 226 227 244 245 246 249 254 255 256 257 258 259 260 261
+ 262 263 265 266 267 268 269 270 271 272 273 274 275 276 277 278 280 281
+ 282 283 297 298 299 300 301 302 303 304 305 306 307 309 310 311 312 315
+ 316 317 318 319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
+  warnings.warn(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1103,7 +1103,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1116,7 +1116,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1129,7 +1129,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1142,7 +1142,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1155,7 +1155,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1168,7 +1168,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1181,7 +1181,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1194,7 +1194,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1207,7 +1207,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1220,7 +1220,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1233,7 +1233,7 @@
  298 299 300 301 302 303 304 305 306 307 309 310 311 312 315 316 317 318
  319 320 321 322 323 324 326 327 328 329]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [  0   1   2   3   4   5   7   8   9  10  11  12  13  14  15  16  18  19
   20  21  39  40  41  42  43  44  46  47  48  49  50  51  52  53  54  55
   57  58  59  60  74  75  76  77  78  79  80  82  83  84  85  88  89  90
   91  92  93  95  96  97  98  99 100 101 102 103 104 106 107 108 109 110
@@ -1434,29 +1434,7 @@
     }
   },
   "sports": {
-    "volleyball": {
-      "volleyball:asian_games": {
-        "profile": {
-          "profile_id": "volleyball:asian_games",
-          "sport": "volleyball",
-          "phase_type": "tournament",
-          "rules_profile": "asian_games_volleyball",
-          "matched": true,
-          "dynamic": false,
-          "competition_id": "20th Asian Games Aichi–Nagoya 2026 - Women",
-          "canonical_competition_id": "volleyball:asian_games"
-        },
-        "evaluation": {
-          "status": "INSUFFICIENT_DATA",
-          "rows": 74,
-          "seasons": [
-            "2026"
-          ],
-          "required_rows": 120,
-          "required_periods": 2
-        }
-      }
-    },
+    "volleyball": {},
     "basketball": {
       "basketball:bleague": {
         "profile": {
@@ -1547,7 +1525,7 @@
               "ece": 0.031499861652486895,
               "accuracy": 0.6438589461029853,
               "folds": 4,
-              "fold_logloss_std": 0.0475772440790504,
+              "fold_logloss_std": 0.04757724407905039,
               "fold_brier_std": 0.021839298127268755,
               "folds_detail": [
                 {
@@ -1564,17 +1542,17 @@
                   "logloss": 0.5911668547468185,
                   "brier": 0.20218277212209973,
                   "accuracy": 0.6877470355731226,
-                  "ece": 0.014568565064079834,
+                  "ece": 0.01456856506407984,
                   "n": 1518,
                   "oos_start": "2018-01-02T00:00:00+00:00",
                   "oos_end": "2019-03-23T00:00:00+00:00",
                   "not_worse_vs_logistic": null
                 },
                 {
-                  "logloss": 0.5853998562323487,
+                  "logloss": 0.5853998562323488,
                   "brier": 0.20036092207973197,
                   "accuracy": 0.6851119894598156,
-                  "ece": 0.02148330244993422,
+                  "ece": 0.021483302449934218,
                   "n": 1518,
                   "oos_start": "2019-03-23T00:00:00+00:00",
                   "oos_end": "2021-01-27T00:00:00+00:00",
@@ -1584,7 +1562,7 @@
                   "logloss": 0.5577614104714232,
                   "brier": 0.18826797069624793,
                   "accuracy": 0.7140974967061924,
-                  "ece": 0.017749560053813,
+                  "ece": 0.017749560053813007,
                   "n": 1518,
                   "oos_start": "2021-01-27T00:00:00+00:00",
                   "oos_end": "2022-05-29T00:00:00+00:00",
@@ -1903,11 +1881,11 @@
   },
   "identity_audit": {
     "volleyball": {
-      "built_rows": 74,
-      "matched_rows": 74,
+      "built_rows": 0,
+      "matched_rows": 0,
       "unknown_competition_rows": 0,
       "missing_competition_rows": 0,
-      "recognized_ratio": 1.0
+      "recognized_ratio": 0.0
     },
     "basketball": {
       "built_rows": 6153,
