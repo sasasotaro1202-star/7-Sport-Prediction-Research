@@ -1,50 +1,50 @@
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py:1435: FutureWarning: 'n_jobs' has no effect since 1.8 and will be removed in 1.10. You provided 'n_jobs=1', please leave it unspecified.
   warnings.warn(msg, category=FutureWarning)
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
-/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/sklearn/impute/_base.py:647: UserWarning: Skipping features without any observed values: [25 26 27 28 33 35 36 37 38 39 40 44]. At least one non-missing value is needed for imputation with strategy='median'.
   warnings.warn(
 [
   {
@@ -62,13 +62,13 @@
       "lightgbm",
       "extra_trees"
     ],
-    "model_version": "f94d47a7910774d3",
+    "model_version": "9ef5a25654c46570",
     "feature_version": "strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features",
     "training_rows": 4799,
     "frozen_holdout_rows": 1354,
     "features": 125,
     "training_cutoff_utc": "2021-02-28T00:00:00+00:00",
-    "git_commit_sha": "102219b16feb6e14fa79892cb45f174c1379cadf",
+    "git_commit_sha": "9475e41638ef65244078ba80efda30fe484537e3",
     "artifact_path": "models/research/basketball_current.joblib",
     "selection_oos": {
       "logistic": {
@@ -717,13 +717,13 @@
       "dynamic_router": {
         "logloss": 0.5633796021949795,
         "brier": 0.19027518891026304,
-        "ece": 0.025660942146220167,
+        "ece": 0.025660942146220174,
         "accuracy": 0.7038404726735599,
         "n": 1354
       },
       "logloss_improvement": 8.53220362585505e-05,
       "brier_improvement": 2.9348963857034338e-05,
-      "ece_change": -0.001042398632757291,
+      "ece_change": -0.001042398632757284,
       "policy": "router_fit_pre_holdout_only; reused chronological OOF base predictions; frozen_holdout_labels_used_only_for_scoring"
     },
     "dynamic_router_status": "FALLBACK_FIXED_ENSEMBLE",
@@ -790,14 +790,14 @@
         "logloss": 0.5633994087060917,
         "brier": 0.19026053484009342,
         "accuracy": 0.7023633677991138,
-        "ece": 0.026491297732395256,
+        "ece": 0.026491297732395266,
         "n": 1354
       },
       "uncertainty_router_recalibrated": {
         "logloss": 0.5633994087060917,
         "brier": 0.19026053484009342,
         "accuracy": 0.7023633677991138,
-        "ece": 0.026491297732395256,
+        "ece": 0.026491297732395266,
         "n": 1354
       },
       "raw_logloss_improvement": 6.55155251463313e-05,
@@ -1272,13 +1272,13 @@
       },
       "temporal_memory_router": {
         "logloss": 0.5634608645086245,
-        "brier": 0.19030289934805275,
+        "brier": 0.19030289934805272,
         "ece": 0.026706258004919152,
         "accuracy": 0.7038404726735599,
         "n": 1354
       },
       "logloss_improvement": 4.059722613525274e-06,
-      "brier_improvement": 1.6385260673268398e-06,
+      "brier_improvement": 1.6385260673545954e-06,
       "ece_change": 2.917225941694024e-06,
       "mean_route_strength": 0.0032284398262382203,
       "p95_nearest_distance": 4.640467743875802,
@@ -1555,14 +1555,14 @@
         "error_correlation": [
           [
             1.0,
-            0.7958094466425951
+            0.7958094466425975
           ],
           [
-            0.795809446642595,
-            0.9999999999999999
+            0.7958094466425975,
+            1.0
           ]
         ],
-        "mean_pairwise_error_correlation": 0.7958094466425951,
+        "mean_pairwise_error_correlation": 0.7958094466425975,
         "mean_error_overlap": 0.2708333333333333
       },
       "selective_ablation": {
@@ -4185,14 +4185,14 @@
         "error_correlation": [
           [
             1.0,
-            0.7958094466425951
+            0.7958094466425975
           ],
           [
-            0.795809446642595,
-            0.9999999999999999
+            0.7958094466425975,
+            1.0
           ]
         ],
-        "mean_pairwise_error_correlation": 0.7958094466425951,
+        "mean_pairwise_error_correlation": 0.7958094466425975,
         "mean_error_overlap": 0.2708333333333333
       },
       "future_model_failure": {
