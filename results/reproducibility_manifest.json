@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-11-05T08:00:20.026495+00:00",
-  "source_git_commit_sha": "574c2d0fe02356f1503e5aebdd9e2fd58ece22c0",
+  "generated_at_utc": "2026-11-05T08:58:50.392313+00:00",
+  "source_git_commit_sha": "925e127fcd3837b6fd9bce2ddb00ad187610da55",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 549011456,
-      "sha256": "db218022fc904d99d2f0a74f7d69fc2c15232b5ac1f26247408386c4ae8afb1e"
+      "bytes": 549056512,
+      "sha256": "f53dd9688a71f38038cad31e6d4b66d8282be237b1ea6c1431731be67151b5da"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -57,8 +57,8 @@
     {
       "path": "results/quality_gate.json",
       "exists": true,
-      "bytes": 3686,
-      "sha256": "1938cc9af45f1ac0817ce506bf417aadaea8969a4802b6cd08d0655b5c84081d"
+      "bytes": 3687,
+      "sha256": "100c1e83b7454fecf5dbc5e9f489e81f7700b9eeebe0074ed684206db0b33aac"
     },
     {
       "path": "results/release_gate.json",
@@ -95,8 +95,8 @@
     {
       "path": "results/research/basketball.json",
       "exists": true,
-      "bytes": 359116,
-      "sha256": "1f3ac873322cdc4860636af55d81a7527d33de6ec4e0cb588c5f625aa44dc031"
+      "bytes": 359119,
+      "sha256": "1d74792d529d26dbb4333fb883fe13a88055335b781132f567969957118db411"
     },
     {
       "path": "results/research/basketball_frozen_holdout.json",
@@ -137,26 +137,26 @@
     {
       "path": "results/research/competition_profile_oos.log",
       "exists": true,
-      "bytes": 129032,
-      "sha256": "66d5566ada13739b22b22d883777d00c8518ac1d42f77706c2eb8f26303c4cc2"
+      "bytes": 129034,
+      "sha256": "dfbd02da2565382e5c139a916018484131ce5cb3ca8eb59669dcb61a2102d0db"
     },
     {
       "path": "results/research/competition_profiles.json",
       "exists": true,
-      "bytes": 23047,
-      "sha256": "50b3f04b78f64ce550c2cfdac93a197329dc69dcedb5c76bc1977aa073998510"
+      "bytes": 23049,
+      "sha256": "e65813093b8dc3e55940b4d50d4ca59398b8b073ab0cf1c9e25abe2b8ce95c99"
     },
     {
       "path": "results/research/competition_routes.json",
       "exists": true,
-      "bytes": 99219,
-      "sha256": "c112434e5925849a6b217083b8ddecea1415fb8029378d4348750d8beec12428"
+      "bytes": 99220,
+      "sha256": "962b4fe58c0ffbff365c2286246f27b0090ec336baf6cc7ccca681043654cf87"
     },
     {
       "path": "results/research/dual_learning_cycle.json",
       "exists": true,
-      "bytes": 1458,
-      "sha256": "b6166ac698e7153b9ed632e10a1fd8f235abb7600613972b32d0ff7fc45cf87b"
+      "bytes": 1459,
+      "sha256": "720a83ff891365c194e5ff9607d80988de2ca6afa86c8baf4df0d0aaea4b3e0b"
     },
     {
       "path": "results/research/dual_learning_logs/experience_learning.log",
@@ -167,8 +167,8 @@
     {
       "path": "results/research/dual_learning_logs/historical_research.log",
       "exists": true,
-      "bytes": 391733,
-      "sha256": "d3f420636265cffb2054a4fe2e8bef9ee91f91e18f7cc188d1b94a469e4bc676"
+      "bytes": 391736,
+      "sha256": "b35b9bbb63fe2a7d7b248cc8ea036a572c3ade7195a86c0b066a5a2747faa77a"
     },
     {
       "path": "results/research/experience_learning.json",
@@ -192,7 +192,7 @@
       "path": "results/research/production_route_observability.json",
       "exists": true,
       "bytes": 2721,
-      "sha256": "6be0b991e885ab63e1dc20c2940dee0de3e7bce51007c402126b407829e6ea68"
+      "sha256": "111dca7928c48cff62ad8ba77b535518c44c27f5f49b23c24ff0af3aada5b5e0"
     },
     {
       "path": "results/research/pymc_real_shadow_basketball_37731885244.json",
@@ -390,7 +390,7 @@
       "path": "models/research/basketball_current.joblib",
       "exists": true,
       "bytes": 48531638,
-      "sha256": "8256d743c8559c786059f70e1a024769993a3a44d2fd375cd709a7e15bab3db9"
+      "sha256": "77728ac6c4031c72bf373de8d398357716ec007fa1c2d49df027c84ea4cca30f"
     },
     {
       "path": "models/research/ufc_current.joblib",

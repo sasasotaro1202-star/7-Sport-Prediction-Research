@@ -1,35 +1,35 @@
 {
   "version": "dual-learning-cycle-v1",
   "status": "SUCCESS",
-  "started_at_utc": "2026-11-05T07:40:49.825984+00:00",
+  "started_at_utc": "2026-11-05T08:40:06.006136+00:00",
   "sport": null,
   "parallel": true,
   "lanes": {
     "experience": {
       "purpose": "learn_from_matured_prediction_experience_only",
       "command": [
-        "/opt/hostedtoolcache/Python/3.12.16/x64/bin/python",
+        "/opt/hostedtoolcache/Python/3.12.15/x64/bin/python",
         "-m",
         "src.experience_learning"
       ],
       "log": "dual_learning_logs/experience_learning.log",
-      "pid": 2539,
-      "started_at_utc": "2026-11-05T07:40:49.827301+00:00",
+      "pid": 2512,
+      "started_at_utc": "2026-11-05T08:40:06.007148+00:00",
       "returncode": 0,
-      "finished_at_utc": "2026-11-05T07:54:01.616066+00:00"
+      "finished_at_utc": "2026-11-05T08:52:40.392143+00:00"
     },
     "historical": {
       "purpose": "learn_from_historical_games_with_chronological_oos",
       "command": [
-        "/opt/hostedtoolcache/Python/3.12.16/x64/bin/python",
+        "/opt/hostedtoolcache/Python/3.12.15/x64/bin/python",
         "-m",
         "src.research_cycle_strict"
       ],
       "log": "dual_learning_logs/historical_research.log",
-      "pid": 2540,
-      "started_at_utc": "2026-11-05T07:40:49.827613+00:00",
+      "pid": 2513,
+      "started_at_utc": "2026-11-05T08:40:06.007442+00:00",
       "returncode": 0,
-      "finished_at_utc": "2026-11-05T07:54:01.616066+00:00"
+      "finished_at_utc": "2026-11-05T08:52:40.392143+00:00"
     }
   },
   "safety": {
@@ -39,6 +39,6 @@
     "automatic_promotion": false,
     "failure_handling": "fail_closed_no_success_masking"
   },
-  "finished_at_utc": "2026-11-05T07:54:01.616066+00:00",
-  "duration_seconds": 791.79
+  "finished_at_utc": "2026-11-05T08:52:40.392143+00:00",
+  "duration_seconds": 754.386
 }
