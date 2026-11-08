@@ -15,8 +15,8 @@
   "coverage": {
     "valorant": {
       "events": 9542,
-      "timed_events": 17,
-      "completed_events": 9523,
+      "timed_events": 19,
+      "completed_events": 9524,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
       "accepted_models": 0,
@@ -35,8 +35,8 @@
       "events": 21736,
       "timed_events": 21736,
       "completed_events": 21736,
-      "resolved_outcomes": 19864,
-      "verified_model_outcomes": 19864,
+      "resolved_outcomes": 19871,
+      "verified_model_outcomes": 19871,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
@@ -59,11 +59,11 @@
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
     "rizin": {
-      "events": 1252,
-      "timed_events": 1252,
-      "completed_events": 1252,
-      "resolved_outcomes": 1252,
-      "verified_model_outcomes": 1252,
+      "events": 1274,
+      "timed_events": 1274,
+      "completed_events": 1274,
+      "resolved_outcomes": 1274,
+      "verified_model_outcomes": 1274,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
