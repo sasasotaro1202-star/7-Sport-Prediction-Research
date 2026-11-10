@@ -1,7 +1,7 @@
 {
   "version": "automation-health-v1",
-  "generated_at_utc": "2026-11-10T16:59:03.346386+00:00",
-  "head_sha": "bf8a00268975fb0ba479a7e5cca7094299cbfb87",
+  "generated_at_utc": "2026-11-10T18:50:31.387181+00:00",
+  "head_sha": "095ca58c967ab21ae980dc661dca160d8b7dd478",
   "control_plane_status": "READY",
   "selected_action": "RESEARCH_HEALTH",
   "selected_workflow": "autonomous_research_sweep.yml",
@@ -10,5 +10,5 @@
   "reproducibility_status": "STALE_SNAPSHOT",
   "pit_exact_pass": 0,
   "pit_replayable_clean": 1122,
-  "queue_entry_added": true
+  "queue_entry_added": false
 }
