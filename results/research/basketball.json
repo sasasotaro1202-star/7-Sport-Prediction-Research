@@ -5,13 +5,13 @@
     "lightgbm",
     "extra_trees"
   ],
-  "model_version": "9cf2816b10c0f38e",
+  "model_version": "eff31453eb354dc0",
   "feature_version": "strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features",
   "training_rows": 4799,
   "frozen_holdout_rows": 1354,
   "features": 125,
   "training_cutoff_utc": "2021-02-28T00:00:00+00:00",
-  "git_commit_sha": "a9ca6601dc094a6e8deb3ea08917cc0d3e02afc9",
+  "git_commit_sha": "4fb8857286727dd4f08a6a375ab031fda21526d9",
   "artifact_path": "models/research/basketball_current.joblib",
   "selection_oos": {
     "logistic": {
@@ -658,15 +658,15 @@
       "n": 1354
     },
     "dynamic_router": {
-      "logloss": 0.5633796021949796,
+      "logloss": 0.5633796021949795,
       "brier": 0.19027518891026304,
-      "ece": 0.025660942146220167,
+      "ece": 0.025660942146220174,
       "accuracy": 0.7038404726735599,
       "n": 1354
     },
-    "logloss_improvement": 8.532203625843948e-05,
+    "logloss_improvement": 8.53220362585505e-05,
     "brier_improvement": 2.9348963857034338e-05,
-    "ece_change": -0.001042398632757291,
+    "ece_change": -0.001042398632757284,
     "policy": "router_fit_pre_holdout_only; reused chronological OOF base predictions; frozen_holdout_labels_used_only_for_scoring"
   },
   "dynamic_router_status": "FALLBACK_FIXED_ENSEMBLE",
@@ -1214,15 +1214,15 @@
       "n": 1354
     },
     "temporal_memory_router": {
-      "logloss": 0.5634608645086245,
+      "logloss": 0.5634608645086244,
       "brier": 0.19030289934805275,
-      "ece": 0.026706258004919138,
+      "ece": 0.026706258004919152,
       "accuracy": 0.7038404726735599,
       "n": 1354
     },
-    "logloss_improvement": 4.059722613525274e-06,
+    "logloss_improvement": 4.059722613636296e-06,
     "brier_improvement": 1.6385260673268398e-06,
-    "ece_change": 2.917225941680146e-06,
+    "ece_change": 2.917225941694024e-06,
     "mean_route_strength": 0.0032284398262382203,
     "p95_nearest_distance": 4.640467743875802,
     "k": 20,
