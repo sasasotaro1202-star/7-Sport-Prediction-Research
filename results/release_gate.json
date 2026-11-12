@@ -14,8 +14,8 @@
   },
   "coverage": {
     "valorant": {
-      "events": 9548,
-      "timed_events": 24,
+      "events": 9551,
+      "timed_events": 27,
       "completed_events": 9523,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
@@ -50,8 +50,8 @@
       "model_safety": "DEFERRED:sport_specific_PIT_gate_not_enabled_for_generic_strict_training"
     },
     "ufc": {
-      "events": 9513,
-      "timed_events": 9513,
+      "events": 9713,
+      "timed_events": 9713,
       "completed_events": 9513,
       "resolved_outcomes": 9513,
       "verified_model_outcomes": 9422,
