@@ -1,7 +1,7 @@
 {
   "manifest_version": "repro-v1",
-  "generated_at_utc": "2026-11-12T03:42:07.559125+00:00",
-  "source_git_commit_sha": "8566690f0ec6351a23076ff040d17de6802b86f0",
+  "generated_at_utc": "2026-11-12T08:12:54.111997+00:00",
+  "source_git_commit_sha": "db566609bbedcd78ef6bd316797ac3ae26135013",
   "requirements_sha256": "73939356a0ef391724141c471f3201ffe8121f19840ca76c9858d17c89b38c92",
   "sports": [
     "valorant",
@@ -15,7 +15,7 @@
     "boxing"
   ],
   "event_counts": {
-    "valorant": 9534,
+    "valorant": 9542,
     "basketball": 6189,
     "volleyball": 21750,
     "tennis": 0,
@@ -43,8 +43,8 @@
     {
       "path": "data/db/sports_v45.sqlite",
       "exists": true,
-      "bytes": 550948864,
-      "sha256": "90f4aacd06d254d64bb1451aa085b2757919daef8051de78e1c3e81c9c8715cb"
+      "bytes": 550883328,
+      "sha256": "022b4223a482f7dcbd4299ba0c33af9530ffcd13bf69db1c0564c38d627887f2"
     },
     {
       "path": "data/db/rugby_v45.sqlite",
@@ -57,14 +57,14 @@
     {
       "path": "results/quality_gate.json",
       "exists": true,
-      "bytes": 3686,
-      "sha256": "c8d62d29430e6c84117ab2dbf460e9dbde37c7611bfd9bb1c81de59432d164db"
+      "bytes": 3687,
+      "sha256": "7e23c0f7c9bea5a14d35dd32aa1548cdf5abea2c069db2f5735fef26c056ddd0"
     },
     {
       "path": "results/release_gate.json",
       "exists": true,
       "bytes": 4401,
-      "sha256": "1d20ebd2ac387452c59c5dae70dd0dd6c9ad0a26d7fc494bdab19f78d6cc92b7"
+      "sha256": "5d7d89bc780267c6593878278d125743987b8a654173edde28f0e5e97b8f464f"
     },
     {
       "path": "results/pit_replay.json",
@@ -96,7 +96,7 @@
       "path": "results/research/basketball.json",
       "exists": true,
       "bytes": 359120,
-      "sha256": "bf6f748f72ee731b0f01f10c7da923cc22b54b5688104b022a2c89f64a089fcd"
+      "sha256": "1531a66899753ac3c9c4552c7e71e3888cb65e45c71ad925e9b114a36b63c4a7"
     },
     {
       "path": "results/research/basketball_frozen_holdout.json",
@@ -137,26 +137,26 @@
     {
       "path": "results/research/competition_profile_oos.log",
       "exists": true,
-      "bytes": 129035,
-      "sha256": "2ff769df2b079c36141c56f4be576437c1a567c320be6e7ca7763269b0e1054b"
+      "bytes": 129037,
+      "sha256": "3f34ffa01e893d3d8d5c2b81f2ad724979f5cc90e566b4171618f1d86536425f"
     },
     {
       "path": "results/research/competition_profiles.json",
       "exists": true,
-      "bytes": 23050,
-      "sha256": "c0a77abe3438d060e4d9dfc72cf1b98f0b6041b5e1b0ec58d14bebc9c33fa8cd"
+      "bytes": 23052,
+      "sha256": "d04e239b3ec95a8a1557ddc362fbd315784354e77082e5436453f4ede74213aa"
     },
     {
       "path": "results/research/competition_routes.json",
       "exists": true,
-      "bytes": 99215,
-      "sha256": "20c674662bfa387c223f1012e245e9606da4ec1645296c49f2b7a52610ac5831"
+      "bytes": 99219,
+      "sha256": "5fa98ba63de08403b476cb28b70467e625c87b4880c202df388480287c0505e2"
     },
     {
       "path": "results/research/dual_learning_cycle.json",
       "exists": true,
-      "bytes": 1460,
-      "sha256": "db11a1b7ba26b19e54ef6e47f2a2127a31134824f460fb0b0e41f8784367d17b"
+      "bytes": 1459,
+      "sha256": "16a861f6aa4b1c0d8b812d213d99223a3a7f69a9828832f47a845c06acc95751"
     },
     {
       "path": "results/research/dual_learning_logs/experience_learning.log",
@@ -168,7 +168,7 @@
       "path": "results/research/dual_learning_logs/historical_research.log",
       "exists": true,
       "bytes": 391737,
-      "sha256": "f28fba8db6da9e0bb1d5bca261e539a68e9a128e737ab72312ed2091e6ed0ec2"
+      "sha256": "75cbe087c8420d3593dde6341d5563bfa8c3b731b2585aa454dba36ff58e95ba"
     },
     {
       "path": "results/research/experience_learning.json",
@@ -192,7 +192,7 @@
       "path": "results/research/production_route_observability.json",
       "exists": true,
       "bytes": 2721,
-      "sha256": "ae85b9c538e354a37addccb1b2185384b81eaf2b5f859df663c833dcfc44017d"
+      "sha256": "97616eb0b270870f19fca4e6aea11c2400ca17ba7c50fe83a38ea8affc5fb1db"
     },
     {
       "path": "results/research/pymc_real_shadow_basketball_37731885244.json",
@@ -234,7 +234,7 @@
       "path": "results/research/trajectory_cache_gate.json",
       "exists": true,
       "bytes": 430,
-      "sha256": "83e9bace108bdf3fb502ce876f18799c0c53d41748a069d79fd5bf2e4280b25a"
+      "sha256": "6e2bbd7f6b341730a6f6b0ee5fc75fd5c260eb482ab74822a03b94918437de0f"
     },
     {
       "path": "results/research/trajectory_intelligence_basketball.json",
@@ -390,7 +390,7 @@
       "path": "models/research/basketball_current.joblib",
       "exists": true,
       "bytes": 48531638,
-      "sha256": "3af0ab29b9457aee4e77358914a971aefb747c88d11d0c5a9c47b84f34879e62"
+      "sha256": "29f8456551d9c4d51b804e8859aec4f1cc647ecab28322eceb5c80c889e4e904"
     },
     {
       "path": "models/research/ufc_current.joblib",
