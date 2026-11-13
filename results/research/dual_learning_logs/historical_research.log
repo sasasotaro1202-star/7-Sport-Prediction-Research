@@ -62,13 +62,13 @@
       "lightgbm",
       "extra_trees"
     ],
-    "model_version": "5c85061e3c74d8aa",
+    "model_version": "3252b77789332455",
     "feature_version": "strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features",
     "training_rows": 4799,
     "frozen_holdout_rows": 1354,
     "features": 125,
     "training_cutoff_utc": "2021-02-28T00:00:00+00:00",
-    "git_commit_sha": "5b4e1d7d47f8a3257a202b2f0061ca3d0873a171",
+    "git_commit_sha": "b37eb738853867e6a89fbcc2b70d213a2cfff49a",
     "artifact_path": "models/research/basketball_current.joblib",
     "selection_oos": {
       "logistic": {
@@ -788,16 +788,16 @@
       },
       "uncertainty_router_raw": {
         "logloss": 0.5633994087060917,
-        "brier": 0.19026053484009342,
+        "brier": 0.19026053484009336,
         "accuracy": 0.7023633677991138,
-        "ece": 0.026491297732395256,
+        "ece": 0.026491297732395246,
         "n": 1354
       },
       "uncertainty_router_recalibrated": {
         "logloss": 0.5633994087060917,
-        "brier": 0.19026053484009342,
+        "brier": 0.19026053484009336,
         "accuracy": 0.7023633677991138,
-        "ece": 0.026491297732395256,
+        "ece": 0.026491297732395246,
         "n": 1354
       },
       "raw_logloss_improvement": 6.55155251463313e-05,
@@ -1272,14 +1272,14 @@
       },
       "temporal_memory_router": {
         "logloss": 0.5634608645086244,
-        "brier": 0.19030289934805275,
-        "ece": 0.026706258004919138,
+        "brier": 0.19030289934805272,
+        "ece": 0.026706258004919124,
         "accuracy": 0.7038404726735599,
         "n": 1354
       },
       "logloss_improvement": 4.059722613636296e-06,
-      "brier_improvement": 1.6385260673268398e-06,
-      "ece_change": 2.917225941680146e-06,
+      "brier_improvement": 1.6385260673545954e-06,
+      "ece_change": 2.9172259416662683e-06,
       "mean_route_strength": 0.0032284398262382203,
       "p95_nearest_distance": 4.640467743875802,
       "k": 20,
