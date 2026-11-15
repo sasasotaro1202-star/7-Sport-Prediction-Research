@@ -14,8 +14,8 @@
   },
   "coverage": {
     "valorant": {
-      "events": 9540,
-      "timed_events": 16,
+      "events": 9538,
+      "timed_events": 14,
       "completed_events": 9523,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
@@ -32,11 +32,11 @@
       "model_safety": "OK"
     },
     "volleyball": {
-      "events": 21769,
-      "timed_events": 21769,
-      "completed_events": 21769,
-      "resolved_outcomes": 19931,
-      "verified_model_outcomes": 19931,
+      "events": 21770,
+      "timed_events": 21770,
+      "completed_events": 21770,
+      "resolved_outcomes": 19933,
+      "verified_model_outcomes": 19933,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
