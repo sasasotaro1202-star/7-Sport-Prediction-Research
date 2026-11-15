@@ -3,10 +3,10 @@
   "eligible_events": 0,
   "match_stats": 240439,
   "exact_sources": 8,
-  "verified_outcomes": 46033,
+  "verified_outcomes": 46032,
   "replayable_rows": 1122,
   "clean_pit_features": 67320,
   "cache_key_prefix": "trajectory-ready-db-v1-",
-  "reason": "completed_events=0;match_stats=240439;exact_sources=8;verified_outcomes=46033;replayable_rows=1122;clean_pit_features=67320",
+  "reason": "completed_events=0;match_stats=240439;exact_sources=8;verified_outcomes=46032;replayable_rows=1122;clean_pit_features=67320",
   "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION"
 }
