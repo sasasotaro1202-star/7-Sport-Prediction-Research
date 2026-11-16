@@ -1,14 +1,14 @@
 {
   "version": "automation-health-v1",
-  "generated_at_utc": "2026-11-16T01:53:13.770016+00:00",
-  "head_sha": "dc4933c78b68c0f5c26294233563a1011510e6af",
+  "generated_at_utc": "2026-11-16T09:28:54.349964+00:00",
+  "head_sha": "a3abe956d7801e3c969f9b74c5274efff2bd1d39",
   "control_plane_status": "READY",
   "selected_action": "PRODUCTION_HEARTBEAT",
   "selected_workflow": "pre_event_prediction.yml",
-  "dispatch_candidate": "RUNTIME_HEALTH",
+  "dispatch_candidate": "DEEP_RESEARCH",
   "automatic_promotion": false,
   "reproducibility_status": "STALE_SNAPSHOT",
   "pit_exact_pass": 0,
   "pit_replayable_clean": 1122,
-  "queue_entry_added": true
+  "queue_entry_added": false
 }
