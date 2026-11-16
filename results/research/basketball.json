@@ -5,13 +5,13 @@
     "lightgbm",
     "extra_trees"
   ],
-  "model_version": "33052f6b34e4f46a",
+  "model_version": "b0ea2b676a29a934",
   "feature_version": "strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features",
   "training_rows": 4799,
   "frozen_holdout_rows": 1354,
   "features": 125,
   "training_cutoff_utc": "2021-02-28T00:00:00+00:00",
-  "git_commit_sha": "db442e3f99aa65459ff9784f836321cefca767e3",
+  "git_commit_sha": "2126af7b95e56fbbd16b2c5ed62ef14536be5b6d",
   "artifact_path": "models/research/basketball_current.joblib",
   "selection_oos": {
     "logistic": {
@@ -511,7 +511,7 @@
     "logloss": 0.5634649242312381,
     "brier": 0.19030453787412008,
     "accuracy": 0.7038404726735599,
-    "ece": 0.026703340778977472,
+    "ece": 0.026703340778977458,
     "n": 1354,
     "models": [
       "lightgbm",
@@ -1215,15 +1215,15 @@
     },
     "temporal_memory_router": {
       "logloss": 0.5634608645086245,
-      "brier": 0.19030289934805275,
+      "brier": 0.19030289934805272,
       "ece": 0.026706258004919152,
       "accuracy": 0.7038404726735599,
       "n": 1354
     },
     "logloss_improvement": 4.059722613525274e-06,
-    "brier_improvement": 1.6385260673268398e-06,
+    "brier_improvement": 1.6385260673545954e-06,
     "ece_change": 2.917225941694024e-06,
-    "mean_route_strength": 0.0032284398262382216,
+    "mean_route_strength": 0.0032284398262382207,
     "p95_nearest_distance": 4.640467743875802,
     "k": 20,
     "promotion_status": "RESEARCH_ONLY_NO_AUTO_PROMOTION",
