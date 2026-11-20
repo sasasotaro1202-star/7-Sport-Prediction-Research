@@ -14,8 +14,8 @@
   },
   "coverage": {
     "valorant": {
-      "events": 9572,
-      "timed_events": 49,
+      "events": 9564,
+      "timed_events": 41,
       "completed_events": 9523,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
@@ -35,8 +35,8 @@
       "events": 21779,
       "timed_events": 21779,
       "completed_events": 21779,
-      "resolved_outcomes": 19954,
-      "verified_model_outcomes": 19954,
+      "resolved_outcomes": 19955,
+      "verified_model_outcomes": 19955,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
