@@ -2438,14 +2438,14 @@
     "error_correlation": [
       [
         1.0,
-        0.7958094466425975
+        0.7958094466425951
       ],
       [
-        0.7958094466425975,
-        1.0
+        0.795809446642595,
+        0.9999999999999999
       ]
     ],
-    "mean_pairwise_error_correlation": 0.7958094466425975,
+    "mean_pairwise_error_correlation": 0.7958094466425951,
     "mean_error_overlap": 0.2708333333333333
   },
   "future_model_failure": {

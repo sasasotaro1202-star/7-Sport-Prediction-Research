@@ -14,8 +14,8 @@
   },
   "coverage": {
     "valorant": {
-      "events": 9565,
-      "timed_events": 42,
+      "events": 9572,
+      "timed_events": 49,
       "completed_events": 9523,
       "resolved_outcomes": 9518,
       "verified_model_outcomes": 9518,
@@ -32,9 +32,9 @@
       "model_safety": "OK"
     },
     "volleyball": {
-      "events": 21777,
-      "timed_events": 21777,
-      "completed_events": 21777,
+      "events": 21778,
+      "timed_events": 21778,
+      "completed_events": 21778,
       "resolved_outcomes": 19954,
       "verified_model_outcomes": 19954,
       "accepted_models": 0,

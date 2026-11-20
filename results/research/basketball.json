@@ -5,13 +5,13 @@
     "lightgbm",
     "extra_trees"
   ],
-  "model_version": "c807baa6b11c691f",
+  "model_version": "306ee4307a233a54",
   "feature_version": "strict-pit-v20-multiscale-form-h2h-freshness-router-competition-elo-scope-aware-features",
   "training_rows": 4799,
   "frozen_holdout_rows": 1354,
   "features": 125,
   "training_cutoff_utc": "2021-02-28T00:00:00+00:00",
-  "git_commit_sha": "0114108b10ae6735ae8c8cf3d6c8ae5d9374bf7e",
+  "git_commit_sha": "e391ff7046234fddc8483e39c00e4a07405dc941",
   "artifact_path": "models/research/basketball_current.joblib",
   "selection_oos": {
     "logistic": {
@@ -511,7 +511,7 @@
     "logloss": 0.5634649242312381,
     "brier": 0.19030453787412008,
     "accuracy": 0.7038404726735599,
-    "ece": 0.026703340778977465,
+    "ece": 0.026703340778977472,
     "n": 1354,
     "models": [
       "lightgbm",
@@ -660,13 +660,13 @@
     "dynamic_router": {
       "logloss": 0.5633796021949795,
       "brier": 0.19027518891026304,
-      "ece": 0.025660942146220174,
+      "ece": 0.025660942146220167,
       "accuracy": 0.7038404726735599,
       "n": 1354
     },
     "logloss_improvement": 8.53220362585505e-05,
     "brier_improvement": 2.9348963857034338e-05,
-    "ece_change": -0.001042398632757284,
+    "ece_change": -0.001042398632757291,
     "policy": "router_fit_pre_holdout_only; reused chronological OOF base predictions; frozen_holdout_labels_used_only_for_scoring"
   },
   "dynamic_router_status": "FALLBACK_FIXED_ENSEMBLE",
@@ -731,16 +731,16 @@
     },
     "uncertainty_router_raw": {
       "logloss": 0.5633994087060917,
-      "brier": 0.19026053484009342,
+      "brier": 0.19026053484009336,
       "accuracy": 0.7023633677991138,
-      "ece": 0.026491297732395266,
+      "ece": 0.026491297732395263,
       "n": 1354
     },
     "uncertainty_router_recalibrated": {
       "logloss": 0.5633994087060917,
-      "brier": 0.19026053484009342,
+      "brier": 0.19026053484009336,
       "accuracy": 0.7023633677991138,
-      "ece": 0.026491297732395266,
+      "ece": 0.026491297732395263,
       "n": 1354
     },
     "raw_logloss_improvement": 6.55155251463313e-05,
@@ -1498,14 +1498,14 @@
       "error_correlation": [
         [
           1.0,
-          0.7958094466425975
+          0.7958094466425951
         ],
         [
-          0.7958094466425975,
-          1.0
+          0.795809446642595,
+          0.9999999999999999
         ]
       ],
-      "mean_pairwise_error_correlation": 0.7958094466425975,
+      "mean_pairwise_error_correlation": 0.7958094466425951,
       "mean_error_overlap": 0.2708333333333333
     },
     "selective_ablation": {
@@ -4128,14 +4128,14 @@
       "error_correlation": [
         [
           1.0,
-          0.7958094466425975
+          0.7958094466425951
         ],
         [
-          0.7958094466425975,
-          1.0
+          0.795809446642595,
+          0.9999999999999999
         ]
       ],
-      "mean_pairwise_error_correlation": 0.7958094466425975,
+      "mean_pairwise_error_correlation": 0.7958094466425951,
       "mean_error_overlap": 0.2708333333333333
     },
     "future_model_failure": {
