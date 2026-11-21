@@ -35,8 +35,8 @@
       "events": 21781,
       "timed_events": 21781,
       "completed_events": 21781,
-      "resolved_outcomes": 19976,
-      "verified_model_outcomes": 19976,
+      "resolved_outcomes": 19978,
+      "verified_model_outcomes": 19978,
       "accepted_models": 0,
       "model_safety": "DEFERRED:insufficient_strict_PIT_rows"
     },
